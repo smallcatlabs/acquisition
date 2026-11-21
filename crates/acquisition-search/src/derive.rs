@@ -163,14 +163,14 @@
 //!   frameTypeId string … I think this means we need to support both
 //!   'rarity' and 'frame' or 'frameType' as a search." On an ilvl of 0 as
 //!   absent, and on a vaal gem's base skill as lines and displayed strings
-//!   of their own: "Agreed", each. On the requirements, after the builder
-//!   had made each its own string: "In the trade site, item level is
+//!   of their own: "Agreed", each. On the requirements, each its own
+//!   string: "In the trade site, item level is
 //!   rendered as "Item Level: \<N>" and the required level is "Requires
 //!   Level \<N>"", then "I agree on the display row for requirements with
 //!   each requirement kept separately." The C++ app builds the same row
 //!   (`src/ui/itemtooltiptext.cpp`, name before value throughout); here
-//!   GGG's `displayMode` orders each, `159 Str`. On the item level, a
-//!   field only until then: "Let's make the item level a displayed string."
+//!   GGG's `displayMode` orders each, `159 Str`. On the item level: "Let's
+//!   make the item level a displayed string."
 //!   Measured over the census's store copy
 //!   (22,721 live items): 8,297 carry no rarity, 7,903 an ilvl of 0, 457 a
 //!   base skill of 2,251 lines.

@@ -7,9 +7,9 @@
 //!
 //! An item entered is the item as the site sent it
 //! (`search/pseudo-stats/data/bodies.json`, `tools/trade-captures.py`): an
-//! item rebuilt from the extract's selection of it lost what the search
-//! reads — the bestiary text that makes a beast a beast, the item level —
-//! and 3,438 of the items missed where 497 do as sent.
+//! item rebuilt from the extract's selection of it would lose what the
+//! search reads — the bestiary text that makes a beast a beast, the item
+//! level.
 //!
 //! Every item that the text does not match is a disagreement, and an item
 //! the text leaves undecided is one too, of its own kind, never a match.

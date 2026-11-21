@@ -96,12 +96,11 @@
 //!    opened only by the owner, at a terminal. No GGG traffic anywhere in
 //!    this plan; the one daemon is M5's, a mock session.
 //!
-//! Rules 8 to 10 are what the build's audits taught (`SEARCH-SLICE.md` at
-//! `b6197a82`, "Findings"), each a fault that came back until it was named;
-//! the owner approved their meaning from a plain account of each and left
-//! the wording to the builder ("the words that get written down are for
-//! you"). Each names what already holds it: the rule is for the moment
-//! before the code is written.
+//! Rules 8 to 10 each name a fault that comes back until it is named
+//! (`SEARCH-SLICE.md` at `b6197a82`, "Findings"); their meaning is the
+//! owner's and their wording the builder's ("the words that get written
+//! down are for you"). Each names what already holds it: the rule is for
+//! the moment before the code is written.
 //!
 //! 8. **Unknown is said once, where the evidence is read, and of no more
 //!    than was lost.** What the deriver cannot read — a flag that is no yes
