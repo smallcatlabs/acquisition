@@ -48,27 +48,27 @@ when its step closes or the owner strikes it.
    #185, #188, #183, #193), one design, its brief first; #190's rest
    (the save form's, the big form's and the plan's refusals) rides with
    it, and so does a sort by values a player names (the page seat after
-   step 6, fault 2; `audits/web-step6/seat/README.md`); #296, a place's
-   line, waits on the owner's word. The look is #285; what an apply
-   brought, said on its job, is
-   #182's rest; the never-fetched tabs of a league the scope's link does
-   not name are #194's rest. #294, how the search names a value, waits on
-   the owner's word before any step builds it.
-2. 4-full parts 2 and 3, each its own design session
+   step 6, fault 2; `audits/web-step6/seat/README.md`) and #296, a
+   place's line, as ruled on it. A saved search's row keeps its source
+   (#193, as ruled on it). The look is #285; what an apply brought, said
+   on its job, is #182's rest; the never-fetched tabs of a league the
+   scope's link does not name are #194's rest.
+2. The frontends' whole-code review, once item 1 closes.
+3. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
-3. The test-shape group's t6, one canonical mock world and the door's
+4. The test-shape group's t6, one canonical mock world and the door's
    corpus (#142), designed from the GUI's door; t7 (#143) only if t6
    shows the shape pays.
-4. The queued search and trade issues: #283 (the translation builds
+5. The queued search and trade issues: #283 (the translation builds
    two answers of the sitting of 2026-11-17), #46, #47, and #37 once
    the owner has sat the site.
-5. `alpha.2` (milestone "League 3.30 and alpha.2"): the release, where
-   the `keyring-macos` job runs for the first time; the tables stand at
-   3.30 (the close of `search-276`). The prune verb (#43) rides with
-   it, and #281, the export's lost trade-id joins, waits on the next
-   pin.
-6. PoE2 (milestone "PoE2 launch"): the route flip and the
+6. `alpha.2` (milestone "League 3.30 and alpha.2"): the release, its
+   `keyring-macos` job dispatched once by hand before it; the tables
+   stand at 3.30 (the close of `search-276`). Before it: #256, #222 and
+   the facts door (#212), which the prune verb (#43) waits on. #281,
+   the export's lost trade-id joins, waits on the next pin.
+7. PoE2 (milestone "PoE2 launch"): the route flip and the
    first-contact checklist prepared unmerged; a first contact only if
    GGG ships the stash endpoint.
 
@@ -98,7 +98,8 @@ His queue is the open issues labelled `trigger:ruling`:
   id for a string with markup (#281): a post on another project's
   tracker.
 - After 2026-11-30, re-measure what the governance rebuild changed
-  (#220).
+  (#220), and rule the gate's four questions on its record (#257,
+  #225).
 
 ## Starting a session
 

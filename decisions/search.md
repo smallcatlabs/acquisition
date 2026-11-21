@@ -44,3 +44,4 @@ What someone would propose and the project declines, each until the trigger it n
 - A realm word inside a term: refused under C96; two searches are the workaround.
 - Mod attribution (affix type, tier): not until a recorded question needs an affix count or a tier; C102 names it out of reach.
 - Items that show a wording a release retired, counted or read as undecided: not until `live`, a second league's regeneration that leaves more than a hundred such items in a store; a fetch cures each, and every answer says its places' fetch age.
+- A value named by the question it asks, where it is named by its text as spelled, and a slot named by its own alternative of an or, where it is named by its whole group's selector: not until `seat` or `user`, a query met at the tool that shows a doubled column or a column holding a number its comparison did not bind; no match, count or order differs.
