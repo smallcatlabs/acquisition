@@ -16,10 +16,21 @@
 //!   whose own row differs carries that row's status in its label. A
 //!   listing-only row is rendered disabled: a browser submits nothing of
 //!   a disabled control, so the fold never meets one.
-//! - **A name is a path**: dot-separated keys, `[n]` an array's element —
-//!   `query.filters.type_filters.filters.category.option`,
-//!   `query.stats[0].filters[1].value.min`. These names are no path and
-//!   go elsewhere: `realm` and `membership` to the request's scope (the
+//! - **A name is a path**: dot-separated keys —
+//!   `query.filters.type_filters.filters.category.option`. No name carries
+//!   an index.
+//! - **The stat fields are positional**, as `view.value` is: `group.type`
+//!   begins a stat group and `stat.id` a row in the group last begun, each
+//!   by its presence, its value empty or not; `group.min`, `group.max` and
+//!   `group.disabled` belong to the group last begun, and `stat.min`,
+//!   `stat.max`, `stat.weight`, `stat.option` and `stat.disabled` to the
+//!   row last begun in it. A field before the thing it belongs to is a
+//!   usage error. So the names stay a fixed set, a row added names
+//!   nothing, and a row removed leaves no hole: a page's every link and
+//!   hidden field keeps its fields' order. A value key a group's type does
+//!   not take is dropped, asked of the translation's own lists
+//!   (`stat_value_keys`, `group_value_keys`), never restated here.
+//! - **Other names are no path** and go elsewhere: `realm` and `membership` to the request's scope (the
 //!   membership as the word typed, which the request's reader reads or
 //!   refuses in the search's words), `league` and
 //!   `defences` beside the query (C141, the league beside the trade JSON;
@@ -45,9 +56,9 @@
 //!   site box sent empty, are a usage error.
 //! - **A name is one the form emitted**: the fold refuses any other as
 //!   a usage error before it builds anything (C47, malformed external
-//!   input is a structured error), so no index past the form's stat rows
-//!   and no path it never wrote can shape the JSON. The names are the
-//!   form's own: a test holds the rendered form to them.
+//!   input is a structured error), so no path it never wrote can shape
+//!   the JSON. The names are the form's own: a test holds the form, filled
+//!   with every control, to them (`fill.rs`).
 //! - **The fold drops what is empty**: every field submitted empty but
 //!   `text`, then an object or array left with nothing in it, then a stat
 //!   group left with no filter (its type alone says nothing). `text`
@@ -55,7 +66,10 @@
 //!   in its scope, so a saved search over every item folds back. A `min`,
 //!   `max`, `weight` or socket colour that reads as a number is one;
 //!   anything else is the text typed, which the translation reports as it
-//!   reads it. The fold decides nothing the translation decides.
+//!   reads it. The fold decides nothing the translation decides. Its
+//!   envelope is in one normal form ([`normal`]): a null, an empty string
+//!   and a `disabled` of false dropped, then what is left empty, then a
+//!   stat group with no filter; the fill reads that form (`fill.rs`).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -194,6 +208,12 @@ impl Form {
         self.fates.get(key)
     }
 
+    /// Every field name the fold accepts.
+    #[cfg(test)]
+    pub(crate) fn names(&self) -> &BTreeSet<String> {
+        &self.names
+    }
+
     /// The site's label for a key, as the catalogue writes it.
     pub(crate) fn text(&self, key: &str) -> Option<&str> {
         self.fates.get(key).and_then(|f| f.text.as_deref())
@@ -252,16 +272,30 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
             }
         }
     }
-    for name in ["type", "value.min", "value.max", "disabled"] {
-        names.insert(format!("query.stats[0].{name}"));
-    }
-    for n in 0..STAT_ROWS {
-        for name in ["id", "value.min", "value.max"] {
-            names.insert(format!("query.stats[0].filters[{n}].{name}"));
-        }
-    }
+    names.extend(
+        GROUP_FIELDS
+            .iter()
+            .chain(ROW_FIELDS.iter())
+            .map(|n| n.to_string()),
+    );
     names
 }
+
+/// A stat group's fields, positional: `group.type` begins a group, and the
+/// rest belong to the group last begun (the module doc).
+pub(crate) const GROUP_FIELDS: [&str; 4] =
+    ["group.type", "group.min", "group.max", "group.disabled"];
+
+/// A stat row's fields, positional: `stat.id` begins a row in the group
+/// last begun, and the rest belong to the row last begun in it.
+pub(crate) const ROW_FIELDS: [&str; 6] = [
+    "stat.id",
+    "stat.min",
+    "stat.max",
+    "stat.weight",
+    "stat.option",
+    "stat.disabled",
+];
 
 /// What a form submission asks: the trade JSON the fields fold into, and
 /// the request's scope and view.
@@ -399,8 +433,43 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
     };
     let mut league = None;
     let mut defences = None;
+    let mut groups: Vec<StatGroup> = Vec::new();
     for (name, value) in fields {
         let value = value.trim();
+        // a stat field, read by its place among the fields: its presence
+        // begins a group or a row, its value empty or not
+        if let Some(field) = name.strip_prefix("group.") {
+            if field == "type" {
+                groups.push(StatGroup::default());
+            }
+            let group = groups.last_mut().ok_or_else(|| {
+                format!(
+                    "`{name}` comes before any `group.type`: a stat group's fields follow the \
+                     type that begins it"
+                )
+            })?;
+            group.fields.push((field.to_string(), value.to_string()));
+            continue;
+        }
+        if let Some(field) = name.strip_prefix("stat.") {
+            let group = groups.last_mut().ok_or_else(|| {
+                format!(
+                    "`{name}` comes before any `group.type`: a stat row stands in a group, which \
+                     its type begins"
+                )
+            })?;
+            if field == "id" {
+                group.rows.push(Vec::new());
+            }
+            let row = group.rows.last_mut().ok_or_else(|| {
+                format!(
+                    "`{name}` comes before any `stat.id` of its group: a row's fields follow \
+                     the stat that begins it"
+                )
+            })?;
+            row.push((field.to_string(), value.to_string()));
+            continue;
+        }
         // the text sent is the query, empty or not (the module doc)
         if name == "text" {
             folded.text = Some(value.to_string());
@@ -459,6 +528,14 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
                 .to_string(),
         );
     }
+    let stats: Vec<Value> = groups.iter().map(StatGroup::folded).collect();
+    if !stats.is_empty() {
+        put(
+            &mut query,
+            &[Step::Key("stats".into())],
+            Value::Array(stats),
+        );
+    }
     prune(&mut query);
     drop_empty_stat_groups(&mut query);
     let mut envelope = Map::new();
@@ -480,15 +557,120 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
     Ok(folded)
 }
 
+/// A stat group as its fields came, each field's name past `group.` or
+/// `stat.`, in the order sent.
+#[derive(Default)]
+struct StatGroup {
+    fields: Vec<(String, String)>,
+    rows: Vec<Vec<(String, String)>>,
+}
+
+impl StatGroup {
+    /// The group as the site's JSON spells it: its type, its count's
+    /// bound and its `disabled`, then each row, a value key the group's
+    /// type does not take dropped by the translation's own list
+    /// (`stat_value_keys`), and the empty dropped as every field's is.
+    fn folded(&self) -> Value {
+        use acquisition_search::trade::translate::{group_value_keys, stat_value_keys};
+        let mut group = Value::Object(Map::new());
+        // the type the group was sent with: its last, as every field's
+        let kind = self
+            .fields
+            .iter()
+            .rev()
+            .find(|(field, _)| field == "type")
+            .map_or("", |(_, value)| value.as_str());
+        let bounds = group_value_keys(kind);
+        for (field, value) in &self.fields {
+            if value.is_empty() {
+                continue;
+            }
+            let path: &[&str] = match field.as_str() {
+                "type" => &["type"],
+                key @ ("min" | "max") if bounds.contains(&key) => &["value", key],
+                "min" | "max" => continue,
+                _ => &["disabled"],
+            };
+            put_keys(&mut group, path, value);
+        }
+        let takes = stat_value_keys(kind);
+        let rows: Vec<Value> = self
+            .rows
+            .iter()
+            .map(|fields| {
+                let mut row = Value::Object(Map::new());
+                for (field, value) in fields {
+                    if value.is_empty() {
+                        continue;
+                    }
+                    match field.as_str() {
+                        "id" => put_keys(&mut row, &["id"], value),
+                        "disabled" => put_keys(&mut row, &["disabled"], value),
+                        key if takes.contains(&key) => put_keys(&mut row, &["value", key], value),
+                        _ => {}
+                    }
+                }
+                row
+            })
+            .collect();
+        put(
+            &mut group,
+            &[Step::Key("filters".into())],
+            Value::Array(rows),
+        );
+        group
+    }
+}
+
+/// `value`, typed by its last key, put at `keys` under `at`.
+fn put_keys(at: &mut Value, keys: &[&str], value: &str) {
+    let steps: Vec<Step> = keys.iter().map(|k| Step::Key(k.to_string())).collect();
+    put(at, &steps, typed(keys.last().copied().unwrap_or(""), value));
+}
+
+/// The fold's normal form of an envelope, what the fill reads and its pin
+/// compares (`4-full-1-form-design.md` §2): a null, an empty string and a
+/// `disabled` of false dropped at every depth, then what is left empty,
+/// then a stat group with no filter. What the fold writes is in it.
+pub(crate) fn normal(envelope: &Value) -> Value {
+    fn strip(value: &Value) -> Value {
+        match value {
+            Value::Object(o) => Value::Object(
+                o.iter()
+                    .filter(|(k, v)| {
+                        !(v.is_null()
+                            || v.as_str() == Some("")
+                            || (k.as_str() == "disabled" && *v == &Value::Bool(false)))
+                    })
+                    .map(|(k, v)| (k.clone(), strip(v)))
+                    .collect(),
+            ),
+            Value::Array(a) => Value::Array(
+                a.iter()
+                    .filter(|v| !(v.is_null() || v.as_str() == Some("")))
+                    .map(strip)
+                    .collect(),
+            ),
+            other => other.clone(),
+        }
+    }
+    let mut out = strip(envelope);
+    prune(&mut out);
+    if let Some(query) = out.get_mut("query") {
+        drop_empty_stat_groups(query);
+    }
+    out
+}
+
 #[derive(Debug, PartialEq)]
-enum Step {
+pub(crate) enum Step {
     Key(String),
     Index(usize),
 }
 
 /// `stats[0].filters[1].id` as its steps; none where a step is empty or
 /// an index is no number.
-fn steps(path: &str) -> Option<Vec<Step>> {
+pub(crate) fn steps(path: &str) -> Option<Vec<Step>> {
     let mut out = Vec::new();
     for part in path.split('.') {
         let (key, mut rest) = match part.find('[') {
@@ -514,7 +696,7 @@ fn steps(path: &str) -> Option<Vec<Step>> {
 /// A field's value as the site's JSON spells it: a number where the key
 /// takes one and the text reads as one, a group's `disabled` a boolean,
 /// else the text.
-fn typed(key: &str, value: &str) -> Value {
+pub(crate) fn typed(key: &str, value: &str) -> Value {
     // the site's own `disabled` is a boolean
     if key == "disabled" {
         match value {
@@ -635,11 +817,11 @@ mod tests {
                 ("query.filters.type_filters.filters.rarity.option", ""),
                 ("query.filters.misc_filters.filters.ilvl.min", "75"),
                 ("query.filters.misc_filters.filters.ilvl.max", ""),
-                ("query.stats[0].type", "and"),
-                ("query.stats[0].filters[0].id", ""),
-                ("query.stats[0].filters[0].value.min", ""),
-                ("query.stats[0].filters[1].id", "explicit.stat_3299347043"),
-                ("query.stats[0].filters[1].value.min", "40.5"),
+                ("group.type", "and"),
+                ("stat.id", ""),
+                ("stat.min", ""),
+                ("stat.id", "explicit.stat_3299347043"),
+                ("stat.min", "40.5"),
                 ("view.limit", "50"),
                 ("view.sort", ""),
             ]),
@@ -696,10 +878,7 @@ mod tests {
         let form = Form::load().unwrap();
         let folded = fold(
             &form,
-            &fields(&[
-                ("query.stats[0].type", "count"),
-                ("query.stats[0].value.min", "2"),
-            ]),
+            &fields(&[("group.type", "count"), ("group.min", "2")]),
         )
         .unwrap();
         assert_eq!(folded.envelope, json!({ "query": {} }));
@@ -732,25 +911,24 @@ mod tests {
         let folded = fold(
             &form,
             &fields(&[
-                ("query.stats[0].disabled", "true"),
-                ("query.stats[0].type", "and"),
-                ("query.stats[0].filters[0].id", "explicit.stat_3299347043"),
-                ("query.stats[0].filters[0].value.min", "40"),
+                ("group.type", "and"),
+                ("group.disabled", "true"),
+                ("stat.id", "explicit.stat_3299347043"),
+                ("stat.min", "40"),
             ]),
         )
         .unwrap();
         assert_eq!(
             folded.envelope["query"]["stats"],
-            json!([{ "disabled": true, "type": "and", "filters": [
+            json!([{ "type": "and", "disabled": true, "filters": [
                 { "id": "explicit.stat_3299347043", "value": { "min": 40 } }
             ] }])
         );
         assert!(fold(&form, &fields(&[("scope.realm", "pc")])).is_err());
-        assert!(fold(&form, &fields(&[("query.stats[x].id", "a")])).is_err());
-        let past = fold(&form, &fields(&[("query.stats[1000000000].type", "and")])).unwrap_err();
-        assert!(past.contains("no field of this form"), "{past}");
-        let row = format!("query.stats[0].filters[{STAT_ROWS}].id");
-        assert!(fold(&form, &fields(&[(row.as_str(), "x")])).is_err());
+        // an indexed path is no name of the form: the stat fields are
+        // positional
+        let indexed = fold(&form, &fields(&[("query.stats[0].type", "and")])).unwrap_err();
+        assert!(indexed.contains("no field of this form"), "{indexed}");
         // a number field that does not read as one is the text typed
         let folded = fold(
             &form,
@@ -761,6 +939,77 @@ mod tests {
             folded.envelope["query"]["filters"]["misc_filters"]["filters"]["ilvl"]["min"],
             "lots"
         );
+    }
+
+    /// The stat fields are positional (the module doc): `group.type` begins
+    /// a group and `stat.id` a row in it, each by its presence, its value
+    /// empty or not; a group's fields belong to the group last begun and a
+    /// row's to the row last begun in it, so two groups and their rows fold
+    /// in the order sent and an emptied row leaves no hole. A field before
+    /// what it belongs to is a usage error. A value key a group's type does
+    /// not take is dropped, by the translation's own lists: a row's weight
+    /// outside a weighted sum, a group's bound outside a count or a sum.
+    #[test]
+    fn the_stat_fields_fold_by_their_place_and_a_type_drops_what_it_does_not_take() {
+        let form = Form::load().unwrap();
+        let folded = fold(
+            &form,
+            &fields(&[
+                ("group.type", "and"),
+                ("stat.id", "explicit.stat_3299347043"),
+                ("stat.min", "40"),
+                ("stat.weight", "2"),
+                ("stat.id", ""),
+                ("stat.min", ""),
+                ("stat.id", "explicit.stat_3372524247"),
+                ("stat.disabled", "true"),
+                ("group.min", "1"),
+                ("group.type", "weight"),
+                ("group.min", "60"),
+                ("stat.id", "explicit.stat_4220027924"),
+                ("stat.weight", "1.5"),
+                ("stat.option", "x"),
+                ("group.disabled", "true"),
+                ("stat.max", "9"),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(
+            folded.envelope["query"]["stats"],
+            json!([
+                { "type": "and", "filters": [
+                    { "id": "explicit.stat_3299347043", "value": { "min": 40 } },
+                    { "id": "explicit.stat_3372524247", "disabled": true },
+                ] },
+                { "type": "weight", "value": { "min": 60 }, "disabled": true, "filters": [
+                    { "id": "explicit.stat_4220027924",
+                      "value": { "weight": 1.5, "option": "x", "max": 9 } },
+                ] },
+            ])
+        );
+        for (sent, says) in [
+            (
+                vec![("stat.id", "explicit.stat_3299347043")],
+                "before any `group.type`",
+            ),
+            (vec![("group.min", "1")], "before any `group.type`"),
+            (
+                vec![("group.type", "and"), ("stat.min", "1")],
+                "before any `stat.id` of its group",
+            ),
+            (
+                vec![
+                    ("group.type", "and"),
+                    ("stat.id", "explicit.stat_3299347043"),
+                    ("group.type", "and"),
+                    ("stat.min", "1"),
+                ],
+                "before any `stat.id` of its group",
+            ),
+        ] {
+            let refused = fold(&form, &fields(&sent)).unwrap_err();
+            assert!(refused.contains(says), "{sent:?}: {refused}");
+        }
     }
 
     /// `view.fields` is the row's fields as the CLI's `--fields` names
@@ -822,28 +1071,5 @@ mod tests {
             assert_eq!(fate.status, "listing_only", "{}", f.id);
             assert!(fate.says.is_some(), "{}", f.id);
         }
-    }
-
-    /// The names the fold accepts are exactly the names the rendered form
-    /// carries and the view's untyped names, which no control of it writes
-    /// (nothing is typed to sort): the two are written apart,
-    /// and this holds them together.
-    #[test]
-    fn the_fold_accepts_exactly_the_names_the_rendered_form_carries() {
-        let form = Form::load().unwrap();
-        let page =
-            crate::web::page::search_form(&form, "pc", Some(&[("Standard".to_string(), true)]));
-        let mut rendered = BTreeSet::new();
-        for part in page.split("name=\"").skip(1) {
-            rendered.insert(part[..part.find('"').unwrap()].to_string());
-        }
-        for untyped in UNTYPED {
-            assert!(
-                !rendered.contains(untyped),
-                "{untyped} is a control of the form"
-            );
-            rendered.insert(untyped.to_string());
-        }
-        assert_eq!(rendered, form.names);
     }
 }

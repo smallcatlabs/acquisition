@@ -14,6 +14,9 @@ mod shared;
 #[path = "../../../acquisition-client/tests/harness/journey.rs"]
 pub mod journey;
 
+/// A form as a browser submits it, shared with the fill's pin.
+pub mod submitted;
+
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -1326,11 +1329,26 @@ impl WebUi {
         headers: &[(&str, &str)],
         body: &str,
     ) -> Reply {
+        raw_at(&self.addr, method, path, host, headers, body)
+    }
+}
+
+/// [`WebUi::raw`] at a server's address: what a recording asks of the
+/// server it records ([`Pages`]).
+fn raw_at(
+    addr: &str,
+    method: &str,
+    path: &str,
+    host: Option<&str>,
+    headers: &[(&str, &str)],
+    body: &str,
+) -> Reply {
+    {
         use std::io::{Read as _, Write as _};
-        let mut stream = std::net::TcpStream::connect(&self.addr).expect("connecting to acq web");
+        let mut stream = std::net::TcpStream::connect(addr).expect("connecting to acq web");
         let mut request = format!(
             "{method} {path} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n",
-            host.unwrap_or(&self.addr)
+            host.unwrap_or(addr)
         );
         for (k, v) in headers {
             request.push_str(&format!("{k}: {v}\r\n"));
@@ -1375,7 +1393,9 @@ impl WebUi {
             body,
         }
     }
+}
 
+impl WebUi {
     /// GET a page by its path under the token (`""` the form, `"jobs"`).
     pub fn get(&self, path: &str) -> Reply {
         self.raw("GET", &format!("/{}/{path}", self.token), None, &[], "")
@@ -1484,8 +1504,11 @@ pub fn no_state(reply: &Reply, token: &str) -> Result<(), String> {
 /// form's close: the part of the page every golden of a page carrying the form
 /// would repeat whole (51 KB of the form page's 54 KB), whatever its realm. It
 /// is cut from each page that carries it, which says so in one line, and pinned
-/// once, in the golden named here ([`panes_golden`]), so an edit to the form
-/// changes one golden.
+/// once, empty as the server's form page renders it, in the golden named here
+/// ([`panes_golden`]), so an edit to the form changes one golden. A page whose
+/// form is filled records, under that line, the lines of its panes the empty
+/// form's lack: what it was filled with, read in its own golden. That the
+/// form sends what it holds is the fill's pin (`web/fill.rs`).
 const FORM_PANES: (&str, &str, &str) = ("<div class=\"panes\">\n", "</form>\n", "search_form");
 
 /// The pages of a golden (C122): each page as `GET <path>` or `POST
@@ -1500,9 +1523,11 @@ pub struct Pages {
     web_addr: String,
     text: String,
     facts: usize,
-    /// The search form's panes as the pages carrying them render them,
-    /// with the first page that did: one text, or the recording fails.
-    form_panes: Option<(String, String)>,
+    /// The search form's panes as the server's empty form renders them,
+    /// the reference each page's panes are cut against.
+    form_panes: Option<String>,
+    /// A recorded page carried the panes, so [`panes_golden`] must pin them.
+    panes_seen: bool,
     /// [`panes_golden`] compared them: [`page_golden`] refuses a
     /// recording whose cut panes no golden holds.
     panes_pinned: bool,
@@ -1523,6 +1548,7 @@ impl Pages {
             text: String::new(),
             facts: 0,
             form_panes: None,
+            panes_seen: false,
             panes_pinned: false,
             fetched_live: false,
             placeholders: Vec::new(),
@@ -1642,18 +1668,44 @@ impl Pages {
         {
             let to = from + len + close.len();
             let panes = masked[from..to].to_string();
-            match &self.form_panes {
-                Some((first, held)) => assert!(
-                    *held == panes,
-                    "{label}: the search form's panes differ from {first}'s; one golden holds them, \
-                     so the pages carrying them must render them alike"
-                ),
-                None => self.form_panes = Some((label.to_string(), panes)),
+            self.panes_seen = true;
+            // the reference, asked once a page carries the panes: the empty
+            // form, as the server's form page renders it, which reads and
+            // writes nothing
+            if self.form_panes.is_none() {
+                let home = raw_at(
+                    &self.web_addr,
+                    "GET",
+                    &format!("/{}/", self.web_token),
+                    None,
+                    &[],
+                    "",
+                )
+                .body;
+                self.form_panes = home.find(open).and_then(|from| {
+                    let len = home[from..].find(close)?;
+                    Some(home[from..from + len + close.len()].to_string())
+                });
             }
-            masked.replace_range(
-                from..to,
-                &format!("<the search form's panes and controls: golden web/{name}>\n"),
-            );
+            let empty = self
+                .form_panes
+                .as_deref()
+                .unwrap_or_else(|| panic!("{label}: the server's form page carries no panes"));
+            // a filled form: the lines the empty form's panes lack, in order
+            let held: std::collections::HashSet<&str> = empty.lines().collect();
+            let filled: String = panes
+                .lines()
+                .filter(|line| !held.contains(line))
+                .map(|line| format!("{line}\n"))
+                .collect();
+            let cut = match filled.is_empty() {
+                true => format!("<the search form's panes and controls: golden web/{name}>\n"),
+                false => format!(
+                    "<the search form's panes and controls: golden web/{name}, filled with these \
+                     lines>\n{filled}"
+                ),
+            };
+            masked.replace_range(from..to, &cut);
         }
         self.text.push_str(&masked);
         self.text.push('\n');
@@ -1670,7 +1722,7 @@ pub fn page_golden(file: &str, name: &str, pages: &Pages) {
         "page golden {name}: no page carries a fact; name the words a reader must find (C122)"
     );
     assert!(
-        pages.form_panes.is_none() || pages.panes_pinned,
+        !pages.panes_seen || pages.panes_pinned,
         "page golden {name}: a page carries the search form's panes, cut from it; pin them first \
          with panes_golden(file!(), \"{}\", …)",
         FORM_PANES.2
@@ -1699,10 +1751,14 @@ pub fn page_golden(file: &str, name: &str, pages: &Pages) {
 pub fn panes_golden(file: &str, name: &str, pages: &mut Pages) {
     let (_, _, cut) = FORM_PANES;
     assert_eq!(name, cut, "the search form's panes are cut as golden {cut}");
-    let (_, panes) = pages
+    assert!(
+        pages.panes_seen,
+        "no page of this recording carries the search form's panes"
+    );
+    let panes = pages
         .form_panes
         .as_ref()
-        .expect("no page of this recording carries the search form's panes");
+        .expect("the server's form page carries the panes");
     let stem = Path::new(file)
         .file_stem()
         .and_then(|s| s.to_str())

@@ -67,8 +67,9 @@
 //!   renders that document — its words, its readings, then each offer
 //!   saying what it is: a read as a link to the route that takes it, a
 //!   write as a form posting the fields its route takes with one button in
-//!   the offer's words. A search is a link where the form's own fields fold
-//!   back to the request offered; a league's plan, or its tabs, a link to
+//!   the offer's words. A search is a link where the page asks it — its
+//!   text, or its site search as one word ([`Web::asked_by_the_form`]) —
+//!   and those fields fold back to the request offered; a league's plan, or its tabs, a link to
 //!   that page; the saved ways — the list, an opening, a write, a clear —
 //!   as the C168 section below spells them; any other way on is no page's,
 //!   and nothing on a page stands for it. The plan page prints no command
@@ -285,9 +286,9 @@
 //!   added, or taken out where open, and `at`, at the row's anchor
 //!   (`page::row_anchor`). `at` is one load's landing, never state: no form
 //!   writes it and no link carries a page's own on, and one no order holds
-//!   is ignored. `window.js` seeks the URL's anchor inside the table once
-//!   its segments are sized and before its first fill, so the fill keeps
-//!   the block the server rendered for it; a row's anchor stands below the
+//!   is ignored. `window.js` seeks the URL's anchor (a row, or the answer
+//!   a search lands at) once its segments are sized and before its first
+//!   fill, so the fill keeps the block the server rendered for it; a row's anchor stands below the
 //!   sticky heads by its scroll margin. **The card** is `page::card` of the
 //!   row's `item`, which every window asks, with the page's view links, so
 //!   its numbers add columns. **Its place**, on every card and on the item
@@ -301,14 +302,30 @@
 //!   has one; [`item`] takes `against` as `acq show --against` does,
 //!   through `show::against`, and its JSON is that document. The way back
 //!   is the row the card stands under.
-//! - **What a page keeps of its input** (#190): the query box carries one
-//!   `page::BoxView` — the order and values the URL named, the table, the
-//!   rows' number — made from an answer's rows, and a line by the save form
-//!   names each part of it a save leaves behind, a saved search being its
-//!   query and its scope (C167). A refused `GET search` whose URL names
-//!   `text` renders the refusal, then the box holding that text and the
-//!   view as sent; its status and its JSON are the refusal's.
+//! - **One page** (`roadmap/briefs/4-full-1-form-design.md` §2): `.` and
+//!   `search` render the editors ([`page::editor`]) — what the form's
+//!   envelope holds and no control sends, named; the search form; the query
+//!   box; the site box — then the answer or the refusal at the anchor
+//!   `answer`, which every form that submits to `search` names in its
+//!   action. The source says which editor is filled ([`Web::editors`]): a
+//!   site search, the form's own envelope among them, is decoded and fills
+//!   the form (`fill.rs`), the query box holding the answer's canonical
+//!   text, closed; a text fills the query box, open, over an empty form; a
+//!   continuation is read by its token's request, a site search first where
+//!   a text stands beside it. Both editors carry one `page::BoxView` — the
+//!   order and values the URL named, the table, a count's keys, the rows'
+//!   or the count's number — made from an answer's rows or a request's
+//!   count, and the saved search the page was opened from; a line by the
+//!   save form names each part of the view a save leaves behind, a saved
+//!   search being its query and its scope (C167). So a saved form search
+//!   and a saved site search open with the form filled. A refused search
+//!   (#190) is the same page, its status and its JSON the refusal's, its
+//!   editors filled from the nearest thing read: the envelope the fold or
+//!   the decode gave, the site box holding a search the decode refused,
+//!   the query box a text and the view as sent, the form empty where the
+//!   fold refused.
 
+mod fill;
 mod form;
 mod page;
 
@@ -648,31 +665,16 @@ impl Web {
     /// A refusal as a page, or as its document where JSON is asked (C11):
     /// the page renders the document (C16).
     fn failed(&self, title: &str, failure: &Failure, headers: &HeaderMap) -> Response {
-        self.failed_then(title, failure, headers, "")
-    }
-
-    /// [`Web::failed`], the page's own `after` rendered under the refusal:
-    /// a refused search's query box (#190), whose count its script writes,
-    /// so the page loads it.
-    /// JSON and status are the refusal's.
-    fn failed_then(
-        &self,
-        title: &str,
-        failure: &Failure,
-        headers: &HeaderMap,
-        after: &str,
-    ) -> Response {
         if wants_json(headers) {
             return self.refused_document(failure);
         }
         let doc = self.refusal(failure);
         // a conflict's page renders the row as it stands: its revision is
         // the page's basis
-        let mut head = match page::saved_current(&doc) {
+        let head = match page::saved_current(&doc) {
             Some(row) => Head::default().with("saved_search", &row["revision"]),
             None => Head::default(),
         };
-        head.count = !after.is_empty();
         html(
             StatusCode::BAD_REQUEST,
             page::page(
@@ -680,9 +682,115 @@ impl Web {
                 title,
                 self.account_name(),
                 head,
-                &format!("{}{after}", page::refused(&doc)),
+                &page::refused(&doc),
             ),
         )
+    }
+
+    /// A refused search: its editors as `editors` renders them, filled from
+    /// what was sent, then the refusal at the answer's anchor; JSON and
+    /// status the refusal's.
+    fn failed_under(
+        &self,
+        title: &str,
+        failure: &Failure,
+        headers: &HeaderMap,
+        editors: &str,
+    ) -> Response {
+        if wants_json(headers) {
+            return self.refused_document(failure);
+        }
+        let doc = self.refusal(failure);
+        html(
+            StatusCode::BAD_REQUEST,
+            page::page(
+                &self.token,
+                title,
+                self.account_name(),
+                Head {
+                    picker: true,
+                    count: true,
+                    ..Head::default()
+                },
+                &format!(
+                    "{editors}<div id=\"{}\">\n{}</div>\n",
+                    page::ANSWER,
+                    page::refused(&doc)
+                ),
+            ),
+        )
+    }
+
+    /// The editors a search page renders above its answer or its refusal,
+    /// filled from its source (the one page, `4-full-1-form-design.md` §2):
+    /// a site search, the form's envelope among them, decoded, fills the
+    /// form, the query box holding the answer's canonical text, closed; one
+    /// whose decode refused stands in the site box as sent; a text, or a
+    /// tree, fills the query box, open, over an empty form — the answer's
+    /// canonical text, or the text as sent where it was refused; and where
+    /// nothing was read, the fold having refused, the form is empty and the
+    /// query box holds a text the URL names. The scope is the answer's, else
+    /// the reading's, else the URL's; the view is the answer's rows', else
+    /// the URL's (`page::BoxView`); the saved search is the URL's.
+    fn editors(
+        &self,
+        sent: &Fields,
+        source: Option<&Source>,
+        answer: Option<&acquisition_search::Answer>,
+    ) -> page::Filled {
+        use acquisition_search::answer::ViewOut;
+        let named = |name: &str| pick(sent, name).map(str::to_string);
+        let mut filled = page::Filled::empty(Realm::DEFAULT.as_str());
+        filled.saved = pick(sent, "saved")
+            .zip(pick(sent, "saved_revision").and_then(|at| at.parse::<i64>().ok()))
+            .map(|(id, at)| (id.to_string(), at));
+        filled.view = match (
+            answer.map(|a| &a.view),
+            source.and_then(|s| s.counted.clone()),
+        ) {
+            (Some(ViewOut::Rows(rows)), _) => page::BoxView::of(rows),
+            (_, Some((keys, limit))) => page::BoxView::counted(keys, limit),
+            _ => page::BoxView::sent(sent),
+        };
+        filled.membership = answer
+            .map(|a| a.scope.membership.as_str().to_string())
+            .or_else(|| source.and_then(|s| s.membership.clone()))
+            .or_else(|| named("membership"));
+        let mut realm = answer
+            .map(|a| a.scope.realm.as_str().to_string())
+            .or_else(|| source.and_then(|s| s.realm.clone()))
+            .or_else(|| named("realm"));
+        let canonical = answer.map(|a| a.query.text.clone());
+        match source.map(|s| &s.query) {
+            Some(
+                query @ acquisition_search::answer::QueryInput {
+                    trade: Some(trade), ..
+                },
+            ) => {
+                let decoded = match trade {
+                    Value::String(word) => acquisition_search::trade::decode(word),
+                    value => acquisition_search::trade::decode_json(value),
+                };
+                match decoded {
+                    Ok(decoded) => {
+                        // a URL's realm is the search's (#188)
+                        realm = decoded.realm.clone().or(realm);
+                        filled.fill = fill::Fill::decoded(&decoded);
+                        filled.text = canonical.unwrap_or_default();
+                        filled.text_open = false;
+                    }
+                    Err(_) => filled.trade = query.trade_word().unwrap_or_default(),
+                }
+            }
+            Some(query) => {
+                filled.text = canonical.or_else(|| query.text.clone()).unwrap_or_default();
+            }
+            None => filled.text = named("text").unwrap_or_default(),
+        }
+        if let Some(realm) = realm {
+            filled.realm = realm;
+        }
+        filled
     }
 
     /// A refusal as its document, whatever was asked: what a page's
@@ -748,18 +856,22 @@ impl Web {
         }
     }
 
-    /// A search request as the search form's own fields — its realm, its
-    /// text, and every view field the form asks: its rows' limit, order and
-    /// values named, or its count's keys and limit — kept only where the form folds them
-    /// back to that request, as the account this server serves: what a
-    /// page can ask. Its rows' fields are `view.fields=icon` where they are
-    /// the art alone, the table, and no field where they are the art and
-    /// the item or none, the page's default, cards; any other list is no
-    /// form's. Its membership is a field only where it is not `live`,
-    /// the form's default, so every link made before the form carried one
-    /// stands as it was. None for any other (a site search, a tree, another
-    /// account or view: a crossed table, a sum, an explained node): no page
-    /// takes it (else a count is dropped).
+    /// A search request as a page's fields — its realm, its query's one
+    /// editor, and every view field the form asks: its rows' limit, order
+    /// and values named, or its count's keys and limit — kept only where the
+    /// fold reads them back to that request, as the account this server
+    /// serves: what a page can ask. The query is its site search as one word
+    /// (`trade`), which the page fills the form from (the one page,
+    /// `4-full-1-form-design.md` §2), a text beside it being the translation
+    /// the read verified; else its text. A URL's realm is the search's, so
+    /// none is carried beside one that names it. Its rows' fields are
+    /// `view.fields=icon` where they are the art alone, the table, and no
+    /// field where they are the art and the item or none, the page's
+    /// default, cards; any other list is no form's. Its membership is a
+    /// field only where it is not `live`, the form's default, so every link
+    /// made before the form carried one stands as it was. None for any other
+    /// (a tree, another account or view: a crossed table, a sum, an explained
+    /// node): no page takes it (else a count is dropped).
     fn asked_by_the_form(&self, request: &Request) -> Option<Vec<(&'static str, String)>> {
         if !request
             .scope
@@ -769,14 +881,26 @@ impl Web {
         {
             return None;
         }
+        // the query's one editor: its site search as one word, which the
+        // page fills the form from, a text beside it being its translation
+        // (the read refuses any other); or its text. A tree is no box's
+        let query = &request.query;
+        let asked = match (&query.text, query.trade_word(), &query.tree) {
+            (_, Some(word), None) => ("trade", word),
+            (Some(text), None, None) => ("text", text.clone()),
+            _ => return None,
+        };
         let mut fields = Vec::new();
-        if let Some(realm) = &request.scope.realm {
+        // a URL's realm is the search's: the page carries none beside it
+        if let Some(realm) = &request.scope.realm
+            && (asked.0 == "text" || crate::search_cmd::trade_realm(&asked.1).is_none())
+        {
             fields.push(("realm", realm.as_str().to_string()));
         }
         if request.scope.membership != acquisition_search::answer::Membership::Live {
             fields.push(("membership", request.scope.membership.as_str().to_string()));
         }
-        fields.push(("text", request.query.text.clone()?));
+        fields.push(asked);
         match &request.view.shape {
             acquisition_search::answer::Shape::Rows(rows) => {
                 if let Some(limit) = rows.limit {
@@ -834,7 +958,7 @@ impl Web {
         {
             rows.fields = own.fields.clone();
         }
-        (read_keys(asked) == read_keys(offered)).then_some(fields)
+        (as_asked(read_keys(asked)) == as_asked(read_keys(offered))).then_some(fields)
     }
 
     /// The request answered over the held corpus (C98): checked first,
@@ -1178,6 +1302,28 @@ fn window_request(
     request
 }
 
+/// `request` with its site search as the page reads one: no text beside
+/// it, a JSON string as its object, and no realm beside a URL that names
+/// the realm the scope holds, which is where the URL is searched (K6). Two
+/// spellings of one site search compare equal.
+fn as_asked(mut request: Request) -> Request {
+    // the text beside a site search is its translation, verified by the
+    // read: the site search is what was asked
+    if request.query.trade.is_some() {
+        request.query.text = None;
+    }
+    if let Some(Value::String(word)) = &request.query.trade {
+        if let Ok(object @ Value::Object(_)) = serde_json::from_str::<Value>(word) {
+            request.query.trade = Some(object);
+        } else if let Some(url) = crate::search_cmd::trade_realm(word)
+            && request.scope.realm.as_ref().map(|r| r.as_str()) == Some(url.as_str())
+        {
+            request.scope.realm = None;
+        }
+    }
+    request
+}
+
 /// `request` with each count key as the key's one reader spells it
 /// (`Counts::lists`, through `bind::bind_key`) and the form's list reads it
 /// back (`counts::count_keys`): two spellings of one key compare equal.
@@ -1248,7 +1394,7 @@ async fn home(
     .await;
     let body = format!(
         "{said}{}",
-        page::search_form(&web.form, &shown, leagues.as_deref())
+        page::editor(&web.form, &page::Filled::empty(&shown), leagues.as_deref())
     );
     web.page(
         "Search",
@@ -1292,107 +1438,127 @@ async fn search(
         ));
     }
     let sent = fields.clone();
-    let asked = blocking(&web, move |web| -> Result<_, Failure> {
-        let (fields, from) = opened_from(fields)?;
-        // the realm the page carried beside a site search whose URL names
-        // another: not read, and said above the answer (#188)
-        let mut carried = None;
-        let mut continued = None;
-        let request = match pick(&fields, "next") {
-            Some(token) => {
-                let request = Request::from_token(token)?;
-                continued = Some(request.clone());
-                request
-            }
-            None => {
-                let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
-                if let (Some(trade), Some(realm)) = (&folded.trade, &folded.realm)
-                    && let Some(url) = crate::search_cmd::trade_realm(trade)
-                    && Realm::parse(realm).is_none_or(|r| r.as_str() != url)
-                {
-                    carried = Some((realm.clone(), url));
+    let editing = fields.clone();
+    let (asked, filled, leagues) = blocking(&web, move |web| {
+        // the query as read, the fold's or a token's: what the editors are
+        // filled from, answered or refused
+        let mut read: Option<Source> = None;
+        let asked = (|| -> Result<_, Failure> {
+            let (fields, from) = opened_from(fields)?;
+            // the realm the page carried beside a site search whose URL names
+            // another: not read, and said above the answer (#188)
+            let mut carried = None;
+            let mut continued = None;
+            let request = match pick(&fields, "next") {
+                Some(token) => {
+                    let request = Request::from_token(token)?;
+                    read = Some(Source::of(&request));
+                    continued = Some(request.clone());
+                    request
                 }
-                Asked::read(&folded.request()?)?.request
-            }
-        };
-        let corpus = web.corpus(&request)?;
-        let answer = acquisition_search::answer(&corpus, &request)?;
-        // a table's first block, over the same corpus: at the answer's
-        // basis by construction, its route the first window's request
-        // the opened rows a table holds, each at its index in the order:
-        // one no order holds is dropped, and a page of cards holds none
-        let mut kept = Vec::new();
-        let window = match &answer.view {
-            acquisition_search::answer::ViewOut::Rows(rows)
-                if !rows
-                    .fields
-                    .contains(&acquisition_search::answer::RowField::Item)
-                    && answer.total.matched > 0 =>
-            {
-                let count = answer.total.matched.min(page::BLOCK_ROWS);
-                let token = window_request(&request, &answer.basis, 0, count).token();
-                let (opened, at) = opening.held(&corpus, &request)?;
-                kept = opened.iter().map(|(id, _)| id.clone()).collect();
-                let at_row: Vec<usize> = opened.iter().map(|(_, n)| *n).collect();
-                Some(page::Window {
-                    route: web.link("rows", &[("next", token)]),
-                    segments: cut(
-                        &corpus,
-                        &request,
-                        &answer.basis,
-                        answer.total.matched,
-                        &at_row,
-                        at,
-                    )?,
-                })
-            }
-            _ => None,
-        };
-        // each card's place, a link where a place page lists it: the
-        // cards' rows, or the table's opened ones
-        let shown: Vec<&acquisition_search::corpus::Place> = match &window {
-            Some(window) => window
-                .segments
-                .iter()
-                .filter(|s| s.opened)
-                .flat_map(|s| s.blocks.iter().flat_map(|(_, b)| &b.rows))
-                .map(|row| &row.place)
-                .collect(),
-            None => answer.rows.iter().map(|row| &row.place).collect(),
-        };
-        let placed = if json {
-            std::collections::HashMap::new()
+                None => {
+                    let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
+                    read = Some(Source::folded(&folded));
+                    if let (Some(trade), Some(realm)) = (&folded.trade, &folded.realm)
+                        && let Some(url) = crate::search_cmd::trade_realm(trade)
+                        && Realm::parse(realm).is_none_or(|r| r.as_str() != url)
+                    {
+                        carried = Some((realm.clone(), url));
+                    }
+                    let request = Asked::read(&folded.request()?)?.request;
+                    read = Some(Source::of(&request));
+                    request
+                }
+            };
+            let corpus = web.corpus(&request)?;
+            let answer = acquisition_search::answer(&corpus, &request)?;
+            // a table's first block, over the same corpus: at the answer's
+            // basis by construction, its route the first window's request
+            // the opened rows a table holds, each at its index in the order:
+            // one no order holds is dropped, and a page of cards holds none
+            let mut kept = Vec::new();
+            let window = match &answer.view {
+                acquisition_search::answer::ViewOut::Rows(rows)
+                    if !rows
+                        .fields
+                        .contains(&acquisition_search::answer::RowField::Item)
+                        && answer.total.matched > 0 =>
+                {
+                    let count = answer.total.matched.min(page::BLOCK_ROWS);
+                    let token = window_request(&request, &answer.basis, 0, count).token();
+                    let (opened, at) = opening.held(&corpus, &request)?;
+                    kept = opened.iter().map(|(id, _)| id.clone()).collect();
+                    let at_row: Vec<usize> = opened.iter().map(|(_, n)| *n).collect();
+                    Some(page::Window {
+                        route: web.link("rows", &[("next", token)]),
+                        segments: cut(
+                            &corpus,
+                            &request,
+                            &answer.basis,
+                            answer.total.matched,
+                            &at_row,
+                            at,
+                        )?,
+                    })
+                }
+                _ => None,
+            };
+            // each card's place, a link where a place page lists it: the
+            // cards' rows, or the table's opened ones
+            let shown: Vec<&acquisition_search::corpus::Place> = match &window {
+                Some(window) => window
+                    .segments
+                    .iter()
+                    .filter(|s| s.opened)
+                    .flat_map(|s| s.blocks.iter().flat_map(|(_, b)| &b.rows))
+                    .map(|row| &row.place)
+                    .collect(),
+                None => answer.rows.iter().map(|row| &row.place).collect(),
+            };
+            let placed = if json {
+                std::collections::HashMap::new()
+            } else {
+                web.place_links(&shown)?
+            };
+            let opened = match from {
+                Some((id, at)) if !json => {
+                    let row = match web.saved_at(&id)? {
+                        Some(SavedRow::Read(row)) => OpenedRow::Read(row),
+                        Some(SavedRow::Unreadable(_)) => OpenedRow::Unreadable,
+                        None => OpenedRow::Gone,
+                    };
+                    Some(Opened { id, at, row })
+                }
+                _ => None,
+            };
+            // the realm's leagues on disk, where a rows answer of one realm's
+            // live items links its place pages
+            let held = match (&answer.view, &answer.scope.realm) {
+                (
+                    acquisition_search::answer::ViewOut::Rows(_),
+                    acquisition_search::Realm::One(realm),
+                ) if !json => match Realm::parse(realm) {
+                    Some(realm) => web.held_leagues(realm)?,
+                    None => Vec::new(),
+                },
+                _ => Vec::new(),
+            };
+            Ok((
+                answer, window, opened, carried, continued, request, held, kept, placed,
+            ))
+        })();
+        let filled = web.editors(&editing, read.as_ref(), asked.as_ref().ok().map(|a| &a.0));
+        // the form's league list, the realm's; none where it cannot be read,
+        // the page's answer or refusal standing whatever it is
+        let leagues = if json {
+            None
         } else {
-            web.place_links(&shown)?
+            web.leagues(&filled.realm).ok().flatten()
         };
-        let opened = match from {
-            Some((id, at)) if !json => {
-                let row = match web.saved_at(&id)? {
-                    Some(SavedRow::Read(row)) => OpenedRow::Read(row),
-                    Some(SavedRow::Unreadable(_)) => OpenedRow::Unreadable,
-                    None => OpenedRow::Gone,
-                };
-                Some(Opened { id, at, row })
-            }
-            _ => None,
-        };
-        // the realm's leagues on disk, where a rows answer of one realm's
-        // live items links its place pages
-        let held = match (&answer.view, &answer.scope.realm) {
-            (
-                acquisition_search::answer::ViewOut::Rows(_),
-                acquisition_search::Realm::One(realm),
-            ) if !json => match Realm::parse(realm) {
-                Some(realm) => web.held_leagues(realm)?,
-                None => Vec::new(),
-            },
-            _ => Vec::new(),
-        };
-        Ok((
-            answer, window, opened, carried, continued, request, held, kept, placed,
-        ))
+        (asked, filled, leagues)
     })
     .await;
+    let editors = page::editor(&web.form, &filled, leagues.as_deref());
     match asked {
         Ok((answer, ..)) if json => document(&answer),
         Ok((answer, window, opened, carried, continued, request, held, kept, placed)) => {
@@ -1403,6 +1569,7 @@ async fn search(
                 .chain(kept.into_iter().map(|id| ("item".to_string(), id)))
                 .collect();
             let mut head = Head {
+                picker: true,
                 count: true,
                 window: window.is_some(),
                 ..Head::default()
@@ -1438,7 +1605,8 @@ async fn search(
                 "Answer",
                 head,
                 &format!(
-                    "{said}{}",
+                    "{said}{editors}<div id=\"{}\">\n{}</div>\n",
+                    page::ANSWER,
                     page::answer(
                         &answer,
                         page::Saving {
@@ -1463,29 +1631,69 @@ async fn search(
                 ),
             )
         }
-        // a refused query keeps its box (#190): where the URL names a
-        // query's text, the refusal, then the box holding the text and the
-        // view as sent, so it can be fixed and run again
-        Err(failure) => match sent.iter().find(|(k, _)| k == "text") {
-            Some((_, text)) if !json => {
-                let saved = pick(&sent, "saved")
-                    .zip(pick(&sent, "saved_revision").and_then(|at| at.parse::<i64>().ok()));
-                let boxed = page::query_box(
-                    pick(&sent, "realm").unwrap_or(Realm::DEFAULT.as_str()),
-                    pick(&sent, "membership"),
-                    text,
-                    saved,
-                    &page::BoxView::sent(&sent),
-                );
-                web.failed_then("Answer", &failure, &headers, &boxed)
-            }
-            _ => web.failed("Answer", &failure, &headers),
-        },
+        // a refused search is the same page, its editors filled from what
+        // was sent (#190): its status and its JSON the refusal's
+        Err(failure) => web.failed_under("Answer", &failure, &headers, &editors),
     }
 }
 
 /// A request's fields as a page sends them, in order.
 type Fields = Vec<(String, String)>;
+
+/// What a search page's editors are filled from (the one page,
+/// `4-full-1-form-design.md` §2): the query as read — the form's fields
+/// folded, or a request read from them or from a continuation's token — and
+/// the words of its scope and its count.
+struct Source {
+    query: acquisition_search::answer::QueryInput,
+    realm: Option<String>,
+    membership: Option<String>,
+    /// A count's keys and limit, where the request asks a count.
+    counted: Option<(String, Option<usize>)>,
+}
+
+impl Source {
+    /// The fold's reading: the query box's text, the site box's search, or
+    /// the form's envelope, and the scope the page carried.
+    fn folded(folded: &form::Folded) -> Source {
+        use acquisition_search::answer::QueryInput;
+        Source {
+            query: match (&folded.text, &folded.trade) {
+                (Some(text), _) => QueryInput {
+                    text: Some(text.clone()),
+                    ..QueryInput::default()
+                },
+                (None, Some(trade)) => QueryInput {
+                    trade: Some(Value::String(trade.clone())),
+                    ..QueryInput::default()
+                },
+                (None, None) => QueryInput {
+                    trade: Some(folded.envelope.clone()),
+                    ..QueryInput::default()
+                },
+            },
+            realm: folded.realm.clone(),
+            membership: folded.membership.clone(),
+            counted: None,
+        }
+    }
+
+    /// A request's reading: its query, its scope, a count's keys as the
+    /// form's one field reads them.
+    fn of(request: &Request) -> Source {
+        Source {
+            query: request.query.clone(),
+            realm: request.scope.realm.as_ref().map(|r| r.as_str().to_string()),
+            membership: Some(request.scope.membership.as_str().to_string()),
+            counted: match &request.view.shape {
+                acquisition_search::answer::Shape::Counts(counts) => {
+                    Some((counts.lists().join(","), counts.limit))
+                }
+                _ => None,
+            },
+        }
+    }
+}
 
 /// The plain links beside a rows answer that has a row: the same answer
 /// the other way — cards or the table — and, on a continuation's page,
@@ -3228,22 +3436,8 @@ async fn saved_open(
                 ));
             }
         };
-        // a site search opens as the page's site box asks one (C194): its
-        // word, its membership where not live, and its realm unless its
-        // URL names one, which is the search's
-        if let Some(trade) = row.request.query.trade_word() {
-            let mut asked = Vec::new();
-            if crate::search_cmd::trade_realm(&trade).is_none() {
-                asked.push(("realm", row.scope.realm.clone()));
-            }
-            if row.scope.membership != "live" {
-                asked.push(("membership", row.scope.membership.clone()));
-            }
-            asked.push(("trade", trade));
-            asked.push(("saved", id));
-            asked.push(("saved_revision", row.revision.to_string()));
-            return Ok(web.link("search", &asked));
-        }
+        // a text or a site search opens as the page asks one (C194), and
+        // the page fills its editor from it
         let Some(mut asked) = web.asked_by_the_form(&row.request) else {
             return Err(Failure::Other(anyhow::anyhow!(
                 "saved search {id} is no search a page can ask: open it with an agent's search \

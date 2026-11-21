@@ -8,7 +8,10 @@
 //! `search_cmd.rs`, the layout the page's, and every way on the page's own
 //! ([`answer`]), so they print no command line. An item is one card
 //! ([`card`]) on both: a row that carries the item on the answer page,
-//! `show`'s document on the item page. The place pages render the places
+//! `show`'s document on the item page. The search pages stand the answer
+//! or the refusal under the page's editors ([`editor`]): the search form,
+//! filled from the source the handler read (`fill.rs`), and the two boxes.
+//! The place pages render the places
 //! document ([`places`]), no `pre` and no command line. The plan, apply and
 //! jobs pages render the plan, the apply's and the jobs documents
 //! ([`plan`], [`applied`], [`jobs`]), in a player's words and with no
@@ -33,6 +36,7 @@ use acquisition_search::trade::translate::{Fidelity, Status};
 use acquisition_verbs::refusal::Way;
 use acquisition_verbs::saved::{ReadRow, SavedSearches};
 
+use super::fill::Fill;
 use super::form::{Fate, Filter, Form, LIMITS, STAT_ROWS};
 use crate::search_cmd::{self, ItemParts, RowPiece};
 use serde_json::Value;
@@ -610,23 +614,122 @@ fn fate_span(fate: Option<&Fate>) -> String {
     }
 }
 
+/// What fills a page's editors (`4-full-1-form-design.md` §2): the form's
+/// envelope, the scope the form carries, the query box's text and whether
+/// it stands open, the site box's text, the view both carry, a count's keys
+/// and the saved search the page was opened from.
+pub(crate) struct Filled {
+    pub fill: Fill,
+    pub realm: String,
+    /// The scope's membership as its word; none is the form's default, live.
+    pub membership: Option<String>,
+    pub text: String,
+    pub text_open: bool,
+    pub trade: String,
+    pub view: BoxView,
+    pub saved: Option<(String, i64)>,
+}
+
+impl Filled {
+    /// The editors of `realm` with nothing in them: the form empty, the
+    /// query box open and empty, the site box empty.
+    pub(crate) fn empty(realm: &str) -> Filled {
+        Filled {
+            fill: Fill::empty(),
+            realm: realm.to_string(),
+            membership: None,
+            text: String::new(),
+            text_open: true,
+            trade: String::new(),
+            view: BoxView::default(),
+            saved: None,
+        }
+    }
+}
+
+/// The page's editors, filled (the one page, `4-full-1-form-design.md` §2):
+/// what the form's envelope holds and no control sends, named; the search
+/// form; the query box; the site box; the league list's fetch. The answer or
+/// the refusal stands under them, at [`ANSWER`].
+pub(crate) fn editor(form: &Form, filled: &Filled, leagues: Option<&[(String, bool)]>) -> String {
+    // the form first, so its controls have taken what they hold
+    let searched = search_form(form, filled, leagues);
+    let mut out = unsent(&filled.fill.left());
+    out.push_str(&searched);
+    out.push_str(&query_box(filled));
+    out.push_str(&trade_box(&filled.realm, &filled.trade));
+    out.push_str(&fetch_leagues());
+    out
+}
+
+/// The anchor the answer or the refusal stands at under the editors, which
+/// every form that submits to `search` names in its action.
+pub(crate) const ANSWER: &str = "answer";
+
+/// What the envelope holds and no control of the form sends, each leaf by
+/// the site's path with its value: a search from the form leaves it out.
+fn unsent(left: &[(String, Value)]) -> String {
+    if left.is_empty() {
+        return String::new();
+    }
+    let items: String = left
+        .iter()
+        .map(|(path, value)| {
+            format!(
+                "<li><code data-path=\"{}\">{}</code> {}</li>",
+                esc(path),
+                esc(path),
+                esc(&value.to_string())
+            )
+        })
+        .collect();
+    format!(
+        "<div class=\"left-out\"><p>{}</p>\n<ul>{items}</ul></div>\n",
+        esc(
+            "This search holds what the form below does not send: a search from the form \
+             leaves each of these out."
+        )
+    )
+}
+
+/// ` value="…"`, where there is one.
+fn valued(value: Option<&str>) -> String {
+    value
+        .map(|v| format!(" value=\"{}\"", esc(v)))
+        .unwrap_or_default()
+}
+
+/// ` checked`, where a box is ticked.
+fn checked(ticked: bool) -> &'static str {
+    if ticked { " checked" } else { "" }
+}
+
 /// The search form, in the trade site's organization (the owner's page save
 /// read for its order alone, nothing of GGG's copied): the search bar
 /// across the top — the item search on the left; the realm, the league and
 /// the status on the right — then two panes, the filter groups as panels in
-/// the dump's order on the left and the stat filters with the picker on the
+/// the dump's order on the left and the stat groups with the picker on the
 /// right, then the controls with Search at the centre. A panel is a
-/// `details` group, open where the site shows the group open.
+/// `details` group, open where the site shows the group open or where it
+/// holds a value. Each control reads its value at its path from the fill
+/// ([`Fill`]); a listing control shows it and sends nothing.
 ///
 /// The form is one realm's render: its league list is that realm's, so
 /// the realm is chosen by a form of its own that renders the page again,
 /// and the search carries the realm shown.
-pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, bool)]>) -> String {
-    let mut out = String::from(
-        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search\" data-count>\n<div class=\"search-bar\">\n<div class=\"search-left\">",
+pub(crate) fn search_form(
+    form: &Form,
+    filled: &Filled,
+    leagues: Option<&[(String, bool)]>,
+) -> String {
+    let fill = &filled.fill;
+    let realm = filled.realm.as_str();
+    let mut out = format!(
+        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search#{ANSWER}\" data-count>\n<div class=\"search-bar\">\n<div class=\"search-left\">"
     );
     out.push_str(&format!(
-        "<input class=\"item-search\" name=\"query.term\" placeholder=\"Search items\" aria-label=\"Search items\">{}</div>\n<div class=\"search-right\">",
+        "<input class=\"item-search\" name=\"query.term\"{} placeholder=\"Search items\" aria-label=\"Search items\">{}</div>\n<div class=\"search-right\">",
+        valued(fill.text("query.term").as_deref()),
         fate_span(form.fate("query.term"))
     ));
     out.push_str("<label class=\"control\">Realm <select name=\"realm\" form=\"realm-form\">");
@@ -640,69 +743,264 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
         "</select></label> <button type=\"submit\" form=\"realm-form\">Show this realm's leagues</button>\n<input type=\"hidden\" name=\"realm\" value=\"{}\">",
         esc(realm)
     ));
-    out.push_str(&league_select(leagues, None, true));
+    out.push_str(&league_select(
+        leagues,
+        fill.text("league").as_deref(),
+        true,
+    ));
     out.push_str(&fate_span(form.fate("url.league")));
     for group in form.groups.iter().filter(|g| g.id == "status_filters") {
         for filter in &group.filters {
-            out.push_str(&control(form, filter, "query.status", "query.status"));
+            out.push_str(&control(form, fill, filter, "query.status", "query.status"));
         }
     }
     // the scope's membership: the items standing, or those removed too,
     // or those removed alone
-    out.push_str("<label class=\"control\">Membership <select name=\"membership\"><option value=\"live\" selected>live</option><option value=\"all\">all</option><option value=\"removed\">removed</option></select></label>\n");
+    let membership = filled.membership.as_deref().unwrap_or("live");
+    out.push_str("<label class=\"control\">Membership <select name=\"membership\">");
+    for m in ["live", "all", "removed"] {
+        out.push_str(&format!(
+            "<option value=\"{m}\"{}>{m}</option>",
+            if m == membership { " selected" } else { "" }
+        ));
+    }
+    out.push_str("</select></label>\n");
     out.push_str("</div>\n</div>\n<div class=\"panes\">\n<div class=\"pane\">\n");
     for group in form.groups.iter().filter(|g| g.id != "status_filters") {
         let title = group.title.as_deref().unwrap_or(&group.id);
+        let at = format!("query.filters.{}", group.id);
         // the group's enable control, as the site's: off, the group is
         // sent with its `disabled` field and its values stand; the panel's
         // own toggle is open and close alone
         out.push_str(&format!(
-            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"query.filters.{}.disabled\" value=\"true\"> disable this group</label></div>\n",
-            if group.hidden { "" } else { " open" },
+            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"{at}.disabled\" value=\"true\"{}> disable this group</label></div>\n",
+            if !group.hidden || fill.holds_under(&at) { " open" } else { "" },
             esc(title),
-            esc(&group.id)
+            checked(fill.ticked(&format!("{at}.disabled"), "true")),
         ));
         for filter in &group.filters {
             let path = super::form::filter_path(&group.id, &filter.id);
             let key = format!("{}.{}", group.id, filter.id);
-            out.push_str(&control(form, filter, &path, &key));
+            out.push_str(&control(form, fill, filter, &path, &key));
         }
         // C142: the defences' reading beside the query, the panel's one
         // convenience the site's form has no control for
         if group.id == "armour_filters" {
-            out.push_str("<div class=\"filter\"><label><input type=\"checkbox\" name=\"defences\" value=\"displayed\"> read these as the item stands, at its own quality, not the site's 20 %</label></div>\n");
+            out.push_str(&format!(
+                "<div class=\"filter\"><label><input type=\"checkbox\" name=\"defences\" value=\"displayed\"{}> read these as the item stands, at its own quality, not the site's 20 %</label></div>\n",
+                checked(fill.ticked("defences", "displayed"))
+            ));
         }
         out.push_str("</div>\n</details>\n");
     }
-    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"query.stats[0].disabled\" value=\"true\"> disable this group</label></div>\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"query.stats[0].type\">");
-    for (kind, text, fate) in &form.stat_types {
-        out.push_str(&format!(
-            "<option value=\"{}\"{}>{} ({})</option>",
-            esc(kind),
-            if kind == "and" { " selected" } else { "" },
-            esc(text.as_deref().unwrap_or(kind)),
-            esc(&fate.status.replace('_', " "))
-        ));
-    }
-    out.push_str("</select> <input type=\"number\" step=\"any\" name=\"query.stats[0].value.min\" placeholder=\"min\" aria-label=\"group min\"> <input type=\"number\" step=\"any\" name=\"query.stats[0].value.max\" placeholder=\"max\" aria-label=\"group max\"></div>\n");
-    for n in 0..STAT_ROWS {
-        let id = format!("stat-{n}");
-        out.push_str(&format!(
-            "<div class=\"filter\"><input class=\"stat-id\" id=\"{id}\" name=\"query.stats[0].filters[{n}].id\" size=\"28\" placeholder=\"stat\" aria-label=\"stat {}\"> <input type=\"number\" step=\"any\" name=\"query.stats[0].filters[{n}].value.min\" placeholder=\"min\" aria-label=\"min\"> <input type=\"number\" step=\"any\" name=\"query.stats[0].filters[{n}].value.max\" placeholder=\"max\" aria-label=\"max\"> <span id=\"{id}-text\" class=\"fate\"></span></div>\n",
-            n + 1
-        ));
-    }
+    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n");
+    out.push_str(&stat_groups(form, fill));
     out.push_str("<div class=\"filter\"><label class=\"filter-title\" for=\"stat-find\">Find a stat</label> <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></div>\n<span id=\"stat-said\" class=\"fate\"></span>\n<ul id=\"stat-list\"></ul>\n</div>\n</details>\n</div>\n</div>\n");
-    out.push_str("<div class=\"controls\">\n<div class=\"controls-left\"><label class=\"control\">Show <select name=\"view.limit\">");
-    for limit in LIMITS {
-        out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
+    // the view, as the query box carries it: the rows' number, the way they
+    // show, a count's keys; and hidden, the order and the values the URL
+    // named, which no control writes
+    // the search's own number — a count asked with none, or rows at the
+    // listing's bound, which no choice here names — is sent empty, as the
+    // query box's default is
+    let listed = acquisition_store::bound::LISTED;
+    let own = match filled.view.limit {
+        None => filled.view.count.is_some(),
+        Some(n) => n == listed && !LIMITS.contains(&n),
+    };
+    let limit = filled.view.limit.unwrap_or(LIMITS[0]);
+    let mut limits: Vec<(String, usize)> = LIMITS.iter().map(|n| (n.to_string(), *n)).collect();
+    if !own && !LIMITS.contains(&limit) {
+        limits.push((limit.to_string(), limit));
+        limits.sort_by_key(|(_, n)| *n);
     }
-    out.push_str("</select></label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option><option value=\"icon\">a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ");
+    if own {
+        limits.insert(0, (String::new(), listed));
+    }
+    out.push_str("<div class=\"controls\">\n<div class=\"controls-left\"><label class=\"control\">Show <select name=\"view.limit\">");
+    for (value, n) in &limits {
+        let chosen = match own {
+            true => value.is_empty(),
+            false => *n == limit,
+        };
+        out.push_str(&format!(
+            "<option value=\"{value}\"{}>{n}</option>",
+            if chosen { " selected" } else { "" }
+        ));
+    }
+    let tabled = filled.view.table;
+    out.push_str(&format!(
+        "</select></label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\"{}>cards</option><option value=\"icon\"{}>a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\"{} placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ",
+        if tabled { "" } else { " selected" },
+        if tabled { " selected" } else { "" },
+        valued(filled.view.count.as_deref()),
+    ));
     out.push_str(COUNT);
-    out.push_str("</div>\n</div>\n</form>\n");
-    out.push_str(&query_box(realm, None, "", None, &BoxView::default()));
-    out.push_str(&trade_box(realm));
-    out.push_str(&fetch_leagues());
+    out.push_str("</div>\n</div>\n");
+    out.push_str(&carried(
+        &filled.view,
+        filled.saved.as_ref().map(|(id, at)| (id.as_str(), *at)),
+    ));
+    out.push_str("</form>\n");
+    out
+}
+
+/// The view and the saved search a search form carries hidden: the order
+/// and the values the URL named, never the query's own, and the saved search
+/// the page was opened from at the revision its URL names, so an edit run
+/// again keeps them.
+fn carried(view: &BoxView, saved: Option<(&str, i64)>) -> String {
+    let hidden = |name: &str, value: &str| {
+        format!(
+            "<input type=\"hidden\" name=\"{name}\" value=\"{}\">",
+            esc(value)
+        )
+    };
+    let mut out = String::new();
+    if let Some(sort) = &view.sort {
+        out.push_str(&hidden("view.sort", sort));
+        if view.desc {
+            out.push_str(&hidden("view.desc", "true"));
+        }
+    }
+    for value in &view.values {
+        out.push_str(&hidden("view.value", value));
+    }
+    if let Some((id, at)) = saved {
+        out.push_str(&hidden("saved", id));
+        out.push_str(&hidden("saved_revision", &at.to_string()));
+    }
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out
+}
+
+/// The stat groups, from the envelope's `query.stats` where the fill renders
+/// it ([`Fill::stats`]), else one `and` group: each group's type, its off
+/// box and its count's bound, positional (`form.rs`, the stat fields), then
+/// its rows, each with its stat's text and fate as the vocabulary gives
+/// them; the last group topped up with empty typed rows to [`STAT_ROWS`],
+/// at least one, for the picker to write into.
+fn stat_groups(form: &Form, fill: &Fill) -> String {
+    use acquisition_search::trade::translate::{group_value_keys, stat_value_keys};
+    let groups = fill.stats();
+    let ids: Vec<&str> = groups
+        .iter()
+        .flat_map(|g| g["filters"].as_array().into_iter().flatten())
+        .filter_map(|row| row["id"].as_str())
+        .collect();
+    let entries: HashMap<String, acquisition_search::trade::vocabulary::Entry> =
+        acquisition_search::trade::vocabulary::entries(&ids)
+            .unwrap_or_default()
+            .into_iter()
+            .flatten()
+            .map(|e| (e.id.clone(), e))
+            .collect();
+    let status = |s: Status| {
+        serde_json::to_value(s)
+            .ok()
+            .and_then(|v| v.as_str().map(|s| s.replace('_', " ")))
+            .unwrap_or_default()
+    };
+    let mut out = String::new();
+    let mut n = 0;
+    let count = groups.len().max(1);
+    for g in 0..count {
+        let at = format!("query.stats[{g}]");
+        let filled = g < groups.len();
+        let chosen = filled
+            .then(|| {
+                fill.option(&format!("{at}.type"), |kind| {
+                    form.stat_types.iter().any(|(k, _, _)| k == kind)
+                })
+            })
+            .flatten();
+        // a filled group whose type no option names sends none
+        let kind = match (&chosen, filled) {
+            (Some(kind), _) => kind.as_str(),
+            (None, false) => "and",
+            (None, true) => "",
+        };
+        // a group's bound where its type takes one, as the fold keeps it
+        let bound = |key: &str| {
+            (filled && group_value_keys(kind).contains(&key))
+                .then(|| fill.number(&format!("{at}.value.{key}")))
+                .flatten()
+        };
+        out.push_str("<div class=\"stat-group\">\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"group.type\">");
+        if kind.is_empty() {
+            out.push_str("<option value=\"\" selected>no type</option>");
+        }
+        for (k, text, fate) in &form.stat_types {
+            out.push_str(&format!(
+                "<option value=\"{}\"{}>{} ({})</option>",
+                esc(k),
+                if k == kind { " selected" } else { "" },
+                esc(text.as_deref().unwrap_or(k)),
+                esc(&fate.status.replace('_', " "))
+            ));
+        }
+        out.push_str(&format!(
+            "</select> <label><input type=\"checkbox\" name=\"group.disabled\" value=\"true\"{}> disable this group</label> <input type=\"number\" step=\"any\" name=\"group.min\"{} placeholder=\"min\" aria-label=\"group min\"> <input type=\"number\" step=\"any\" name=\"group.max\"{} placeholder=\"max\" aria-label=\"group max\"></div>\n",
+            checked(filled && fill.ticked(&format!("{at}.disabled"), "true")),
+            valued(bound("min").as_deref()),
+            valued(bound("max").as_deref()),
+        ));
+        let weighted = stat_value_keys(kind).contains(&"weight");
+        let rows = match filled {
+            true => groups[g]["filters"].as_array().map_or(0, Vec::len),
+            false => 0,
+        };
+        let empty = if g + 1 == count {
+            STAT_ROWS.saturating_sub(rows).max(1)
+        } else {
+            0
+        };
+        for r in 0..rows + empty {
+            let row = format!("{at}.filters[{r}]");
+            let id = (r < rows)
+                .then(|| fill.text(&format!("{row}.id")))
+                .flatten();
+            let said = match id.as_deref().map(|id| entries.get(id)) {
+                Some(Some(e)) => format!(
+                    "{} · {} · alone {} · with a bound {}",
+                    e.texts.join(" / "),
+                    e.group,
+                    status(e.alone),
+                    status(e.bounded)
+                ),
+                Some(None) => "no stat this build's tables hold".to_string(),
+                None => String::new(),
+            };
+            let option = if r < rows && fill.holds_under(&format!("{row}.value.option")) {
+                format!(
+                    " <input name=\"stat.option\"{} size=\"10\" placeholder=\"option\" aria-label=\"option\">",
+                    valued(fill.text(&format!("{row}.value.option")).as_deref())
+                )
+            } else {
+                String::new()
+            };
+            let weight = if weighted {
+                format!(
+                    " <input type=\"number\" step=\"any\" name=\"stat.weight\"{} placeholder=\"weight\" aria-label=\"weight\">",
+                    valued(fill.number(&format!("{row}.value.weight")).as_deref())
+                )
+            } else {
+                String::new()
+            };
+            out.push_str(&format!(
+                "<div class=\"filter\"><input class=\"stat-id\" id=\"stat-{n}\" name=\"stat.id\"{} size=\"28\" placeholder=\"stat\" aria-label=\"stat {}\"> <label><input type=\"checkbox\" name=\"stat.disabled\" value=\"true\"{}> disable</label> <input type=\"number\" step=\"any\" name=\"stat.min\"{} placeholder=\"min\" aria-label=\"min\"> <input type=\"number\" step=\"any\" name=\"stat.max\"{} placeholder=\"max\" aria-label=\"max\">{weight}{option} <span id=\"stat-{n}-text\" class=\"fate\">{}</span></div>\n",
+                valued(id.as_deref()),
+                n + 1,
+                checked(r < rows && fill.ticked(&format!("{row}.disabled"), "true")),
+                valued((r < rows).then(|| fill.number(&format!("{row}.value.min"))).flatten().as_deref()),
+                valued((r < rows).then(|| fill.number(&format!("{row}.value.max"))).flatten().as_deref()),
+                esc(&said),
+            ));
+            n += 1;
+        }
+        out.push_str("</div>\n");
+    }
     out
 }
 
@@ -730,14 +1028,15 @@ const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched
 /// sent empty, or the table, set on an answer to the way it showed, so an
 /// edited query keeps it. What it carries of the view is one [`BoxView`],
 /// an answer's or, on a refused search, the URL's as sent (#190), and the
-/// save note reads the same.
-pub(crate) fn query_box(
-    realm: &str,
-    membership: Option<&str>,
-    text: &str,
-    saved: Option<(&str, i64)>,
-    view: &BoxView,
-) -> String {
+/// save note reads the same. It stands in a `details`, open where the
+/// page's source is a text or the page has none, closed where the form
+/// holds the search (the one page, `4-full-1-form-design.md` §2).
+fn query_box(filled: &Filled) -> String {
+    let realm = filled.realm.as_str();
+    let membership = filled.membership.as_deref();
+    let text = filled.text.as_str();
+    let saved = filled.saved.as_ref().map(|(id, at)| (id.as_str(), *at));
+    let view = &filled.view;
     let hidden = |name: &str, value: &str| {
         format!(
             "<input type=\"hidden\" name=\"{name}\" value=\"{}\">",
@@ -781,6 +1080,10 @@ pub(crate) fn query_box(
     for value in &view.values {
         carried.push_str(&hidden("view.value", value));
     }
+    // a count's keys, which the box has no control for
+    if let Some(count) = &view.count {
+        carried.push_str(&hidden("view.count", count));
+    }
     // the presentation, as the big form's "Results as": cards, the default
     // sent empty, or the table, selected where the answer was one
     let tabled = view.table;
@@ -790,16 +1093,17 @@ pub(crate) fn query_box(
         if tabled { " selected" } else { "" }
     );
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search\" data-count>{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}</form>\n",
+        "<details class=\"query-details\"{}><summary>The query, in the language</summary><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}</form></details>\n",
+        if filled.text_open { " open" } else { "" },
         esc(text)
     )
 }
 
-/// What the query box carries of the view: the sort and the values the URL
+/// What both editors carry of the view: the sort and the values the URL
 /// named, never the values the query gave unasked, the table where the rows
-/// were one, and the rows' number. Made from an answer's rows, or from a
-/// refused search's fields as sent; the save note says what of it a save
-/// leaves behind.
+/// were one, a count's keys, and the rows' or the count's number. Made from
+/// an answer's rows, a request's count, or a refused search's fields as
+/// sent; the save note says what of it a save leaves behind.
 #[derive(Default)]
 pub(crate) struct BoxView {
     pub sort: Option<String>,
@@ -807,6 +1111,8 @@ pub(crate) struct BoxView {
     pub values: Vec<String>,
     pub table: bool,
     pub limit: Option<usize>,
+    /// A count's keys as the form's one field reads them.
+    pub count: Option<String>,
 }
 
 impl BoxView {
@@ -821,6 +1127,17 @@ impl BoxView {
             },
             table: rows.fields == [RowField::Icon],
             limit: Some(rows.limit),
+            count: None,
+        }
+    }
+
+    /// What a count carries into the editors: its keys, as the form's one
+    /// field reads them, and its limit.
+    pub fn counted(keys: String, limit: Option<usize>) -> BoxView {
+        BoxView {
+            count: Some(keys),
+            limit,
+            ..BoxView::default()
         }
     }
 
@@ -842,6 +1159,7 @@ impl BoxView {
                 .collect(),
             table: named("view.fields") == Some("icon"),
             limit: named("view.limit").and_then(|n| n.parse().ok()),
+            count: named("view.count").map(str::to_string),
         }
     }
 
@@ -858,6 +1176,9 @@ impl BoxView {
         if self.table {
             left.push("the table");
         }
+        if self.count.is_some() {
+            left.push("its count");
+        }
         left
     }
 }
@@ -867,16 +1188,20 @@ impl BoxView {
 /// translation's fidelity and every clause above the rows, the site's sort
 /// reported and not applied. It carries the realm the page shows, which an
 /// id or the query JSON is searched in; a URL names its own, which wins.
-fn trade_box(realm: &str) -> String {
+/// It holds `text` where a site search's decode refused it; one that
+/// decodes fills the form instead.
+fn trade_box(realm: &str, text: &str) -> String {
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search\" data-count><input type=\"hidden\" name=\"realm\" value=\"{}\"><label class=\"filter-title\" for=\"trade-text\">A trade site search: its URL, its id or its query JSON</label><textarea id=\"trade-text\" name=\"trade\" rows=\"2\"></textarea><button type=\"submit\">Run the site's search</button> {COUNT} <span class=\"fate\">translated here, sent nowhere; a URL's realm is the search's</span></form>\n",
-        esc(realm)
+        "<form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count><input type=\"hidden\" name=\"realm\" value=\"{}\"><label class=\"filter-title\" for=\"trade-text\">A trade site search: its URL, its id or its query JSON</label><textarea id=\"trade-text\" name=\"trade\" rows=\"2\">{}</textarea><button type=\"submit\">Run the site's search</button> {COUNT} <span class=\"fate\">translated here, sent nowhere; a URL's realm is the search's</span></form>\n",
+        esc(realm),
+        esc(text)
     )
 }
 
-/// One filter's control, named by its path, its fate beside it; a
-/// listing-only row's disabled, its `says` as the title.
-fn control(form: &Form, filter: &Filter, path: &str, key: &str) -> String {
+/// One filter's control, named by its path, its fate beside it, its value
+/// the fill's at that path; a listing-only row's disabled, its `says` as
+/// the title, showing what the fill holds there and holding none of it.
+fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> String {
     let fate = form.fate(key);
     let listing = fate.is_some_and(|f| f.status == "listing_only");
     let disabled = if listing { " disabled" } else { "" };
@@ -896,10 +1221,26 @@ fn control(form: &Form, filter: &Filter, path: &str, key: &str) -> String {
         .as_ref()
         .map(|t| format!(" title=\"{}\"", esc(t)))
         .unwrap_or_default();
+    // a control's value: held where it is sent, shown where it is not
+    let text = |at: &str| match listing {
+        true => fill.shown(at),
+        false => fill.text(at),
+    };
+    let number = |at: &str| match listing {
+        true => fill.shown(at),
+        false => fill.number(at),
+    };
     let mut out =
         format!("<div class=\"filter\"{title}><span class=\"filter-title\"{tip}>{label}</span> ");
     if let Some(options) = &filter.options {
-        out.push_str(&format!("<select name=\"{path}.option\"{disabled}>"));
+        let at = format!("{path}.option");
+        let chosen = match listing {
+            true => fill.shown(&at),
+            false => fill.option(&at, |v| {
+                options.iter().any(|(id, _)| id.as_deref() == Some(v))
+            }),
+        };
+        out.push_str(&format!("<select name=\"{at}\"{disabled}>"));
         for (id, text) in options {
             let value = id.as_deref().unwrap_or("");
             let own = id
@@ -908,8 +1249,13 @@ fn control(form: &Form, filter: &Filter, path: &str, key: &str) -> String {
                 .map(|f| format!(" ({})", f.status.replace('_', " ")))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "<option value=\"{}\">{}{}</option>",
+                "<option value=\"{}\"{}>{}{}</option>",
                 esc(value),
+                if chosen.as_deref() == Some(value) {
+                    " selected"
+                } else {
+                    ""
+                },
                 esc(text),
                 esc(&own)
             ));
@@ -917,18 +1263,22 @@ fn control(form: &Form, filter: &Filter, path: &str, key: &str) -> String {
         out.push_str("</select>");
     } else if filter.known_item || filter.input {
         out.push_str(&format!(
-            "<input name=\"{path}.option\" size=\"16\"{disabled}>"
+            "<input name=\"{path}.option\"{} size=\"16\"{disabled}>",
+            valued(text(&format!("{path}.option")).as_deref())
         ));
     }
     if filter.min_max {
         out.push_str(&format!(
-            "<input type=\"number\" step=\"any\" name=\"{path}.min\" placeholder=\"min\"{disabled}> <input type=\"number\" step=\"any\" name=\"{path}.max\" placeholder=\"max\"{disabled}>"
+            "<input type=\"number\" step=\"any\" name=\"{path}.min\"{} placeholder=\"min\"{disabled}> <input type=\"number\" step=\"any\" name=\"{path}.max\"{} placeholder=\"max\"{disabled}>",
+            valued(number(&format!("{path}.min")).as_deref()),
+            valued(number(&format!("{path}.max")).as_deref()),
         ));
     }
     if filter.sockets {
         for c in ["r", "g", "b", "w"] {
             out.push_str(&format!(
-                " <input class=\"socket\" type=\"number\" name=\"{path}.{c}\" placeholder=\"{}\"{disabled}>",
+                " <input class=\"socket\" type=\"number\" name=\"{path}.{c}\"{} placeholder=\"{}\"{disabled}>",
+                valued(number(&format!("{path}.{c}")).as_deref()),
                 c.to_uppercase()
             ));
         }
@@ -1151,13 +1501,6 @@ pub(crate) fn answer(
         ViewOut::Rows(rows) => BoxView::of(rows),
         _ => BoxView::default(),
     };
-    out.push_str(&query_box(
-        a.scope.realm.as_str(),
-        Some(a.scope.membership.as_str()),
-        &a.query.text,
-        carried,
-        &boxed,
-    ));
     out.push_str(&save_forms(a, source, opened, links, &boxed));
     out
 }

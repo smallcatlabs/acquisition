@@ -389,6 +389,53 @@ fn the_count_beside_the_button_follows_its_own_form() {
     );
 }
 
+/// The one page in a browser (`4-full-1-form-design.md` §2): an answer
+/// stands under its search form filled with the search it answered; a
+/// bound edited there and the form sent by its own button lands at the
+/// answer, the answer is the edit's, and the form stands filled with the
+/// edit.
+#[test]
+fn an_answers_form_edited_and_sent_asks_the_edit_and_stands_refilled() {
+    let (scratch, web) = offline_web("browseredit");
+    let search = |bound: &str| {
+        format!(
+            "search?realm=pc&league=Standard\
+             &query.filters.type_filters.filters.category.option=accessory.ring\
+             &group.type=and&stat.id=explicit.stat_3299347043&stat.min={bound}&view.limit=20"
+        )
+    };
+    let total = |path: &str| {
+        web.get_json(path)["total"]["matched"]
+            .as_u64()
+            .expect("a matched total")
+    };
+    let (before, after) = (total(&search("70")), total(&search("90")));
+    assert_ne!(before, after, "the two bounds must answer apart");
+    let mut page = Page::open(
+        &profile_of(&scratch),
+        &format!("{}{}", web.url, search("70")),
+    );
+    let bound = format!("{SEARCH_FORM}.querySelector('input[name=\"stat.min\"]')");
+    assert_eq!(page.cdp.eval(&format!("{bound}.value")), json!("70"));
+    page.cdp.click(&bound);
+    page.cdp.eval(&format!("{bound}.select(); true"));
+    page.cdp.keys("90");
+    page.cdp
+        .click(&format!("{SEARCH_FORM}.querySelector('button.search-btn')"));
+    page.loaded_again();
+    assert_eq!(page.cdp.eval("location.hash"), json!("#answer"));
+    assert_eq!(page.cdp.eval(&format!("{bound}.value")), json!("90"));
+    let counted = match after {
+        1 => "1 match".to_string(),
+        n => format!("{n} matches"),
+    };
+    assert_eq!(
+        page.cdp
+            .eval("document.querySelector('#answer p.count').textContent"),
+        json!(counted)
+    );
+}
+
 /// The picker's rule (`picker.js`): a pick fills the first empty stat
 /// row, never a row already written, and announces the write as typing
 /// would, so the count follows the pick with no other input. The query
@@ -492,6 +539,9 @@ const LOOK: &str = "(() => { \
     return { h, block: Number(table.dataset.blockRows), vh, count, route: seg.dataset.route, \
              top: top + window.scrollY, covered, drawn }; })()";
 
+/// The table's top in the page, where its start is scrolled to.
+const TABLE_TOP: &str = "(document.querySelector('.window[data-row-height]').getBoundingClientRect().top + window.scrollY)";
+
 /// Settled: two animation frames running in which no block of the table
 /// waits for its rows, a block being asked in the frame after the last
 /// block in view comes. A count of the script's own frames, no duration.
@@ -574,7 +624,8 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
         "Emulation.setDeviceMetricsOverride",
         json!({ "width": 1000, "height": 600, "deviceScaleFactor": 1, "mobile": false }),
     );
-    page.navigate(&format!("{}{path}", web.url));
+    // landing at the answer, as every form that submits a search lands
+    page.navigate(&format!("{}{path}#answer", web.url));
     let basis_before = page
         .cdp
         .eval("document.querySelector('meta[name=\"basis\"]').content");
@@ -654,9 +705,10 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
     // the start: the server's block shown and held; scrolled within it
     // until the next block is near, the window asks that block, never the
     // first, whose ask, had the script made one, it would have made first
-    let start = whole(&mut page, "0", "the start");
+    // the table stands under the page's editors: its start is its own top
+    let start = whole(&mut page, TABLE_TOP, "the start");
     let block = start["block"].as_u64().unwrap();
-    let near = format!("{} * {}", block / 2, start["h"]);
+    let near = format!("{} + {} * {}", start["top"], block / 2, start["h"]);
     whole(&mut page, &near, "the start, the next block near");
     page.cdp.until(&format!(
         "document.querySelector('.r[data-i=\"{block}\"]') !== null"
@@ -697,7 +749,7 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
     }
     let end = format!("{} + {} * {} - innerHeight", start["top"], ROWS, start["h"]);
     whole(&mut page, &end, "the end");
-    whole(&mut page, "0", "the start again");
+    whole(&mut page, TABLE_TOP, "the start again");
 
     // a window whose fetch fails is dropped and asked again at the next
     // scroll, never left pending: the next block's fetch is failed as a
@@ -708,7 +760,6 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
         "Fetch.enable",
         json!({ "patterns": [{ "urlPattern": failed }] }),
     );
-    let near = format!("{} * {}", block / 2, start["h"]);
     page.cdp.eval(&format!("window.scrollTo(0, {near}); true"));
     let paused = page.cdp.event("Fetch.requestPaused");
     page.cdp.call(
@@ -767,7 +818,7 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
         shown["answer"], now,
         "the page loaded again, not at the basis now"
     );
-    whole(&mut page, "0", "the start, at the new basis");
+    whole(&mut page, TABLE_TOP, "the start, at the new basis");
 }
 
 /// The place pages' opener keeps the reader's place: on a stash tabs page

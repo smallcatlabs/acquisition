@@ -19,6 +19,7 @@ use crate::harness;
 
 use harness::{
     Pages, WebUi, offline_acq, offline_command, page_golden, panes_golden, sole_json, start_web,
+    submitted::submitted,
 };
 
 pub(crate) const USER: &str = "Alice#1234";
@@ -456,13 +457,25 @@ fn ring_search() -> Vec<(&'static str, &'static str)> {
         ),
         ("query.filters.type_filters.filters.rarity.option", ""),
         ("query.filters.misc_filters.filters.ilvl.min", ""),
-        ("query.stats[0].type", "and"),
-        ("query.stats[0].filters[0].id", "explicit.stat_3299347043"),
-        ("query.stats[0].filters[0].value.min", "70"),
-        ("query.stats[0].filters[1].id", ""),
+        ("group.type", "and"),
+        ("stat.id", "explicit.stat_3299347043"),
+        ("stat.min", "70"),
+        ("stat.id", ""),
         ("view.limit", "20"),
         ("view.sort", ""),
     ]
+}
+
+/// The search form's opening tag on every page that carries it.
+const SEARCH_FORM: &str = "<form method=\"get\" action=\"search#answer\" data-count>";
+
+/// The search route asked with a form's fields as a browser sends them.
+fn sent_path(fields: &[(String, String)]) -> String {
+    let pairs: Vec<(&str, &str)> = fields
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+    format!("search?{}", query_string(&pairs))
 }
 
 fn query_string(fields: &[(&str, &str)]) -> String {
@@ -763,7 +776,8 @@ fn c194_a_page_saves_the_site_search_it_answered_and_opens_it_with_its_report() 
     let url = trade_url();
     let mut envelope = ring_search();
     // a stat no table holds: a clause the translation does not run
-    envelope.push(("query.stats[0].filters[1].id", "explicit.stat_9999999999"));
+    // a row of the form's one group, as the page's order places it
+    envelope.push(("stat.id", "explicit.stat_9999999999"));
     for (sent, name) in [
         (
             vec![("realm", "xbox"), ("trade", url.as_str())],
@@ -816,12 +830,221 @@ fn c194_a_page_saves_the_site_search_it_answered_and_opens_it_with_its_report() 
         // saved again from the opened page: the same source, over the row
         let opened = follow(&web, &location);
         assert_eq!(opened.status, 200, "{}", opened.body);
+        // the opened page stands under its editor filled (the one page):
+        // its search form, as a browser submits it, carries the saved
+        // search and asks the search the row holds, an unread stat a row
+        let form = submitted(&opened.body, SEARCH_FORM);
+        assert!(
+            form.contains(&("saved".to_string(), id.clone())),
+            "{form:?}"
+        );
+        if name == "form rings" {
+            assert!(
+                form.contains(&(
+                    "stat.id".to_string(),
+                    "explicit.stat_9999999999".to_string()
+                )),
+                "{form:?}"
+            );
+        }
+        let asked = web.get_json(&sent_path(&form));
+        assert_eq!(asked["query"]["text"], row["text"], "{asked}");
         let over = form_on(&opened.body, &format!("Save over \"{name}\""), Some(&id));
         landed_on_the_list(&web, &send(&web, &over, false));
         let again = saved_json(&world, &["show", &id]);
         assert_eq!(again["revision"], 2, "{again}");
         assert_eq!(again["query"], row["query"], "{again}");
     }
+}
+
+/// The one page (`4-full-1-form-design.md` §2): a search stands under its
+/// editors filled from its source. A form search of two groups is asked
+/// again, both groups in order, by its search form as a browser submits it
+/// and by every link and hidden form its page writes; a site search fills
+/// the form, and so does its continuation; a count's two editors keep its
+/// keys and its limit; and a refused search is the same page, filled from
+/// the nearest thing read, its status and its JSON the refusal's.
+#[test]
+fn every_search_stands_under_its_editor_filled_with_what_was_asked() {
+    let (_scratch, web) = offline_web("webeditor");
+    let token_search = format!("/{}/search?", web.token);
+    // a search's stat clauses as its answer reports them, each where it
+    // stands and what the site wrote for it
+    let stats_of = |answer: &Value| -> Vec<(String, Value)> {
+        answer["query"]["trade"]["clauses"]
+            .as_array()
+            .unwrap_or_else(|| panic!("no trade report: {answer}"))
+            .iter()
+            .filter(|c| c["at"].as_str().unwrap().starts_with("stats."))
+            .map(|c| (c["at"].as_str().unwrap().to_string(), c["site"].clone()))
+            .collect()
+    };
+    // the search a link or a form asks, as its answer's JSON
+    let asked = |href: &str| -> Option<Value> {
+        let href = unescaped(href);
+        let rest = href
+            .strip_prefix("search?")
+            .or_else(|| href.strip_prefix(&token_search))?;
+        Some(web.get_json(&format!("search?{rest}")))
+    };
+    // a form search of two groups, the second a count
+    let two = [
+        ("realm", "pc"),
+        ("league", "Standard"),
+        (
+            "query.filters.type_filters.filters.category.option",
+            "accessory.ring",
+        ),
+        ("group.type", "and"),
+        ("stat.id", "explicit.stat_3299347043"),
+        ("stat.min", "40"),
+        ("group.type", "count"),
+        ("group.min", "1"),
+        ("stat.id", "explicit.stat_3372524247"),
+        ("stat.id", "pseudo.pseudo_total_life"),
+        ("view.limit", "20"),
+    ];
+    let mut tabled = two.to_vec();
+    tabled.push(("view.fields", "icon"));
+    for sent in [two.to_vec(), tabled] {
+        let path = format!("search?{}", query_string(&sent));
+        let page = web.get(&path);
+        assert_eq!(page.status, 200, "{}", page.body);
+        let answer = web.get_json(&path);
+        let groups = stats_of(&answer);
+        assert!(groups.iter().any(|(at, _)| at == "stats.1.1"), "{answer}");
+        // the search form as a browser submits it asks the same search
+        let form = submitted(&page.body, SEARCH_FORM);
+        assert_eq!(web.get_json(&sent_path(&form)), answer, "{form:?}");
+        // every link the page writes with the form's fields, and the
+        // table's form, keeps both groups in their order (a route to
+        // another search is written as its text, and carries none)
+        let mut kept = 0;
+        for href in page.body.split("href=\"").skip(1) {
+            let href = &href[..href.find('"').unwrap()];
+            if !href.contains("group.type=") {
+                continue;
+            }
+            let linked = asked(href).unwrap_or_else(|| panic!("{href} is no search"));
+            assert_eq!(stats_of(&linked), groups, "{href}");
+            kept += 1;
+        }
+        let table = "<form class=\"table\" method=\"get\" action=\"search\">";
+        if page.body.contains(table) {
+            let held = submitted(&page.body, table);
+            assert_eq!(
+                stats_of(&web.get_json(&sent_path(&held))),
+                groups,
+                "{held:?}"
+            );
+            kept += 1;
+        }
+        assert!(kept > 1, "{}", page.body);
+    }
+    // a site search fills the form, and the form asks it again; so does
+    // its continuation, read by its token's query
+    let rings = r#"{"query": {"filters": {"type_filters": {"filters": {"category": {"option": "accessory.ring"}}}}}}"#;
+    let site_path = format!(
+        "search?{}",
+        query_string(&[("realm", "pc"), ("trade", rings), ("view.limit", "1")])
+    );
+    let site = web.get(&site_path);
+    assert_eq!(site.status, 200, "{}", site.body);
+    let site_answer = web.get_json(&site_path);
+    let form = submitted(&site.body, SEARCH_FORM);
+    assert!(
+        form.contains(&(
+            "query.filters.type_filters.filters.category.option".to_string(),
+            "accessory.ring".to_string()
+        )),
+        "{form:?}"
+    );
+    let resent = web.get_json(&sent_path(&form));
+    assert_eq!(
+        resent["query"]["text"], site_answer["query"]["text"],
+        "{resent}"
+    );
+    assert_eq!(resent["total"], site_answer["total"], "{resent}");
+    let more = site.body.split("href=\"").skip(1).find_map(|href| {
+        let href = unescaped(&href[..href.find('"').unwrap()]);
+        href.contains("search?next=").then_some(href)
+    });
+    let more = more.unwrap_or_else(|| panic!("no continuation:\n{}", site.body));
+    let continued = go(&web, &more, false);
+    let continued = continued.as_str().unwrap();
+    assert_eq!(
+        submitted(continued, SEARCH_FORM),
+        form,
+        "a continuation fills the form as its first page does"
+    );
+    // a count's two editors each keep its keys and its limit
+    let mut counted = two.to_vec();
+    counted.retain(|(k, _)| *k != "view.limit");
+    counted.extend([("view.count", "rarity"), ("view.limit", "5")]);
+    let count_path = format!("search?{}", query_string(&counted));
+    let count_page = web.get(&count_path);
+    assert_eq!(count_page.status, 200, "{}", count_page.body);
+    let count_answer = web.get_json(&count_path);
+    let form = submitted(&count_page.body, SEARCH_FORM);
+    assert_eq!(web.get_json(&sent_path(&form)), count_answer, "{form:?}");
+    let boxed = submitted(
+        &count_page.body,
+        "<form class=\"query-box\" method=\"get\" action=\"search#answer\" data-count>",
+    );
+    for kept in [("view.count", "rarity"), ("view.limit", "5")] {
+        assert!(
+            boxed.contains(&(kept.0.to_string(), kept.1.to_string())),
+            "{boxed:?}"
+        );
+    }
+    let boxed_answer = web.get_json(&sent_path(&boxed));
+    assert_eq!(boxed_answer["view"], count_answer["view"], "{boxed_answer}");
+    // refused: the fold's refusal over the empty form; a site search the
+    // decode refuses in its box as sent; the form's fields the request
+    // refuses, filled; each its status and its JSON the refusal's
+    let empty = submitted(&web.get("").body, SEARCH_FORM);
+    let unfolded = format!(
+        "search?{}",
+        query_string(&[("realm", "pc"), ("nonsense", "1")])
+    );
+    let page = web.get(&unfolded);
+    assert_eq!(page.status, 400, "{}", page.body);
+    assert_eq!(submitted(&page.body, SEARCH_FORM), empty);
+    assert_eq!(refused_json(&web, &unfolded, 400)["kind"], "usage");
+    let undecoded = format!(
+        "search?{}",
+        query_string(&[("realm", "pc"), ("trade", "not an id")])
+    );
+    let page = web.get(&undecoded);
+    assert_eq!(page.status, 400, "{}", page.body);
+    assert!(
+        page.body
+            .contains("name=\"trade\" rows=\"2\">not an id</textarea>"),
+        "{}",
+        page.body
+    );
+    assert_eq!(submitted(&page.body, SEARCH_FORM), empty);
+    assert_eq!(refused_json(&web, &undecoded, 400)["kind"], "trade");
+    let mut unread = two.to_vec();
+    unread.push(("view.sort", "no such value"));
+    let unread = format!("search?{}", query_string(&unread));
+    let page = web.get(&unread);
+    assert_eq!(page.status, 400, "{}", page.body);
+    let form = submitted(&page.body, SEARCH_FORM);
+    for held in [
+        (
+            "query.filters.type_filters.filters.category.option",
+            "accessory.ring",
+        ),
+        ("stat.id", "pseudo.pseudo_total_life"),
+        ("view.sort", "no such value"),
+    ] {
+        assert!(
+            form.contains(&(held.0.to_string(), held.1.to_string())),
+            "{form:?}"
+        );
+    }
+    assert!(refused_json(&web, &unread, 400)["error"].is_string());
 }
 
 /// The query box sorts and pages as the big form does: its "Show" is on
@@ -1138,7 +1361,7 @@ fn every_search_page_is_a_wording_golden() {
             "<summary>Type Filters</summary>",
             "name=\"defences\" value=\"displayed\"",
             "name=\"query.filters.armour_filters.disabled\" value=\"true\"",
-            "name=\"query.stats[0].disabled\" value=\"true\"",
+            "name=\"group.disabled\" value=\"true\"",
             "<summary>Stat Filters</summary>",
             "placeholder=\"Search items\"",
             "class=\"search-btn\"",
@@ -1794,8 +2017,8 @@ fn the_moved_world_renders_with_a_badge() {
         "search?{}",
         query_string(&[
             ("realm", "pc"),
-            ("query.stats[0].type", "and"),
-            ("query.stats[0].filters[0].id", "explicit.stat_9999999999"),
+            ("group.type", "and"),
+            ("stat.id", "explicit.stat_9999999999"),
             ("view.limit", "20"),
         ])
     );
@@ -1824,6 +2047,7 @@ fn the_moved_world_renders_with_a_badge() {
         &["undecided", "Wombgift Chalice"],
     );
     every_request_an_answer_carries_is_a_way_on_its_page(&web, &undecided_path, &undecided);
+    panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "moved_world", &pages);
 }
 
@@ -2517,6 +2741,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             "<br>these tables read release {major}.{minor} and a character here was fetched from {ahead} ("
         )],
     );
+    panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "answer_ways", &pages);
 }
 
@@ -2671,6 +2896,7 @@ fn the_rows_route_answers_a_window_and_refuses_each_wrong_one() {
             two.body
         );
     }
+    panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "table_rows", &pages);
 }
 
@@ -5661,7 +5887,7 @@ fn the_saved_pages_are_a_wording_golden() {
         &everything_page,
         &[
             "Saved search &quot;everything&quot;, opened at revision 1",
-            "<textarea id=\"query-text\" name=\"text\" rows=\"3\"></textarea>",
+            "<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\"></textarea>",
         ],
     );
     // a row replaced by one this build cannot read: its link as the list
@@ -5761,6 +5987,7 @@ fn the_saved_pages_are_a_wording_golden() {
     assert_eq!(opened.status, 200, "{}", opened.body);
     assert!(old.contains("text=class%3Arings"), "{old}");
     assert_eq!(stored(), v1, "a read rewrote the version 1 row");
+    panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "saved_pages", &pages);
 }
 

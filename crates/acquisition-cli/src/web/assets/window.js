@@ -105,11 +105,12 @@
   };
   window.addEventListener('scroll', queue, { passive: true });
   window.addEventListener('resize', queue);
-  // the URL's anchor inside the table (a toggled head or row), sought once
+  // the URL's anchor (a toggled head or row inside the table, or the
+  // answer under the page's editors, where a search lands), sought once
   // the segments are sized and before the first fill, so the fill keeps
   // the block the server rendered for it
   // an anchor is written percent-encoded, as its fragment is
   const anchor = location.hash && document.getElementById(location.hash.slice(1));
-  if (anchor && table.contains(anchor)) anchor.scrollIntoView();
+  if (anchor) anchor.scrollIntoView();
   fill();
 })();
