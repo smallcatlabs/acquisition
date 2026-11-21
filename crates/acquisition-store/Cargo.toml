@@ -15,7 +15,7 @@ anyhow.workspace = true
 # frontends two forms (C84); compiled in always, so one build writes one binary.
 # `fallible_uint` keeps `u64` a column type (the job ids), the checked
 # conversion rusqlite gave by default before 0.35.
-rusqlite = { version = "0.41", features = ["bundled", "hooks", "fallible_uint"] }
+rusqlite = { version = "0.43", features = ["bundled", "hooks", "fallible_uint"] }
 directories = "6"
 # the world's short id (world.rs): twelve hex digits of the canonical root's SHA-256
 sha2 = "0.11"
