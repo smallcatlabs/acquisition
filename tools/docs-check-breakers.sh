@@ -6,9 +6,9 @@
 # history through one matcher, and the history citations (§2b), each
 # path as it was at its commit, the document paths (§6), and the stale
 # identifiers (§3) as they read the skills and the glossary, the knob
-# table (§4), the goldens (§7) and the gate's stage list (§8). The dependency guard's cases and the group rule's moved with
-# their checks to `arch-check-breakers.sh` (step 1e of the roadmap); the
-# two suites do not cross.
+# table (§4), the goldens (§7) and the gate's stage list (§8). The
+# dependency guard's cases and the group rule's are with
+# their checks in `arch-check-breakers.sh`; the two suites do not cross.
 #
 # A refusal is evidence only when it names the property, so each case
 # states the words the check must print. An edit that does not apply
@@ -45,8 +45,8 @@ trap 'restore; rm -rf "$scratch"' EXIT
 # ---- the harness -----------------------------------------------------------
 pass=0; failed=0
 # The refusal's first line, cut to 90 characters, never inside one: `cut -c`
-# cuts bytes under the C locale, and half an em dash made the saved output
-# binary to grep (tools hygiene's report).
+# cuts bytes under the C locale, and half an em dash makes the saved output
+# binary to grep.
 clip() { python3 -Ic 'import sys; print(sys.stdin.readline().rstrip("\n")[:90])'; }
 run_case() {  # run_case <name> <refuse|pass|lacks> <pattern the output must contain, or lack> <setup...>
   local name=$1 want=$2 pattern=$3; shift 3
@@ -132,12 +132,12 @@ run_case 'an entry: at, letters alone, no backticks'             refuse 'carries
 run_case 'an entry: at, nine letters in backticks'               refuse 'carries a commit'        entry "$W" "at compile (at \`$H9\`). *Why:*"
 run_case 'a document: at, letters alone, no backticks'           refuse "\`$H7\` is not in this history" checklist "A note at $H7."
 run_case 'a document: at, nine letters in backticks'             refuse "\`$H9\` is not in this history" checklist "A note at \`$H9\`."
-# A manifest's comment is read as a document's is (#89's review: the scans
-# read only *.rs, *.sh, *.py and *.md, and no root manifest).
+# A manifest's comment is read as a document's is (scans that read only
+# *.rs, *.sh, *.py and *.md would read no root manifest).
 manifest() { printf '%s\n' "$1" >>deny.toml; }
 run_case 'a root manifest: at, letters alone, in backticks'      refuse "\`$H7\` is not in this history" manifest "# A note at \`$H7\`."
 # Wrapped after "at": a line break, and a comment's leader, between "at"
-# and the hash (#126: neither scan read one, and a dead hash passed).
+# and the hash, which a scan line by line misses, passing a dead hash.
 run_case 'a document: wrapped after at, a dead hash'             refuse "\`$H7\` is not in this history" checklist "A note at"$'\n'"$H7."
 run_case 'a manifest: wrapped after at, behind its leader'       refuse "\`$H9\` is not in this history" manifest "# A note at"$'\n'"# $H9."
 
@@ -153,8 +153,8 @@ run_case 'wrapped after at: the path as it is now'               refuse 'search/
 DELETED='spikes/rust-playground/search/repoe/data/trade-stat-coverage.csv'
 run_case 'a deleted file at the deletion'"'"'s parent'               pass   'ok      citations'      checklist "The coverage was \`$DELETED\` at \`c756bd38^\`."
 run_case 'the same at the deletion itself'                       refuse "$DELETED\` is not at c756bd38:" checklist "The coverage was \`$DELETED\` at \`c756bd38\`."
-# The roadmap is read under the cited commits' two exclusions alone (the
-# outside review of 1f074d5a, finding 1): its plan is read, a saved
+# The roadmap is read under the cited commits' two exclusions alone: its
+# plan is read, a saved
 # review, an outside model's answer verbatim, is not.
 roadmap() { printf '%s\n' "$1" >>roadmap/README.md; }
 review()  { printf '%s\n' "$1" >roadmap/reviews/zz-breaker.md; }
@@ -164,11 +164,10 @@ run_case 'a saved review: not read'                              pass   'ok     
 echo '== a document name names a file in this tree (the outside review of 202e4659, finding 2)'
 run_case 'a bare deleted document in the review checklist'       refuse 'LIVE-TESTING.md` names no document in this tree' checklist "Read \`LIVE-TESTING.md\` first."
 run_case 'the same, cited at the commit that held it'            pass   'ok      paths'          checklist "Read \`LIVE-TESTING.md\` at \`b6197a82\` first."
-# The roadmap's plan is read, its briefs are not (#106: the plan named no
-# dead document when measured).
+# The roadmap's plan is read, its briefs are not.
 run_case 'a bare deleted document in the roadmap'"'"'s plan'         refuse 'PATH    roadmap/README.md:' roadmap "Read \`LIVE-TESTING.md\` first."
 # A deletion not yet staged: `git ls-files` still lists the file, so a
-# pointer to it passed (the outside review of 1f074d5a, finding 2). The
+# pointer to it would pass by that list alone. The
 # research-track skill names it; the copy restores it.
 unstaged_deletion() { rm search/README.md; }
 run_case 'a document deleted, the deletion not staged'           refuse 'search/README.md` names no document in this tree' unstaged_deletion

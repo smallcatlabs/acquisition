@@ -34,34 +34,34 @@ tempfile = "3"
 [profile.dev]
 # macOS defaults to split-debuginfo = "unpacked", which leaves every codegen
 # unit's object file in target/debug/deps for the debugger to find and never
-# deletes them: 600k files, 65 GB, on 2026-09-09 (note 16 at `decda84e`).
+# deletes them: one checkout's reached 600k files, 65 GB (note 16 at
+# `decda84e`).
 # "packed" folds them into one .dSYM per executable at link time.
 split-debuginfo = "packed"
 # The workspace's own crates at opt-level 1: the search's derivation and
-# the listing loops are workspace code, so they ran unoptimised while
-# every dependency ran optimised (below). The measurements are in the
-# commit that made the change.
+# the listing loops are workspace code, so at opt-level 0 they would run
+# unoptimised while every dependency runs optimised (below).
 #
-# Incremental on (the owner's ruling, 2026-10-30, t4): the full gate
-# after one store touch took 63 s wall against 146 to 168 s with it off.
+# Incremental on (the owner's ruling): the full gate after one store
+# touch takes 63 s wall against 146 to 168 s with it off.
 # The cost is about 5 GB of `target/debug/incremental` in each checkout
 # that builds, and a stale set left behind by every compiler upgrade and
 # every change of features, profile or flags, which cargo never
 # collects: run `cargo clean` after each compiler upgrade. That cleanup
-# exists because of the history: with incremental on before, a fresh
-# worktree's build was 15 GB of which 9.3 GB was `incremental`, and the
-# main checkout's target had grown to 124 GB by 2026-10-25. CI builds
+# is owed because the sets accumulate: a fresh worktree's build is 15 GB
+# of which 9.3 GB is `incremental`, and one checkout's target reached
+# 124 GB without it. CI builds
 # without it: `Swatinem/rust-cache` sets CARGO_INCREMENTAL=0 in both
 # gate jobs.
 opt-level = 1
 incremental = true
 
 # Dependencies optimised and without debug info, the workspace's own
-# crates as they were (roadmap 0e, measured from an empty target dir,
-# run alone): `cargo test --workspace --all-targets` 247 s to 110 s,
-# the dependency-heavy tests (the store's SQLite, serde_json over item
-# bodies) having run them unoptimised; a cold build 56 s to 90 s, once;
-# target/ 11.3 to 9.4 GB.
+# crates as above. Against dependencies unoptimised, measured from an
+# empty target dir, run alone: `cargo test --workspace --all-targets`
+# 247 s to 110 s, since the dependency-heavy tests (the store's SQLite,
+# serde_json over item bodies) otherwise run them unoptimised; a cold
+# build 56 s to 90 s, once; target/ 11.3 to 9.4 GB.
 # A backtrace through a dependency loses its line numbers.
 [profile.dev.package."*"]
 opt-level = 2

@@ -7,7 +7,7 @@
 # save). Signed with a real identity the requirement is the identifier, the
 # Apple anchor and the certificate's name and team — the same after every
 # build, and after the certificate renews under the same name — so the
-# item's "Always Allow" holds (2026-09-12; auth.rs, "keyring").
+# item's "Always Allow" holds (auth.rs, "keyring").
 #
 #   tools/sign-acqd.sh [path-to-acqd]     # default target/debug/acqd
 #
@@ -26,8 +26,8 @@
 # Cargo copies target/debug/acqd from its twin in target/debug/deps on EVERY
 # build, even one that compiles nothing (a copy, not a hard link — cargo
 # avoids hard-linking executables on macOS), so a signature on the copy
-# alone is gone after the next `cargo build` (seen 2026-09-12: undone by a
-# 0.08 s no-op). Signing the twin does not dirty the unit, and every later
+# alone is gone after the next `cargo build`, a no-op among them. Signing
+# the twin does not dirty the unit, and every later
 # copy carries the signature — so the twin is signed and copied into place.
 # The twin is found by content, not name: a `-p` build and a `--workspace`
 # build are different units with different twins, and the copy matches
@@ -56,8 +56,8 @@ if ! out=$(codesign -s "$ACQ_CODESIGN_IDENTITY" --identifier com.smallcatlabs.ac
 fi
 if [ -n "$twin" ]; then cp -f "$twin" "$acqd"; else echo "sign-acqd: no deps twin with $acqd's bytes — signed the copy alone; the next cargo build will undo it" >&2; fi
 # The proof is the designated requirement the file now carries, not that
-# a signature is valid — an ad-hoc signature is valid (audit 2026-09-12:
-# a nonexistent identity had exited 0 with the code hash still in place).
+# a signature is valid — an ad-hoc signature is valid, so a nonexistent
+# identity would otherwise exit 0 with the code hash still in place.
 req=$(codesign -d -r- "$acqd" 2>&1 | sed -n 's/^designated => //p')
 case $req in
     *'identifier "com.smallcatlabs.acqd"'*) ;;

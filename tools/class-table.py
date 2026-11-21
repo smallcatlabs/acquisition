@@ -21,7 +21,7 @@ Rules, each a reading of the source and never a judgment (C106):
      in an item filter) — when the base has a name and its class has a
      display name, whatever its release state: the export marks a base the
      game no longer drops `unreleased` (Blade Trap, held by the owner in a
-     Remove-only tab, 2026-09-23), and a stash keeps what the game removed.
+     Remove-only tab), and a stash keeps what the game removed.
   2. A gem enters under its class by its displayed name, which for a
      transfigured gem (`Ice Nova of Frostbolts`) is its own and is no base
      of `base_items.json`.
@@ -51,7 +51,7 @@ VERSION = 1
 # Rule 4: the size words of a class whose bases the API names with a size the
 # export does not print, each followed by a space and the export's name. The
 # one list: tools/category-table.py writes the tag file's rows from it. The
-# evidence is the sitting of 2026-11-17 (#282; search/pseudo-stats/MANIFEST.md):
+# evidence is the sitting of 2026-11-17 (search/pseudo-stats/MANIFEST.md):
 # of the 50 Viscera the searches z05 to z09 fetched, 35 are `Lesser `, 1
 # `Greater ` and 14 plain, each the base of the export once the word is off,
 # under the leaf its tag names.

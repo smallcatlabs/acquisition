@@ -9,10 +9,8 @@ A seat asks what the tool's own words are worth to someone who has
 nothing else. The runner is a headless session started in its world,
 told to read its brief and the tour and no other file; every command goes through one door that logs
 it; the report cites calls by number. The tool is under test, never
-the runner. Ran on the MCP's search tools (`search/LEDGER.md`, 11c) and
-on the whole CLI twice (`audits/rehome-2026-10/seat/`, 2026-10-13: 13
-faults, a fix round, a rerun), and repeated the traps below, so it is a
-skill (P6).
+the runner. It has run more than twice and repeats the traps below,
+so it is a skill (P6).
 
 ## Before the run
 
@@ -44,8 +42,8 @@ skill (P6).
 4. Run `python3 -I .claude/skills/seat/doors_test.py`: both doors
    against a tool that stalls, answers half a line or not JSON, exits
    or lingers, and a login that prints no URL — each must end within
-   its deadline, leave no process and leave a row (review 6 of the
-   release seat found a reader that could block past its deadline).
+   its deadline, leave no process and leave a row (a door's reader can
+   block past its deadline unless it is tested so).
 5. Build the release binaries and the store copier, then the world
    (never while the gate runs, C84):
 
@@ -72,27 +70,23 @@ skill (P6).
 6. Launch the runner with `launch.sh WORLD MODEL DOOR PROMPT-FILE`,
    in the background, never as a subagent: a subagent starts in the
    repository with its instructions, the memory index and the git log,
-   and is not blind (the trade seat's probe, 2026-10-17). The script's
+   and is not blind. The script's
    rails are its header. The prompt names the brief's path and repeats
    the prohibitions; it says nothing of what you expect to be found.
    The debrief resumes the same session (`… PROMPT-FILE SESSION-ID`):
    the questions of the plan, the last an open one, and among them
-   "which answer would you retract, or not bet on?", which three of the
-   trade seat's eight runs proposed and two more answered unasked, and
-   "which claims in your report rest on your own knowledge of the game
-   rather than on the tool?", which both Opus runs of the re-sit
-   proposed and answered unasked (`audits/trade-2026-10/re-sit/`), and
-   "did you change the store in any way you did not undo?", which both
-   reruns of the release seat proposed and answered unasked
-   (`audits/release-2026-10/seat/`).
+   "which answer would you retract, or not bet on?", "which claims in
+   your report rest on your own knowledge of the game rather than on
+   the tool?" and "did you change the store in any way you did not
+   undo?", each a question runners propose and answer unasked.
 
 ## After the run
 
 7. Check the report against `calls.csv` and the outputs under the
    world's `calls/` before believing a fault: reproduce it in a scratch
-   mock world (the mock-session skill). Of the rerun's faults, one
-   was false as stated and one was not shown by the calls it cited.
-   Say in the record how many calls you read.
+   mock world (the mock-session skill). A fault can be false as
+   stated, or not shown by the calls it cites. Say in the record how
+   many calls you read.
 8. The fix round. One commit per fault; each fix is held by a test in
    `crates/acquisition-cli/tests/seat_faults.rs` named for the fault. A
    fault that is a ruling's consequence is kept and made visible, or
@@ -121,17 +115,16 @@ skill (P6).
 
 ## The page door (`acq web` through the browser pane)
 
-A seat at the pages, settled by two runs (`audits/web-2026-11/seat/`:
-the probe of 2026-11-07, the blind run of 2026-11-08). The runner is a
-started session, not a headless one: the browser pane is the desktop
-app's, and its tools (`mcp__Claude_Browser__*`) come with a session the
-app starts. What differs from the CLI and MCP doors:
+A seat at the pages (its record, `audits/web-2026-11/seat/`). The
+runner is a started session, not a headless one: the browser pane is
+the desktop app's, and its tools (`mcp__Claude_Browser__*`) come with
+a session the app starts. What differs from the CLI and MCP doors:
 
 1. **The world** is made as a CLI world is (`setup --store PRISTINE/store
    --daemon`, then `login <user>` by the world's maker, its row set aside
    as `setup-login.csv`), with the release `acq` and `acqd` copied into
-   `W/bin` — the path the brief names; the blind run's first door call
-   failed because the maker had put them one level up. Copy `README.md`
+   `W/bin` — the path the brief names, so the runner's first door call
+   finds them there and nowhere else. Copy `README.md`
    and the brief in beside `seat.py`.
 2. **One page server per account**: `acq web` serves one account, and
    a store with two (the facts copy with no session, the logged-in mock
@@ -168,18 +161,17 @@ app starts. What differs from the CLI and MCP doors:
    submit before reading.
 6. **Alongside a build.** The seat drives the copy in `W/bin`, so a
    worker's debug builds and the gate in the repository do not touch it;
-   the two can run at once (2026-11-08, the trade box round beside the
-   blind run).
+   the two can run at once.
 
 ## Traps
 
-- **The runner's harness may refuse it the report file.** The first
-  run's `REPORT.md` had to be lifted from the task's output; the door's
+- **The runner's harness may refuse it the report file.** A refused
+  `REPORT.md` is left only in the task's output; the door's
   `report` command exists so the runner writes through the door, a
   part at a time as each task ends.
 - **No redirect means no plan file.** A verb's output becomes a file
-  another verb reads only through `run --out NAME`; without it the
-  first run could not try `--apply=FILE` at all.
+  another verb reads only through `run --out NAME`; without it a
+  runner cannot try `--apply=FILE` at all.
 - **The real provider is the default (C88).** The door sets
   `ACQ_PROVIDER=mock` and the store directory on every command and
   drops a leftover `ACQ_GGG`; a runner that reaches `acq` any other way
@@ -189,35 +181,32 @@ app starts. What differs from the CLI and MCP doors:
   temporary directory makes a socket path too long to bind; keep a
   world with a daemon short-pathed.
 - **The harness reads a heredoc as shell.** Under the launch's rails it
-  refused a door command whose heredoc held prose it could not parse
-  (`?` before an unclosed apostrophe) and one holding JSON with escaped
-  quotes. An Opus runner rewrote a refused call inline; a Sonnet runner
-  stopped and asked, as its brief bound it, twice (the trade seat's
-  Sonnet MCP runs, at T2 and at T1). Any door command's heredoc may be
+  refuses a door command whose heredoc holds prose it cannot parse
+  (`?` before an unclosed apostrophe) or JSON with escaped quotes. A
+  runner may rewrite a refused call inline, or stop and ask, as its
+  brief binds it. Any door command's heredoc may be
   refused, so every one has a file form: `W/drafts/NAME`, written by
   the runner's file tool, read by `report`, `debrief` or `call --from
   NAME`, or by the CLI door's `run --stdin`.
 - **The rails deny what is not allowed, not what the harness calls
-  safe.** A runner ran `date` outside the door three times (the trade
-  seat, mcp-opus-2); it reads nothing of the repository, but the record
+  safe.** A runner may run `date` outside the door; it reads nothing
+  of the repository, but the record
   names it, as it names a harness's spill of a long output read
   outside W.
 - **A long output is the runner's context.** The door prints the head
   of anything over 60,000 bytes and says so; a verb that needs that is
-  a finding (`acq tabs` at 355 KB, `search --describe` at 117 KB).
-- **A report's counts are the runner's.** Numbers in the task sections
-  were not recomputed by the session in either run; say so.
-- **A pristine torn down is gone.** The re-sit found the plan's
-  pristine copy gone (`teardown` had removed it at the trade seat's
-  close) and made it again from the owner's unchanged files; step 10
-  now keeps it, and the ledger row names it. Make the copy before the
-  briefs, and check it is there before a plan names it.
-- **A missing pristine made a bare world.** `setup --store DIR` with a
-  DIR that did not exist (the pristine's own `setup` had refused its
-  unmade directory a line earlier) made two worlds with `store: []`
-  and said "the world at …" (the answer-facts seat, 2026-11-04); both
-  were torn down and remade. The door now refuses a `--store` that is
-  not a directory holding a `.db`; make the pristine's directory before
-  its `setup`, and read `world.json`'s `store` list before a launch.
-- **The seat's fix round ends with the gate run bare.** A commit went
-  through with `git diff --check` failing behind a `;`.
+  a finding.
+- **A report's counts are the runner's.** Unless the session
+  recomputes the numbers in the task sections, the record says it did
+  not.
+- **A pristine torn down is gone.** It is made again only from the
+  owner's files, so step 10 keeps it, and the ledger row names it. Make
+  the copy before the briefs, and check it is there before a plan names
+  it.
+- **A missing pristine makes no world.** The door refuses a `--store`
+  that is not a directory holding a `.db` (without that refusal a
+  missing pristine would make a bare world, `store: []`); make the
+  pristine's directory before its `setup`, and read `world.json`'s
+  `store` list before a launch.
+- **The seat's fix round ends with the gate run bare.** A check
+  chained behind a `;` can fail unseen.

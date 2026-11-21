@@ -82,12 +82,12 @@ loaded. It routes a file by the `decisions/<area>.md` its module doc
 names near the top; a file that names none is routed by the area intros
 with a ticked token its path ends with, whole path components, or one
 that starts with its crate, so a crate path in an intro routes every
-unrouted file of that crate there (the 2d build: plans' intro names
-`kinds.rs` bare for that reason). A token ending with the file's name is
-not one: `search/README.md` names no other `README.md` (#106). A root
+unrouted file of that crate there (plans' intro names `kinds.rs` bare
+for that reason). A token ending with the file's name is
+not one: `search/README.md` names no other `README.md`. A root
 file the workspace reads, a `.toml` or `.lock` at the root that nothing
 routes, reaches every member `Cargo.toml` lists, and is routed to the
-areas their entry files name (#236: `pack --path Cargo.toml` refused).
+areas their entry files name.
 
 `check` holds what `tools/docs-check.sh` does not: a cross-reference
 inside the registry resolves; an entry has its *Why:* and its *Pinned:* and no

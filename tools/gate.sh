@@ -11,7 +11,7 @@
 #
 # Each stage runs bare, its output unfiltered, and its exit status is
 # captured into its own slot: a stage piped through a filter reports the
-# filter's exit, and BSD `grep -qv` once read "all green" over a failing
+# filter's exit, and BSD `grep -qv` can read "all green" over a failing
 # line. A failing stage does not stop the others, and a stage name the
 # script does not know fails rather than passing as a stage that ran. The table at the end,
 # `stage  rc  seconds`, is the verdict, and the script exits 1 when any
@@ -29,7 +29,7 @@
 # or a driver starts (`acq`, `acqd`, `acq-mcp` in cargo's `debug`
 # directory), runs `cargo build --workspace`, and fails if the build
 # compiled anything or any hash moved. A
-# `--workspace` test run writes them as the plain build does (#88: one
+# `--workspace` test run writes them as the plain build does (one
 # feature graph for both, and an integration test in every binary's
 # crate, so cargo writes each binary on a test run), and the stage holds
 # that at the boundary, what the test run leaves on disk. It still
@@ -45,16 +45,17 @@
 # by package, name and version, failing on each package whose features
 # differ and naming both sets. Equal graphs are not equal executables:
 # `artifacts` checks those, which includes a split caused by a profile
-# difference, and a binary whose crate has no integration-test target
-# (t2's build and its reviews). `artifacts` sees only this host's
+# difference, and a binary whose crate has no integration-test target.
+# `artifacts` sees only this host's
 # binaries, after a test run; this stage sees every target's graph in a
 # second, so CI runs it and a dependency bump that splits a feature
-# graph is red on its own checks (#128, item 2). A split is closed by a pin in the binary's crate, as
-# `acquisition-mcp` and `acquisition-cli` hold (#88, #125, #124).
+# graph is red on its own checks. A split is closed by a pin in the
+# binary's crate, as
+# `acquisition-mcp` and `acquisition-cli` hold.
 #
 # The `winclippy` stage is clippy for the Windows target,
 # `x86_64-pc-windows-msvc`, on whatever host runs the gate (the owner's
-# ruling of 2026-10-29, `roadmap/README.md`): it lints the `cfg(windows)`
+# ruling): it lints the `cfg(windows)`
 # code, which the host's `clippy` never compiles, so a Windows-only lint
 # is seen before a push and not first in CI. It sees lints only: no test
 # of that code runs, and nothing links. The C and C++ compilers and the
@@ -63,8 +64,7 @@
 # linked through it would be wrong by design, and clippy links nothing.
 # On a Windows host (`OS` is `Windows_NT` in every process there, Git
 # Bash's included) the stage names no stub: cargo calls the native MSVC
-# tools, and could not execute a shell script as a compiler (the review
-# of the step's build, finding 1).
+# tools, and could not execute a shell script as a compiler.
 # It builds into its own target directory, `target/winclippy`, so the
 # host's executables, which `artifacts` hashes, are never touched, and a
 # later run is warm (42 s cold, 2 s warm, measured on a 10-core M4). Where
@@ -77,16 +77,16 @@
 # selection, so no stage rewrites a golden: every golden regenerates when
 # it is set at all, `0` and empty among its values, and the harness
 # removes `ACQ_*` from the children a test spawns, never from the test
-# that compares, so a gate run in a shell that exports it rewrote every
-# golden and went green (#87).
+# that compares, so a gate run in a shell that exports it would rewrite
+# every golden and go green.
 #
 # The doc stage, `cargo doc` with warnings denied, is not in the full
 # list: 81 s after one store touch, on a 10-core M4, serial, and the
-# Linux gate's `doc` job runs it on every push (the owner's ruling of 2026-10-29, `roadmap/README.md`).
+# Linux gate's `doc` job runs it on every push (the owner's ruling).
 # `--only doc` runs it here.
 #
 # The full gate ends with `tree`: the working tree its stages leave must
-# be the one they found (#87). A session gates its uncommitted work, so
+# be the one they found. A session gates its uncommitted work, so
 # the stage compares the tree before the first stage with the tree after
 # the last, never against a clean checkout (CI's checkout is clean, and
 # its step is the literal `git status --porcelain` check): tracked files
@@ -110,7 +110,7 @@ VERDICTS=runs/gate/verdicts.tsv
 # metadata`), the build runs with `--message-format=json`, and a binary
 # it reports at another path (a configured or cross target) fails the
 # stage by name; a hash command that fails, or a digest that is not 64
-# hex characters, fails it before any comparison (#88, the reviews).
+# hex characters, fails it before any comparison.
 ARTIFACTS=(acq acqd acq-mcp)
 
 # The SHA-256 of `$1`, or the stage's failure naming it.
@@ -177,13 +177,13 @@ for line in open(sys.argv[1]):
 # structure is parsed and none can hide one. A triple named twice, or in a
 # comment, is checked once more for nothing; one never named is not a
 # release target. A file naming none fails the stage. A hand-written reader
-# of the matrix answered for coverage and each review found the next shape
-# it skipped, block rows, then an axis beside `include` (the reviews of
-# #91). The graphs are the workspace's, as the build and the test run are:
+# of the matrix would answer for coverage and skip a shape (block rows, an
+# axis beside `include`). The graphs are the workspace's, as the build and
+# the test run are:
 # a pin in one binary's crate unifies into every binary of the build, so
-# `acq`'s rustix pin also closes the split Linux's `acqd` had through
-# keyring's zbus (#91's Do 1), which `-p acquisition-daemon` alone still
-# shows and no stage builds.
+# `acq`'s rustix pin also closes the split Linux's `acqd` would have
+# through keyring's zbus, which `-p acquisition-daemon` alone still shows
+# and no stage builds.
 RELEASE=.github/workflows/release.yml
 
 # The release's targets, one a line, sorted and each once.

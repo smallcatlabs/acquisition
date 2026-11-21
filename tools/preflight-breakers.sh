@@ -60,7 +60,7 @@ expect "a provenance.json without the acqd hash" fail "names no contract or acqd
 
 # The dirty-file list: `git status -- <path>` names nothing for a path
 # that is gone, so a deleted one there watches nothing and says so
-# nowhere (step 1d of the roadmap found LIVE-TESTING.md in it).
+# nowhere.
 missing_paths() { # <preflight file>: each path its list names that is not in the tree
     local list p
     list=$(sed -n 's/.*git -C "$here" status --porcelain -- \(.*\))$/\1/p' "$1")

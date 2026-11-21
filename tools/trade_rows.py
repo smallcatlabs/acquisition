@@ -113,7 +113,7 @@ CHANGES["total_skill_gem_levels"] = [{
 }]
 
 
-# Step 9c2, the site's other totals: the pseudos that stand `in scope` in
+# The site's other totals: the pseudos that stand `in scope` in
 # search/pseudo-stats/data/other-totals.csv, whose script refuses a name here
 # that is not one of them. A name is the builder's, in the totals table's
 # style, and never derived from the site's id. A pseudo's first rows are its
@@ -380,8 +380,8 @@ def ranged_changes():
 
 # The seven attacks' totals of the ranged family: where both twins of the
 # unsuffixed line count toward a total at one weight, the total's row is the
-# line whatever the item is. The session's recommendation, put to the owner
-# 2026-10-08 and not objected to.
+# line whatever the item is: a recommendation put to the owner and not
+# objected to.
 ATTACKS = [f"adds_{kind}_to_attacks" for kind in TYPES + ["elemental", "damage"]]
 
 
@@ -391,8 +391,8 @@ ATTACKS = [f"adds_{kind}_to_attacks" for kind in TYPES + ["elemental", "damage"]
 # then it is a row of the round that asked (ASKED_1117). None is carried now.
 CARRIED = {}
 
-# The sitting of 2026-11-17 (#33, #282), rounds y and z: the row 3.30 carried
-# for `increased_rarity` (#276), asked. The old text stays counted: an item
+# The sitting of 2026-11-17 (#33), rounds y and z: the row 3.30 carried for
+# `increased_rarity`, asked. The old text stays counted: an item
 # fetched before the patch still shows it.
 ASKED_1117 = {
     "increased_rarity": [{

@@ -1,6 +1,6 @@
 # cargo-mutants over the rate-limit choke point, the limiter, the policy
-# parse and the send gate (#86): invariants 1 and 2 broken by machine, as
-# TESTING-NOTES.md breaks them by hand; and since #218 over the code of
+# parse and the send gate: invariants 1 and 2 broken by machine, as
+# TESTING-NOTES.md breaks them by hand; and over the code of
 # invariants 3 to 5: the rails (a block's verdict and its persisted mark,
 # `rails.rs`), the no-retry rule (`daemon/kinds.rs`), the registered
 # user-agent (`provider.rs`) and the secret and its keyring entry
@@ -15,7 +15,7 @@
 # suite (a gate that never grants) is reported as a timeout, and counts as
 # caught.
 #
-# The production transport (C161, its own crate since #160) is examined
+# The production transport (C161, its own crate) is examined
 # too, and judged by the daemon's tests beside its own: the daemon's spec
 # holds its real-wiring tests (the seam's table on the wire, the 3xx, the
 # truncated bodies). `test_package`, cargo-mutants 27.1.0's option for
@@ -36,21 +36,19 @@ test_package = ["acquisition-daemon", "acquisition-transport"]
 test_tool = "nextest"
 
 # The mutants the daemon's tests cannot tell apart, each with its reason.
-# The first run (cargo-mutants 27.1.0, #86) left 46 alive; 34 are pinned
-# as tests in `ratelimit/tests/spec.rs`, and these 12 are listed. #218's
-# run over the four files it added (325 mutants) left 40 alive: 32 are
-# pinned (in `auth.rs`, `rails.rs`, `daemon/tests/responses.rs` and the
-# knobs binary `tests/environment.rs`), and the 8 in `kinds.rs` below
-# are listed. Each
-# names its line: the same operator elsewhere in the function is caught
-# and must stay tested, so a pattern for the function would hide it. A
-# listed line that moves comes back as missed, to be read again.
+# A mutant the tests can be made to tell apart is pinned as a test instead
+# (in `ratelimit/tests/spec.rs`, `auth.rs`, `rails.rs`,
+# `daemon/tests/responses.rs` and the knobs binary
+# `tests/environment.rs`). Each names its line: the same operator
+# elsewhere in the function is caught and must stay tested, so a pattern
+# for the function would hide it. A listed line that moves comes back as
+# missed, to be read again.
 #
 # A tie between two Instants is listed only when both arms leave the
 # limiter in the same state at the tie and nothing carries the difference
 # forward. A tie that decides what the limiter keeps or computes from (a
 # hit counted in its window, a deadline chosen) is pinned instead, by a
-# boundary row at the instant the times are equal (#86's review).
+# boundary row at the instant the times are equal.
 exclude_re = [
     # Equal deadlines: the hold keeps the same instant either way, and the
     # seconds stored beside it are read nowhere.

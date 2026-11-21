@@ -21,10 +21,7 @@ about GGG, which takes its row after. Never hand him a driver for a
 refresh. Every live
 run is one row in `RUN-LEDGER.md`, its evidence under gitignored
 `runs/`; a fact learned live is a numbered claim in
-`docs/design/network-ground-truth.md`. The ladder that proved the
-limiter (ten rungs, 2026-08-22 to 2026-08-27: about 1,450 sends, zero
-429s, the daemon halts rather than floods) is `HISTORY.md`'s row; what
-survives it is the standing rule and the rails below.
+`docs/design/network-ground-truth.md`.
 
 ## The standing rule: first contact
 
@@ -166,8 +163,7 @@ env, a running daemon and a queue left on disk. Rehearse first with
 `--mock` (a scratch world under `runs/mock/`). Expect holds: none while a cycle stays under 15 stash
 GETs, about 15 s before the 16th, about 343 s at most above 30: the
 limiter working, not a hang. macOS has no `timeout`. A Ctrl-C at a driver
-now reaches its `acqd` (before, the shell ignored it there and the
-daemon kept sending): it drains (sends in flight have 15 s to land, then
+reaches its `acqd`: it drains (sends in flight have 15 s to land, then
 it exits), and a second Ctrl-C exits at once (C133).
 
 ## A first contact on a new endpoint

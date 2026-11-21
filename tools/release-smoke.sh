@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# release-smoke.sh — C82's acceptance check on one release archive
-# (`PLATFORMS-SLICE.md` at `b6197a82`, step 4), run by `.github/workflows/release.yml`
-# on every archive it makes and runnable by hand on any of them:
+# release-smoke.sh — C82's acceptance check on one release archive, run
+# by `.github/workflows/release.yml` on every archive it makes and
+# runnable by hand on any of them:
 #
 #   1. Extracted into an empty directory, the archive holds `acq`, `acqd`
 #      and `acq-mcp` (`.exe` on Windows), both licences and the notices,

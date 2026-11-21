@@ -2,22 +2,21 @@
 """The inputs a generator reads that the repository does not hold, and the
 one refusal when any is absent.
 
-A generator that read what happened to be on disk wrote something else when
-an input was missing: category's expected.py, run without the Awakened PoE
-Trade clone, turned 16 grouping memberships out under J12 and said "absent"
-only in its log (the outside review of 606b4a17). Each script had decided
-for itself what an absence meant — skip a row, compose a stand-in, read a
-committed copy instead — and six of them kept a copy of the pin check, two
-with a stale path to the clone. So: a generator names every input it reads
+A generator that reads what happens to be on disk writes something else
+when an input is missing: category's expected.py, run without the Awakened
+PoE Trade clone, would turn grouping memberships out under J12 and say
+"absent" only in its log. A script that decides for itself what an absence
+means skips a row, composes a stand-in or reads a committed copy instead,
+and a copy of the pin check goes stale. So: a generator names every input it reads
 here, before it reads one, and writes nothing unless all are present — a
 sibling clone at the commit its manifest pins, a raw directory holding what
 its inventory records, any other input a path that exists. Nothing
 degrades; an absence is a refusal naming every absent input.
 
-A raw directory is held to its inventory as a clone is to its pin (the
-outside review of 555c4f58): the extract, run over a restore that lacked
-t01, wrote 1,149 searches for 1,150 and said nothing, since a missing file
-and a search never captured looked alike. The inventory, committed beside
+A raw directory is held to its inventory as a clone is to its pin: without
+it, the extract run over a restore that lacks a file writes one search fewer
+and says nothing, since a missing file and a search never captured look
+alike. The inventory, committed beside
 the track's data, lists every capture file its writer wrote with its
 sha256 (`sha256sum`'s form: `shasum -a 256 -c` reads it in the directory);
 a file it lists that is absent or other bytes, or a file it does not list,

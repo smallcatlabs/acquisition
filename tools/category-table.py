@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""The category table and the beast colour table (C106, C68; item search
-step 9d-B): the trade site's category ids with what makes each hold, and
+"""The category table and the beast colour table (C106, C68): the trade
+site's category ids with what makes each hold, and
 the colour the site lists each captured beast under — regenerated from
 committed, pinned sources into the two reviewed files the search crate
 ships.
@@ -40,12 +40,12 @@ table is `search/category/data/categories.csv`.
      item of the class whose base the rule holds has that id, in place of
      the class's own. A name rule is one clause on a name within one
      class; a case one clause cannot say is an exception row citing its
-     capture, never a second clause (the owner, 2026-10-07). A clause may
+     capture, never a second clause (the owner). A clause may
      be a closed list of names, `among`, where the game's export tags each
      base of the class with the leaf (TAG_RULES): the leaf holds the bases
      the export tags so, written from the tag and never typed, and every
      base of the class carries exactly one of the class's tags or the
-     script stops (#276: the Viscera leaves; asked at z05 to z09, #282). J3: the
+     script stops (the Viscera leaves, asked at z05 to z09). J3: the
      Maven's Invitation leaf holds a base named for the Maven, and every
      other invitation takes `map`. J23: a Stackable Currency base whose
      name holds the word Tattoo is `currency.tattoo`. Every base of a
@@ -64,7 +64,7 @@ the export prints no name for and the class table therefore lacks (J13):
 it is listed as held by no class of this table.
 
 The colour table is the track's file row for row, restated as TOML so the
-crate reads one format: 250 yellow, 79 red, 32 unknown at 2026-10-04. Its
+crate reads one format: 250 yellow, 79 red, 32 unknown. Its
 check against the count of bestiary mods on the owner's copy is the
 track's (`search/category/README.md`, "Round l") and is not repeated here:
 it reads the copy, which is local.
@@ -159,8 +159,8 @@ CLASSES = {
 # Rule 3: (the leaf, the class, how the base is tested, the text, what says
 # so). Five are the track's name rules (search/repoe/scripts/
 # base-taxonomy.py, NAME_RULES; README F1: 7 leaves a class's with a name
-# rule); the invitation's is J3's and the tattoo's J23's, each of which
-# replaced that file's.
+# rule); the invitation's is J3's and the tattoo's J23's, each in place of
+# that file's.
 NAME_RULES = [
     ("gem.supportgemplus", "Support Gems", "starts", "Awakened ", "the leaf's text, Awakened Support Gem"),
     ("jewel.cluster", "Jewels", "ends", "Cluster Jewel", "the leaf's text, Cluster Jewel"),
@@ -187,8 +187,8 @@ TAG_RULES = [
     ("viscera.leg", "Viscera", "viscera_leg", VISCERA),
 ]
 
-# Rule 2's citation where categories.csv, written from the September
-# captures, does not hold the id: what placed it.
+# Rule 2's citation where categories.csv, written from captures before
+# 3.30, does not hold the id: what placed it.
 CLASS_CITES = {
     "viscera": "C106: a class's; the class Viscera, new in 3.30, under the id the site's 3.30 filter lists (#276)",
 }
@@ -197,8 +197,8 @@ CLASS_CITES = {
 # that the rule misses, each named with why the miss is right. The word is
 # the first word of the site's text for the leaf, a possessive dropped
 # (Awakened, Cluster, Scarab, Maven, Fossil, Omen, Tattoo), in any case. A
-# near miss not named here stops the script: it is a rule too narrow (the
-# tattoo rule was, until J23) or an exception to write down.
+# near miss not named here stops the script: it is a rule too narrow or an
+# exception to write down.
 NEAR_MISSES = {
     ("currency.fossil", "Fossilised Delirium Orb"):
         "a Delirium Orb, named for what it does to a map: no Fossil, and `currency` by its class",

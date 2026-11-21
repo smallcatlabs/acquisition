@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The totals table's changes as rows: search/pseudo-stats/data/table-changes.csv.
 
-What the plan's step 9c closes on: every change the captures ask of
+Every change the captures ask of
 the totals table as shipped at v1 (search/pseudo-stats/data/totals-v1.toml), one row each, with the
 evidence that asks for it — none applied here, and none to be applied without
 its row. Reads tools/trade_rows.py (each pseudo's versions, every version's `why`
@@ -11,7 +11,7 @@ naming its captures), search/pseudo-stats/data/captures.json and search/pseudo-s
 
 A row's `change` is one of: `new total` (a pseudo no table ships), `add row`,
 `carried row` (a row a patch's rewording carried by its stats, which no capture
-asks for: tools/trade_rows.py, CARRIED; #276),
+asks for: tools/trade_rows.py, CARRIED),
 `remove row`, `twin` (a row that means one of two stats displaying its text,
 which the build answers by what the item is), `not mimicked` (an id or a row
 the site leaves out and the search counts, by the owner's ruling, or waiting
@@ -46,7 +46,7 @@ SHEET = TRACK / "data" / "search-sheet.csv"
 EVIDENCE = TRACK / "data" / "evidence.csv"
 OUT = TRACK / "data" / "table-changes.csv"
 
-# The owner's rulings, 2026-09-26, verbatim; and what the captures show of
+# The owner's rulings, verbatim; and what the captures show of
 # every total alike.
 RULES = [
     ("a total whose lines sum to nothing is absent, never 0",
@@ -81,8 +81,8 @@ NOT_MIMICKED = (
     "the site leaves this id out; the search counts the line wherever it is displayed. "
     "The owner: \"I believe this is a bug. Let's count the mod\""
 )
-# The same id under total mana, ruled of it apart: what the owner ruled at 9c
-# he ruled of total life, Strength and Intelligence.
+# The same id under total mana, ruled of it apart from total life, Strength
+# and Intelligence.
 NOT_MIMICKED_MANA = (
     "the site leaves this id out, as it does of total life, Strength and Intelligence; the "
     "search counts the line wherever it is displayed. The owner, 2026-09-27: \"yes, count it "

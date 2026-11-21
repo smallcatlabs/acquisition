@@ -7,9 +7,8 @@ description: Ask the trade site what one of its computed values counts — write
 
 The trade site publishes a pseudo's name and never its definition: the
 definition is what the site answers when asked (C106's admission test,
-clause (a); V6). A sitting asks it. Ran as one pilot, one round of
-checks and three recorded rounds on 2026-09-26 — 212 searches — and met
-every trap below, so it is a skill (P6). What it found is
+clause (a); V6). A sitting asks it. It has run more than twice and
+met every trap below, so it is a skill (P6). What the sittings found is
 `search/pseudo-stats/README.md`; the rounds' story is the commits'.
 
 The boundary is `SURFACES.md`, the trade site's rows (C79): the access
@@ -32,7 +31,7 @@ of every listed item at once:
 A search that finds nothing proves nothing until the same search, with
 one row changed, finds something: a new form of search has its mutant
 (`c2`, `c4`, `d02`). A search of one line at a time reads ten items and
-is not this: part 1 of 9c counted 264 of them and none was run.
+is not this.
 
 ## Before the sitting
 
@@ -146,8 +145,7 @@ at a time, and the export is every twenty-five links.
 - **The site rewrites an id on the way back**, dropping every
   `"disabled":false`: compare queries with those removed, never ids.
 - **A round that re-asks a captured query gets it filed under the
-  earlier row.** Round k asked four of round j's queries again under
-  new names (2026-10-04); the splitter names such a capture for the
+  earlier row.** The splitter names such a capture for the
   row whose capture on disk is that answer, else the first row still
   without one, so each day's answer is kept and a recording splits the
   same twice, but a composer checks the new round's queries against the
@@ -162,36 +160,32 @@ at a time, and the export is every twenty-five links.
   every other script reads the extract's two files, paired by
   `fetched()`. Each requires its inputs (`tools/sources.py`) and
   refuses, writing nothing, when one is absent — a raw directory is
-  held to its inventory as a clone is to its pin (the outside reviews
-  of `606b4a17` and `555c4f58`: a fetch of nulls crashed one reader, a
-  script without its clone wrote 16 grouping members out, a restore
-  without t01 wrote a smaller extract, and a replaced capture's marks
-  were joined to the old extract's item).
+  held to its inventory as a clone is to its pin (without this, a
+  fetch of nulls crashes a reader, a script without its clone writes
+  grouping members out, a restore missing a capture writes a smaller
+  extract, and a replaced capture's marks join the old extract's
+  item).
 - **The page posts an empty stats group where the sheet has none**:
-  `stats: []` goes out as one `and` group with no filters, so four of
-  round i's eight searches were refused by the splitter, and then by the
-  extract after the splitter alone was taught (2026-10-01): a query's
-  shape has one reader, `tools/trade_query.py`, and no tool its own.
+  `stats: []` goes out as one `and` group with no filters, which a
+  tool that reads the shape for itself refuses: a query's shape has one
+  reader, `tools/trade_query.py`, and no tool its own.
 - **A filter the page sends fills what was not set with null**: a
   socket filter's unset colours (u059, 2026-10-16). `bare()` reads a key
   sent null as a key not sent; a translation reads it so too.
 - **A search is its league and its query.** The same query in another
-  league is another row (round w asked league content in the challenge
-  league). Which row a call or a capture is has one reader,
+  league is another row. Which row a call or a capture is has one reader,
   `tools/trade_query.py`'s `asking()`: the splitter's searches read the
   league from their own URL, a fetch is the search's it follows, the
-  extract writes each search's league and the oracle translates it. The
-  rule was first taught to two tools of four (the outside review of
-  step 7).
+  extract writes each search's league and the oracle translates it.
 - **A sat search is never composed again otherwise.** The sheet is
   appended to and never edited, and the gate holds it to its script
   (`trade-sheet.py --verify`): compose a round from frozen input, never
-  from a column the sitting's own reading updates (round v did, and
-  regenerating dropped 76 of its rows).
+  from a column the sitting's own reading updates (regenerating from
+  one drops the rows it changed).
 - **Read the splitter's counts before the captures, while the owner is
   at the browser**: a pair that did not part, a form the site answers
   with nothing, a bound no listing meets — each is a repair round of a
-  few searches that day (round w), not a sitting a week later.
+  few searches that day, not a sitting a week later.
 - **A number in a document is measured by a script after the last
   edit**, never read off the screen or recalled: counts, times, ranges.
 - **A command that commits stops at the first error**: `set -e` on its

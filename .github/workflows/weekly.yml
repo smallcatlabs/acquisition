@@ -1,25 +1,24 @@
 name: Weekly
 
-# What runs without a push (#86). The Linux gate's own weekly run is a
+# What runs without a push. The Linux gate's own weekly run is a
 # schedule on `gate-linux.yml`, not a copy here.
 #
-# cargo-mutants over the limiter and the send gate, as `.cargo/mutants.toml`
-# scopes it: each mutant is a deliberate break of invariant 1 or 2 that the
-# daemon's tests must catch. The first run, on the development machine
-# (10 cores, -j 4), took 112 minutes and 16.8 CPU-hours, so a four-core
-# runner splits it four ways. #218 widened the scope from 427 mutants to
-# 752 (invariants 3 to 5); the four shards' longest had run 133 minutes
-# of the job's 300 (run 42637884509), and at 752 would near 235, so the
-# run splits six ways. A shard fails on a mutant the tests missed,
-# never on a timeout (a mutant that hangs the suite is caught); every
-# shard's `mutants.out` is uploaded whatever the outcome. Nothing here
-# talks to GGG: the daemon's tests send to local servers only.
+# cargo-mutants over the limiter and the send gate, as
+# `.cargo/mutants.toml` scopes it: each mutant is a deliberate break of
+# invariant 1 or 2 that the daemon's tests must catch. On four-core
+# runners, four shards of the 427 mutants over invariants 1 and 2 run up
+# to 133 minutes of the job's 300; with invariants 3 to 5 the scope is
+# 752, at which four shards would near 235, so the run splits six ways.
+# A shard fails on a mutant the tests missed, never on a timeout (a
+# mutant that hangs the suite is caught); every shard's `mutants.out` is
+# uploaded whatever the outcome. Nothing here talks to GGG: the daemon's
+# tests send to local servers only.
 #
-# The breakers of `tools/sign-acqd.sh`, which every live driver's preflight
-# runs, on the one platform with `codesign` (#89): no runner has the
-# owner's identity, so they stage the refusals and skip the real-identity
-# cases. A cold debug build of acqd alone was 30 s on the development
-# machine; the breakers take under a second.
+# The breakers of `tools/sign-acqd.sh`, which every live driver's
+# preflight runs, on the one platform with `codesign`: no runner has the
+# owner's identity, so they stage the refusals and skip the
+# real-identity cases. A cold debug build of acqd alone is about 30 s on
+# the development machine; the breakers take under a second.
 
 on:
   schedule:

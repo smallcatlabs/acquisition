@@ -18,7 +18,7 @@
 # executables take part in a run (acq compiles and submits the plan,
 # acqd sends), so provenance hashes both, separately named, and after the
 # run `provenance_matches_journal` holds the journal's `daemon` to the
-# acqd hash specifically (owner ruling 2026-09-09, packet §10 item 7).
+# acqd hash specifically (the owner's ruling; C84 names the artifact).
 
 preflight() {
     # 1. No binary this run starts may spawn or replace a daemon: the only
@@ -92,12 +92,12 @@ preflight() {
 # after it up to the next header — the journal readers' model — so the
 # journal must hold at least one header, every send must carry the pid
 # of the latest header before it (a send under no header, or under
-# another daemon's header, is a daemon that never said who it was —
-# review 2026-09-10: a check that read the headers alone passed a journal
-# with none), and every header must carry the contract revision and the
+# another daemon's header, is a daemon that never said who it was — a
+# check that read the headers alone would pass a journal with none), and
+# every header must carry the contract revision and the
 # acqd hash recorded before the run (a header naming another daemon is
-# the rung-8 mistake made visible). A pid the OS reuses for a successor
-# is a second lifetime, not a fault (review 2026-09-11). Exits 2 on any
+# a daemon the run did not start, made visible). A pid the OS reuses for
+# a successor is a second lifetime, not a fault. Exits 2 on any
 # problem, naming each; `tools/preflight-breakers.sh` stages every
 # refusal.
 provenance_matches_journal() {

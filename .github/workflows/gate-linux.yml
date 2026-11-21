@@ -9,7 +9,7 @@ name: Gate (Linux)
 # crate's own CI recipe. Nothing here talks to GGG: every harness sets
 # ACQ_PROVIDER=mock (C88) and no test process has a terminal.
 
-# Weekly too (#86), Mondays at 05:00 UTC, so a RustSec advisory, a moved
+# Weekly too, Mondays at 05:00 UTC, so a RustSec advisory, a moved
 # runner image or a crate yanked under the lockfile surfaces without a
 # push. GitHub runs a schedule on the default branch only, and stops it
 # after sixty days with no activity in the repository.
@@ -58,11 +58,11 @@ jobs:
         with:
           workspaces: .
 
-      # cargo-deny over the locked graph (`deny.toml`): RustSec advisories,
-      # the licences an archive may carry, bans and sources. Here only —
-      # the local gate does not install cargo-deny (C8 of the 2026-09-11
-      # census). The binary, not the action: the action is a container,
-      # and the self-hosted VM has no Docker.
+      # cargo-deny over the locked graph (`deny.toml`): RustSec
+      # advisories, the licences an archive may carry, bans and sources.
+      # Here only — the local gate does not install cargo-deny. The
+      # binary, not the action: the action is a container, and the
+      # self-hosted VM has no Docker.
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny
@@ -86,7 +86,7 @@ jobs:
       # crate's own CI runs the gnome-keyring-daemon line bare). The round
       # trip's *assertion* failing (Some(token) expected, None) means the
       # Linux build reached the keyring crate's mock store: check feature
-      # unification. First run green 2026-09-12 (run 34704103311).
+      # unification.
       # ACQ_CASES=full: the generated search properties at their full
       # counts; a session's gate runs a share of them, fresh each run
       # (acquisition-search/tests/common/generated.rs, `cases`). A property
@@ -100,7 +100,7 @@ jobs:
             cargo nextest run --workspace --all-targets --locked --profile ci
           '
 
-      # The tests leave the checkout as they found it (#87): a golden
+      # The tests leave the checkout as they found it: a golden
       # regenerated, or a file written where git neither tracks nor
       # ignores it, fails here by name. The checkout is clean, so the
       # literal check is the property; `tools/gate.sh`'s `tree` stage is
@@ -112,8 +112,8 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=all)"
 
       # Every step after the test step runs after a red test step too
-      # (`!cancelled()`), so one failing test hides no lint or check
-      # (#77); the test step's failure still fails the job.
+      # (`!cancelled()`), so one failing test hides no lint or check; the
+      # test step's failure still fails the job.
       - name: Clippy
         if: ${{ !cancelled() }}
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -123,11 +123,11 @@ jobs:
         run: cargo fmt --all -- --check
 
       # The gate's four checks beyond cargo (AGENTS.md, "Quality gate"):
-      # until these, a tree that broke one passed here unless a session had
-      # run the gate. The docs check notes, never fails on, the clone's
-      # hooks; the architecture check reads the dependency graph through
-      # cargo metadata and jq; the trade check runs the sitting tools'
-      # self-tests.
+      # without these, a tree that broke one would pass here unless a
+      # session had run the gate. The docs check notes, never fails on,
+      # the clone's hooks; the architecture check reads the dependency
+      # graph through cargo metadata and jq; the trade check runs the
+      # sitting tools' self-tests.
       - name: The docs check
         if: ${{ !cancelled() }}
         run: tools/docs-check.sh
@@ -144,7 +144,7 @@ jobs:
       # target the release builds, read from cargo's graph and building
       # nothing: a dependency bump that would make a test run write
       # another binary by a feature split (C84) is red here on its own
-      # pull request (#128). Equal graphs are not equal executables: the
+      # pull request. Equal graphs are not equal executables: the
       # local gate's `artifacts` stage, which CI does not run, checks
       # those on the host it runs on, a profile split among them.
       - name: The feature graphs
@@ -158,7 +158,7 @@ jobs:
   # The doc stage (`tools/gate.sh --only doc`, `cargo doc` with warnings
   # denied), beside the gate job, not in it: 81 s after one store touch,
   # on a 10-core M4, serial, so the local full gate leaves it here, the
-  # one place it runs on every push (the owner's ruling of 2026-10-29, `roadmap/README.md`).
+  # one place it runs on every push (the owner's ruling).
   doc:
     runs-on: ubuntu-latest
     steps:
@@ -180,8 +180,7 @@ jobs:
   # change rarely, and arch-check-breakers.sh edits the working tree's
   # manifests and restores them on exit (2 min here), safe in a clean
   # checkout and not under a session's edits. What they catch is the tree
-  # moving under a case: two of the dependency guard's had failed unseen
-  # since the search crate linked the planner (fb85d749).
+  # moving under a case, which would otherwise fail unseen.
   # sign-acqd-breakers.sh is not here: it needs macOS's codesign, and runs
   # weekly on macOS (weekly.yml, `sign-acqd`).
   # As the gate job (C155), on the same VM's second runner, so the two run

@@ -1,23 +1,23 @@
 name: Release
 
-# The release archives (`PLATFORMS-SLICE.md` at `b6197a82`, step 4; the matrix is the
-# owner's ruling 2): macOS aarch64 and x86_64 on an Apple-silicon runner,
-# Linux x86_64 and aarch64, Windows x86_64. Each archive holds `acq`,
-# `acqd` and `acq-mcp` side by side (C82), both licences and the
-# cargo-about notices (ruling 5), and is checked by
+# The release archives (`PLATFORMS-SLICE.md` at `b6197a82`; the matrix
+# is the owner's ruling 2 there): macOS aarch64 and x86_64 on an
+# Apple-silicon runner, Linux x86_64 and aarch64, Windows x86_64. Each
+# archive holds `acq`, `acqd` and `acq-mcp` side by side (C82), both
+# licences and the cargo-about notices (ruling 5), and is checked by
 # `tools/release-smoke.sh` where it was built — extracted, the sibling,
-# a symlinked `acq` (macOS, Linux), a mock login → status → stop. Nothing
-# here talks to GGG (C88: the smoke is mock-only).
+# a symlinked `acq` (macOS, Linux), a mock login → status → stop.
+# Nothing here talks to GGG (C88: the smoke is mock-only).
 #
-# Dispatched by hand, the archives are this run's artifacts (ruling 3:
-# the tag waited for step 4 of note 36 at `b6197a82`); `sign` also signs the macOS
-# binaries. A `v*` tag always signs and drafts a GitHub release with the
-# archives and their SHA-256 sums. Signing runs in the `release`
-# environment (ruling 6: the owner its required reviewer; secrets
-# APPLE_DEVELOPER_ID_P12_BASE64 and APPLE_DEVELOPER_ID_P12_PASSWORD,
-# variable APPLE_TEAM_ID): Developer ID Application, the hardened runtime
-# and a secure timestamp, not notarized (the narrowing beside V5) — for
-# the keychain, whose item ACL names the signer (auth.rs, "keyring").
+# Dispatched by hand, the archives are this run's artifacts (ruling 3);
+# `sign` also signs the macOS binaries. A `v*` tag always signs and
+# drafts a GitHub release with the archives and their SHA-256 sums.
+# Signing runs in the `release` environment (ruling 6: the owner its
+# required reviewer; secrets APPLE_DEVELOPER_ID_P12_BASE64 and
+# APPLE_DEVELOPER_ID_P12_PASSWORD, variable APPLE_TEAM_ID): Developer ID
+# Application, the hardened runtime and a secure timestamp, not
+# notarized (the narrowing beside V5) — for the keychain, whose item ACL
+# names the signer (auth.rs, "keyring").
 
 on:
   workflow_dispatch:
@@ -193,8 +193,8 @@ jobs:
   # the one platform a release names that no gate runs it on: Linux's
   # gate runs it against gnome-keyring, Windows's against Credential
   # Manager. On every dispatch and tag, and `draft` needs it, so a tag's
-  # release is not drafted until the pass is earned on the tagged commit
-  # (#86, Do 1, roadmap/README.md). The runner user's login keychain,
+  # release is not drafted until the pass is earned on the tagged commit.
+  # The runner user's login keychain,
   # unsigned test binary: it proves the backend round-trips through a
   # fresh Entry, not the signed archive's item ACL.
   keyring-macos:

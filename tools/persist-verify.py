@@ -36,8 +36,8 @@ def read_lifetimes(journal, offset):
                 continue
             l = json.loads(raw)
             if l.get("event") == "open":
-                # `contract` + `daemon` since 2026-09-10 (C84); `runtime` from
-                # 2026-09-09 (C10); journals before that say `build`.
+                # `contract` + `daemon` (C84); an older journal's header says
+                # `runtime` (C10) or `build`.
                 cur = {"pid": l["pid"], "build": l.get("contract", l.get("runtime", l.get("build"))),
                        "daemon": (l.get("daemon") or "-")[:12], "clock": l["clock"], "sends": []}
                 lifetimes.append(cur)

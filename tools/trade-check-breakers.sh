@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # trade-check-breakers.sh — proves trade-check.sh refuses what its table
 # checks claim to, by editing a committed table and watching the stage
-# refuse it by name (#106). Six of the check's stages are self-tests,
+# refuse it by name. Six of the check's stages are self-tests,
 # each staging its own refusals on inputs it makes; four hold a committed
 # file to what its script composes (`sheet`, `category`, `totals`,
 # `stats`), and those stage nothing of their own, so their cases are here.

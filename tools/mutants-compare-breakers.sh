@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # mutants-compare-breakers.sh — proves tools/mutants-compare.py reads a
-# cargo-mutants run whole or refuses it (t5 round 6's two reviews): a run
+# cargo-mutants run whole or refuses it: a run
 # is the weekly workflow's shard set, every shard present, none other,
 # every one ended, and each header agreeing with its outcomes. Each case
 # stages synthetic runs, a few mutants per shard in outcomes.json as
@@ -17,7 +17,7 @@
 # The timed-out mutant's log carries nextest's `SIGTERM` lines (one test
 # named twice, as nextest repeats them in its summary), and every outcome
 # carries phase durations, so the positive case asserts the cut tests and
-# the minutes as the script prints them (#151's restated close).
+# the minutes as the script prints them.
 #
 # A refusal is evidence only when it names the property: each case
 # requires a non-zero exit and the words that name what it broke, and the

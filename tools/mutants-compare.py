@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Two cargo-mutants runs over `.cargo/mutants.toml`'s scope, compared
-mutant by mutant (t5's close, #141; the design's round 0 asks that
-corresponding mutants be compared and additions and removals classified
-apart).
+mutant by mutant: corresponding mutants are compared, and additions and
+removals are classified apart.
 
     python3 -I tools/mutants-compare.py BEFORE AFTER [--before-rev REV] [--config-rev REV]
 
@@ -34,7 +33,7 @@ Every mutant missed after falls in one of three lists:
   outcome was before, or "added".
 
 Timeouts count as caught, as the config says; they are compared as their
-own outcome all the same. Two sections follow (#151's restated close):
+own outcome all the same. Two sections follow:
 
 - each timeout of AFTER, with the tests its log names as cut: nextest's
   `SIGTERM` lines, the tests still running when cargo-mutants' timeout

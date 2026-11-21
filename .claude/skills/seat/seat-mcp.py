@@ -22,7 +22,7 @@ calls/NNN.host-config.json; the call's text and sizes are the server's alone. A 
 whole as calls/NNN.args.json and in the row up to 2,000 characters, so no row outgrows a CSV reader.
 
 bytes: `text_bytes` is the result's text block; `result_bytes` is the whole JSON-RPC line, that text block
-escaped in its envelope (the server sends no structured content since 93cc52fd; an older binary's line holds the document twice). A result is printed whole up to SHOWN bytes of text;
+escaped in its envelope (the server sends no structured content; a binary built before 93cc52fd sent it too, so its line holds the document twice). A result is printed whole up to SHOWN bytes of text;
 past that its head is printed and the row says `head`. `open` is printed whole: it is what a host shows.
 """
 import argparse, csv, json, os, queue, shutil, subprocess, sys, threading, time
@@ -295,8 +295,8 @@ def append(name, new, draft):
         text = sys.stdin.read()
     with open(path, "w" if new else "a") as f:
         f.write(text if text.endswith("\n") else text + "\n")
-    # what the door did, not a size alone: a runner could not tell an append
-    # from nothing (the re-sit, cli-sonnet fault 6)
+    # what the door did, not a size alone: by a size alone a runner cannot
+    # tell an append from nothing
     print(f"seat-mcp: {'started' if new else 'appended to'} {name}, now {os.path.getsize(path)} bytes")
 
 

@@ -17,9 +17,8 @@ Inputs (read-only, committed):
   search/pseudo-stats/data/table-changes.csv what the site's own answers ask of the table, one change a
                                              row, each with the captures that ask for it — but a
                                              `carried row`, which a patch's rewording carried by the
-                                             line's stats, no capture asking (rule 4; #276) — (the build plan,
-                                             steps 9c to 9d-C: the searches the owner ran, 2026-09-26
-                                             to 2026-10-08; the track's README). Every total counts
+                                             line's stats, no capture asking (rule 4) — (the searches
+                                             the owner ran; the track's README). Every total counts
                                              what the site's pseudo of that
                                              name counts (owner, V6), and where the owner ruled the site
                                              wrong the row says `not mimicked` and the line stays counted
@@ -41,12 +40,12 @@ Rules, each a reading of the source and never a judgment (C106):
   4. A change `add row` that means any stat displaying its text becomes a
      row of its total, `slot = "arg1"`, at the weight the change names: a
      line's two eldritch forms, `All Resistances`, and at a weight below
-     nothing a row's `reduced` spelling (owner, 2026-09-27: "yes, we need to
-     be able to find reduced lines and totals").
+     nothing a row's `reduced` spelling (the owner: "yes, we need to be able
+     to find reduced lines and totals").
      A change `carried row` is a row as `add row` is, and is counted apart:
      no capture asks for it; a patch reworded the line in place and the row
-     carries the new text by the line's stats (#276), until a sitting asks;
-     then it is an `add row` citing that sitting's captures (#282).
+     carries the new text by the line's stats, until a sitting asks; then it
+     is an `add row` citing that sitting's captures.
   5. A change `new total` that reads a line's number becomes a total, named
      as the change names it, with the site's id and text and its own rows:
      `total_life`.
@@ -64,11 +63,11 @@ Rules, each a reading of the source and never a judgment (C106):
      once. A total with a change `limit` the owner has not ruled on waits,
      counted in the header; one he has ruled on is written with its
      `limit`, which its definition prints: how far under the site's a
-     line's text may be (owner, 2026-09-27: "yes, let's go with what we can
-     observe directly from the text we have.").
+     line's text may be (the owner: "yes, let's go with what we can observe
+     directly from the text we have.").
   7. A change `new total` that reads the average of a ranged line becomes a
      ranged total (`ranged = true`): the ranged family, the 21 named
-     `adds_…` (the build plan, 9d-C). Its rows name no slot — a ranged
+     `adds_…`. Its rows name no slot — a ranged
      total sums low with low and high with high — and each is the change's:
      an `add row` that means the line whatever the item is, and a `twin`,
      a row that means one of the two stats the unsuffixed `Adds # to # <type>
@@ -79,17 +78,16 @@ Rules, each a reading of the source and never a judgment (C106):
      file's; any other twin stops the run. Every ranged total carries the
      limit its definition prints, RANGED_LIMIT below: a line under the other
      stat on a weapon is read as the weapon's own, with what the site showed.
-  9. The change `rule` that a total leaves out arrays (J29; the owner,
-     2026-10-08: "Leave both out.") is written once, in the table's header
+  9. The change `rule` that a total leaves out arrays (J29; the owner:
+     "Leave both out.") is written once, in the table's header
      and on no row: `leaves_out`, the arrays the rule names, and
      `leaves_out_rule`, the rule's own sentence, which every total's
      definition prints. No rule of that form, or two, stops the run.
 Nothing else is added, renamed beyond rule 1, merged beyond rule 2, or dropped;
 the counts the header prints are measured at generation. The site's own
 answer on ten fetched items (`search/trade-query/data/fetch-census.json`,
-q5) agrees with the fire-resistance table on every one, worked by hand
-2026-09-23; the coverage trial the plan owes (M6) is
-search/pseudo-stats/scripts/coverage-trial.py.
+q5) agrees with the fire-resistance table on every one, worked by hand;
+the coverage trial (M6) is search/pseudo-stats/scripts/coverage-trial.py.
 """
 
 import csv

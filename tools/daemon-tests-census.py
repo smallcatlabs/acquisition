@@ -3,7 +3,7 @@
 daemon's frontend boundary only; a test that needs another boundary says
 which and stays a component test): for each attributed test under
 `crates/acquisition-daemon/src/daemon/tests`, whether it enters by the
-door or says which boundary keeps it off (#152). Report-only, not a
+door or says which boundary keeps it off. Report-only, not a
 gate stage until a second census wants one (evidence before ceremony).
 
 Usage: python3 -I tools/daemon-tests-census.py [--all] [DIR]

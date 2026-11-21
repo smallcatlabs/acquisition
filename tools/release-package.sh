@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# release-package.sh — one target's release archive (`PLATFORMS-SLICE.md` at `b6197a82`,
-# step 4), from a `cargo build --release --target <target>` already run:
+# release-package.sh — one target's release archive, from a `cargo build
+# --release --target <target>` already run:
 # `acq`, `acqd` and `acq-mcp` side by side (C82: the daemon beside every
 # frontend), both licences and the third-party notices, under one
 # directory named for the version and the target. A `.tar.gz` on macOS

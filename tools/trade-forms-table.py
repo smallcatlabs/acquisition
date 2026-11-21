@@ -3,9 +3,9 @@
 every text of the stat table, the other ways the game displays the stat the
 site files under that id — the opposite word below nothing, a number left
 out, a plural, another wording — as the game's own stat descriptions state
-them. Step 7e of search/TRADE-PLAN.md at 77666ea4; the owner, 2026-10-17, choosing "Game
-data, rules beside" over the brief's blanket rules, which named forms the
-game never displays (160 of the 372 `#% chance to` texts it joins).
+them: the owner's "Game data, rules beside", over blanket rules, which name
+forms the game never displays (160 of the 372 `#% chance to` texts it
+joins).
 
     python3 -I tools/trade-forms-table.py            # writes crates/acquisition-search/reference/trade-game-forms-v1.toml
     python3 -I tools/trade-forms-table.py --check    # exits 1 when the file on disk differs from what the sources give
@@ -55,7 +55,7 @@ Rules, each a reading of the export and never a judgment (C106):
      translation (search/repoe/data/trade-unjoined.toml): every text of the
      stat table the export joins nowhere though a string of an entry that
      joins no trade id, its markup reduced, is the text. The export's join
-     is its own and is not redone here (#276: 3.30.0.2.2 gives
+     is its own and is not redone here (3.30.0.2.2 gives
      `trade_stats` null for an entry whose strings carry markup); a pin
      whose export joins them again empties the file by regeneration.
 """

@@ -144,7 +144,7 @@ out=$(run); n=$((n+1))
 if [[ $out == ok* ]]; then echo "ok      history, a route and a key shape are not paths"; else echo "WRONG   a non-path was refused:"; echo "$out"; bad=1; fi
 # pack's routing by an intro: a ticked path routes the file whose path
 # ends with it, whole components, and no file that merely shares its last
-# name (#106: `pack --path README.md` printed the search rulings, whose
+# name (else `pack --path README.md` would print the search rulings, whose
 # intro names `search/README.md`).
 fixture
 python3 -I - "$tmp" <<'PY'
@@ -168,7 +168,7 @@ if out=$(pack crates/acquisition-store/src/lib.rs) && [[ $out == *'cites'*'- **C
 n=$((n+1))
 if ! out=$(pack crates/acquisition-store/src/gone.rs) && [[ $out == *'no file crates/acquisition-store/src/gone.rs'* ]]; then echo "ok      pack      a path that does not exist is refused"; else echo "MISSED  pack      a path that does not exist was routed:"; echo "$out"; bad=1; fi
 # A root file the workspace reads is routed to the areas its members name,
-# and a root file nothing routes is still refused (#236).
+# and a root file nothing routes is refused.
 fixture
 printf '[workspace]\nmembers = ["crates/acquisition-store"]\n' >"$tmp/Cargo.toml"
 printf '[package]\nname = "acquisition-store"\n' >"$tmp/crates/acquisition-store/Cargo.toml"

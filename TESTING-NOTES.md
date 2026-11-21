@@ -3,8 +3,8 @@
 How this project checks its own work: what the tests are for, the
 shapes of check that read as coverage and are not, and the one contract
 surface on the GGG side. The experiments and narratives behind these
-are history: the register walk at `7aee76ee`, the file before this cut
-at `b6197a82`.
+are history: the register walk at `7aee76ee`, and this file's longer
+form at `b6197a82`.
 
 ## Purpose
 
@@ -21,9 +21,9 @@ assertion. Too tight breaks on every legitimate refactor until someone
 loosens it into meaninglessness; too loose is a check that reads as
 coverage and cannot fail. Where the right tightness is obvious the
 invariant is probably not pinning anything interesting; where it is
-genuinely hard is where the contract lives. The method that found the
-line was empirical: walk the bug register and ask of each entry what
-invariant over observable output would have caught it.
+genuinely hard is where the contract lives. The method that finds the
+line is empirical: walk the bug register and ask of each entry what
+invariant over observable output would catch it.
 
 ## Looks like coverage, isn't
 
@@ -32,39 +32,40 @@ here reads as a check but cannot fail?*, is the most useful one this
 project has, and matters more as goal-seeking agents build against the
 suite.
 
-- **A stop condition that cannot fail.** "One HEAD per route" was a
-  tautology with no restarts.
+- **A stop condition that cannot fail.** "One HEAD per route" is a
+  tautology when nothing restarts.
 - **A checker that drops the evidence it exists to find.** Timestamps
   compared as strings.
 - **Two clocks in one test.** A journal stamped with real time under a
   virtual-time assertion; the mock on real time and the daemon on a
-  manual clock, so the mock's windows never expired and "one job fails
-  after three 429s" was the mismatch, not a property. One `Clock` with
+  manual clock, so the mock's windows never expire and "one job fails
+  after three 429s" is the mismatch, not a property. One `Clock` with
   two faces drives limiter, token expiry, journal and the mock; tests
   speak the daemon's clock. What stays on real time is deliberate: the
   mock's `sleep` job and the watchdog's poll.
 - **A measurement where the thing cannot be seen.** A `wait_ms`
-  measured where the wait was not.
-- **A rule over inputs that never carry the case.** The 401 rule ran
-  over journals none of which carried a 401; the first that did showed
-  the product re-sending the rejected bearer (now C87), and the fix's
-  sequential scenarios were blind to the gate until the pin moved to
-  the server, where dispatch order is visible.
-- **The rails verify behaviour; nothing verified which code.** A soak
-  ran a binary predating the fix it was restarted for, every rail
-  correct and blind to it. Provenance is its own category (C84).
+  measured where the wait is not.
+- **A rule over inputs that never carry the case.** A 401 rule over
+  journals none of which carries a 401 pins nothing: one that carries a
+  401 can show the product re-sending the rejected bearer (C87), and
+  sequential scenarios are blind to the gate, so the pin sits at the
+  server, where dispatch order is visible.
+- **The rails verify behaviour, not which code.** A soak can run a
+  binary predating the fix it was restarted for, every rail correct and
+  blind to it. Provenance is its own category (C84).
 - **A clean run proves less than it feels like it does.** R8, the
-  sleep-frozen expiry clock, was found by reading code and confirmed
-  live only because the fix was missing.
+  sleep-frozen expiry clock, is a fault no clean run shows: reading the
+  code finds it, and a live run confirms it only where the fix is
+  missing.
 - **A fix that is resolved only while a rail is armed.** With the
-  tripwire off, the shipped default, the product still re-sent a dead
-  grant per flight (now C24).
+  tripwire off, the shipped default, the product can still re-send a
+  dead grant per flight (C24).
 - **Read the sites before deciding what to do with them.** "Sixteen
-  sequence-literal assertions" were seven redundant literals and nine
-  counts already the right shape; the plan changed from convert to
-  cross-check.
-- **Commit the check, then break the code.** A chained `cd` that failed
-  silently into a `git checkout` discarded an uncommitted invariant.
+  sequence-literal assertions" can be seven redundant literals and nine
+  counts already the right shape, which asks for a cross-check, not a
+  conversion.
+- **Commit the check, then break the code.** A chained `cd` that fails
+  silently into a `git checkout` discards an uncommitted invariant.
 
 ## The journal is the contract surface
 
@@ -136,7 +137,7 @@ table), which the test-shape group consolidates. A finding becomes a
 row in a surface's corpus, a case in an existing test or a line of an
 existing transcript before it becomes a file of its own (C153, the
 stopping rule). The four surfaces, each as the tree holds it and where
-the test-shape group (`roadmap/TEST-SHAPE.md`, #137 to #143) moves it:
+the test-shape group (`roadmap/TEST-SHAPE.md`, #142, #143) moves it:
 
 - **The GGG side.** The oracle is the journal ("The journal is the
   contract surface" below), the corpus the scripted-server scenarios.
@@ -160,7 +161,7 @@ the test-shape group (`roadmap/TEST-SHAPE.md`, #137 to #143) moves it:
 The store's and the plan's unit tests live in `crates/<crate>/unit/tests/`,
 each declared from `src/` by `#[cfg(test)]` and a `#[path]`, outside
 the `src/` the contract revision and the search's build name digest,
-so a test edit rebuilds only its crate's test unit (t4, #140); a new
+so a test edit rebuilds only its crate's test unit; a new
 test module follows its neighbours there.
 
 A behaviour is pinned once, at the lowest crate that holds it, and a

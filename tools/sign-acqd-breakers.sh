@@ -2,7 +2,7 @@
 # sign-acqd-breakers.sh — stages what tools/sign-acqd.sh must refuse and
 # what it must accept, on scratch copies of the built daemon (nothing under
 # target/ is touched): a nonexistent identity exits 2 and leaves the code
-# hash in place — the audit finding of 2026-09-12, when it exited 0 —; a
+# hash in place; a
 # missing daemon exits 2; no identity is a no-op exit 0 and the ad-hoc
 # signature stays; and, when ACQ_CODESIGN_IDENTITY is set in the shell,
 # the real identity exits 0 with the fixed identifier in the requirement.

@@ -10,32 +10,28 @@ was not given sent `null` (u059, 2026-10-16): a key sent null is a key not
 sent. A returned or posted query is the sheet's
 row when the two are equal once `bare()` has read both. The splitter
 (`trade-split.py`) and the extract (`trade-captures.py`) both compare
-queries, and each read them its own way until 2026-10-01, when four of
-round i's eight searches were refused by one tool after the other had been
-taught: one reader of a query's shape, here, and no copy.
+queries, and two readings of a query's shape refuse in one tool what the
+other accepts: one reader of a query's shape, here, and no copy.
 
-A search is its league and its query (round w, 2026-10-16): the same query
-in another league is another row. The rule was taught to the composer and
-to the splitter's searches, and not to the splitter's fetches or the
-extract, which went on finding a row by its query alone (the outside review
-of step 7): every tool that asks which row a call or a capture answers asks
-`asking()`, over the rows `sheet()` reads.
+A search is its league and its query: the same query in another league is
+another row. A tool that finds a row by its query alone takes one league's
+search for another's, so every tool that asks which row a call or a capture
+answers asks `asking()`, over the rows `sheet()` reads.
 
-A capture is one unit, read here alone (the outside review of 606b4a17):
-a search's answer and its fetch pages in order, `<name>-search.json`,
-`<name>-fetch.json`, `-fetch-2.json` and on, as the splitter writes them
-whole. Five scripts had each read the pages their own way, and a listing
+A capture is one unit, read here alone: a search's answer and its fetch
+pages in order, `<name>-search.json`, `<name>-fetch.json`, `-fetch-2.json`
+and on, as the splitter writes them whole. Read each its own way, a listing
 the site sent null for (a listing gone between the search and the fetch:
-u025, v092, v093) was a crash in one, an empty item in another, and a page
-not written by the splitter. `capture()` reads every page, counts a null
+u025, v092, v093) is a crash in one reader, an empty item in another, and a
+page not written by the splitter. `capture()` reads every page, counts a null
 listing and skips it, and refuses a listing its search did not return, so
 every reader's n-th item is the same item.
 
 Its one caller is the extract (`trade-captures.py`): every other script
 reads the two files the extract writes in one run from one read of raw/,
-paired by `fetched()` and nowhere else (the outside review of 555c4f58: a
-script that joined a local capture to the committed extract by an item's
-place and base took a replaced capture's marks for the old item's).
+paired by `fetched()` and nowhere else (a script that joins a local
+capture to the committed extract by an item's place and base takes a
+replaced capture's marks for the old item's).
 """
 
 import csv
@@ -128,7 +124,7 @@ def fetched(group="searches", extract=EXTRACT, bodies=BODIES):
 
 def self_test():
     """Captures made here, read by `capture`: a page of items and nulls (a
-    crash in the extract, the outside review of 606b4a17), a page of nulls
+    crash in a reader that does not skip a null), a page of nulls
     alone, a listing its search did not return, pages read in number order,
     a search or a page saved empty; and the two extracts paired, or refused
     when written apart."""

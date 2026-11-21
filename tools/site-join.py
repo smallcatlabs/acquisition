@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """site-join.py — the site's rows against the listing state, by item id.
 
-The site as the oracle (pricing slice, plan step 7, item 5;
-note 15 at `decda84e`). Two tables in: the trade site's seller-account
+The site as the oracle. Two tables in: the trade site's seller-account
 search normalized by `tools/site-listings.py`, and our listing state
 written by the `listing-report` example (`acq price list --json`'s
 `ListingReport`, unredacted, under `runs/`). One classification out,
@@ -30,16 +29,14 @@ row. `differ` — both list it and the claims differ.
 **The reasons** (closed; one per disagreement, the first that fits):
 
 - `not_in_store` — the site's id is not in the facts at all: an item of
-  an unfetched substash (the 2,945 stubs, declined 2026-09-08), or one
-  the store has never seen. Outside the domain.
+  an unfetched substash, or one the store has never seen. Outside the domain.
 - `forum_channel` — the site's row is a forum listing (the seller link
   is a thread): intent we hold, never a fact we observe (C69).
 - `note_trailing_text` — the site read a price out of a note ("Price
-  with Note:") that our parser did not read the same way. Parser v1
-  refused any suffix and let the tab apply; v2 (2026-09-08) reads
-  through a suffix as the site does, so under v2 such a row agrees
-  when the amount and word match (`note_price_agrees`) and this reason
-  is left for a suffix the two still read apart.
+  with Note:") that our parser did not read the same way. The parser
+  reads through a suffix as the site does, so such a row agrees when
+  the amount and word match (`note_price_agrees`) and this reason is
+  left for a suffix the two still read apart.
 - `ratio_tab_name` — the item's public tab is named with a ratio, which
   lists nothing on the item search (T11): our state still calls the
   tab public with no statement, so such an item is expected and absent
@@ -60,11 +57,9 @@ row. `differ` — both list it and the claims differ.
   the index lags, or the item moved.
 - `unexplained` — none of the above.
 
-Two reasons the first run found under `unlisted_since` (62 rows) and
-the list did not hold, added 2026-09-08 with the run recorded that way
-(`PRICING-SLICE.md` at `b6197a82`, the item 5 row): `socketed` — the item sits in a
-socket of another (T13: no position), and the site does not list it on
-its own; `stackable` — a currency-class stack (`stack_size` present:
+Two more reasons, each of which `unlisted_since` would otherwise take:
+`socketed` — the item sits in a socket of another (T13: no position),
+and the site does not list it on its own; `stackable` — a currency-class stack (`stack_size` present:
 scrolls, omens, boxes), which the site trades on the bulk exchange, not
 the item search (T2, T3). Both are read before `unlisted_since`.
 
@@ -310,7 +305,7 @@ def main():
         # the site reading a price out of a note our parser refused,
         # whatever the tab says.
         if r["label"] == "note_price":
-            # Parser v2 reads through the suffix as the site does: the
+            # The parser reads through the suffix as the site does: the
             # label alone is no difference — the amount and word decide.
             if exp["kind"] == "exact" and (exp["amount"], exp["currency"]) == (r["amount"], r["currency"]):
                 classes["agree"] += 1

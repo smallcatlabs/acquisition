@@ -72,8 +72,7 @@ RUN_DIR="$here/runs/$(date -u +%F)-persist"
 if [ "$MODE" = mock ]; then RUN_DIR="$here/runs/mock/$(date -u +%F)-persist"; fi
 # One directory per attempt, as the tracer: the journal is written into
 # the bundle by this run's daemons, so a reused directory would carry an
-# earlier attempt's headers into this run's provenance check (seen
-# 2026-09-11, the day the journal moved into the bundle).
+# earlier attempt's headers into this run's provenance check.
 if [ -d "$RUN_DIR" ] && [ -n "$(ls -A "$RUN_DIR")" ]; then
     RUN_DIR="$RUN_DIR-$(date -u +%H%M%S)"
 fi
@@ -222,7 +221,7 @@ esac
 [ -n "$PARENT" ] || { echo "never saw the refresh parent in acq jobs" >&2; exit 1; }
 sleep 2 # let an already-dispatched send land (the gate admits two)
 
-# The client leaves; its jobs stay (decided 2026-08-24).
+# The client leaves; its jobs stay (C27).
 { kill "$REFRESH_PID" && wait "$REFRESH_PID"; } 2>/dev/null || true
 REFRESH_PID=
 
@@ -283,7 +282,7 @@ fi
 if [ "$MODE" = mock ]; then "$ACQ" ${ACCT[@]+"${ACCT[@]}"} auth logout >/dev/null 2>&1 || true; fi
 "$ACQ" daemon stop >/dev/null
 # The wire phases are over and no daemon is left; what remains is analysis,
-# so the trap's "a daemon may still hold the queue" warning no longer applies.
+# so the trap's "a daemon may still hold the queue" warning does not apply.
 COMPLETED=1
 
 # ---- evidence and verification ---------------------------------------------
@@ -294,7 +293,7 @@ if [ -n "$(daemon_log)" ]; then cp "$(daemon_log)" "$RUN_DIR/daemon.log"; fi
 # (C84); the journal is this run's own file.
 provenance_matches_journal "$JOURNAL"
 
-# The verifier is tools/persist-verify.py (extracted 2026-09-10 so its
+# The verifier is tools/persist-verify.py (a file of its own so its
 # refusals — a 3xx, a missing header, a headerless send — have breakers:
 # `persist-verify.py --self-test`).
 verify() { python3 "$here/tools/persist-verify.py" "$JOURNAL" "$OFFSET"; }

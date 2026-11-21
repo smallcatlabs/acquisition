@@ -2,10 +2,10 @@
 # gate-breakers.sh — proves tools/gate.sh refuses what it claims to, by
 # staging each refusal and watching it fail: a stage name it does not
 # know, the fixture switch reaching a stage, a working tree its
-# stages changed (#87), a feature pin taken out (#124), a release
-# matrix row the features stage cannot read, and cargo failing under it
-# (the review of #91), the Windows-target clippy where its target is
-# not installed (#106) and the compiler it names on each host, and the
+# stages changed, a feature pin taken out, a release matrix row the
+# features stage cannot read, and cargo failing under it, the
+# Windows-target clippy where its target is not installed and the compiler
+# it names on each host, and the
 # verdict record, which a run appends and whose failure leaves the exit
 # status as the stages made it.
 #
@@ -78,8 +78,8 @@ PY
 # ---- the harness -----------------------------------------------------------
 pass=0; failed=0
 # The refusal's first line, cut to 90 characters, never inside one: `cut -c`
-# cuts bytes under the C locale, and half an em dash made the saved output
-# binary to grep (tools hygiene's report).
+# cuts bytes under the C locale, and half an em dash makes the saved output
+# binary to grep.
 clip() { python3 -Ic 'import sys; print(sys.stdin.readline().rstrip("\n")[:90])'; }
 run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> <setup> <gate command...>
   local name=$1 want=$2 pattern=$3 setup=$4; shift 4
@@ -106,7 +106,7 @@ gate=tools/gate.sh
 echo '== a stage the gate does not know'
 run_case 'an unknown stage under --only'                         refuse '--only takes one of: build'    none $gate --only bogus
 run_case 'an unknown flag'                                       refuse 'tools/gate.sh --only <stage>'  none $gate --bogus
-# The doc stage left the full list for CI and stays selectable here.
+# The doc stage is not in the full list (CI runs it) and is selectable here.
 doc_is_quick() { stage_does doc true; }
 run_case 'the doc stage under --only'                            pass   'gate: green'  doc_is_quick $gate --only doc
 
@@ -140,7 +140,7 @@ run_case 'a snapshot that cannot be taken'                       refuse 'no snap
 run_case 'the tree stage alone, on the tree as it stands'        pass   'gate: green'              none           $gate --only tree
 
 echo '== the feature graphs: a test build that compiles a package otherwise fails, naming it (#124)'
-# The pin #124 needed, taken out: cargo then drops its line from the
+# The CLI's rustix pin, taken out: cargo then drops its line from the
 # lock, which the restore puts back with the manifest.
 unpinned() {
   python3 - <<'PY'
@@ -152,11 +152,11 @@ p.write_text(pin.sub('', s))
 PY
 }
 # The refusal names the locked version, read from the lock as it stands,
-# so a Dependabot bump of rustix does not break the case (#161).
+# so a Dependabot bump of rustix does not break the case.
 rustix=$(awk '/^name = "rustix"$/ { getline; if ($3 ~ /^"1\./) { gsub(/"/, "", $3); print $3 } }' Cargo.lock)
 run_case 'the rustix pin taken out'                              refuse "rustix $rustix: build"    unpinned       $gate --only features
 # The release's targets are every triple release.yml names, in any YAML
-# form (the reviews of #91): each case checks exactly the set it names.
+# form: each case checks exactly the set it names.
 FIVE="the release's 5 targets: aarch64-apple-darwin aarch64-unknown-linux-gnu x86_64-apple-darwin x86_64-pc-windows-msvc x86_64-unknown-linux-gnu"
 SIX="the release's 6 targets: aarch64-apple-darwin aarch64-pc-windows-msvc aarch64-unknown-linux-gnu x86_64-apple-darwin x86_64-pc-windows-msvc x86_64-unknown-linux-gnu"
 release_edit() {  # release_edit <old> <new>: an exact-once substitution in release.yml
@@ -184,8 +184,8 @@ echo '== the Windows-target clippy: a target not installed fails the stage, nami
 # fails before cargo runs, so the case builds no Rust.
 no_target() { gate_edit 'WINDOWS_TARGET=x86_64-pc-windows-msvc' 'WINDOWS_TARGET=zz-no-such-target'; }
 run_case 'the target not installed'                              refuse 'rustup target add zz-no-such-target' no_target $gate --only winclippy
-# The stub only where it can run: on a Windows host the native tools
-# (the review of the build, finding 1). The target's check passes and
+# The stub only where it can run: on a Windows host the native tools.
+# The target's check passes and
 # cargo prints the compiler the stage named, so the cases build no Rust
 # and need no target installed.
 names_cc() {

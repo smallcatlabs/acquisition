@@ -94,5 +94,5 @@ Add the phase's line to `HISTORY.md`. Read the process text
 `REVIEW-CHECKLIST.md`) for lines that a type, a check or a ruling now
 holds, and retire each with its `retired X; held by Y` line (C182).
 Then `cargo clean` in each checkout whose work the phase folded, after
-its last gate: cargo never collects a target directory, and the main
-checkout's had grown to 124 GB by 2026-10-25.
+its last gate: cargo never collects a target directory, so one grows
+without bound.

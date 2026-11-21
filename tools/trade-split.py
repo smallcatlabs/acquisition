@@ -25,8 +25,8 @@ this script reads every `.har` and `.json` file in it as one recording, in
 the order the calls were made.
 
 **A recording may hold no bodies.** The browser can drop a response's body
-and keep its request, its size and its headers (the first recording, 2026-09-26:
-26 searches, no body in 2,260 entries). What is left is the recording's shape:
+and keep its request, its size and its headers (a recording of 26 searches
+has held no body in any of its 2,260 entries). What is left is the recording's shape:
 which row each search's request asked, how many bytes answered, and whether the
 page went on to fetch items — it fetches none where a search found nothing.
 `--shape` writes that, scrubbed, as provisional evidence: a search answered
@@ -43,15 +43,14 @@ committed), and delete it once the captures are written.
 together or not at all, each page as the site sent it — a fetch of listings
 the site sent null for too, which the one reader of a capture counts
 (`trade_query.capture`). A capture on disk that differs is kept whole, and
-the run exits 1; under --replace no page of the old capture outlives it (the
-outside review of 606b4a17: a capture was compared and kept file by file,
-and a run that kept some exited 0). A unit is staged whole in a folder
-beside the captures and read back by `capture` before it is placed; the old
-unit's files are set aside in that folder until every new file is in, and
-put back if one cannot be (the outside review of 555c4f58: a write that
-failed on a fetch page left a new search and no old capture, which the
-reader took for one with nothing fetched). The captures' inventory
-(`sources.py`) is written after each unit; this script is its one writer,
+the run exits 1; under --replace no page of the old capture outlives it (a
+capture compared and kept file by file mixes two, and a run that keeps some
+must not exit 0). A unit is staged whole in a folder beside the captures and
+read back by `capture` before it is placed; the old unit's files are set
+aside in that folder until every new file is in, and put back if one cannot
+be (a write that fails on a fetch page would leave a new search and no old
+capture, which the reader takes for one with nothing fetched). The captures'
+inventory (`sources.py`) is written after each unit; this script is its one writer,
 and refuses to split into a directory that is not as it records.
 
 What it refuses: a search response whose query is no row of the sheet (named,
@@ -134,10 +133,10 @@ def walk(har, rows):
     A fetch names its search's id and no league, so it is its search's: the
     latest search before it that asks the query its id decodes to, among
     those whose results hold its items where it has any. Asked of the sheet
-    by its query alone, a fetch of round w's Allflame charts was u045's,
-    Standard's (the outside review of step 7). A fetch with no item to tell
-    them apart, after searches of two rows asking its query — one query in
-    two leagues, a recording with no bodies — is ambiguous and nobody's."""
+    by its query alone, a fetch of round w's Allflame charts would be
+    u045's, Standard's. A fetch with no item to tell them apart, after
+    searches of two rows asking its query — one query in two leagues, a
+    recording with no bodies — is ambiguous and nobody's."""
     calls = []
     taken = set()
     for entry in har["log"]["entries"]:
@@ -163,9 +162,9 @@ def walk(har, rows):
             call["query"] = None
         if search:
             names = [] if call["query"] is None else asking(league_of(url.path), call["query"], rows)
-            # One query asked by several rows (round k re-asked four of round j's,
-            # 2026-10-04): the search is named for the row whose capture on disk is
-            # this answer, else the first row that has none yet, on disk or in this
+            # One query asked by several rows (round k re-asks four of round j's):
+            # the search is named for the row whose capture on disk is this
+            # answer, else the first row that has none yet, on disk or in this
             # recording, so every sitting's answer is kept under the row that asked
             # it that day and a recording splits the same the second time; a query
             # no row asks is refused.
@@ -195,11 +194,10 @@ def walk(har, rows):
 
 
 def self_test():
-    """The fetch's search, held on recordings made here (the outside review
-    of step 7): one query asked in two leagues, a fetch after each, with
-    bodies and without; a fetch of no search; a fetch the site sent no item
-    for; a query two captured rows ask, split again. Each over a raw
-    directory made here."""
+    """The fetch's search, held on recordings made here: one query asked in
+    two leagues, a fetch after each, with bodies and without; a fetch of no
+    search; a fetch the site sent no item for; a query two captured rows
+    ask, split again. Each over a raw directory made here."""
     query = {"query": {"status": {"option": "any"}, "type": "Chart"}}
     token = base64.urlsafe_b64encode(gzip.compress(json.dumps(query["query"]).encode())).decode().rstrip("=")
     other = base64.urlsafe_b64encode(gzip.compress(b'{"type":"Other"}')).decode().rstrip("=")
@@ -262,7 +260,7 @@ def self_test():
             failed += 1
             print(f"DIFFER  {name}: {got}")
 
-    # Writing a capture whole (the outside reviews of 606b4a17 and 555c4f58):
+    # Writing a capture whole:
     # (case, on disk before, the units, replace, a file whose write or
     # placing fails, on disk after, captures written, rows kept)
     def unit(row, ids, *pages):

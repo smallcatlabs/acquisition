@@ -2,8 +2,7 @@
 """The stat table (C113, C106; K6, src/trade/translate.rs): every stat id of the
 trade site's six hash categories, the categories that carry it and the text
 the site displays for it — regenerated from the dated capture of the site's
-stat vocabulary into the reviewed file the search crate ships. Step 2 of
-search/TRADE-PLAN.md at 77666ea4.
+stat vocabulary into the reviewed file the search crate ships.
 
     python3 -I tools/trade-stats-table.py            # writes crates/acquisition-search/reference/trade-stats-v1.toml
     python3 -I tools/trade-stats-table.py --check    # exits 1 when the file on disk differs from what the capture gives
@@ -29,7 +28,7 @@ Rules, each a reading of the capture and never a judgment (C106):
   3. An id may carry several texts within one category, as the site lists it
      twice (a map's own wording beside the atlas's `your Maps`). The row
      keeps every text, in the capture's order; which one a clause matches is
-     the translation's (step 4), never a choice made here.
+     the translation's, never a choice made here.
   4. Order is the capture's: rows by the first entry that names the id,
      categories in the capture's category order.
 Anything else the capture holds that these rules do not expect — an entry
@@ -48,7 +47,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-VERSION = "2026-11-17"  # the capture's date (the brief, step 2); 3.30's capture (#276), 2026-09-12's before it
+VERSION = "2026-11-17"  # the capture's date: 3.30's capture
 CAPTURE = os.path.join(ROOT, "search", "trade-query", "data", f"stats-{VERSION}.json")
 CAPTURE_SHA256 = "6eb59d1d3181e02dbc9fa7b44e22a8996e686dd3467d2fbe7deb365bfab04334"  # search/trade-query/MANIFEST.md
 OUT = os.path.join(ROOT, "crates", "acquisition-search", "reference", "trade-stats-v1.toml")

@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # arch-check.sh — the structure half of the quality gate: what links what,
-# and who reads a group's meaning. Both checks moved here whole from
-# `tools/docs-check.sh` (step 1e of the roadmap) and keep their numbers,
-# which code and records cite:
+# and who reads a group's meaning. The checks are numbered as code and
+# records cite them:
 #
 #   5. Dependency direction: the layer rules as edges the crates cannot
-#      cross, read from `cargo metadata` — the split's edge table
-#      (the packet, note 18 §2.1 at decda84e; C1 as amended) for every crate that
+#      cross, read from `cargo metadata` — the edge table
+#      (the packet, note 18 §2.1 at decda84e; C1) for every crate that
 #      exists: the protocol crate's purity (serde only), the store's
 #      blindness to everything above it, the planner's and the client's
 #      independence from the daemon, the daemon's from the client, the
@@ -15,7 +14,7 @@
 #      client's crate (C161): reqwest linked in a normal or build edge by
 #      the transport crate alone, which links no member and which no
 #      member but the daemon links, and no member reaching any HTTP
-#      client by another road (#216); and the TLS stack that client
+#      client by another road; and the TLS stack that client
 #      presents (C169), as far as a manifest, the graph and the source
 #      decide it: the two declared reqwest lines, the release line,
 #      source and resolved features of reqwest and rustls, the release
@@ -25,7 +24,7 @@
 #   7. One reader of a group's meaning: outside the search crate's modules
 #      that build, print and validate the query tree, and the one that
 #      computes what a line's group means, no source file names a
-#      group's tree (the build plan, step 4b; `group.rs`).
+#      group's tree (`group.rs`).
 #
 #   8. The test layout (C122): under a crate's `tests/`, at most one file
 #      calls no `session(` — the crate's one binary of modules — and every
@@ -37,7 +36,7 @@
 #   9. A test spawns a workspace binary through the harness (C122): under
 #      a crate's `tests/`, outside `harness/`, no file names
 #      `CARGO_BIN_EXE_` and every `Command::new(` names an allowed system
-#      tool (`kill`, `ps`); the daemon crate's tests excepted (#87).
+#      tool (`kill`, `ps`); the daemon crate's tests excepted.
 #
 #  10. Every blocking task the daemon spawns is counted (C158): under
 #      `crates/acquisition-daemon/src`, outside `tests/` and comment
@@ -55,16 +54,16 @@
 #      path, an import, a `time::` path an import makes), only inside
 #      `impl Clock for SystemClock` and inside a file's tail test module.
 #
-#  13. Retired (#160): reqwest in the one transport's file is now held
+#  13. Retired: reqwest in the one transport's file is now held
 #      by check 5's transport edges and by the daemon having no normal
 #      dependency on reqwest, which the compiler holds.
 #
-#  15. One production transport (#216, invariant 1): outside the
+#  15. One production transport (invariant 1): outside the
 #      transport crate, `Production` is named on one code line, in
 #      `ChokePoint::with_clock_and_rails`, which the daemon's production
 #      source calls once, in `Builder::build`.
 #
-#  14. One test clock (#175): under a crate's `tests/`, in every file that
+#  14. One test clock: under a crate's `tests/`, in every file that
 #      reaches the process harness, outside `harness/`, no code line reads
 #      the wall clock (`acquisition_store::now`, `store::now`, an import
 #      of it, `SystemTime::now`): test code reads the harness's `now`, the
@@ -93,14 +92,14 @@ fail=0
 # build time only), because a dependency there is every frontend's and
 # the daemon's both, and the revision it computes must move only when
 # the contract does (§2.1); the planner links the protocol crate and the
-# store, never the daemon or the client (§2.1: every path it took from
-# core was the wire's or the vocabulary's, so a planner that links the
-# daemon again has grown a third door); the search crate links the store,
+# store, never the daemon or the client (§2.1: every path it needs from
+# the daemon is the wire's or the vocabulary's, so a planner that links
+# the daemon has grown a third door); the search crate links the store,
 # and the planner once a query reads the effective price, never the
 # daemon, the client, a frontend, an HTTP client or an async runtime, and
 # neither the daemon nor the planner links it — a plan takes item ids,
 # never a query, and a search edit recompiles no daemon (C89). The verbs
-# crate (`acquisition-verbs`, C1 as amended, C46) holds what needs the
+# crate (`acquisition-verbs`, C1, C46) holds what needs the
 # daemon and the store together and links the client, the protocol
 # crate, the store, the planner and the search; a frontend may link it,
 # and nothing below it may. It needs no list of its own: each lower
@@ -117,22 +116,22 @@ fail=0
 # along a path, so `plan → helper` under `cfg(unix)` with `helper → daemon`
 # under `cfg(windows)` is refused although no single target links the
 # two — the boundary is what the manifests declare, not what one
-# platform happens to build (review 2026-09-10, accepted as the
-# conservative reading). Vertices are package ids, never names: the same
+# platform happens to build (the conservative reading). Vertices are
+# package ids, never names: the same
 # name at two versions is two vertices, and a name is used only to state
 # a rule and to print. Edges carry their kinds; the closure walks normal
 # and build edges at every depth and dev edges from the root only, since
 # Cargo links no one else's dev-dependencies. Membership is
 # `.workspace_members`, never a guess from the package's source.
 #
-# Never the manifest's text (review 2026-09-10: a lexical parser missed
-# three valid forms); never `cargo tree` (the host's active closure under
-# default features missed a `cfg(windows)` edge and an optional one);
+# Never the manifest's text (a lexical parser misses valid forms); never
+# `cargo tree` (the host's active closure under default features misses a
+# `cfg(windows)` edge and an optional one);
 # never the declared table of `packages[].dependencies` (an inactive
 # optional dependency is declared but has no package entry, so its own
-# edges are invisible). Six review rounds on this check found the same
-# shape each time: a reader whose empty or partial answer satisfied
-# every rule. So the graph is read twice, by two jq programs whose exit
+# edges are invisible). This check's recurring fault is a reader whose
+# empty or partial answer satisfies every rule. So the graph is read
+# twice, by two jq programs whose exit
 # status is checked directly and whose answers must agree row by row.
 # The first proves the graph whole — every member is a node, every edge
 # lands on a node, every node has a package — and names, by a set
@@ -214,12 +213,12 @@ if ! table=$(jq -r '
   echo 'EDGE    jq failed reading the dependency graph'
   rm -f "$meta"; exit 1
 fi
-# Who links an HTTP client, read whole from the resolve (C161, C1 as
-# amended): every package in the graph, member or not, with an edge to a
+# Who links an HTTP client, read whole from the resolve (C161, C1):
+# every package in the graph, member or not, with an edge to a
 # package named reqwest (any version), one line per edge kind, `<kind>
 # <name> <id>`, sorted. The dependent is its package id, never its name
-# alone: a package outside the workspace may share a member's name (#160's
-# fix round). The member table above holds closures, never a third-party
+# alone: a package outside the workspace may share a member's name. The
+# member table above holds closures, never a third-party
 # package's own edges, so this is the one reader of reverse edges;
 # `entered_by` below refuses an empty answer, since reqwest has a
 # dependent in every build that sends.
@@ -231,7 +230,7 @@ if ! http_dependents=$(jq -r '
   rm -f "$meta"; exit 1
 fi
 # Who reaches an HTTP client other than through the transport crate
-# (invariant 1, #216): for every workspace member but the transport, the
+# (invariant 1): for every workspace member but the transport, the
 # packages it reaches — its direct edges of every kind, then normal and
 # build edges at any depth, as the closure above walks — with the
 # transport crate's node never entered, and the daemon's one dev edge to
@@ -282,8 +281,8 @@ fi
 #     for every dependency on reqwest a workspace member declares, as its
 #     manifest spells it. The resolve below is a union over every edge,
 #     the daemon's dev edge among them, so a feature the transport's line
-#     dropped would be put back by the dev line and read as present (the
-#     cold review of d9d882a7, finding 1); the declared lines are what a
+#     dropped would be put back by the dev line and read as present; the
+#     declared lines are what a
 #     release build takes.
 #   `resolved <name> <major.minor> <source> <features>`
 #     for every package named reqwest, rustls, ring or webpki-roots in the
@@ -311,9 +310,9 @@ rm -f "$meta"
 # (member id, dep id, member, name), must be exactly the first reader's
 # lines in order — a missing row, a duplicate in its place, a fabricated
 # row, an extra one, or a row whose name does not belong to its id all
-# refuse here, before any rule is consulted (review 2026-09-10: matching
-# counts had passed a duplicate standing in for the dropped row; matching
-# ids had passed a renamed dependency the rules then could not find).
+# refuse here, before any rule is consulted (matching counts would pass a
+# duplicate standing in for a dropped row; matching ids, a renamed
+# dependency the rules then could not find).
 # The path column is not compared: it is printed on a hit, never read by
 # a rule. Builtins only.
 expect=()
@@ -484,7 +483,7 @@ forbid acquisition-search 'the search links the store, and the planner once a qu
 forbid acquisition-store 'the store links no daemon, no client, no protocol, no planner, no search and no HTTP client (C41, C89; the split, §2.1)' \
   acquisition-daemon acquisition-client acquisition-protocol acquisition-plan acquisition-search reqwest tokio
 allow acquisition-protocol normal serde serde_json
-# C161, C1 as amended (#160): the one HTTP client lives in the transport
+# C161, C1: the one HTTP client lives in the transport
 # crate, which links no workspace crate and is linked by the daemon alone,
 # so reqwest enters the production graph through it alone; the daemon's
 # tests that drive a real socket take reqwest as the one dev edge.
@@ -521,7 +520,7 @@ tls_is 'a change of TLS backend, crypto provider, root store, offered protocol, 
   'resolved ring 0.17 crates.io -' \
   'resolved rustls 0.23 crates.io ring,std,tls12' \
   'resolved webpki-roots 1.0 crates.io -'
-# What no manifest decides (the same review, finding 2): a TLS option on
+# What no manifest decides: a TLS option on
 # a client builder, and the process's default crypto provider, which
 # reqwest takes before its own ring. Neither is named, outside a comment
 # line, by the transport's source or the daemon's, tests included: the
@@ -540,7 +539,7 @@ if grep -rqE 'Annotations|annotations_path' crates/acquisition-daemon/src crates
   fail=1; edge_bad=1
 fi
 # The doors into semantics only the verbs crate opens (C46, every
-# frontend an adapter; C1 as amended): an index loaded, a facts or intent
+# frontend an adapter; C1): an index loaded, a facts or intent
 # file opened, a plan compiled or gated, an apply's parameters built, a
 # quote asked, the ledger read, the use door — named by no frontend's
 # source, so a frontend that answers for itself is refused here, not
@@ -561,10 +560,10 @@ fi
 # What `line( … )` means — what it selects, which sources it admits, its
 # together bound, whether its selector asks a flag, its template tests — is
 # computed once, when the query is bound, in acquisition-search's `group`
-# module, and read from there. Four outside audits of the first surface
-# found one fault five times: a meaning read again off the syntax by the
-# function that needed it next, which parentheses then changed (invariant 7
-# of the surface; `SEARCH-SLICE.md` at `b6197a82`, the findings of step 4b). P5: a rule that can
+# module, and read from there. The fault this holds off is a meaning read
+# again off the syntax by the function that needs it next, which
+# parentheses then change (invariant 7 of the surface, `SEARCH-SLICE.md`
+# at `b6197a82`). P5: a rule that can
 # be broken silently becomes structure. So no source file of any crate
 # names a group's tree, authored (`Member`) or bound (`BMember`), but the
 # modules that build, print and validate it, and that one — names, and not
@@ -591,12 +590,12 @@ fi
 # dependencies link once. A file that sets the process environment (a
 # `session(`, the harness's one lock and isolation list applied to the
 # test's own process, or a `set_var(` or `remove_var(` of its own, as the
-# daemon's knobs test, which has no harness, #218) is its own binary, since a process-wide write leaks
-# into every test beside it under `cargo test` (measured: six and nine
-# tests failed when the CLI's and the MCP's were merged). Read as files:
+# daemon's knobs test, which has no harness, does) is its own binary,
+# since a process-wide write leaks
+# into every test beside it under `cargo test`. Read as files:
 # the roots are the files no other file under `tests/` lists as a module;
 # at most one root sets nothing, and it lists none that does. A
-# file a manifest no longer discovers and no root lists is a second plain
+# file a manifest does not discover and no root lists is a second plain
 # root, refused alike. Then held to the manifest, read with tomllib:
 # where it sets `autotests = false` its `[[test]]` paths are the roots
 # exactly, each named once, so an entry deleted, which drops a binary
@@ -648,9 +647,9 @@ printf '%s\n' "$layout"
 # ---- 9. a test spawns a workspace binary through the harness ------------
 # Every test process takes the harness's one isolation list (C122): a
 # child started with a hand-written environment inherits whatever the
-# shell exports, an `ACQ_*` knob or the owner's store among them, and two
-# had (#87: a printed command run through `sh`, and `acq-mcp` started
-# bare). So under a crate's `tests/`, outside its `harness/` directory,
+# shell exports, an `ACQ_*` knob or the owner's store among them (a
+# printed command run through `sh`, or `acq-mcp` started bare). So under a
+# crate's `tests/`, outside its `harness/` directory,
 # no file names `CARGO_BIN_EXE_` — a test reaches its binary through the
 # harness's `acq_exe` or `exe` and spawns it through a harness function,
 # each of which applies the list — and every `Command::new(` names a
@@ -659,7 +658,7 @@ printf '%s\n' "$layout"
 # never a shell. A new tool is added to the list by name. Comment
 # lines are not read. The daemon crate's `tests/` is excepted by name: it
 # cannot link the harness, which links the client (check 5), and starts
-# `acqd` from an emptied environment; its in-crate tests are #64's.
+# `acqd` from an emptied environment.
 if ! spawns=$(python3 -I - <<'PY'
 import glob, re, sys
 SPAWN = re.compile(r'Command::new\(\s*([^)]*)\)?')
@@ -974,9 +973,9 @@ printf '%s\n' "$timers"
 
 
 # ---- 14. one test clock -------------------------------------------------
-# Two process runs compared whole flaked when they landed either side of
-# a second: each child aged its times against its own wall clock (#109,
-# #149, #175). The harness now fixes one instant per test process and
+# Two process runs compared whole flake when they land either side of a
+# second and each child ages its times against its own wall clock. So the
+# harness fixes one instant per test process and
 # passes it on its one isolation list (`ACQ_NOW`), which every child
 # reads as now. A time the test stages, or an age it expects, read from
 # the wall clock in the test's own code is a second clock beside it. So
@@ -1009,7 +1008,7 @@ PY
 printf '%s\n' "$clock"
 
 # ---- 15. one production transport, built by one choke point -------------
-# Invariant 1 (#216): every send the daemon makes goes through one choke
+# Invariant 1: every send the daemon makes goes through one choke
 # point and its one gate, and the choke point's transport is the one HTTP
 # client (C161, check 5). A second `Production` built anywhere is a second
 # client whose sends no gate counts; a second production choke point is a

@@ -19,8 +19,8 @@ where the lines cancel (c3), so the rows give none there either.
     tools/trade-evidence.py --count utilityMods     # then disagrees, write nothing
 
 **A total leaves out a crucible node's lines and a flask's own lines**, as the
-site does (round n, n01–n09; the owner, 2026-10-08, of both: "Leave both
-out."): the arrays `crucibleMods` and `utilityMods` are read by no pseudo. It
+site does (round n, n01–n09; the owner, of both: "Leave both out."): the
+arrays `crucibleMods` and `utilityMods` are read by no pseudo. It
 is a rule of every total, by the array, and of no other array.
 
 A row is tested by the items that carry its line; a line the rows leave out

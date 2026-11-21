@@ -8,7 +8,7 @@ description: Run one research track of a slice's working directory (search/ is t
 A track is a directory with one README (`search/README.md`, rules in
 force). A read or a measurement with a fixed input runs as an Opus
 subagent under a brief; the reviewer — the session — checks the result
-and commits it with the story. Ran five times on 2026-09-13/14 and
+and commits it with the story. It has run more than twice and
 repeated two traps, so it is a skill (P6).
 
 ## Before the run
@@ -20,11 +20,10 @@ repeated two traps, so it is a skill (P6).
    script, the findings expected, an acceptance sentence, and the
    report asked for (at most 300 words), which names what the runner
    left out and the one cut it would most want reversed — the reviewer
-   restores from that line, never from the transcript (the digest run,
-   2026-09-16: every restore came from it). The README already holds
-   the question; the brief holds only the procedure — and says the
-   README is written last, from the script outputs, its headline block
-   last of all, with per-item detail in `data/`.
+   restores from that line, never from the transcript. The README
+   already holds the question; the brief holds only the procedure — and
+   says the README is written last, from the script outputs, its
+   headline block last of all, with per-item detail in `data/`.
 2. Commit the brief before the run, so any session — or Codex — can
    run it.
 3. Launch one general-purpose subagent per track with a prompt that
@@ -34,8 +33,7 @@ repeated two traps, so it is a skill (P6).
 ## After the run
 
 4. Read the track's README and its `data/` heads yourself; check the
-   acceptance sentence by hand where it names a command (the seat
-   projection's fractured-mod query was run at the commit); every
+   acceptance sentence by hand where it names a command; every
    claim points at a file. A finding you disagree with is a Review row,
    not a silent edit.
 5. `git rm <track>/BRIEF.md`; set the index row's status and byte
@@ -45,9 +43,8 @@ repeated two traps, so it is a skill (P6).
 ## Traps
 
 - **`git add search` while another subagent is still writing sweeps
-  its half-written files into your commit** (2026-09-13, re-cut with a
-  soft reset). Add the track's directory and the index, never the
-  parent.
+  its half-written files into your commit.** Add the track's directory
+  and the index, never the parent.
 - The runner leaves the index row stale by design; forgetting it is the
   reviewer's error, not the runner's.
 - A brief that lists an input the owner has not supplied (a worked
@@ -57,9 +54,9 @@ repeated two traps, so it is a skill (P6).
 - A byte budget in a runner's prompt is filled to the byte, by every
   model, and the cuts vanish into the runner's report: give a guide,
   hold the reviewer to the whole, and put every budget cut on the kill
-  list by finding id (both pilot runners, 2026-09-16).
+  list by finding id.
 - A runner's committed output runs two to three times any guide (note
-  25 at `90cac21c`, 38.8 KB against 16; the stage-5 check at 29 KB under a brief
-  that set none): a file past about 40 KB is read by section — `grep -n
+  25 at `90cac21c`: 38.8 KB against a guide of 16, and 29 KB under a
+  brief that set none): a file past about 40 KB is read by section — `grep -n
   '^##'`, then `sed -n` by line range — never whole, and a brief gives
   a guide even for a check.

@@ -28,7 +28,7 @@ was composed from and says so in what it decides. The batch is the form before i
 kept one command away and not run: 264 searches, one line at a time.
 
 The batch is generated from search/pseudo-stats/data/candidates.csv (search/pseudo-stats/scripts/candidates.py),
-in two forms, since the pilot's answer was not in: `if` — one search per
+in two forms: `if` — one search per
 candidate line, every pseudo it might feed in one `if` group (p2 asks whether
 an `if` group shows a value at all); `and` — one search per pair, the pseudo
 required as in p1. Rows are ordered by what a search is worth: the pilot, then
@@ -720,7 +720,7 @@ def round_four():
     return out
 
 
-# The plan's step 9c2, the site's other totals: each at the version round
+# The site's other totals: each at the version round
 # five asks of, written out. A pseudo with a row whose eldritch forms the site
 # lists is asked at the version that holds them, the rule being ruled.
 ROUND_FIVE = {
@@ -911,7 +911,7 @@ def round_six():
     return out
 
 
-# Round i (before step 9d): the percentile's shapes no capture reaches, and
+# Round i: the percentile's shapes no capture reaches, and
 # the ranged family's one weapon question. PERCENTILE_CASES was read against
 # the sittings' captures, 543 distinct armour items scored by
 # search/pseudo-stats/scripts/percentile.py: helmets, gloves, shields, uniques,
@@ -1007,8 +1007,8 @@ def round_i():
     return [{"search": s, "decides": d, "control": c, "query": q} for s, d, c, q in rows]
 
 
-# Round j (before step 9d): the category track's open questions 1 to 6
-# (search/category/README.md), holes J1-J4 of the build plan. Each type is
+# Round j: the category track's open questions 1 to 6
+# (search/category/README.md), holes J1-J4. Each type is
 # written out; search/category/scripts/round-j.py reads the rows back and says
 # what the export and the owner's copy hold of each. A category search finding
 # nothing proves nothing until the same type under another id finds something:
@@ -1159,13 +1159,11 @@ def round_j():
     return rows
 
 
-# Round k (before step 9d): J8's one search and its mutant, then every beast's
-# colour from the site (search/category/BRIEF.md at 213578b1). No published list
-# gives a beast's colour, so each name of the site's `monster` list is asked
-# under `monster.yellowbeast`; a name not found is asked under
-# `monster.redbeast` in the round composed after this sitting. The copy's
-# bases come first, written out; search/category/scripts/round-k.py reads the
-# rows back and fails when this list is not beasts.csv's.
+# Round k: J8's one search and its mutant, then every beast's colour from
+# the site. No published list gives a beast's colour, so each name of the
+# site's `monster` list is asked under `monster.yellowbeast`; a name not
+# found is asked under `monster.redbeast` in round l. The copy's bases come
+# first, written out; search/category/scripts/round-k.py reads the rows back and fails when this list is not beasts.csv's.
 ROUND_K_COPY_BEASTS = [  # search/category/data/beasts.csv's bases, in its order (the copy's 70)
     'Alpine Devil', 'Barrow Ape', 'Bearded Devil', 'Blood Ape', 'Bone Cruncher', 'Brine Vassal',
     'Carnage Ape', 'Cave Beast', 'Chimeric Croaker', 'Colossus Crusher', 'Craicic Maw',
@@ -1233,11 +1231,11 @@ def round_k():
     return [{"search": s, "decides": d, "control": c, "query": q} for s, d, c, q in rows]
 
 
-# Round l (before step 9d): the second pass of every beast's colour
-# (search/category/BRIEF.md at 213578b1). Each name round k did not find under
-# Yellow Beast is asked under `monster.redbeast`, the same type, in round k's
-# order (the copy's bases first); its round k search is its pair. Written out
-# from search/category/scripts/round-k-read.py's beast-colours.csv.
+# Round l: the second pass of every beast's colour. Each name round k did
+# not find under Yellow Beast is asked under `monster.redbeast`, the same
+# type, in round k's order (the copy's bases first); its round k search is
+# its pair. Written out from search/category/scripts/round-k-read.py's
+# beast-colours.csv.
 ROUND_L_NAMES = [  # search/category/data/beast-colours.csv's `unknown` names, each with its round k search, in round k's order
     ('Craicic Maw', 'k013'), ('Craicic Sand Spitter', 'k014'), ('Craicic Savage Crab', 'k015'),
     ('Craicic Shield Crab', 'k016'), ('Craicic Squid', 'k017'), ('Craicic Watcher', 'k018'),
@@ -1295,7 +1293,7 @@ def round_l():
 
 
 def round_m():
-    """m01–m04 the tattoo name rule (the look at 9d-B: 40 of the class table's
+    """m01–m04 the tattoo name rule (40 of the class table's
     100 tattoo bases do not begin `Tattoo of `), m05–m07 `Veiled Scarab`, which
     the export classes Stackable Currency, m08 a beast under `currency` (J10,
     ruled on the owner's word and asked by no capture)."""
@@ -1335,7 +1333,7 @@ def round_m():
     return rows
 
 
-# Round n (before 9d-C's sitting): what the two reads left to the site
+# Round n: what the two reads left to the site
 # (search/pseudo-stats/README.md, "Before the sitting: the domain, and the twin
 # from the export"). Each pseudo at the version asked, written out.
 ROUND_N = {
@@ -1519,7 +1517,7 @@ def round_n():
     return rows
 
 
-# Round t (the trade import, step 7 of search/TRADE-PLAN.md at 77666ea4): what the
+# Round t (the trade import): what the
 # translation leaves to the site — the questions of the trade oracle's
 # sitting findings (crates/acquisition-search/tests/trade-oracle.toml, `asks`)
 # and the catalogue rows a sitting is to settle
@@ -1878,15 +1876,14 @@ class Composed:
         return self.rows
 
 
-# Round u (the trade import, step 7): coverage. The oracle (step 6) checks
-# the translation only on the clauses the captured searches used: measured
-# at step 7a, 64 of the catalogue's 94 rows that run and 53 of its 82
-# category options had met no item the site returned, so their status
-# rested on hand-written fixtures alone. A search here exercises each, with
-# a bound that restricts where the row takes one; nothing is decided by
-# reading it — at step 7d the oracle asks the translated text of every item
-# returned, and an item it misses is a row. Rows round t already exercises
-# are left to it.
+# Round u (the trade import): coverage. The oracle checks the translation
+# only on the clauses the captured searches used: before this round, 64 of
+# the catalogue's 94 rows that run and 53 of its 82 category options had met
+# no item the site returned, so their status rested on hand-written fixtures
+# alone. A search here exercises each, with a bound that restricts where the
+# row takes one; nothing is decided by reading it — the oracle asks the
+# translated text of every item returned, and an item it misses is a row.
+# Rows round t already exercises are left to it.
 COVERAGE_CATEGORIES = [
     "weapon.bow", "weapon.claw", "weapon.basedagger", "weapon.oneaxe", "weapon.basesword", "weapon.rapier",
     "weapon.basemace", "weapon.twoaxe", "weapon.twomace", "weapon.twosword", "armour.gloves", "armour.shield",
@@ -1985,20 +1982,20 @@ def round_u(earlier):
     return composed.done()
 
 
-# Round v (step 7, the park "what no sitting has asked the site",
+# Round v (the park "what no sitting has asked the site",
 # decisions/search.md): the questions the search's tracks left to the next
 # sitting, each where its track wrote it — the ranged family's and the
 # percentile's in their copy files' `a_sitting_would_ask`, the four
 # readings' and the name rules' in the README entries the park names
 # (search/OBSERVATIONS.md at 453a4429). Each is read by its track's own
-# script over the captures at step 7d; a search here composes the question
-# and names what the fetched items show.
+# script over the captures; a search here composes the question and names
+# what the fetched items show.
 #
 # The copy files' questions are read from their frozen copy: the column
 # says what is still open, and the tracks' scripts empty it as the
 # captures answer it, so composing from it would turn a sat search into
-# another, or into none (the outside review of step 7: 76 rows gone, 33
-# renamed). A sat search is never composed again otherwise than it was.
+# another, or into none. A sat search is never composed again otherwise
+# than it was.
 QUESTIONS = TRACK / "data" / "round-v-questions.csv"
 RANGED_COPY = "ranged-expected-copy.csv"
 COUNT_AT_MOST = 64
@@ -2174,11 +2171,11 @@ def round_v(earlier):
     return composed.done()
 
 
-# Round w (step 7, 2026-10-16): what rounds t to v left undecided, read off
-# the splitter's counts before the captures were read — a pair that did not
-# part (Storm Cloud matched at `max` -99 and at -101 alike), a question put
-# in a form the site answers with nothing (`term` `Anvil` and `nvil`, 0
-# each), and coverage no listing met: a bound too high, or league content
+# Round w: what rounds t to v left undecided, read off the splitter's
+# counts before the captures were read — a pair that did not part (Storm
+# Cloud matched at `max` -99 and at -101 alike), a question put in a form
+# the site answers with nothing (`term` `Anvil` and `nvil`, 0 each), and
+# coverage no listing met: a bound too high, or league content
 # Standard does not list, asked in the challenge league.
 CHALLENGE = "Allflame"  # the owner, 2026-10-16: "the current league is 'Allflame'"
 
@@ -2242,16 +2239,15 @@ def round_x(earlier):
     of a text with two the site compares; x08–x09 a level requirement a
     socketed gem sets, under `req_filters.lvl`; x10–x11 the two ranged
     cells round v did not ask; x12 Maven's Invitations in the challenge
-    league. Composed 2026-10-18 (note 38 at `16bba23e`, step 5) for the questions
-    the open observations of `TRADE-SLICE.md` at `b6197a82`, queued for the next sitting."""
+    league. Composed for the questions of the open observations of
+    `TRADE-SLICE.md` at `b6197a82`."""
     composed = Composed("x", 2, earlier)
     add = composed.add
 
     def maps(**options):
         return {"map_filters": {"disabled": False, "filters": {k: {"option": v} for k, v in options.items()}}}
 
-    # 1. A Blight-ravaged map under `map_blighted` (the trade seat: 13 at tiers 14–16; the owner, 2026-10-17:
-    # "Ambiguous, sitting asks").
+    # 1. A Blight-ravaged map under `map_blighted` (13 at tiers 14–16; the owner: "Ambiguous, sitting asks").
     add("a Blight-ravaged map, the site's own mark: `map_uberblighted` `true`. The ten fetched: every type line begins "
         "`Blight-ravaged`, the mark being the prefix's; the control of x02 and x03",
         "the control: the mark must find maps", batch_query([], maps(map_uberblighted="true")))
@@ -2282,8 +2278,8 @@ def round_x(earlier):
         "compared too, or alone where x04–x05 found none; none, t28 none at `min` 1000: the damage is never the "
         "number", "t30", burning({"min": 2400, "max": 2600}))
 
-    # 3. A level requirement a socketed gem sets, `"suffix":"(gem)"` on the body (the trade seat: mcp-opus-1 call 39,
-    # not shown): whether the site's `req_filters.lvl` reads it as the item's.
+    # 3. A level requirement a socketed gem sets, `"suffix":"(gem)"` on the body, which an answer does not
+    # show: whether the site's `req_filters.lvl` reads it as the item's.
     band = {"misc_filters": {"disabled": False, "filters": {"ilvl": {"max": 50}}}}
     add("a level requirement a socketed gem sets: armour of item level 50 or under — whose own requirement, its "
         "base's or its mods', is under 51 — at `lvl` `min` 60. Found: the ten carry `\"suffix\":\"(gem)\"` on the "
@@ -2311,7 +2307,7 @@ def round_x(earlier):
     add(f"coverage in {CHALLENGE}: `type_filters.category=map.invitation` (Standard listed them and sent no item)",
         "the oracle (tests/trade_oracle.rs)", batch_query([], category("map.invitation")), CHALLENGE)
 
-    # 6. The repair, the same day. t27 (`min` 1000) found 100 and t28 (3 to 5) none; x04–x07 — 4, 1, 2 to 3, and
+    # 6. The repair. t27 (`min` 1000) found 100 and t28 (3 to 5) none; x04–x07 — 4, 1, 2 to 3, and
     # 2400 to 2600 — found none, while t29 with no bound found 100. No number the line displays is the one
     # compared. What is 1000 or more and neither 2500 nor 4: the two read as a range `# to #`, its average, 1252
     # for 2500 and 4 and 1250.5 for 2500 and 1 — or every `#` against the one bound. Each bracket below parts them.
@@ -2348,13 +2344,14 @@ def round_x(earlier):
 
 def round_y(earlier):
     """y01–y06 a range whose minimum is above its maximum, in each shape a
-    query carries one (#150); y07–y08 which `#` of a text of four the site
+    query carries one; y07–y08 which `#` of a text of four the site
     compares (`stat.text.many`); y09–y12 the three percentile lines and S4
     round v did not reach; y13 Maven's Invitations from sellers online;
     y14–y16 a scourge line in a weighted sum (`scourge-in-sum`); y17–y19 a
     blighted map's base (`blighted-base`); y20–y21 the twin id the site
-    leaves out of four totals (#34). Composed 2026-11-04 for the questions of
-    #33, #34 and #150, each search's answers stated in its `decides`."""
+    leaves out of four totals (#34). Composed for the questions of #33 and
+    #34 and the inverted range, each search's answers stated in its
+    `decides`."""
     composed = Composed("y", 2, earlier)
     add = composed.add
 
@@ -2364,7 +2361,7 @@ def round_y(earlier):
             out["value"] = {**(value or {}), **({"weight": weight} if weight is not None else {})}
         return out
 
-    # 1. A range whose minimum is above its maximum (#150: the generator draws `min: 0, max: -1` and
+    # 1. A range whose minimum is above its maximum (the generator draws `min: 0, max: -1` and
     # `min: 5, max: 0`, printed `=5..0` and refused by the reader). Each inverted pair beside its pair in order:
     # the site refuses it, finds nothing, finds what the pair in order finds, or keeps one bound, the ten fetched
     # saying which.
@@ -2409,7 +2406,7 @@ def round_y(earlier):
 
     # 3. The percentile's three lines and S4 round v did not reach (percentile-expected-copy.csv, `asked` "no";
     # v051, v055 fetched none in the cell). Each narrowed to where the copy's own items carry it, read from the
-    # copy on 2026-11-04 and written out here: a crafted `+# to Armour` on a base ranging no armour (Crusader
+    # copy and written out here: a crafted `+# to Armour` on a base ranging no armour (Crusader
     # Buckler, Hubris Circlet, Lion Pelt, Slink Gloves; Lion Pelt asked), a crucible `+# to Armour` (El'Abin's
     # Visage, a Fencer Helm), a mutated `+# to Armour` (Foulborn Bramblejack, a Plate Vest). S4, a display more
     # than one roll gives, comes of a reduced local defence (the script's own case: `1% reduced Armour`).
@@ -2479,7 +2476,7 @@ def round_y(earlier):
         "y14", summed({"min": 1}))
 
     # 6. A blighted map's base (`blighted-base`): t55 found `Blighted Map (Tier 13)` under `Map (Tier 13)`. Asked under
-    # its own name, and a Blight-ravaged map under the bare base and its own (x01: 7,983, the seat's at tiers 14–16).
+    # its own name, and a Blight-ravaged map under the bare base and its own (x01: 7,983, the 13 at tiers 14–16).
     add("blighted-base: `type` `Blighted Map (Tier 13)`. Found: the site's Base takes the prefixed name too; none, "
         "t55 finding them under `Map (Tier 13)`: the Base is the unprefixed base alone",
         "t55", batch_query([], None, "Blighted Map (Tier 13)"))
@@ -2491,8 +2488,8 @@ def round_y(earlier):
         "them: the unprefixed base alone",
         "y18, or x01's ten", batch_query([], None, "Blight-ravaged Map (Tier 16)"))
 
-    # 7. The twin id the site leaves out of total life, Strength, Intelligence and mana (#34; c3, b1, b2, reported
-    # to GGG 2026-09-26). One `not` over the four: found, nothing changed; none, a repair the same day asks each.
+    # 7. The twin id the site leaves out of total life, Strength, Intelligence and mana (#34; c3, b1, b2). One
+    # `not` over the four: found, nothing changed; none, a repair asks each.
     twin = "explicit.stat_2543977012"
     totals = ["pseudo.pseudo_total_life", "pseudo.pseudo_total_strength", "pseudo.pseudo_total_intelligence",
               "pseudo.pseudo_total_mana"]
@@ -2509,9 +2506,8 @@ def round_y(earlier):
     return rows
 
 
-# Round z: what 3.30 moved (#33 items 7 and 8, composed 2026-11-17). Its
-# searches are asked in the league the patch opened, where every listed item
-# was made under 3.30: the same query in Standard is g033's and g034's, sat
+# Round z: what 3.30 moved (#33 items 7 and 8). Its searches are asked in
+# the league the patch opened, where every listed item was made under 3.30: the same query in Standard is g033's and g034's, sat
 # before the patch. Ids are read from the site's stats of 2026-11-17, the
 # capture the tables were regenerated from, never from the one the earlier
 # rounds were composed with.
@@ -2522,9 +2518,9 @@ VISCERA_LEAVES = {"viscera.head": "viscera_head", "viscera.arm": "viscera_arm",
 
 
 def round_z(earlier):
-    """z01–z04 the rarity total across 3.30's rewording (#33 item 7; #276);
-    z05–z09 the Viscera class and its four leaves (#33 item 8). Composed
-    2026-11-17, each search's answers stated in its `decides`."""
+    """z01–z04 the rarity total across 3.30's rewording (#33 item 7);
+    z05–z09 the Viscera class and its four leaves (#33 item 8), each
+    search's answers stated in its `decides`."""
     composed = Composed("z", 2, earlier, COVENS)
     add = composed.add
     # increased_rarity v3 (tools/trade_rows.py, CARRIED): the reworded text at weight 1, counted beside the old.
@@ -2580,7 +2576,7 @@ def round_z(earlier):
 
 
 def round_za(earlier):
-    """The repairs of the sitting of 2026-11-17, composed that night from its
+    """The repairs of the sitting of 2026-11-17, composed from its
     counts: za01–za02 the twin id's jewel, y21 having found none; za03 Maven's
     Invitations from instant buyout, y13 having found none online."""
     composed = Composed("za", 2, earlier)
@@ -2591,8 +2587,8 @@ def round_za(earlier):
         q = batch_query(stats, None, "Crimson Jewel")
         return {"status": q["status"], "name": "That Which Was Taken", **{k: v for k, v in q.items() if k != "status"}}
 
-    # y21 asked the twin id under `category` `jewel` and found none, where b2 found 3,297 without the category in
-    # September: y20, its pair, proved nothing. The jewel is asked by its name, with and without the id.
+    # y21 asked the twin id under `category` `jewel` and found none, where b2 found 3,297 without the category:
+    # y20, its pair, proved nothing. The jewel is asked by its name, with and without the id.
     add("the twin's jewel by its name: `name` `That Which Was Taken`, `type` `Crimson Jewel`. The ten fetched show "
         "the id each `+# to Strength and Intelligence` line sits under since 3.30; the control of {next}",
         "the control: must find items", jewel([]))
@@ -2674,7 +2670,7 @@ def sheet_text(searches):
 def same(committed, composed):
     """Whether a composed line is the committed one. The link is compared by
     the query it carries, never by its bytes: deflate's bytes are the zlib
-    build's, and a zlib-ng host's are not the site's (#145), while the
+    build's, and a zlib-ng host's are not the site's, while the
     committed link is the one its captures name."""
     if committed == composed:
         return True

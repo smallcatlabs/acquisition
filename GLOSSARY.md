@@ -8,8 +8,8 @@ noun gets a line here when a second document starts to use it.
 
 ## Door
 
-"Door" has carried several meanings. Each has its own word now, and a
-new text uses that word rather than "door".
+"Door" is ambiguous: each of its senses has its own word, and a new
+text uses that word rather than "door".
 
 - **connect policy** (the most common sense of "door"): how a frontend
   reaches the daemon. The *use* policy may start or replace a daemon,
@@ -80,8 +80,8 @@ new text uses that word rather than "door".
 - **last** (a round): the final fix round of a step, after the tail.
 - **ledger**: a table of dated rows read from its newest end:
   `RUN-LEDGER.md` for live runs, `SEAT-LEDGER.md` for seats;
-  `roadmap/LEDGER.md` holds the steps closed up to 2026-11-09, and a
-  later close is its commit (`git log --grep='^Step: '`);
+  `roadmap/LEDGER.md` holds the steps closed before a close became its
+  commit, and a later close is that commit (`git log --grep='^Step: '`);
   `search/LEDGER.md`, the search slice's closed record, is looked up
   by its row instead.
 - **ledger** (the job ledger): the daemon's persisted job queue on

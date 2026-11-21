@@ -83,8 +83,8 @@ def read_lifetimes(journal, offset):
                 continue
             line = json.loads(raw)
             if line.get("event") == "open":
-                # `contract` + `daemon` since 2026-09-10 (C84); `runtime` from
-                # 2026-09-09 (C10); bundles before that say `build`.
+                # `contract` + `daemon` (C84); an older bundle's header says
+                # `runtime` (C10) or `build`.
                 cur = {"pid": line["pid"], "build": line.get("contract", line.get("runtime", line.get("build"))),
                        "daemon": (line.get("daemon") or "-")[:12], "clock": line["clock"], "sends": []}
                 lifetimes.append(cur)
@@ -92,8 +92,7 @@ def read_lifetimes(journal, offset):
             if cur is None or line.get("pid") != cur["pid"]:
                 # A send with no open header of its own pid before it: a
                 # daemon that never said who it was (C84). Recorded as a
-                # lifetime that fails, never as an anonymous one (review
-                # 2026-09-10).
+                # lifetime that fails, never as an anonymous one.
                 cur = {"pid": line.get("pid"), "build": "?", "daemon": "?", "clock": "?", "sends": [],
                        "headerless": True}
                 lifetimes.append(cur)
@@ -108,7 +107,7 @@ def read_cycles(path):
             if line.strip():
                 fields = line.rstrip("\n").split("\t")
                 if len(fields) == 6:
-                    # A bundle from before C135's rows: every lifetime refreshed.
+                    # A bundle with no C135 field in its rows: every lifetime refreshed.
                     fields.insert(5, "1")
                 c, lt, logical, probes, ceiling, posts, quote = fields
                 cycles.append({"cycle": int(c), "lifetime": int(lt), "logical": int(logical),

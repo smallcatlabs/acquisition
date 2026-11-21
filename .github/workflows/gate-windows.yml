@@ -1,19 +1,17 @@
 name: Gate (Windows)
 
-# The quality gate on Windows x86_64 (AGENTS.md, "Quality gate";
-# `PLATFORMS-SLICE.md` at `b6197a82`, step 1): the build, the suite on the mock harness —
-# the named-pipe endpoint (C112), the world's Windows arm — and clippy,
-# which alone lints the `cfg(windows)` code. Formatting and cargo-deny do
-# not vary by platform and stay with the Linux workflow. Plus the
-# daemon's keyring round trip against Credential Manager
-# (acquisition-daemon/src/auth.rs, `keyring_round_trip_survives_a_fresh_entry`).
-# The tests run the commands acq prints through PowerShell 7 (`pwsh`),
-# the shell they are quoted for on Windows (C156, decisions/frontends.md),
-# and the Git Bash case through `sh`: Git for Windows' bin directory is on
-# the runner's PATH. Nothing here talks to
-# GGG: every harness sets ACQ_PROVIDER=mock (C88) and no test process has
-# a terminal. First run green 2026-10-15 (run 38665185349, 800 tests, the
-# round trip among them).
+# The quality gate on Windows x86_64 (AGENTS.md, "Quality gate"): the
+# build, the suite on the mock harness — the named-pipe endpoint (C112),
+# the world's Windows arm — and clippy, which alone lints the
+# `cfg(windows)` code. Formatting and cargo-deny do not vary by platform
+# and stay with the Linux workflow. Plus the daemon's keyring round trip
+# against Credential Manager (acquisition-daemon/src/auth.rs,
+# `keyring_round_trip_survives_a_fresh_entry`). The tests run the
+# commands acq prints through PowerShell 7 (`pwsh`), the shell they are
+# quoted for on Windows (C156, decisions/frontends.md), and the Git Bash
+# case through `sh`: Git for Windows' bin directory is on the runner's
+# PATH. Nothing here talks to GGG: every harness sets ACQ_PROVIDER=mock
+# (C88) and no test process has a terminal.
 
 on:
   push:
@@ -70,8 +68,8 @@ jobs:
       # the platform, so they run the share tier here, a share of their
       # counts fresh each run (acquisition-search/tests/common/
       # generated.rs, `cases`), and their full volume stays with the Linux
-      # gate: under full counts a starved runner met the `ci` profile's
-      # termination on healthy code (#70). ACQ_KEYRING_ROUNDTRIP=1: the
+      # gate: under full counts a starved runner meets the `ci` profile's
+      # termination on healthy code. ACQ_KEYRING_ROUNDTRIP=1: the
       # round trip against the runner user's Credential Manager. Every
       # failure is reported (the `ci` profile's fail-fast = false): a
       # platform's failures come in kinds, and one test's must not hide
@@ -82,8 +80,8 @@ jobs:
         run: cargo nextest run --workspace --all-targets --locked --profile ci
 
       # After a red test step too (`!cancelled()`): clippy is the only lint
-      # of the `cfg(windows)` code, and a failing test must not hide it
-      # (#77). The test step's failure still fails the job.
+      # of the `cfg(windows)` code, and a failing test must not hide it.
+      # The test step's failure still fails the job.
       - name: Clippy
         if: ${{ !cancelled() }}
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings

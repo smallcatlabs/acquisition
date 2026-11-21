@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""The defence table (C101, C106, C68; item search step 9d-A): what the base
-defence percentile, `pseudo.defence_pct`, reads beside the item — each base's
-defence ranges, and each text a local defence stat displays with what it does
-— regenerated from the owner's pinned RePoE clone (SURFACES.md, the RePoE
+"""The defence table (C101, C106, C68): what the base defence percentile,
+`pseudo.defence_pct`, reads beside the item — each base's defence ranges,
+and each text a local defence stat displays with what it does — regenerated from the owner's pinned RePoE clone (SURFACES.md, the RePoE
 row; search/repoe/MANIFEST.md) and one committed extract into the reviewed
 file the search crate ships.
 

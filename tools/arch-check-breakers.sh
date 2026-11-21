@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
 # arch-check-breakers.sh — proves the dependency guard in arch-check.sh
 # (§5) and the one-reader rule on a line's group (§7), fail closed, by
-# breaking the code and the tool and watching it refuse. Both checks and
-# these cases lived in docs-check.sh and its breakers until step 1e of the
-# roadmap; the registry's cases stayed there (`docs-check-breakers.sh`).
+# breaking the code and the tool and watching it refuse. The registry's
+# cases are in `docs-check-breakers.sh`.
 #
-# Six review rounds on the guard (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, rounds 5–11)
-# found the same shape each time: a reader whose empty, partial or
-# renamed answer satisfied every rule. Each case here is one of those
-# findings, or a route a future crate could take, and states what the
+# The guard's recurring fault is a reader whose empty, partial or
+# renamed answer satisfies every rule. Each case here is one such
+# reader, or a route a future crate could take, and states what the
 # guard must say about it — a refusal is evidence only when it names
-# the property, because twice a malformed breaker printed a refusal
-# that was not the property (a shell quote closed early; BSD grep
-# without -P). So an edit that does not apply, or leaves the tool
+# the property, because a malformed breaker can print a refusal that
+# is not the property (a shell quote closed early; BSD grep without
+# -P). So an edit that does not apply, or leaves the tool
 # unparseable, fails the suite instead of passing as a refusal.
 #
 # The spawn rule's cases (§9) append to a test file the tree has, so no
@@ -24,15 +22,15 @@
 # import of the timer module (alone, or in a tokio group) or of the crate
 # renamed, and the
 # blocking case (§10) a second blocking task. The transport edges (§5,
-# C161; check 13 retired onto them, #160) refuse reqwest declared by a
+# C161; check 13 retired onto them) refuse reqwest declared by a
 # second member, by the daemon again, through an alias the workspace
 # declares and the daemon inherits, or through a non-member crate the
 # daemon links, one of them named as the transport crate is; a member but the daemon linking the transport crate; and
-# the transport crate linking a member; any other HTTP client (#216),
+# the transport crate linking a member; any other HTTP client,
 # a stand-in under a client's name, declared by a member, reached
 # through a non-member crate, or taken by the daemon's tests, and hyper
 # or hyper-util named by a member though axum may bring hyper to serve,
-# and the reader that walks no member. Check 15's cases (#216) build a
+# and the reader that walks no member. Check 15's cases build a
 # second production transport (in another file, under an alias, in the
 # constructor itself) and a second production choke point (in another
 # file, in the builder, behind a `#[cfg(test)]` item that is no tail
@@ -45,11 +43,10 @@
 # crypto provider installed in the daemon's source; a comment that names
 # one passes.
 #
-# Run it when an edge is added to arch-check.sh (the split's step 3 added
-# the client and daemon crates and their edges), not in the gate: it
+# Run it when an edge is added to arch-check.sh, not in the gate: it
 # runs the check once per case. Every case restores the files it touched from copies
 # and compares them byte for byte — never `git checkout`, which
-# discards uncommitted work (the record's observation) — and a trap
+# discards uncommitted work — and a trap
 # restores on any exit. Needs python3 and perl beside bash and jq.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -136,8 +133,8 @@ shadow_meta() { tool "$META_CMD" "if ! cat \"$1\" >\"\$meta\"; then"; }   # a fi
 # ---- the harness -----------------------------------------------------------
 pass=0; failed=0
 # The refusal's first line, cut to 90 characters, never inside one: `cut -c`
-# cuts bytes under the C locale, and half an em dash made the saved output
-# binary to grep (tools hygiene's report).
+# cuts bytes under the C locale, and half an em dash makes the saved output
+# binary to grep.
 clip() { python3 -Ic 'import sys; print(sys.stdin.readline().rstrip("\n")[:90])'; }
 run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> <setup...>
   local name=$1 want=$2 pattern=$3; shift 3
@@ -186,8 +183,8 @@ run_case 'the MCP links the daemon directly'                     refuse 'is link
 run_case 'the CLI → helper → daemon'                             refuse 'acquisition-cli → acquisition-helper → acquisition-daemon' member_links_helper acquisition-cli "[dependencies]\n$DP\n"
 run_case 'the CLI → helper → daemon under cfg(windows)'          refuse 'acquisition-cli → acquisition-helper → acquisition-daemon' member_links_helper acquisition-cli "[target.'cfg(windows)'.dependencies]\n$DP\n"
 run_case 'plan links client directly'                            refuse 'acquisition-plan       links acquisition-client —' adddep crates/acquisition-plan/Cargo.toml "$CP"
-# store → daemon and store → client are cycles (the daemon and, since the
-# split's step 5, the client link the store), and Cargo refuses a cycle
+# store → daemon and store → client are cycles (the daemon and the
+# client link the store), and Cargo refuses a cycle
 # before any guard reads the graph: the refusal is Cargo's, named as
 # such — the edge is unreachable by construction, not by the rule.
 run_case 'store links client directly (a cycle: Cargo refuses it first)' refuse 'cargo metadata failed' adddep crates/acquisition-store/Cargo.toml "$CP"
@@ -217,7 +214,7 @@ run_case 'the daemon links a non-member named acquisition-transport' refuse 'req
 run_case 'a frontend links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli' adddep crates/acquisition-cli/Cargo.toml "$TP"
 run_case 'the client links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli acquisition-client' adddep crates/acquisition-client/Cargo.toml "$TP"
 run_case 'the transport crate links a member'                    refuse 'acquisition-transport  links acquisition-protocol' adddep crates/acquisition-transport/Cargo.toml 'acquisition-protocol = { path = "../acquisition-protocol" }'
-# Any HTTP client, not reqwest alone (#216): a client crate is named by a
+# Any HTTP client, not reqwest alone: a client crate is named by a
 # local stand-in under its name, so the cases need no registry; hyper is
 # the real one, which axum already brings the CLI to serve its pages.
 UQ="ureq = { path = \"$scratch/x/fakeureq\" }"
@@ -231,8 +228,7 @@ run_case 'the HTTP client reader walks no member'               refuse 'the HTTP
 run_case 'the store names hyper-util itself'                     refuse 'acquisition-store      reaches hyper-util outside the transport crate' adddep crates/acquisition-store/Cargo.toml 'hyper-util = "0.1"'
 # C169: the stack the Rust daemon has presented. Each refusal is matched
 # on the line of the graph that differs, never on the verdict alone, so a
-# case green for another line's reason fails here (the cold review of
-# d9d882a7, finding 6).
+# case green for another line's reason fails here.
 reqwest_features() {  # reqwest_features <features list> <manifest>...: in place of each manifest's reqwest features
   local list=$1 m; shift
   for m in "$@"; do
@@ -312,9 +308,8 @@ run_case 'daemon → helper → search'                              refuse 'acq
 # The search links the planner, so this edge is a cycle and the refusal
 # is Cargo's, as for the store below.
 run_case 'plan links search directly (a cycle: Cargo refuses it first)' refuse 'cargo metadata failed' adddep crates/acquisition-plan/Cargo.toml "$SP"
-# The search links the store (the build plan, step 4), so this edge is a
-# cycle and the refusal is Cargo's, as for the store's other upward edges
-# above; the rule's own refusal is what it was while the search linked none.
+# The search links the store, so this edge is a cycle and the refusal is
+# Cargo's, as for the store's other upward edges above.
 run_case 'store links search directly (a cycle: Cargo refuses it first)' refuse 'cargo metadata failed' adddep crates/acquisition-store/Cargo.toml "$SP"
 intent_in_client() { printf '// breaker: a client that reads intent\npub fn f() -> Option<u32> { let annotations_path = 1; Some(annotations_path) }\n' >crates/acquisition-client/src/zz_breaker.rs; }
 run_case 'the intent API named in client/src'                    refuse 'names the intent API' intent_in_client

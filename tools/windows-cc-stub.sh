@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # windows-cc-stub.sh — the C compiler, C++ compiler and archiver the gate's
 # `winclippy` stage names for the Windows target, standing in for MSVC's,
-# which a Mac or Linux host lacks (#106). It compiles nothing: for each output it is
+# which a Mac or Linux host lacks. It compiles nothing: for each output it is
 # named, it writes an empty file, so a build script that runs `cc` finishes
 # and clippy reads the Rust above it. Nothing it writes is linked, because
 # clippy links nothing; a build that links through it is broken by design.

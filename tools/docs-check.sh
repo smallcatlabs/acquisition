@@ -16,7 +16,7 @@
 #      history, and a history citation, `<path>` at `<hash>`, names the
 #      path as it was at that commit.
 #   3. Stale identifiers. A backticked code identifier in a control
-#      document that no longer exists in the workspace is a parallel
+#      document that does not exist in the workspace is a parallel
 #      description that has rotted. Checked: `Type::path` items,
 #      CamelCase types, snake_case names with an underscore, ACQ_* knobs,
 #      and *.rs / *.sh / *.py / *.sql file names.
@@ -61,7 +61,8 @@ fi
 # the history and the roadmap — and never the registry's own
 # cross-references, which are not a test, a doc or a tool naming the
 # decision. The workflows are read in their *.yml, as 2b reads them: a
-# ruling cited only from one was reported uncited. Two kinds of roadmap file
+# ruling cited only from one would be reported uncited. Two kinds of
+# roadmap file
 # are read by neither this scan nor 2b's, being text no session may
 # correct: a saved review (`roadmap/reviews/`, an outside model's answer
 # verbatim, kept there for good) and the dated assessment
@@ -72,15 +73,15 @@ SKIP_ROADMAP=(--exclude-dir=reviews --exclude='STATE-*.md')
 # looks for commits (the history scan below, the cited commits and the
 # history citations in 2b, the document paths in 6), each in Python:
 # "at", then 7 to 40 hex with or without backticks, letters alone
-# included. Each scan had its own spelling, and an outside review of
-# `484fce3b` found an unbackticked hash, and one of nine letters, that
-# escaped both. Between "at" and the hash, a space or a line break and a
+# included: with a spelling of its own, a scan lets an unbackticked
+# hash, or one of nine letters, escape it. Between "at" and the hash, a
+# space or a line break and a
 # comment's leader (`//`, `//!`, `///`, `#`), as `LEAD` admits between a
-# path and "at": a citation wrapped after "at" was read by neither 2b
-# scan and passed silently (#126). A `^` after the hash is its parent, as
+# path and "at", so a citation wrapped after "at" is read by both 2b
+# scans, never passed silently. A `^` after the hash is its parent, as
 # git reads it: a file deleted at a commit is cited at `<hash>^`, and
 # the history citations look it up there, not at the commit that
-# deleted it (tools hygiene's fix round, the `search/repoe/` extracts).
+# deleted it.
 AT_HASH='\bat(?:\s|//[!/]?|#)+`?[0-9a-f]{7,40}\b\^?`?'
 reg=$(mktemp)
 # entries are single lines in the registry (one bullet, no continuation),
@@ -104,8 +105,8 @@ count=$(printf '%s\n' "$ids" | grep -c .)
 # entry that carries it. The words are matched as written, so a ruling
 # may still say a thing is "ruled first". A bare word of hex letters
 # alone is no commit; one written as history (`AT_HASH`, above) is.
-# The owner's quote is refused in every form the registry has carried
-# (#238): `owner:`, a parenthesis naming him as the source
+# The owner's quote is refused in every form the registry has carried:
+# `owner:`, a parenthesis naming him as the source
 # ("(the owner, #166)"), his word or ruling followed by a colon, a
 # semicolon or a quotation mark, "Under the owner's word." or
 # "Under the owner's delegation." as a sentence of its own, his words
@@ -160,15 +161,15 @@ rm -f "$reg"
 # — an ancestor of HEAD — or carries its repository as `<repo>@<hash>`
 # (the search tracks' form for the RePoE clones). A hash
 # that resolves only because another branch is fetched dies in a clone
-# of this branch: five did on 2026-10-11, master-side twins of
-# cherry-picked ground-truth commits and one review-branch commit.
+# of this branch: a master-side twin of a cherry-picked commit, or a
+# review branch's commit.
 #
 # The governed files, one scope for the document scans: the roots below,
 # their *.rs, *.sh, *.py and *.md files, and for the cited commits here
 # and the history citations after them their *.toml and *.yml files too
 # (CITED_KINDS), since a manifest, a shipped table's header and a
-# workflow's comments cite commits as the code does (#89's review: a
-# table's source cited a deleted tool where neither scan read it). The
+# workflow's comments cite commits as the code does (a table's source
+# can cite a deleted tool where neither scan would read it). The
 # root manifests and the workflows are roots for that reason;
 # `audits/`, dated records, is not. The cited commits and the history
 # citations read the roadmap under SKIP_ROADMAP's two exclusions alone
@@ -177,15 +178,14 @@ rm -f "$reg"
 governed=(crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md AGENTS.md decisions .claude/skills REVIEW-CHECKLIST.md HISTORY.md roadmap Cargo.toml deny.toml about.toml .github)
 CITED_KINDS=(rs sh py md toml yml)
 # Every history citation, `<path>` at `<hash>` (or "whole at"), names
-# the path as it was at that commit: `git cat-file` must find it there.
-# The governance design's second read trial found nine of twelve naming
-# the path as it is now, which the cited commit never held. A token with
+# the path as it was at that commit: `git cat-file` must find it there,
+# since a citation naming the path as it is now names what the cited
+# commit may never have held. A token with
 # no slash and no extension is a name, not a path, and a token with a
 # placeholder (`<name>`, a glob) is a pattern, as the document paths (6)
 # and bothy read it: neither is read. The roadmap is read under SKIP_ROADMAP's exclusions, as the cited commits
-# are (the outside review of `1f074d5a`, finding 1). Both scans read the
-# governed files whole, in one walk, so a citation wrapped across a line
-# end is read as one (#126); the cited commits were a grep, line by line.
+# are. Both scans read the governed files whole, in one walk, so a
+# citation wrapped across a line end is read as one.
 if ! cites=$(python3 -I - "$AT_HASH" "${CITED_KINDS[*]}" "${governed[@]}" <<'PY'
 import os, re, subprocess, sys
 at, kinds, roots = sys.argv[1], tuple("." + k for k in sys.argv[2].split()), sys.argv[3:]
@@ -281,7 +281,7 @@ fi
 # The README is the index to what exists and how to reach it
 # (note 13 at decda84e): the tour is one line per verb — a
 # comment-only line is a group header after a blank line, never a
-# continuation of a verb line (44 of those had accreted by 2026-09-07) —
+# continuation of a verb line —
 # and the knob table is complete: every ACQ_* the crates read outside
 # tests has a row. The tour's verbs and flags are pinned by
 # acquisition-cli/tests/readme_tour.rs against the binary.
@@ -290,13 +290,11 @@ fi
 # not an item a column-0 `#[cfg(test)]` guards in `src/` (a `mod …;`
 # line, or a block to its closing column-0 `}`), and not `tools/`. A
 # knob read only there is development's, and its read site's doc is its
-# home; the README is the users' (2026-10-19, the release seat's fix
-# round, when three such rows left it). The convention a test-only file
+# home; the README is the users'. The convention a test-only file
 # of `src/` follows: it lives under a `tests/` directory, as
 # `ratelimit.rs` includes `ratelimit/tests/spec.rs`, so this check skips
 # it by its path. The `#[cfg(test)] mod name;` line that includes it is
-# not resolved to a file (#118, which `ACQ_CASES` met in a test-only
-# `src/generated.rs`), and the refusal names the convention.
+# not resolved to a file, and the refusal names the convention.
 tour_bad=$(awk '/^```sh/{f=1; prev=""; next} /^```/{f=0; next} f{ if ($0 ~ /^[[:space:]]*#/ && prev !~ /^[[:space:]]*$/) print "        line "NR": "$0; prev=$0 }' README.md)
 if [[ -n $tour_bad ]]; then
   printf 'TOUR    %-18s a comment line continues a verb line — one line per verb, the rest is its --help:\n%s\n' README.md "$tour_bad"
@@ -323,7 +321,7 @@ fi
 
 # ---- 5. the clone's hooks --------------------------------------------------
 # Unset, git reads the empty .git/hooks and a commit keeps the trailer it
-# was written with: two of step 2's commits did (2026-10-15).
+# was written with.
 if [[ $(git config --get core.hooksPath || true) == .githooks ]]; then
   printf 'ok      %-13s core.hooksPath is .githooks: the hooks write the trailer and refuse an agent'"'"'s commit that names no assistant\n' hooks
 else
@@ -335,13 +333,11 @@ fi
 # exists — from the root, from the citing file's directory, or as the
 # tail of a tracked path — unless it is written as history (`<path>` at
 # `<hash>`, whose path 2b holds to that commit). The identifier scan
-# reads code names and skips a document's: step 1d's brief named a
-# deleted document in the review checklist as its failing input, and
-# nothing refused it (the outside review of `202e4659`, finding 2). Not
+# reads code names and skips a document's, so a deleted document named
+# in the review checklist would pass it. Not
 # read: the roadmap, whose briefs and dated notes tell deletions as their
-# story (about eighty such names), except its plan, `roadmap/README.md`,
-# which every step reads first and which named none when #106 measured it
-# (30 names), and the search slice's ledger and
+# story, except its plan, `roadmap/README.md`,
+# which every step reads first, and the search slice's ledger and
 # digest, whose heads give the commit each of their pointers is read at. Three names are of no file in this tree, by design: RePoE's
 # licence, a seat run's debrief, and a live run's friction notes.
 if ! paths=$(python3 -I - "$AT_HASH" "${governed[@]}" <<'PY'
@@ -353,7 +349,7 @@ history = re.compile(r",?" + LEAD + r"(?:whole" + LEAD + r")?" + at)
 DATED = {"search/LEDGER.md", "search/DIGEST.md"}
 NOT_HERE = {"LICENSE.md", "DEBRIEF.md", "friction.md"}
 # Tracked and present: `git ls-files` still lists a deletion not yet
-# staged (the outside review of `1f074d5a`, finding 2).
+# staged.
 tracked = [t for t in subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True).stdout.splitlines()
            if os.path.exists(t)]
 tails = {"/".join(t.split("/")[i:]) for t in tracked for i in range(t.count("/") + 1)}

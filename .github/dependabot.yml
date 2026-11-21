@@ -1,4 +1,4 @@
-# Dependabot's version updates (#86): the locked crate graph and the
+# Dependabot's version updates: the locked crate graph and the
 # workflows' actions, weekly. The crates' minor and patch updates come as
 # one grouped pull request and each major bump as its own; the actions are
 # pinned by major tag, so every update to one is a major, and they come

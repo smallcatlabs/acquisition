@@ -12,7 +12,7 @@ for each fetched item only what the evidence reads — its names, rarity, proper
 No item id, icon, seller, price, stash position or token leaves raw/.
 
 Beside it, bodies.json holds each fetched item as the site sent it, for the
-trade oracle (search/TRADE-PLAN.md at 77666ea4, step 6), which enters it through the
+trade oracle, which enters it through the
 store's ingest: a stash item's own keys, every one the site sent, less the
 item id, every icon and the price note, which may not leave raw/, and less
 `extended` and `pseudoMods`, the site's own computations, which no stash body
@@ -30,17 +30,16 @@ reshapes its items as the extract does. One item to a line.
 
 This script is raw/'s one reader; every other script reads the two files it
 writes, which one run writes from one read, so no script joins a local
-capture to a committed extract (the outside review of 555c4f58: a replaced
-capture's marks were joined to the old extract's item by its place and its
-base). So the extract carries what those scripts read: each item's
-`item_class`, the clipboard's `Item Class:` line and nothing else of it,
+capture to a committed extract (a replaced capture's marks would be joined
+to the old extract's item by its place and its base). So the extract
+carries what those scripts read: each item's `item_class`, the clipboard's `Item Class:` line and nothing else of it,
 and under `census` the eight searches' items, as `bodies.json` holds them.
 `trade_query.fetched` pairs the two files' items, and nothing else does.
 Each file names the raw it was made from, `_raw`: the sha256 of the two
 inventories, so a pair is one generation when the two agree, and a pairing
-refuses two that do not (the outside review of 373c541a: a write that
-failed on the second file left a new item beside an old body, and the
-pairing, counting items, took them together).
+refuses two that do not (a write that fails on the second file leaves a
+new item beside an old body, and a pairing that counted items would take
+them together).
 
 A capture is read by `trade_query.capture`, the one reader of one: a search
 file saved empty is a search not yet captured and is passed over, a listing
@@ -83,7 +82,7 @@ ARRAYS = [
     "pseudoMods",
 ]
 # Value patterns, never a bare word (search/README.md, "Traps"): a beast named
-# Meatwhisper tripped the bare word on 2026-10-05 and was no seller's data.
+# Meatwhisper trips the bare word and is no seller's data.
 SCRUBBED = ('"whisper": "', '"hideout_token": "', '"account": {', '"icon": "', '"stash": {', '"price": {')
 
 
