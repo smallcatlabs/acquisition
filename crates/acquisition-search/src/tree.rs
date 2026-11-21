@@ -11,26 +11,26 @@
 //!
 //! # As built
 //!
-//! **A path names a node** (the build plan, step 10). One walk numbers a query's nodes
-//! ([`nodes`]) and replaces one of them by a constant ([`forced`]), so
-//! what a path names and what a substitution replaces cannot differ: the
-//! children of the root are `0`, `1`, …, and a root that is no and is
-//! `0`; a child of an and, an or or a `holds` is `<parent>.<n>`; what a
-//! not negates or `undecided( … )` asks about is `<parent>.0`. Inside
-//! `line( … )` and `linked( … )` the same rule holds with the term in
-//! the root's place: the group's conjuncts are `<term>.<n>`, a group
-//! that is one condition — an or and a not among them — holds it at
-//! `<term>.0`, and below that a child of an and or an or is
-//! `<parent>.<n>` and what a not negates `<parent>.0`. The root has no
-//! path, and the conditions inside a `sum( … )` or a projection take
-//! none. The substitution rebuilds the tree around the node as it was:
-//! nothing reordered, flattened, merged or simplified (invariant 1), so
+//! **A path names a node.** One walk numbers a query's nodes ([`nodes`])
+//! and replaces one of them by a constant ([`forced`]), so what a path
+//! names and what a substitution replaces cannot differ: the children of
+//! the root are `0`, `1`, …, and a root that is no and is `0`; a child
+//! of an and, an or or a `holds` is `<parent>.<n>`; what a not negates
+//! or `undecided( … )` asks about is `<parent>.0`. Inside `line( … )`
+//! and `linked( … )` the same rule holds with the term in the root's
+//! place: the group's conjuncts are `<term>.<n>`, a group that is one
+//! condition — an or and a not among them — holds it at `<term>.0`, and
+//! below that a child of an and or an or is `<parent>.<n>` and what a
+//! not negates `<parent>.0`. The root has no path, and the conditions
+//! inside a `sum( … )` or a projection take none. The substitution
+//! rebuilds the tree around the node as it was: nothing reordered,
+//! flattened, merged or simplified (invariant 1), so
 //! `line(true() arg1>=90)` and `(a false()) b` are what it prints. The
 //! binder numbers its terms by the same two functions (`bind.rs`). Paths
 //! belong to the exact query an answer returned; after an edit, use the
 //! next answer's. `true()` and `false()` are what a forced node prints,
-//! and are legal wherever a term is, inside a member group too (owner,
-//! 2026-09-19, on `true()` and `false()`: "agree with recommendation").
+//! and are legal wherever a term is, inside a member group too (the
+//! owner, on `true()` and `false()`: "agree with recommendation").
 
 use crate::error::{ErrorKind, LanguageError};
 use crate::group::Slots;
@@ -253,7 +253,7 @@ pub(crate) fn is_segment(s: &str) -> bool {
 /// (B1). Each reader of a query makes it, the parser of its text and the
 /// reader of its tree, never the printer, so a value has one text in a
 /// query's print, its values and each comparison of them, however it was
-/// sent, and parsing that text gives the tree back (#273).
+/// sent, and parsing that text gives the tree back.
 pub(crate) fn spelled(name: &str) -> String {
     name.to_ascii_lowercase()
 }
@@ -265,8 +265,8 @@ pub(crate) fn is_name(s: &str) -> bool {
 
 /// The words that name a number (`template.rs`).
 /// Whether a name is the computed namespace's — `pseudo`, or `pseudo.…`
-/// — in any case, as every name is read (F10, the first seat: `has:Pseudo.DPS`
-/// offered no reading).
+/// — in any case, as every name is read (F10: else `has:Pseudo.DPS`
+/// offers no reading).
 pub(crate) fn is_computed(name: &str) -> bool {
     name.get(..6)
         .is_some_and(|head| head.eq_ignore_ascii_case("pseudo"))
@@ -489,7 +489,7 @@ fn invalid(kind: ErrorKind, message: impl Into<String>) -> LanguageError {
     LanguageError::new(kind, message)
 }
 
-/// How deep a query nests, at most (C109; the owner, 2026-10-10: "32").
+/// How deep a query nests, at most (C109; the owner: "32").
 /// Each `( )`, `not`, `holds( )` and `undecided( )` around a term is a
 /// level, inside a line's group as outside it; `line( … )`, `linked( … )`
 /// and `sum( … )` are terms and no level, since none nests in itself.

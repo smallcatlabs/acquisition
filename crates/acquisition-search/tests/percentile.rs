@@ -1,6 +1,6 @@
 //! The base defence percentile (C101; `search/LEDGER.md`, "Holes ruled",
-//! V5, J5, J6, J8 and J33–J35; the build plan, 9d-A), through the crate's
-//! boundary: `pseudo.defence_pct`, the trade site's Base Percentile.
+//! V5, J5, J6, J8 and J33–J35), through the crate's boundary:
+//! `pseudo.defence_pct`, the trade site's Base Percentile.
 //!
 //! The first test reads the track's expected answers where they lie
 //! (`search/pseudo-stats/data/percentile-expected.csv`, written before
@@ -356,17 +356,15 @@ fn table_store(cases: &[Case]) -> Store {
 
 /// C101, V5, J5, J6, J8, J33–J35: every row of the expected answers — a
 /// case of the facts the row gives, put into a store through its ingest —
-/// is answered as the row says: 7715 captured (4849 before step 7's
-/// sitting, 7431 before round x; the table written again over round x and
-/// the sitting of 2026-11-17 at #282), 45 ruled, 4 worked. The field is
-/// asked of each case: lacked, by `has:` and its not; or its value, by a
-/// comparison, by the sort and by what the row shows; or undecided, by
-/// what could not be established. The plan's closing row is among them:
-/// the 1,620 captured cells read to a value, of the 1,626 where the site
-/// showed one — t54's crucible line the item's own since step 7f of the
-/// trade brief, as the site reads it — the other 6 step 7's sitting's
-/// (`search/pseudo-stats/README.md`: 5 lacked, 1 undecided). The
-/// table's `site` and `agrees` columns are evidence and assert nothing.
+/// is answered as the row says: 7715 captured, 45 ruled, 4 worked. The
+/// field is asked of each case: lacked, by `has:` and its not; or its
+/// value, by a comparison, by the sort and by what the row shows; or
+/// undecided, by what could not be established. The plan's closing row is
+/// among them: the 1,620 captured cells read to a value, of the 1,626
+/// where the site showed one — t54's crucible line the item's own, as the
+/// site reads it — the other 6 (`search/pseudo-stats/README.md`: 5
+/// lacked, 1 undecided). The table's `site` and `agrees` columns are
+/// evidence and assert nothing.
 #[test]
 fn c101_every_row_of_the_percentile_expected_answers_is_answered_as_the_row_says() {
     let cases = cases();
@@ -1094,7 +1092,7 @@ fn rule_8_what_the_percentile_asks_opens_it() {
 }
 
 /// A mark, a multiplier and the rolls of several defences, each by one
-/// rule (the looks at the build, 2026-10-08 and 2026-10-09):
+/// rule:
 ///
 /// - *A mark is three-valued, and read where GGG writes it.* It is a yes
 ///   where the deriver holds the flag, unknown where its own key is no
@@ -1302,10 +1300,10 @@ fn j8_the_items_mark_tells_whose_an_implicit_twin_is() {
 
 // ---- the refusal ------------------------------------------------------------------------------
 
-/// The record's observation from 9d-C: `has:` asks a computed value's
-/// presence and takes no slot word. On a ranged total the refusal is of
-/// its own kind — a slot word where none is taken — never the unknown
-/// name it was, and offers the reading that is right.
+/// `has:` asks a computed value's presence and takes no slot word. On a
+/// ranged total the refusal is of its own kind — a slot word where none
+/// is taken — never an unknown name, and offers the reading that is
+/// right.
 #[test]
 fn has_with_a_slot_word_on_a_computed_value_is_refused_under_its_own_kind() {
     let s = worked();
@@ -1365,8 +1363,8 @@ fn has_with_a_slot_word_on_a_computed_value_is_refused_under_its_own_kind() {
 /// one departure (J5), how a twin text is told with the captured lines
 /// each part rests on, that a roll out of range still reads (J34), where
 /// it is undecided (J33), the site's inexact bound (C102), and the
-/// reference data's source and version — and the field is no longer on
-/// the list of what is not built.
+/// reference data's source and version — and the field is not on the list
+/// of what is not built.
 #[test]
 fn c97_describe_of_the_percentile_prints_its_definition() {
     let one = serde_json::to_value(describe(&["defence_pct".to_string()]).unwrap()).unwrap();
@@ -1420,10 +1418,9 @@ fn c97_describe_of_the_percentile_prints_its_definition() {
 /// A vocabulary narrowing lists the percentile by its name or by what it
 /// reads and answers — its own definition — and never by the bookkeeping
 /// its definition prints beside that: the captured lines a part rests on
-/// and the script that counted them, the table's version, its sources
-/// and its counts. By a word of those it would be listed under a text
-/// that names no line and no value (T5: a narrowing lists those it
-/// matches; the look at the build, 2026-10-08).
+/// and the script that counted them, the table's version, its sources and
+/// its counts. By a word of those it would be listed under a text that
+/// names no line and no value (T5: a narrowing lists those it matches).
 #[test]
 fn c97_a_narrowing_matches_what_the_percentile_reads_and_never_its_bookkeeping() {
     let s = worked();

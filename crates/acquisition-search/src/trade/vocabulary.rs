@@ -1,6 +1,5 @@
-//! The stat vocabulary a form's picker lists (step 4b of the roadmap,
-//! `roadmap/briefs/4b-build.md`, Do 3): the totals the site names as
-//! pseudo stats, then the stat table's entries, those that hold every
+//! The stat vocabulary a form's picker lists: the totals the site names
+//! as pseudo stats, then the stat table's entries, those that hold every
 //! word asked, each with what the translation makes of it alone and
 //! with a bound — so a page that offers a stat says its fate before it
 //! is chosen, and never reads the captured JSON.

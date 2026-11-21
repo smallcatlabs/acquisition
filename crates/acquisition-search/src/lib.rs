@@ -19,10 +19,10 @@
 //! word for GGG's item filters and for the site's single controls. A
 //! **request** is a query bound to a scope and a view. **`pseudo`** is this
 //! search's namespace for computed values; the trade site's 298 are called
-//! the site's pseudo stats, and neither promises the other (owner,
-//! 2026-09-19: "This doesn't need to 100% align with trade").
+//! the site's pseudo stats, and neither promises the other (the owner:
+//! "This doesn't need to 100% align with trade").
 //!
-//! The owner's words on the query (2026-09-19, verbatim but for spelling)
+//! The owner's words on the query (verbatim but for spelling)
 //! are quoted in the module doc each bears on — `parse.rs`, `template.rs`,
 //! `bind.rs`, `derive.rs`, `group.rs`, `pseudo.rs`, `tree.rs`; whole, with
 //! the reasoning, in `search/search-forms/11-owner-amendments.md`.
@@ -55,15 +55,15 @@
 //! `--describe` are now (`spikes/rust-playground/search/DESIGN.md` at `0d71054f`). They bind a
 //! change to the crate as they bound a step.
 //!
-//! 1. **The parser knows the whole language from step 1; the evaluator
-//!    knows part of it.** What is not built lives in one closed list in the
-//!    crate, each entry a construct of the reference and the step that
-//!    builds it. A request that uses one is refused before anything is
-//!    evaluated — `not built: pseudo.* (step 7)` — an error of its own kind,
-//!    never the unknown-name error, never undecided, never an empty answer.
-//!    `--describe` prints the same list. One test walks it: every construct
-//!    of the reference either evaluates or refuses by that name, and the
-//!    list the test walks is the list `--describe` prints.
+//! 1. **The parser knows the whole language; the evaluator may know part of
+//!    it.** What is not built lives in one closed list in the crate, each
+//!    entry a construct of the reference and the step that builds it. A
+//!    request that uses one is refused before anything is evaluated — `not
+//!    built: rebind` — an error of its own kind, never the unknown-name
+//!    error, never undecided, never an empty answer. `--describe` prints
+//!    the same list. One test walks it: every construct of the reference
+//!    either evaluates or refuses by that name, and the list the test walks
+//!    is the list `--describe` prints.
 //! 2. **Scope, basis and undecided are in the first answer or there is no
 //!    answer.** The first surface prints the scope block, the basis, the
 //!    four counts per term and the undecided items with their reasons. A
@@ -87,8 +87,8 @@
 //!    prints that route only when it runs; until then it prints the count
 //!    left out and names the unbuilt construct. The route property's test
 //!    covers it: every command an answer prints parses and is not refused.
-//! 6. **Spent at step 11e.** The language reference is the module docs,
-//!    the clap help and `--describe`; the rule as it stood is
+//! 6. **Spent.** The language reference is the module docs, the clap
+//!    help and `--describe`; the rule as it stood is
 //!    `spikes/rust-playground/search/BUILD-PLAN.md` at `0d71054f`.
 //! 7. **Whose store.** The agent tests on fixtures built through the
 //!    store's own ingest, and measures on a sqlite `.backup` copy under a
@@ -96,12 +96,12 @@
 //!    opened only by the owner, at a terminal. No GGG traffic anywhere in
 //!    this plan; the one daemon is M5's, a mock session.
 //!
-//! Rules 8 to 10 are what step 4b's audits taught (`SEARCH-SLICE.md` at `b6197a82`, "Findings"),
-//! each a fault that came back until it was named;
+//! Rules 8 to 10 are what the build's audits taught (`SEARCH-SLICE.md` at
+//! `b6197a82`, "Findings"), each a fault that came back until it was named;
 //! the owner approved their meaning from a plain account of each and left
-//! the wording to the builder (2026-09-22: "the words that get written down
-//! are for you"; "If so, go ahead"). Each names what already holds it: the
-//! rule is for the moment before the code is written.
+//! the wording to the builder ("the words that get written down are for
+//! you"). Each names what already holds it: the rule is for the moment
+//! before the code is written.
 //!
 //! 8. **Unknown is said once, where the evidence is read, and of no more
 //!    than was lost.** What the deriver cannot read — a flag that is no yes
@@ -128,16 +128,14 @@
 //!
 //! # As built
 //!
-//! The language (the build plan, step 1), the derivation (step 2), the
-//! first surface (step 4), the counts view (step 5), the class table
-//! (step 6), the computed values (step 7), the sockets (step 8), the
-//! categories (step 9d-B), the base defence percentile (step 9d-A) and
-//! the why-not and the continuation (step 10: `--explain`, `--context
-//! corpus`, `show --against`; a `next`, a route read back): a request
-//! in, an answer out. The trade brief (`search/TRADE-PLAN.md` at `77666ea4`) adds the
-//! decoder, the stat table and the catalogue (steps 1 to 3), the
-//! property fields (step 3), the translation (step 4) and the surface
-//! (step 5: a request's `query.trade`, `answer.rs`).
+//! The language, the derivation, the first surface, the counts view, the
+//! class table, the computed values, the sockets, the categories, the base
+//! defence percentile and the why-not and the continuation (`--explain`,
+//! `--context corpus`, `show --against`; a `next`, a route read back): a
+//! request in, an answer out. The trade brief (`search/TRADE-PLAN.md` at
+//! `77666ea4`) adds the decoder, the stat table and the catalogue, the
+//! property fields, the translation and the surface (a request's
+//! `query.trade`, `answer.rs`).
 //!
 //! - [`tree`] — the query tree (C91): one typed value, and [`check`], what
 //!   a tree must satisfy to be one the language can say.
@@ -159,8 +157,8 @@
 //! - [`mod@bind`] — the names: fields, closed sets, what a line has; near
 //!   names; and the one closed list of what is not built, refused by name.
 //! - `group` — what `line( … )` means, computed once when the query is
-//!   bound: the one module that reads a group's tree for its meaning (the
-//!   build plan, step 4b; `tools/arch-check.sh` §7).
+//!   bound: the one module that reads a group's tree for its meaning
+//!   (`tools/arch-check.sh` §7).
 //! - [`class`] — the class table (C106): reviewed reference data shipped
 //!   in the binary, the item's class read from its base, and what the
 //!   search says when the table cannot class it (C93).
@@ -227,7 +225,7 @@
 //!   docs; pinned at the crate's boundary — a request in, an answer out, as
 //!   JSON — by `tests/answer.rs` (the worked example reduced to what is
 //!   built, the route property, invariants 2 and 6), `tests/acceptance.rs`
-//!   (the acceptance set's rows green at step 4, the limits' wording) and
+//!   (the acceptance set's rows, the limits' wording) and
 //!   `tests/refusal.rs` (the refusal walk, invariant 3). The why-not — what a
 //!   path names, the literal substitution, the corpus context, the zero
 //!   block's offers, `show --against` — is [`tree`]'s, [`mod@answer`]'s and
@@ -276,7 +274,7 @@
 //!   `tests/trade_oracle.rs`: every item the site returned for a search that
 //!   translates whole, entered as the site sent it, is matched or a row of
 //!   `trade-oracle.toml`, its finding a fact of the captures, the owner's
-//!   ruling or a question for the sitting (step 6).
+//!   ruling or a question for a sitting.
 //! - **C114** (the property fields): The property fields are [`properties`]'s
 //!   doc and `reference/properties-v1.toml`'s header; pinned by
 //!   `tests/properties.rs` (the shipped table; what its loader refuses; every
@@ -313,7 +311,7 @@
 //!   is data; calling it legacy is history the export does not carry — legacy
 //!   is never a field (C107); a unique's variant, a label its source prints,
 //!   is the parked candidate (`decisions/search.md`, "Parked"). The three
-//!   class readings the first seat ruled (V1, V2) are `class.rs`'s doc.
+//!   class readings ruled (V1, V2) are `class.rs`'s doc.
 //! - **C106** (the class and category tables): The class table is [`class`]'s
 //!   doc and `reference/classes-v1.toml`'s header; pinned by `tests/class.rs`
 //!   (the shipped file, every reason the table gives, `undecided(class)`, the

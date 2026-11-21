@@ -1,6 +1,6 @@
 //! The acceptance set as tests (`spikes/rust-playground/search/BUILD-PLAN.md` at `453a4429`, "The acceptance
 //! set as tests"; `search/DIGEST.md`, "The acceptance set"): the rows
-//! marked green at step 4, one test per question over a fixture store,
+//! marked green, one test per question over a fixture store,
 //! through the crate's boundary. The limits the build meets (C102) are
 //! pinned beside them, by the wording printed. Every count is worked by
 //! hand from the fixture below.
@@ -191,7 +191,7 @@ fn shown_lines(row: &Value) -> Vec<String> {
 
 const OQ1: &str = "class:ring rarity=rare (line(template:resistance) or line(template:strength))";
 
-/// OQ1 as worded (step 6: `class:ring` over the class table): the query
+/// OQ1 as worded (`class:ring` over the class table): the query
 /// names the lines it wants to see, so the rows show them; a ring with
 /// neither line must not appear; refined by a fractured line.
 #[test]
@@ -200,7 +200,7 @@ fn oq1_a_rare_ring_for_resistances_or_attributes_with_its_lines_on_the_row() {
     let a = asked(&s, OQ1);
     assert_eq!(ids(&a), ["ring_frac", "ring_res", "ring_str"]);
     assert_eq!(a["scope"]["items"], 12);
-    // step 4's spelling, by the base, finds the same
+    // the spelling by the base finds the same
     assert_eq!(
         ids(&asked(
             &s,
@@ -300,7 +300,7 @@ fn oq2_a_unique_by_name_its_place_and_every_line_through_show() {
     assert_eq!(shown["item"]["name"], "Ashes of the Stars");
     assert_eq!(shown["place"]["name"], "Gear");
     // the lines are said once: an empty list under `item` beside them read
-    // as an item with none (the MCP seat, step 11c)
+    // as an item with none
     assert!(shown["item"].get("lines").is_none(), "{}", shown["item"]);
     let lines: Vec<(&str, &str, &Value)> = shown["lines"]
         .as_array()
@@ -380,7 +380,7 @@ fn oq3_a_mod_a_base_a_unique_socket_colours_each_its_own_query() {
     assert_eq!(none["total"]["undecided"]["count"], 0);
 }
 
-/// OQ4 as worded (step 6): a staff by what is remembered of it — its
+/// OQ4 as worded: a staff by what is remembered of it — its
 /// class, a phrase — item and tab; `--describe league` says place, never
 /// origin (S177). The game's words are `Staves` and `Warstaves`, which
 /// `class:staves` picks both of (a Judgement Staff is a warstaff), and a
@@ -399,8 +399,8 @@ fn oq4_a_staff_by_what_is_remembered_and_league_is_place_never_origin() {
         .unwrap_err()
         .to_json();
     assert_eq!(e["kind"], "unknown_value");
-    // `staff` is three edits from `Staves` and one plural away: the seat's
-    // F5 made the near names the offer, the game's two staff classes
+    // `staff` is three edits from `Staves` and one plural away: the near
+    // names are the offer, the game's two staff classes
     assert_eq!(e["readings"], json!(["class=Staves", "class=Warstaves"]));
     assert_eq!(ids(&asked(&s, r##"base:staff "spell skill""##)), ["staff"]);
     assert_eq!(a["rows"][0]["place"]["name"], "Crucible leftovers");
@@ -421,9 +421,9 @@ fn oq4_a_staff_by_what_is_remembered_and_league_is_place_never_origin() {
     );
 }
 
-/// 3.30 (Covens) as the owner's launch-day fetches carried it
-/// (2026-11-17, N53): each new shape is a word that finds its items. A
-/// character's `wickerman` array is a container, its own name.
+/// 3.30 (Covens) as the owner's launch-day fetches carried it (N53):
+/// each new shape is a word that finds its items. A character's
+/// `wickerman` array is a container, its own name.
 #[test]
 fn the_shapes_of_330_are_each_a_word_that_finds_their_items() {
     let mut s = store();
@@ -453,7 +453,7 @@ fn the_shapes_of_330_are_each_a_word_that_finds_their_items() {
     assert_eq!(ids(&a), ["furnace", "maw"]);
     assert_eq!(a["rows"][0]["place"]["container"], "wickerman");
     // the two frames beyond N43's nine (N54): a Viscera in a tab, and an
-    // Enshrouded Boots, stored since 2026-09-02
+    // Enshrouded Boots, stored before 3.30
     list_tabs(
         &mut s,
         "pc",
@@ -606,7 +606,7 @@ fn aq2_a_refinement_is_the_old_query_parenthesised_and_a_new_term() {
     );
     // the lines the total counted are what the row shows of it (C100)
     assert_eq!(total["shows"].as_array().unwrap().len(), 4);
-    // a total of nothing is lacked (C94 as ruled 2026-09-26): ring_frac
+    // a total of nothing is lacked (C94): ring_frac
     // fails at 35 and ring_magic at 30, and the nine other pc items carry
     // no resistance line
     let term = a["terms"].as_array().unwrap().last().unwrap().clone();
@@ -618,7 +618,7 @@ fn aq2_a_refinement_is_the_old_query_parenthesised_and_a_new_term() {
         ids(&asked(&s, "has:pseudo.total_res pseudo.total_res<60")),
         ["ring_frac", "ring_magic"]
     );
-    // the mechanism, as step 4 built it: the same refinement as a `sum`
+    // the mechanism: the same refinement as a `sum`
     let by_sum = asked(
         &s,
         &format!("({OQ1}) sum(line(template:resistance).arg1)>=60"),
@@ -678,7 +678,7 @@ fn aq3_a_row_names_what_matched_and_a_zero_answer_names_the_scope() {
         zero["zero"]["said"],
         "a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched; a value that shares a word with the term is offered beside it as a suggestion with its own count, never as a match"
     );
-    // rule 5: what a zero answer offers runs since step 10, and is
+    // rule 5: what a zero answer offers runs, and is
     // offered as the requests it is — explain of the query's one part,
     // then the corpus — never as their output
     assert!(zero["zero"].get("not_built").is_none());
@@ -935,7 +935,7 @@ fn c100_show_is_the_derived_item_and_the_stored_body_on_request() {
     // the basis is the answer's: the same snapshot names both
     assert_eq!(shown["basis"], asked(&s, "")["basis"]);
     // removed from its tab: shown as it was last seen, marked with when
-    // it left (`corpus.rs`; step 10)
+    // it left (`corpus.rs`)
     fetch_tab(&mut s, "pc", "Standard", "n1", "Unopened", vec![], 50);
     let gone = serde_json::to_value(common::show(&s, "odd", false).unwrap()).unwrap();
     assert_eq!(gone["item"]["facts"]["removed_at"], 50);
@@ -1030,7 +1030,7 @@ const OQ5_LOW: &str = "(reqlevel=..30 or -has:reqlevel)";
 const OQ5_LINES: &str =
     "(line(template:resistance) or line(template:life) or line(template:damage))";
 
-/// OQ5 from the owner's words (2026-09-23, G6): leveling gear is "items
+/// OQ5 from the owner's words (G6): leveling gear is "items
 /// that can be equipped at a low character level with basic resistance,
 /// life, and damage modifiers". The level and the lines are the
 /// language's; what can be equipped is the class, spelled out — the
@@ -1110,7 +1110,7 @@ fn oq5_leveling_gear_from_the_owners_words_wearable_low_level_with_the_lines() {
 /// boots whose requirements could not be read undecided — and no
 /// distractor appears: the gem is `gem.activegem`, the map `map`, the
 /// stack `currency`. The ids are the fixture's and claim no more: what
-/// can be equipped is no fixed set of categories (the owner, 2026-10-06:
+/// can be equipped is no fixed set of categories (the owner:
 /// "It can include flasks and even cluster jewels or abyssal jewels
 /// depending on the context.").
 #[test]

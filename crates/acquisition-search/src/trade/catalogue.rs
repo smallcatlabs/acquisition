@@ -1,8 +1,7 @@
-//! The trade catalogue (C113, `decisions/trade.md`; K6, taken by `translate.rs`; step 0 of
-//! `search/TRADE-PLAN.md` at `77666ea4`, its loader step 3's): one row per clause the
-//! site's query can carry, with its status, the text it lands as and the
-//! note the report prints — what the translation reads
-//! ([`super::translate`], step 4) and `--describe trade` prints (step 5).
+//! The trade catalogue (C113, `decisions/trade.md`; K6, taken by `translate.rs`): one row
+//! per clause the site's query can carry, with its status, the text it
+//! lands as and the note the report prints — what the translation reads
+//! ([`super::translate`]) and `--describe trade` prints.
 //!
 //! # As built
 //!
@@ -18,8 +17,8 @@
 //!   beside every clause that runs as ambiguous or is unsupported, and
 //!   none empty; nothing landed by a clause that does not run; every
 //!   placeholder one the translation fills ([`PLACEHOLDERS`]), and none
-//!   inside quotes, where the printer's quoting of its value cannot reach
-//!   (step 4), a row's other reading's among them ([`READING_PLACEHOLDERS`]),
+//!   inside quotes, where the printer's quoting of its value cannot reach,
+//!   a row's other reading's among them ([`READING_PLACEHOLDERS`]),
 //!   which an ambiguous row alone carries (C119); every field
 //!   named written in the row's text, and **every field named one this
 //!   build knows** — a field of the language, a property field
@@ -31,8 +30,8 @@
 //!   by it.
 //! - **That every site filter, stat category and group type has a row**
 //!   is the captures' to say, and `tests/trade_catalogue.rs` walks them.
-//! - **The version is the basis's** from the step whose answer reads the
-//!   catalogue (step 4): only an answer that used it cites it.
+//! - **The version is the basis's**: only an answer that used the
+//!   catalogue cites it.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
@@ -52,7 +51,7 @@ pub const CATALOGUE_VERSION: u32 = 1;
 /// (`search/trade-query/data/filters-2026-11-17.json`).
 pub const FILTERS_CAPTURE: &str = "2026-11-17";
 
-/// The filters capture itself, shipped (#91): the trade site's
+/// The filters capture itself, shipped: the trade site's
 /// `api/trade/data/filters` as the owner captured it in a browser on
 /// [`FILTERS_CAPTURE`] (C79, a governed surface; `SURFACES.md`, the
 /// trade-site row), copied verbatim from its evidence row in
@@ -154,10 +153,9 @@ pub struct Row {
     /// record, which neither the report nor `--describe trade` prints.
     pub note: Option<String>,
     /// What the report says beside the clause, in a reader's words: what
-    /// it becomes and where it may part from the site, no citation (the
-    /// trade seat, 2026-10-17: every run met the notes' records, `S26`,
-    /// `t55`, a file's path, and could not read them). Given wherever a
-    /// note is.
+    /// it becomes and where it may part from the site, no citation (a
+    /// reader meets the notes' records, `S26`, `t55`, a file's path, and
+    /// cannot read them). Given wherever a note is.
     pub says: Option<String>,
     /// The clause's other reading, on an ambiguous row alone (C119): a
     /// fragment in the language with its placeholders, which the

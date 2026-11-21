@@ -1,7 +1,7 @@
-//! The counts view and the vocabulary (`search/LEDGER.md`, step 5;
-//! C95, C97, C105), through the crate's boundary: a request in, an answer
-//! out, as JSON. Every count is worked by hand from the fixture below, and
-//! every route an answer prints is followed and compared, by id, with the
+//! The counts view and the vocabulary (`search/LEDGER.md`; C95, C97,
+//! C105), through the crate's boundary: a request in, an answer out, as
+//! JSON. Every count is worked by hand from the fixture below, and every
+//! route an answer prints is followed and compared, by id, with the
 //! members worked by hand.
 
 use crate::common;
@@ -309,8 +309,8 @@ fn aq1_three_keys_are_three_tables_and_no_rows() {
 /// C105's two invariants, on a key with one value for each item: every
 /// matching item is in a bucket, in `none` or in `undecided`, and the
 /// buckets sum exactly to the total — fourteen items by rarity: rare 6,
-/// unique 1, normal 1, none 5, undecided 1. (The worked example's own count
-/// is by class, which step 6 builds.)
+/// unique 1, normal 1, none 5, undecided 1. (The worked example's own
+/// count is by class, held below.)
 #[test]
 fn c105_a_count_accounts_for_every_matching_item_and_sums_to_the_total() {
     let s = stash();
@@ -528,7 +528,7 @@ fn c97_the_vocabulary_and_the_pasted_term_selects_its_row() {
         ])
     );
     // GGG spelled the fire line two ways: two rows, and each term turns
-    // case back on to select its own (owner, 2026-09-20)
+    // case back on to select its own (owner)
     let fire = bucket(resist, "#% to Fire Resistance");
     assert_eq!(
         fire["term"],
@@ -656,8 +656,8 @@ fn c97_under_all_realms_a_row_is_one_realms() {
     assert_eq!(life["buckets"][1]["request"]["scope"]["realm"], "poe2");
     assert_eq!(members(&s, &life["buckets"][1]), set(&["second"]));
     assert_eq!(members(&s, &life["buckets"][0]).len(), 4);
-    // a place value is one realm's too since the first seat (F3): pc's
-    // Standard and poe2's are two buckets, each routed over its realm
+    // a place value is one realm's too: pc's Standard and poe2's are two
+    // buckets, each routed over its realm
     let league = &a["view"]["counts"]["tables"][1];
     let standard: Vec<(&str, u64)> = league["buckets"]
         .as_array()
@@ -834,7 +834,7 @@ fn a_view_that_cannot_be_is_an_authoring_error() {
             "`sum` takes a number",
         ),
         // a derived field takes no slot word (`pseudo.defence_pct` alone
-        // was refused as not built until step 9d-A, and is summed since)
+        // is summed)
         (
             json!({ "counts": { "keys": ["tab"], "sum": "pseudo.defence_pct.avg" } }),
             "slot_unknown",
@@ -885,7 +885,7 @@ fn c97_describe_counts_and_every_example_binds() {
         counted(&s, "", &[key.as_str().unwrap()]);
     }
     for (word, name) in [
-        // the request's word, and a flag as a terminal types it (#97)
+        // the request's word, and a flag as a terminal types it
         ("count", "count"),
         ("--sum", "sum"),
         ("cross", "cross"),
@@ -917,11 +917,11 @@ fn keys(example: &str) -> Vec<String> {
         .collect()
 }
 
-// ---- faults an outside audit found (2026-09-22), each reproduced first ----------------------------------------
+// ---- faults, each reproduced first ------------------------------------------------------------
 
-/// Outside audit, 2026-09-22: a tab is its full coordinate (C54). One id under two
-/// leagues and two realms is three tabs, three buckets, each labelled and
-/// routed by realm, league and id — in a table and in a crossed one.
+/// A tab is its full coordinate (C54). One id under two leagues and two
+/// realms is three tabs, three buckets, each labelled and routed by
+/// realm, league and id — in a table and in a crossed one.
 #[test]
 fn a_tab_bucket_is_the_tabs_full_coordinate() {
     let mut s = store();
@@ -983,7 +983,7 @@ fn a_tab_bucket_is_the_tabs_full_coordinate() {
         assert_eq!(b["request"]["scope"]["realm"], realm);
         assert_eq!(members(&s, b), set(&[id]));
         // the places document's request for the same tab is the same text
-        // over the same realm (step 6.5a): one function makes both
+        // over the same realm: one function makes both
         let place = place_request(&s, realm, b["league"].as_str().unwrap(), "same");
         assert_eq!(place["query"]["text"], b["request"]["query"]["text"]);
         assert_eq!(place["scope"]["realm"], realm);
@@ -1001,9 +1001,9 @@ fn a_tab_bucket_is_the_tabs_full_coordinate() {
     assert_eq!(ids, set(&["one", "two", "three"]));
 }
 
-/// Outside audit, 2026-09-22: a bucket's sum of item totals is exact where a float
-/// times 100,000 is not — one item, its own sum and the bucket's the same
-/// decimal; two items, the decimal sum; an incomplete subtotal added too.
+/// A bucket's sum of item totals is exact where a float times 100,000 is
+/// not — one item, its own sum and the bucket's the same decimal; two
+/// items, the decimal sum; an incomplete subtotal added too.
 #[test]
 fn c95_a_sum_of_item_sums_is_exact() {
     let mut s = store();
@@ -1056,9 +1056,9 @@ fn c95_a_sum_of_item_sums_is_exact() {
     );
 }
 
-/// Outside audit, 2026-09-22: a flag is counted by its legal spelling and matched in
-/// any case (B2), so a kind's route returns what it counted; a spelling
-/// outside the list is counted and has no route, and says so.
+/// A flag is counted by its legal spelling and matched in any case (B2),
+/// so a kind's route returns what it counted; a spelling outside the list
+/// is counted and has no route, and says so.
 #[test]
 fn c97_a_kind_is_counted_by_its_legal_spelling_and_routed_by_it() {
     let mut s = store();
@@ -1108,10 +1108,10 @@ fn c97_a_kind_is_counted_by_its_legal_spelling_and_routed_by_it() {
     );
 }
 
-/// Outside audit, 2026-09-22: what a selector resolved to past the ten listed is
-/// reached by a count that lists them all — the term alone over the
-/// scope, since the query's other terms would drop some — and `tab` has
-/// none, since a tab is counted by the tab and resolved to names (E1).
+/// What a selector resolved to past the ten listed is reached by a count
+/// that lists them all — the term alone over the scope, since the query's
+/// other terms would drop some — and `tab` has none, since a tab is
+/// counted by the tab and resolved to names (E1).
 #[test]
 fn c100_the_rest_of_what_a_selector_resolved_to_is_a_count_that_lists_it() {
     let mut s = store();
@@ -1193,10 +1193,10 @@ fn c100_the_rest_of_what_a_selector_resolved_to_is_a_count_that_lists_it() {
     assert!(resolved.get("rest").is_none());
 }
 
-/// Outside review, 2026-09-22: units are carried through both levels of
-/// adding, never read back off a float. Nine means of large pairs on one
-/// item, their negatives and a ten-thousandth on another: the bucket's
-/// sum is what one item carrying all of them sums to.
+/// Units are carried through both levels of adding, never read back off a
+/// float. Nine means of large pairs on one item, their negatives and a
+/// ten-thousandth on another: the bucket's sum is what one item carrying
+/// all of them sums to.
 #[test]
 fn c95_a_sum_of_item_sums_is_exact_between_items() {
     let up = "Adds 9999999999.9997 to 9999999999.9998 Cold Damage";
@@ -1235,11 +1235,10 @@ fn c95_a_sum_of_item_sums_is_exact_between_items() {
     assert_eq!((one, two), (json!(0.0001), json!(0.0001)));
 }
 
-/// C105's first invariant, every match in a bucket, with the class
-/// names the table gives (step 6): ten rare items by class — Rings 6,
-/// Wands 3, undecided 1 (a beast's name with no bestiary line, which is
-/// no base of the table), total 10; no `none`, since every item has a
-/// class.
+/// C105's first invariant, every match in a bucket, with the class names
+/// the table gives: ten rare items by class — Rings 6, Wands 3, undecided
+/// 1 (a beast's name with no bestiary line, which is no base of the
+/// table), total 10; no `none`, since every item has a class.
 #[test]
 fn c105_ten_rare_items_by_class_sum_to_the_total() {
     let mut s = store();
@@ -1300,10 +1299,10 @@ fn c105_ten_rare_items_by_class_sum_to_the_total() {
     assert_eq!(a["total"]["matched"], 10);
 }
 
-/// A key is one entry of `keys` (the MCP seat, step 11c: `describe`'s
-/// `line:resist,life`, a terminal's list, sent as one entry answered a
-/// table of nothing): two entries are two tables, and a comma inside one
-/// is part of its text, a pattern no line matches.
+/// A key is one entry of `keys` (`describe`'s `line:resist,life`, a
+/// terminal's list, sent as one entry answered a table of nothing): two
+/// entries are two tables, and a comma inside one is part of its text, a
+/// pattern no line matches.
 #[test]
 fn a_key_is_one_entry_and_a_comma_inside_it_is_its_text() {
     let s = stash();
@@ -1348,9 +1347,9 @@ fn a_crossed_table_past_its_limit_names_the_field_that_lists_the_rest() {
 }
 
 /// A count by `kind` was refused with readings none of which fit, and
-/// nothing said where the keys are (the trade seat: mcp-sonnet-2 call 5,
-/// its fault 7). An unknown key's refusal names the entry of `describe`
-/// that lists them all, and that entry holds every key a count takes.
+/// nothing said where the keys are. An unknown key's refusal names the
+/// entry of `describe` that lists them all, and that entry holds every
+/// key a count takes.
 #[test]
 fn a_refused_count_key_says_where_every_key_is_listed() {
     let s = stash();
@@ -1377,7 +1376,7 @@ fn a_refused_count_key_says_where_every_key_is_listed() {
     }
 }
 
-// ---- the count keys' list, its one parse (the 4b sitting round) ------------
+// ---- the count keys' list, its one parse ------------------------------------------------------
 
 /// The count list's grammar, both ways: every spelling a continuation
 /// prints (`answer::listed_text`) reads back as the key it encodes,
@@ -1392,7 +1391,7 @@ fn a_count_list_reads_back_what_a_continuation_prints() {
             vec!["tab", "line:resist", "line~^adds"],
         ),
         ("line:~Life", vec!["line~Life"]),
-        // unquoted, the comma is the list's: the review's case
+        // unquoted, the comma is the list's
         ("line~[a-z]{1,2}", vec!["line~[a-z]{1", "line:2}"]),
         (r#"line~"[a-z]{1,2}""#, vec!["line~[a-z]{1,2}"]),
         (r#"line:", half""#, vec!["line:, half"]),
@@ -1419,9 +1418,9 @@ fn a_count_list_reads_back_what_a_continuation_prints() {
 /// an alphabet of awkward ones, and every triple from a part of it. A
 /// prefix in any case, a text that begins like a key or a pattern, a
 /// comma, a quote, a backslash, a row break, whitespace at an end; a
-/// field or `line` alone before, between and after narrowings. Two
-/// rounds of an outside audit (2026-10-10) each found a case the
-/// printer's own case list had not: this asks the grammar, not a list.
+/// field or `line` alone before, between and after narrowings. A case
+/// list missed cases the grammar holds: this asks the grammar, not a
+/// list.
 #[test]
 fn every_count_view_reads_back_as_the_keys_it_was_printed_for() {
     let texts = [

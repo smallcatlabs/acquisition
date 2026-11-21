@@ -1,7 +1,7 @@
-//! The forms table (C113, C106, `decisions/trade.md`; step 7e of `search/TRADE-PLAN.md` at `77666ea4`): the
-//! other ways the game displays a stat the trade site files under one id —
-//! the opposite word below nothing, a number the display leaves out, a
-//! plural, another wording — read by the translation alone
+//! The forms table (C113, C106, `decisions/trade.md`; the brief, `search/TRADE-PLAN.md` at
+//! `77666ea4`): the other ways the game displays a stat the trade site
+//! files under one id — the opposite word below nothing, a number the
+//! display leaves out, a plural, another wording — read by the translation alone
 //! ([`super::translate`]), for a stat's presence over every form and to
 //! say where a bound cannot be exact.
 //!

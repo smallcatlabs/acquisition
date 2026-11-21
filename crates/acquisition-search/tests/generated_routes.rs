@@ -1,11 +1,12 @@
 //! C92, C93, C100; surface invariant 4 and build-plan rule 5.
-//! Generated count/route checks from the outside audits, for step 4b.
+//! Generated count/route checks.
 //! Only Request -> answer -> JSON is inspected; fixture bodies enter by
 //! Store::record. No binder, evaluator, selector or route builder is an oracle.
 //!
 //! This checks consistency, not semantic equivalence or completion: an
-//! evaluator and its routes can agree on a wrong classification. Step 4b's
-//! other properties and the hand-counted regressions remain necessary.
+//! evaluator and its routes can agree on a wrong classification. The
+//! other generated properties and the hand-counted regressions remain
+//! necessary.
 
 use crate::common;
 
@@ -72,8 +73,8 @@ fn query() -> BoxedStrategy<String> {
             "\"life\"",
             "true()",
             "false()",
-            // what step 9d built (step 9e): the category, a ranged total
-            // with a row that reads it, the percentile
+            // the category, a ranged total with a row that reads it, the
+            // percentile
             "category=weapon",
             "category:ring",
             "has:category",
@@ -125,9 +126,10 @@ fn lines() -> BoxedStrategy<Value> {
     .boxed()
 }
 
-/// What step 9d reads beside the lines: a base — the fixture's, which no
-/// table knows, a ring, a sword, a body armour, or no string — a
-/// displayed armour, a mark, and a crucible node's lines.
+/// What the category, the ranged totals and the percentile read beside
+/// the lines: a base — the fixture's, which no table knows, a ring, a
+/// sword, a body armour, or no string — a displayed armour, a mark, and
+/// a crucible node's lines.
 fn built() -> impl Strategy<Value = Value> {
     (
         proptest::sample::select(vec![

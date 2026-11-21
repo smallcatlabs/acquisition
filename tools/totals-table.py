@@ -323,8 +323,7 @@ def main():
     below = sum(1 for t in totals for r in t[3] if r[1] < 0)
 
     out = [
-        "# The totals table — v6 (C94, C101, C68; decisions/search.md), item search steps 7 and 9c",
-        "# to 9d-C.",
+        "# The totals table — v6 (C94, C101, C68; decisions/search.md).",
         "#",
         "# Reference data: reviewed, committed, shipped inside the binary",
         "# (`include_str!` in `src/totals.rs`), read-only, never in a store file,",
@@ -349,7 +348,7 @@ def main():
         "#",
         "# What no row reads: a line in an array `leaves_out` names — a crucible",
         "# node's lines and a flask's own, which the trade site files under no stat",
-        "# and counts toward no pseudo (J29; the owner, 2026-10-08: \"Leave both",
+        "# and counts toward no pseudo (J29; the owner: \"Leave both",
         "# out.\"). Said here once, for every total, and on no row; `leaves_out_rule`",
         "# is the rule as search/pseudo-stats/data/table-changes.csv states it, which",
         "# every total's definition prints.",

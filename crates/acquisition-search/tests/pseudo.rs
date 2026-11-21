@@ -1,9 +1,8 @@
-//! The computed values (`search/LEDGER.md`, step 7; C94, C101, C93,
-//! C95), through the crate's boundary: the shipped totals table, a total's
-//! three statuses and its routes, `dps` and `pdps`, the sort and the sum
-//! over a computed value, `--describe`, and every authoring error a
-//! computed value has. Every count is worked by hand from the fixture
-//! below.
+//! The computed values (C94, C101, C93, C95), through the crate's
+//! boundary: the shipped totals table, a total's three statuses and its
+//! routes, `dps` and `pdps`, the sort and the sum over a computed value,
+//! `--describe`, and every authoring error a computed value has. Every
+//! count is worked by hand from the fixture below.
 
 use crate::common;
 
@@ -139,12 +138,12 @@ fn shows<'a>(a: &'a Value, id: &str, path: &str) -> &'a Value {
         .unwrap()["shows"]
 }
 
-/// C94: a total is its declared definition, exact; complete, an incomplete
-/// subtotal, or unavailable in a realm the table does not cover — each
-/// with its route and its reason — and a total of nothing is lacked, as
-/// the trade site shows no pseudo where an item's lines sum to nothing
-/// (owner, 2026-09-26: "Yes, let's make it absent to match the site"; of
-/// an item with no such line at all as of one whose lines cancel: "A").
+/// C94: a total is its declared definition, exact; complete, an
+/// incomplete subtotal, or unavailable in a realm the table does not
+/// cover — each with its route and its reason — and a total of nothing is
+/// lacked, as the trade site shows no pseudo where an item's lines sum to
+/// nothing (owner: "Yes, let's make it absent to match the site"; of an
+/// item with no such line at all as of one whose lines cancel: "A").
 /// `has:` asks a total's presence as it asks a derived field's.
 #[test]
 fn c94_a_total_has_three_statuses_and_a_total_of_nothing_is_lacked() {
@@ -292,11 +291,10 @@ fn c101_dps_and_pdps_read_the_displayed_properties() {
     assert_eq!(ids(&asked(&s, "pc", "undecided(pseudo.dps)")), ["odd"]);
 }
 
-/// Outside audit, 2026-09-24 (3): an unread element of `properties`
-/// leaves a derived field open only when it may be a property the field
-/// reads — a malformed `Quality` hides no physical dps, a malformed
-/// `Elemental Damage` hides the dps and not the pdps, and an element with
-/// no readable name hides both.
+/// An unread element of `properties` leaves a derived field open only
+/// when it may be a property the field reads — a malformed `Quality`
+/// hides no physical dps, a malformed `Elemental Damage` hides the dps
+/// and not the pdps, and an element with no readable name hides both.
 #[test]
 fn audit_an_unrelated_malformed_property_hides_no_derived_field() {
     let mut s = store();
@@ -352,11 +350,10 @@ fn audit_an_unrelated_malformed_property_hides_no_derived_field() {
     );
 }
 
-/// Outside audit, 2026-09-24 (4): the vocabulary lists beside its
-/// templates the computed values whose name or own definition the
-/// narrowing matches, marked computed, each counting the matches that carry it —
-/// established and not zero — with a route that returns exactly them;
-/// `line` alone lists none.
+/// The vocabulary lists beside its templates the computed values whose
+/// name or own definition the narrowing matches, marked computed, each
+/// counting the matches that carry it — established and not zero — with a
+/// route that returns exactly them; `line` alone lists none.
 #[test]
 fn audit_the_vocabulary_lists_the_computed_values_a_narrowing_matches() {
     let s = stash();
@@ -407,10 +404,9 @@ fn audit_the_vocabulary_lists_the_computed_values_a_narrowing_matches() {
         .filter(|b| b["bucket"] == "computed")
         .map(|b| (b["value"].as_str().unwrap(), b["count"].as_u64().unwrap()))
         .collect();
-    // `pseudo.edps` among them since step 3 of the trade brief, the sword
-    // and the wand displaying `Elemental Damage` and attacks per second,
-    // and since step 7e the damage at 20 % quality beside each displayed
-    // one; ranked by the count, as every row of the vocabulary is
+    // `pseudo.edps` among them, the sword and the wand displaying
+    // `Elemental Damage` and attacks per second, and the damage at 20 %
+    // quality beside each displayed one; ranked by the count, as every row of the vocabulary is
     assert_eq!(
         computed,
         [
@@ -421,8 +417,7 @@ fn audit_the_vocabulary_lists_the_computed_values_a_narrowing_matches() {
             ("pseudo.pdps_q20", 1)
         ]
     );
-    // `line` alone lists none (T5, the owner's ruling 2026-09-24, after
-    // the audit's second round had it list every one): the templates are
+    // `line` alone lists none (T5, the owner's ruling): the templates are
     // cut by the limit as before, and the computed count is zero
     let a = view(
         &s,
@@ -464,13 +459,13 @@ fn audit_the_vocabulary_lists_the_computed_values_a_narrowing_matches() {
     assert_eq!(row["sum"], json!({ "value": 84, "lacking": 0 }));
 }
 
-/// Outside audit, 2026-09-24 (5): a reason made beyond the item's parts —
-/// a derived field's malformed property — is a part of its own under the
-/// six-part bound on an `undecided( … )` row, and what the bound leaves
-/// out is counted: five unread arrays and four malformed properties are
-/// nine parts, six shown. The answer's own block is by reason since the
-/// first seat (V8): six kinds, the item's own parts' first, then the
-/// reasons made beyond them — in every spelling the same.
+/// A reason made beyond the item's parts — a derived field's malformed
+/// property — is a part of its own under the six-part bound on an
+/// `undecided( … )` row, and what the bound leaves out is counted: five
+/// unread arrays and four malformed properties are nine parts, six shown.
+/// The answer's own block is by reason (V8): six kinds, the item's own
+/// parts' first, then the reasons made beyond them — in every spelling
+/// the same.
 #[test]
 fn audit_reasons_beyond_the_items_parts_are_bounded_and_counted() {
     let mut s = store();
@@ -514,7 +509,7 @@ fn audit_reasons_beyond_the_items_parts_are_bounded_and_counted() {
     assert_eq!(left_out, 3);
     // the item's own parts first, in its order, then the reasons made
     // beyond them by what they say — never by the term that met them, which
-    // a rewrite may reorder (rule 9; the audit's second round)
+    // a rewrite may reorder (rule 9)
     assert!(parts[0].starts_with("`craftedMods`"));
     assert!(parts[4].starts_with("`implicitMods`"));
     assert_eq!(
@@ -666,7 +661,7 @@ fn c97_describe_lists_every_computed_value_with_its_definition() {
     assert_eq!(computed.len(), 92);
     assert_eq!(computed[0]["name"], "pseudo.total_cold_res");
     // the ranged family where the table's changes name it, before the
-    // totals the later rounds added (step 9d-C)
+    // totals that follow it
     assert_eq!(computed[35]["name"], "pseudo.adds_physical");
     assert_eq!(computed[35]["kind"], "ranged total");
     assert_eq!(computed[55]["name"], "pseudo.adds_damage_to_spells");
@@ -674,15 +669,15 @@ fn c97_describe_lists_every_computed_value_with_its_definition() {
     assert_eq!(computed[57]["name"], "pseudo.total_mana");
     assert_eq!(computed[81]["name"], "pseudo.increased_mana_regen");
     assert_eq!(computed[81]["kind"], "total");
-    // the readings of other totals after the totals they read (step 9c3)
+    // the readings of other totals after the totals they read
     assert_eq!(computed[82]["name"], "pseudo.count_res");
     assert_eq!(computed[82]["kind"], "derived");
     assert_eq!(computed[85]["name"], "pseudo.total_all_attributes");
     assert_eq!(computed[86]["name"], "pseudo.dps");
     assert_eq!(computed[87]["kind"], "derived");
-    // elemental damage per second beside the other two (step 3 of the
-    // trade brief), the damage at 20 % quality after them (step 7e), then
-    // the base defence percentile, the last derived field (step 9d-A)
+    // elemental damage per second beside the other two, the damage at 20 %
+    // quality after them, then the base defence percentile, the last
+    // derived field
     assert_eq!(computed[88]["name"], "pseudo.edps");
     assert_eq!(computed[89]["name"], "pseudo.dps_q20");
     assert_eq!(computed[90]["name"], "pseudo.pdps_q20");
@@ -714,17 +709,17 @@ fn c97_describe_lists_every_computed_value_with_its_definition() {
     );
     let block = serde_json::to_value(describe(&["pseudo".to_string()]).unwrap()).unwrap();
     assert_eq!(block["computed"].as_array().unwrap().len(), 92);
-    // the percentile was refused by name until step 9d-A built it
-    // (`tests/percentile.rs` holds its definition)
+    // the percentile is one of them (`tests/percentile.rs` holds its
+    // definition)
     let one = serde_json::to_value(describe(&["defence_pct".to_string()]).unwrap()).unwrap();
     assert_eq!(one["computed"][0]["name"], "pseudo.defence_pct");
 }
 
-/// T2 (owner, 2026-09-24: "A ring has no dps"): `has:pseudo.dps` matches
-/// the items whose properties establish it, lacks on those with none, is
-/// undecided where one could not be read, and every count is routed;
-/// `-has:` returns the lackers. A total takes `has:` the same way since
-/// it can be lacked (C94 as ruled 2026-09-26; the test above).
+/// T2 (owner: "A ring has no dps"): `has:pseudo.dps` matches the items
+/// whose properties establish it, lacks on those with none, is undecided
+/// where one could not be read, and every count is routed; `-has:`
+/// returns the lackers. A total takes `has:` the same way since it can be
+/// lacked (C94; the test above).
 #[test]
 fn t2_has_on_a_derived_field_is_a_property_s_presence() {
     let s = stash();
@@ -774,9 +769,7 @@ fn a_computed_value_that_cannot_be_is_an_authoring_error() {
             "takes no slot word",
         ),
         ("pseudo.dps.low>=1", "slot_unknown", "takes no slot word"),
-        // a name nothing defines is unknown with a slot word as without
-        // one: the refusal of a ranged total left when they were built
-        // (step 9d-C)
+        // a name nothing defines is unknown with a slot word as without one
         (
             "pseudo.cold_damage.avg>=30",
             "unknown_name",
@@ -801,7 +794,6 @@ fn a_computed_value_that_cannot_be_is_an_authoring_error() {
         ("pseudo.dps", "ok"),
         ("pseudo.total_res.high", "slot_unknown"),
         ("pseudo.nothing_here.avg", "unknown_name"),
-        // refused as not built until step 9d-A
         ("pseudo.defence_pct", "ok"),
         ("pseudo.defence_pct.avg", "slot_unknown"),
     ] {
@@ -814,8 +806,8 @@ fn a_computed_value_that_cannot_be_is_an_authoring_error() {
     }
 }
 
-/// Nine items whose totals the trade site's own answers decide (the
-/// build plan, step 9c; `search/pseudo-stats/data/table-changes.csv`).
+/// Nine items whose totals the trade site's own answers decide
+/// (`search/pseudo-stats/data/table-changes.csv`).
 ///
 /// `Site` (s1): `boots`, 30 fire and an eldritch implicit's 13 — fire 43;
 /// `helm`, the other eldritch form's 22 chaos; `veil`, 13 to All
@@ -901,9 +893,9 @@ fn site_stash() -> Store {
     s
 }
 
-/// C94, as the owner ruled it 2026-09-26: a total whose lines cancel is
-/// lacked as one with no line is — the trade site shows no pseudo for
-/// either (c3, d01: `+21 to Strength` beside `-21 to Strength`).
+/// C94, as the owner ruled it: a total whose lines cancel is lacked as
+/// one with no line is — the trade site shows no pseudo for either (c3,
+/// d01: `+21 to Strength` beside `-21 to Strength`).
 #[test]
 fn c94_a_total_whose_lines_cancel_is_lacked() {
     let s = site_stash();
@@ -987,7 +979,7 @@ fn v6_a_total_counts_what_the_sites_pseudo_counts() {
     );
 }
 
-/// Fourteen items whose totals the trade site answered at step 9c2
+/// Fourteen items whose totals the trade site answered
 /// (`search/pseudo-stats/data/table-changes.csv`, rounds five and six).
 ///
 /// `Other` (o1): `anvil`, 10 reduced attack, cast and movement speed —
@@ -1123,20 +1115,20 @@ fn other_stash() -> Store {
     s
 }
 
-/// C94, step 9c2 (owner, 2026-09-27: "yes, we need to be able to find
-/// reduced lines and totals"): a row's `reduced` spelling is the row,
-/// below nothing, as the trade site shows `-10% total Attack Speed` over
-/// `10% reduced Attack Speed` (h042–h052); a total below nothing is a
-/// total, and one whose lines cancel is lacked (g034).
+/// C94 (owner: "yes, we need to be able to find reduced lines and
+/// totals"): a row's `reduced` spelling is the row, below nothing, as the
+/// trade site shows `-10% total Attack Speed` over `10% reduced Attack
+/// Speed` (h042–h052); a total below nothing is a total, and one whose
+/// lines cancel is lacked (g034).
 #[test]
 fn c94_a_reduced_line_counts_below_nothing() {
     let s = other_stash();
     let found = |query: &str| ids(&asked(&s, "pc", query));
-    // three totals the build shipped before the rule, and one line each
+    // three totals of speed and physical damage, one line each
     assert_eq!(found("pseudo.total_attack_speed=-10"), ["anvil"]);
     assert_eq!(found("pseudo.total_cast_speed=-10"), ["anvil"]);
     assert_eq!(found("pseudo.total_increased_phys=-10"), ["devoto"]);
-    // and the totals of this step
+    // and the rest
     assert_eq!(found("pseudo.total_increased_energy_shield=-25"), ["heart"]);
     assert_eq!(found("pseudo.increased_mana_regen=-20"), ["crown"]);
     assert_eq!(found("pseudo.increased_movement_speed<0"), ["anvil"]);
@@ -1166,11 +1158,10 @@ fn c94_a_reduced_line_counts_below_nothing() {
     assert_eq!(lines, ["10% reduced Attack Speed"]);
 }
 
-/// C94, V6, step 9c2: the site's other totals count what the site's
-/// pseudo of that name counts, each row on the capture that asked for it
-/// (rounds five and six) — and the twin on That Which Was Taken is counted
-/// toward mana as toward life (owner, 2026-09-27: "yes, count it for
-/// mana.").
+/// C94, V6: the site's other totals count what the site's pseudo of that
+/// name counts, each row on the capture that asked for it (rounds five
+/// and six) — and the twin on That Which Was Taken is counted toward mana
+/// as toward life (owner: "yes, count it for mana.").
 #[test]
 fn v6_the_other_totals_count_what_the_sites_pseudo_counts() {
     let s = other_stash();
@@ -1212,23 +1203,23 @@ fn v6_the_other_totals_count_what_the_sites_pseudo_counts() {
     assert_eq!(found("pseudo.life_regen_pct=1.5"), ["belt"]);
     assert_eq!(found("pseudo.global_crit_chance=30"), ["belt"]);
     assert_eq!(found("pseudo.global_crit_multi=25"), ["belt"]);
-    // a row's eldritch forms are the row, of these totals as of 9c's
+    // a row's eldritch forms are the row, of these totals as of the others
     assert_eq!(found("pseudo.increased_movement_speed=9"), ["greaves"]);
     // life regenerated is what the lines' text says, and no more: the site
-    // rounds what the text cuts (g037; owner, 2026-09-27: "yes, let's go
+    // rounds what the text cuts (g037; owner: "yes, let's go
     // with what we can observe directly from the text we have.")
     assert_eq!(found("pseudo.life_regen=22.6"), ["plate"]);
     assert_eq!(found("has:pseudo.life_regen"), ["plate"]);
     assert_eq!(found("has:pseudo.life_regen_pct"), ["belt"]);
     // 3.30 reworded the rarity line in place, the same stats: the total
-    // carries the new text by those stats (#276), the old text still
+    // carries the new text by those stats, the old text still
     // counted, until the next sitting asks the site (#33)
     assert_eq!(found("pseudo.increased_rarity=45"), ["gamble"]);
 }
 
 /// Sixteen items, eleven of them as the trade site's captures hold them,
-/// for the four pseudos that are a reading of other totals (the build
-/// plan, step 9c3; `tools/trade_rows.py`, `DERIVED`), and one in poe2.
+/// for the four pseudos that are a reading of other totals
+/// (`tools/trade_rows.py`, `DERIVED`), and one in poe2.
 ///
 /// `Read` (r1), each with its fire, cold, lightning and chaos totals:
 /// `thread` (R1, Thread of Hope), -17 to all elemental, the second of its
@@ -1428,11 +1419,11 @@ fn read_by(a: &Value, id: &str) -> Vec<(String, Value)> {
         .collect()
 }
 
-/// C101, step 9c3 (owner, 2026-09-26: "They should be present at
-/// launch."): the trade site's two counts are how many of the resistance
-/// totals an item shows, chaos among the four and not among the three —
-/// the resistances, never the lines (R1, g001, g002, h040) — and a count
-/// of nothing is no count, as the site shows none (h040, six items).
+/// C101 (owner: "They should be present at launch."): the trade site's
+/// two counts are how many of the resistance totals an item shows, chaos
+/// among the four and not among the three — the resistances, never the
+/// lines (R1, g001, g002, h040) — and a count of nothing is no count, as
+/// the site shows none (h040, six items).
 #[test]
 fn c101_a_count_is_how_many_of_its_totals_the_item_shows() {
     let s = reading_stash();
@@ -1513,14 +1504,14 @@ fn c101_a_count_is_how_many_of_its_totals_the_item_shows() {
     );
 }
 
-/// C94, C101, step 9c4: a row inside a mod of several rows feeds its
-/// totals. The 110 readings the trade site's captures hold of the four
-/// that are no sum, the sixteen that show none among them, each answered
-/// as the site shows it with the capture's mods entered unchanged — a
-/// mod's rows in one description, as the site gives them. Thread of Hope
-/// (R1) is the one whose total is read from a row, the second of three:
-/// written apart, the fixture above it hid that no total read it (the
-/// outside review of step 9c3, finding 1).
+/// C94, C101: a row inside a mod of several rows feeds its totals. The
+/// 110 readings the trade site's captures hold of the four that are no
+/// sum, the sixteen that show none among them, each answered as the site
+/// shows it with the capture's mods entered unchanged — a mod's rows in
+/// one description, as the site gives them. Thread of Hope (R1) is the
+/// one whose total is read from a row, the second of three: written
+/// apart, as in the fixture above, its rows would hide whether a total
+/// reads it.
 #[test]
 fn c94_a_row_inside_a_mod_of_several_rows_feeds_its_totals() {
     let captures: Value = serde_json::from_str(include_str!(
@@ -1628,12 +1619,11 @@ fn c94_a_row_inside_a_mod_of_several_rows_feeds_its_totals() {
     );
 }
 
-/// C101, step 9c3: the site's `total to all Elemental Resistances` and
-/// `total to all Attributes` are the least of their three totals, shown
-/// where the item shows all three — with the line that names them or
-/// without it (g003, h039; g004, h001) — and an item one of whose totals
-/// is nothing shows none (h002: 18 to all Attributes beside -18
-/// Dexterity).
+/// C101: the site's `total to all Elemental Resistances` and `total to
+/// all Attributes` are the least of their three totals, shown where the
+/// item shows all three — with the line that names them or without it
+/// (g003, h039; g004, h001) — and an item one of whose totals is nothing
+/// shows none (h002: 18 to all Attributes beside -18 Dexterity).
 #[test]
 fn c101_a_least_is_the_smallest_of_its_totals_where_the_item_shows_all() {
     let s = reading_stash();

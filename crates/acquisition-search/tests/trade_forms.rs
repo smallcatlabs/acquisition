@@ -1,14 +1,11 @@
-//! The forms table (C113, C106; step 7e of the trade brief,
-//! `search/TRADE-PLAN.md` at `77666ea4`, "The choice before 7e"): the other displays of a stat the trade site files
+//! The forms table (C113, C106; `search/TRADE-PLAN.md` at `77666ea4`, "The
+//! choice before 7e"): the other displays of a stat the trade site files
 //! under one id, read by the translation alone.
 //!
 //! - **The vocabulary is walked** and every form the game, a rule or a row
 //!   makes that is itself a text the site lists, and every text a rule
 //!   meets carrying both words of a pair, is refused by name in the table
-//!   — no more and no fewer. The brief carried note 37's counts (at `b6197a82`; 7 of 372
-//!   `#% chance to`, 2 of 286 `have #% chance to`, 4 texts with both sign
-//!   words), measured on the raw texts with case kept and every text under
-//!   the rules; the rules as built stand for the texts the export joins
+//!   — no more and no fewer. The rules stand for the texts the export joins
 //!   nowhere, and what they reach and refuse there is pinned here.
 //! - **The loader refuses what a reviewer would**, by the row it names.
 //! - **The captures hold the table**: every line the site filed under an
@@ -32,20 +29,19 @@ use serde_json::{Value, json};
 const BODIES: &str = include_str!("../../../search/pseudo-stats/data/bodies.json");
 /// The texts the PoE1 export at its pin leaves unjoined though one of its
 /// strings, markup reduced, is the text (`tools/trade-forms-table.py`,
-/// rule 5; #276).
+/// rule 5).
 const UNJOINED: &str = include_str!("../../../search/repoe/data/trade-unjoined.toml");
 
 /// The choice before 7e: the shipped table loads at its version and the
 /// stat table's date; over the stat table's distinct texts, the game's
-/// forms reach 2,589 of the 6,327 the export joins, and the rules the
-/// texts it joins nowhere — the opposite words 610, `#% chance to` 129,
-/// `have #% chance to` 196, `have a` 24 — and the rows 15 (at the
-/// captures and the export of 3.30, #276: the export joins fewer of the
-/// site's ids, so the rules reach more); and the
-/// refusals are exactly what the walk finds: 6 forms of the game's that
-/// are listed texts, 1 a row's, 5 by `have #% chance to` and 2 by `have a`,
-/// none by `#% chance to` and no text a rule meets with both words of a
-/// pair.
+/// forms reach 2,589 of the 6,327 the export joins, and the rules the texts
+/// it joins nowhere — the opposite words 610, `#% chance to` 129, `have #%
+/// chance to` 196, `have a` 24 — and the rows 15 (at the captures and the
+/// export of 3.30: the export joins fewer of the site's ids, so the rules
+/// reach more); and the refusals are exactly what the walk finds: 6 forms
+/// of the game's that are listed texts, 1 a row's, 5 by `have #% chance to`
+/// and 2 by `have a`, none by `#% chance to` and no text a rule meets with
+/// both words of a pair.
 #[test]
 fn the_choice_before_7e_every_collision_is_refused_by_name() {
     let stats = stats::table().unwrap();
@@ -239,12 +235,12 @@ fn the_forms_table_loader_refuses_what_a_reviewer_would() {
     ));
 }
 
-/// The game's forms first, the rules beside (the owner, 2026-10-17): a
-/// text the export joins takes its forms and no rule — `#% chance to
-/// Suppress Spell Damage` has none, where the brief's elision would have
-/// named `Suppress Spell Damage`, a display the game never shows — and a
-/// text it joins nowhere takes the rules; a row the export already gives
-/// is refused, and so is a game file of another version.
+/// The game's forms first, the rules beside (the owner): a text the export
+/// joins takes its forms and no rule — `#% chance to Suppress Spell Damage`
+/// has none, where the brief's elision would have named `Suppress Spell
+/// Damage`, a display the game never shows — and a text it joins nowhere
+/// takes the rules; a row the export already gives is refused, and so is a
+/// game file of another version.
 #[test]
 fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not() {
     let stats = stats::table().unwrap();
@@ -327,25 +323,20 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
 /// The captures hold the table: over every listing the site sent (the
 /// sittings' and the owner's census, each search's items a corpus of
 /// their own), every one of the 22,907 lines under an id of the six hash
-/// categories is met by the id's presence term, translated alone — at the
-/// tables of 2026-09-12, 22,182
-/// — but 58 under an id the translation leaves unsupported (an id of two
-/// texts) and 5 under an id whose clause is ambiguous by a refusal, its form
-/// left to the site (the Staves, Legacy and Global Critical Strike Chance
-/// suffixes, and two Shocks within `1.5 metres`). Round x's captures
-/// brought 629 lines (21,616 before, 21,555 met, 56 unsupported), x01 and
-/// x03's twenty Blight-ravaged maps among them, met since a written digit
-/// is a number of the line. At 3.30's tables (#276) the captures predate
-/// the game: 703 lines are under the 98 stats whose site text moved
-/// between the captures of 2026-09-12 and 2026-11-17, counted apart and
-/// never held; 21,483 met, 54 unsupported, 5 refused. A line under a stat
-/// the export at 3.30.0.2.2 stopped joining (#281) is held like any other:
-/// where the export's form is gone the captures' is a row of the hand
-/// table (n07's and u055's plurals), and a line no form meets is counted
-/// apart by the stat, none today. The sitting of 2026-11-17 (#282) brought
-/// 662 lines, taken after the patch and so held like any other
-/// (`captured_before_330`), 47 of them under 3.30's moved stats: 658 met,
-/// 1 unsupported (y18), 3 refused (y07's Global Critical Strike Chance).
+/// categories is met by the id's presence term, translated alone — 22,141
+/// — but 55 under an id the translation leaves unsupported (an id of two
+/// texts; y18's among them), 8 under an id whose clause is ambiguous by a
+/// refusal, its form left to the site (the Staves, Legacy and Global
+/// Critical Strike Chance suffixes, two Shocks within `1.5 metres`, and
+/// y07's Global Critical Strike Chance), and 703 that predate the game at
+/// 3.30's tables: the lines taken before the patch (`captured_before_330`)
+/// under the 98 stats whose site text moved between the captures of
+/// 2026-09-12 and 2026-11-17, counted apart and never held. x01 and x03's
+/// twenty Blight-ravaged maps are met, since a written digit is a number of
+/// the line. A line under a stat the export at 3.30.0.2.2 stopped joining
+/// is held like any other: where the export's form is gone the captures'
+/// is a row of the hand table (n07's and u055's plurals), and a line no
+/// form meets is counted apart by the stat, none today.
 #[test]
 fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     let bodies: Value = serde_json::from_str(BODIES).unwrap();
@@ -353,10 +344,10 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     let (mut lines, mut met, mut unsupported, mut refused) = (0, 0, 0, 0);
     let mut faults: Vec<String> = Vec::new();
     // the stats 3.30 reworded: their captured lines show a wording no
-    // translation gives (#276), counted apart and never held
+    // translation gives, counted apart and never held
     let moved_at_330 = stats_moved_at_330();
     let (mut moved, mut moved_ids) = (0, BTreeSet::new());
-    // the texts the export stopped joining at 3.30.0.2.2 (#276): their
+    // the texts the export stopped joining at 3.30.0.2.2: their
     // forms are the hand rules' until a pin's export joins them again, so
     // a captured line met by none of them is counted apart, never held
     let unjoined: Value = toml::from_str(UNJOINED).unwrap();

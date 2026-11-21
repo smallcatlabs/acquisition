@@ -159,7 +159,7 @@ pub enum SearchError {
 /// after it or in its place, a terminal as its command
 /// (the CLI's `printed.rs`); a realm's is `realm pc`, a terminal adding its
 /// flag after it ([`Offered::realm`]), and its request the search asked,
-/// in that realm (#97, the search's offers in each surface's terms).
+/// in that realm (the search's offers in each surface's terms).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Offered {
     /// What the way on says, in the request's words: each offer's `says`
@@ -228,7 +228,7 @@ impl SearchError {
 
     /// The realms a search of `account`'s store may name, each read in
     /// the request's words (C143), and `all` after them, which the words
-    /// name too (the league seat, cli call 40, mcp call 25).
+    /// name too.
     pub(crate) fn offering_realms(mut self, realms: &[String], account: &str) -> SearchError {
         if let SearchError::Scope { offers, .. } = &mut self {
             *offers = realms
@@ -286,7 +286,7 @@ impl SearchError {
     /// the author may have meant as `readings` (a language error's query
     /// texts), and under `offers` each way on that is a request, as an
     /// answer's zero block holds one, beside what it `says` (its reading):
-    /// a scope refusal's ways on are its offers alone (#97).
+    /// a scope refusal's ways on are its offers alone.
     pub fn to_json(&self) -> serde_json::Value {
         let mut out = serde_json::json!({ "error": self.to_string(), "kind": self.kind() });
         match self {

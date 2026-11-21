@@ -58,7 +58,7 @@ pub struct Describe {
     pub explain: Vec<Named>,
     /// An answer's keys, in the order an answer prints them, and what
     /// each counts ([`answer_keys`]): the anatomy a frontend's tool text
-    /// carried, read on demand beside the language (#83).
+    /// carried, read on demand beside the language.
     pub answer: Vec<Named>,
     /// Every category id with the site's text for it and what makes it
     /// hold (C106; `category.rs`): printed whole, and beside the field
@@ -210,11 +210,12 @@ pub const LIMITS: &[Limit] = &[
     },
 ];
 
-/// An answer's keys, in the order an answer prints them: the words the
-/// MCP's `search` text carried until #83, cut, each fact a seat stopped
-/// on kept (`acquisition-mcp/tests/search_tools.rs` reads them here). A
-/// key nested in another is named by its path. `tests/surface_faults.rs`
-/// holds every key an answer prints to an entry here.
+/// An answer's keys, in the order an answer prints them, each with the
+/// fact a reader of the answer needs of it, here rather than in the MCP's
+/// `search` text (`acquisition-mcp/tests/search_tools.rs` reads them
+/// here). A key nested in another is named by its path.
+/// `tests/surface_faults.rs` holds every key an answer prints to an entry
+/// here.
 pub fn answer_keys() -> Vec<Named> {
     let key = |name: &str, what: &str| named(name, "key", what);
     vec![
@@ -306,8 +307,7 @@ pub fn answer_keys() -> Vec<Named> {
 }
 
 /// What an answer's `query.trade` reports of a site search's translation,
-/// key by key: the words the MCP's `query` argument carried until #83,
-/// cut, opening the trade section before the catalogue's rows.
+/// key by key, opening the trade section before the catalogue's rows.
 pub fn trade_report() -> Vec<Named> {
     let key = |name: &str, what: &str| named(name, "key", what);
     vec![
@@ -721,16 +721,15 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     }
     // a call is asked for as the language's refusals spell it, its `(`
     // (or `()`) after its name: `sum(` is `sum`, `true(` the entry whose
-    // word is `true()` (the league seat, cli calls 57, 58); an entry of
-    // several words is asked by its name whole (`true() false()`). A
-    // pattern is `~` and at least one character more; the bare `~` is
-    // the operator entry's own name.
+    // word is `true()`; an entry of several words is asked by its name
+    // whole (`true() false()`). A pattern is `~` and at least one
+    // character more; the bare `~` is the operator entry's own name.
     let (patterns, names): (Vec<&String>, Vec<&String>) =
         names.iter().partition(|name| pattern(name).is_some());
     // a flag as a terminal types it is the request's word it spells,
     // each one in the name, before any lookup, a built entry's or an
     // unbuilt one's: `show --against` is `show against`, `--rebind` is
-    // `rebind` (C143: an entry is named by the request's word, #97)
+    // `rebind` (C143: an entry is named by the request's word)
     let names: Vec<String> = names
         .into_iter()
         .map(|name| {
@@ -754,7 +753,7 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
             || entry
                 .split_once('.')
                 .is_some_and(|(head, _)| head.eq_ignore_ascii_case(asked))
-            // and `sockets.<colour>` to each of the four (an outside review, 2026-09-24, 4)
+            // and `sockets.<colour>` to each of the four
             || (entry == "sockets.<colour>"
                 && asked
                     .split_once('.')

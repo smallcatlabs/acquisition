@@ -1,6 +1,5 @@
-//! The first seat's faults (`runs/seat-2026-09-26/`, 2026-09-26; the
-//! record's findings; `search/LEDGER.md`, "Holes ruled", the seat row), each reproduced
-//! here as a failing test before it was fixed at step 9b: the class
+//! A seat's faults (`search/LEDGER.md`, "Holes ruled", the seat row),
+//! each reproduced here as a failing test before it was fixed: the class
 //! reading (V1, V2, F2), the undecided block's shape (V8, F9), a tab's
 //! type as a field (V10), the place keys under an all-realms scope (F3),
 //! and the answer's words — the help's limit (F1), a comparison after a
@@ -8,10 +7,9 @@
 //! (F10), a partial id (F7), what a row sorts by (F6). The text these
 //! render to is `acquisition-cli/tests/search_json.rs`.
 //!
-//! The trade import's seat (`audits/trade-2026-10/seat/`, 2026-10-17)
-//! adds the faults its four runs met in the answer itself, each named
-//! for the fault; its CLI and MCP faults are those crates' `seat_faults`
-//! and `search_tools`.
+//! The faults a seat of the trade import met in the answer itself follow,
+//! each named for the fault; its CLI and MCP faults are those crates'
+//! `seat_faults` and `search_tools`.
 
 use crate::common;
 
@@ -80,11 +78,10 @@ fn bucket<'a>(table: &'a Value, value: &str) -> Vec<&'a Value> {
         .collect()
 }
 
-/// One tab, `Gear`, of what the seat met: three blighted maps, two
-/// invitations, a rare Energy Blade and one whose frame could not be
-/// read, two items named as beasts are with no bestiary line — bases the
-/// table lacks, as a beast was before its line was read (J9) — a plain
-/// map and a ring.
+/// One tab, `Gear`: three blighted maps, two invitations, a rare Energy
+/// Blade and one whose frame could not be read, two items named as beasts
+/// are with no bestiary line — bases the table lacks, as a beast was
+/// before its line was read (J9) — a plain map and a ring.
 fn seat_stash() -> Store {
     let mut s = store();
     list_tabs(&mut s, "pc", "Standard", json!([tab("g1", "Gear")]), 10);
@@ -117,7 +114,7 @@ fn seat_stash() -> Store {
     s
 }
 
-/// V1 (owner, 2026-09-26: "I approve your suggestion for blighted maps"):
+/// V1 (owner: "I approve your suggestion for blighted maps"):
 /// a blighted or blight-ravaged map's class is read from its base past
 /// the prefix the API adds, so it is Maps like the plain map — never
 /// undecided as a base the table lacks.
@@ -167,12 +164,12 @@ fn v2_an_invitations_class_is_its_frames() {
 }
 
 /// F2: `class:X` on an item whose base the table lists under several
-/// classes was undecided under every `X`. The rule since 2026-09-26
-/// (owner: "The frame picks among candidates, then any remaining match
-/// is true"): the rare blade is each of two sword classes, so
-/// `class:sword` is true and `class:ring` false; the blade whose frame
-/// could not be read keeps its candidates, so a term false under every
-/// one is false and a term a candidate satisfies is undecided (C93).
+/// classes was undecided under every `X`. The rule (owner: "The frame
+/// picks among candidates, then any remaining match is true"): the rare
+/// blade is each of two sword classes, so `class:sword` is true and
+/// `class:ring` false; the blade whose frame could not be read keeps its
+/// candidates, so a term false under every one is false and a term a
+/// candidate satisfies is undecided (C93).
 #[test]
 fn f2_a_class_term_false_under_every_candidate_class_is_false() {
     let s = seat_stash();
@@ -222,12 +219,11 @@ fn f2_a_class_term_false_under_every_candidate_class_is_false() {
     assert_eq!(a["terms"][0]["lacked"]["count"], 0);
 }
 
-/// Owner, 2026-09-26, revising G2: "The frame picks among candidates,
-/// then any remaining match is true." One name for two things — a gem
-/// frame keeps the gem classes, any other frame the rest; one thing
-/// listed twice — a breachstone is Breachstones and Misc Map Items, and
-/// a count by class lists it under each, every bucket's route returning
-/// what it counted.
+/// G2 (owner): "The frame picks among candidates, then any remaining
+/// match is true." One name for two things — a gem frame keeps the gem
+/// classes, any other frame the rest; one thing listed twice — a
+/// breachstone is Breachstones and Misc Map Items, and a count by class
+/// lists it under each, every bucket's route returning what it counted.
 #[test]
 fn g2_the_frame_picks_among_candidates_and_the_item_is_each_that_remains() {
     let mut s = store();
@@ -636,9 +632,9 @@ fn f3_under_all_realms_a_place_value_is_keyed_by_realm() {
 
 /// F1: the help's limit S53 contradicted its own field list — "an item's
 /// class is not a field" beside `class`, a closed-set field. It says what
-/// step 6 made true: the class is a derivation the search owns, read from
-/// the base by the class table, and an item the table cannot class is
-/// undecided with its reason.
+/// the class table makes true: the class is a derivation the search owns,
+/// read from the base by the class table, and an item the table cannot
+/// class is undecided with its reason.
 #[test]
 fn f1_the_helps_limit_on_class_says_what_the_class_table_made_true() {
     let d = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
@@ -730,7 +726,7 @@ fn f5_a_closed_sets_refusal_offers_the_near_names_and_not_the_list() {
     assert_eq!(e["readings"], json!(["class=Staves", "class=Warstaves"]));
     let message = e["error"].as_str().unwrap();
     assert!(!message.contains("Abyss Jewels"), "{message}");
-    // the seat's ask 48: `=` on the singular
+    // `=` on the singular
     let e = ask(&corpus, "class=ring").unwrap_err().to_json();
     assert_eq!(e["readings"][0], "class=Rings");
     assert!(!e["error"].as_str().unwrap().contains("Abyss Jewels"));
@@ -799,7 +795,7 @@ fn f10_a_computed_value_is_named_in_any_case_and_a_near_one_is_offered() {
     let e = ask(&corpus, "psuedo.dps>=1").unwrap_err().to_json();
     assert_eq!(e["readings"], json!(["pseudo.dps>=1"]));
     // a total is offered behind `has:` as a derived field is, since it
-    // can be lacked (C94 as ruled 2026-09-26), and what is offered binds
+    // can be lacked (C94), and what is offered binds
     let e = ask(&corpus, "has:psuedo.total_res").unwrap_err().to_json();
     assert_eq!(e["kind"], "unknown_name");
     assert_eq!(e["readings"], json!(["has:pseudo.total_res"]));
@@ -894,9 +890,9 @@ fn f6_a_row_says_what_it_sorts_by() {
     );
 }
 
-// ---- the review of 9b (2026-09-26), each reproduced first --------------------------------
+// ---- the review faults, each reproduced first --------------------------------------------
 
-/// Review, 2: a stash tab whose GGG `type` was no string is stored as
+/// A stash tab whose GGG `type` was no string is stored as
 /// none, and the search read it as known absence — `-has:tab.type`
 /// matched it. Every stash tab has a type, so none on one is unread,
 /// said where the place is read; a character's item still lacks it.
@@ -983,7 +979,7 @@ fn review_a_stash_tabs_type_the_store_could_not_read_is_unread() {
     assert!(shown["place"].get("tab_type").is_none());
 }
 
-/// Review, 3: an invitation whose frame could not be read was open with
+/// An invitation whose frame could not be read was open with
 /// the class table's reason — "the table never chooses; a refresh will
 /// not help" — where the missing evidence is the frame, which a refresh
 /// may bring. The class stays undecided, for the frame's reason, once.
@@ -1037,14 +1033,14 @@ fn review_an_invitation_whose_frame_is_unread_is_open_for_the_frame() {
         shown["class"]["frame_unread"]["candidates"],
         json!(["Misc Map Items", "Quest Items"])
     );
-    // the candidates are kept (F2, the validation of the review): a term
+    // the candidates are kept (F2): a term
     // false under both is false, and `-class:ring` finds the item
     assert_eq!(ids(&asked(&s, "pc", "-class:ring")), ["inv", "noframe"]);
     assert_eq!(counts(&asked(&s, "pc", "class:ring"), "0"), (0, 2, 0, 0));
     assert_eq!(counts(&asked(&s, "pc", "class:map"), "0"), (1, 0, 0, 1));
 }
 
-/// Review, a query gap: one tab id under two leagues spelled alike but
+/// A query gap: one tab id under two leagues spelled alike but
 /// for case — `Standard` and `standard`, a fixture the store's ingest
 /// admits — was two buckets of one item whose route returned both, since
 /// `league=` is any-case. The route tests the league by the pattern that
@@ -1074,7 +1070,7 @@ fn review_a_tabs_route_selects_its_leagues_spelling_where_two_differ_by_case() {
         members(&s, b);
         // the places document reads the twin from the realm's leagues and
         // names the spelling too: the bucket's route and the place's
-        // request over one realm are one text (step 6.5a)
+        // request over one realm are one text
         let place = common::place_request(&s, "pc", b["league"].as_str().unwrap(), "d1");
         assert_eq!(place["query"]["text"], b["request"]["query"]["text"]);
     }
@@ -1093,10 +1089,10 @@ fn review_a_tabs_route_selects_its_leagues_spelling_where_two_differ_by_case() {
     let table = &view(&s, "pc", "", json!({ "counts": { "keys": ["tab"] } }))["view"]["counts"]["tables"]
         [0];
     assert_eq!(table["buckets"][0]["term"], "id:d1 league=Standard");
-    // a second spelling listed and holding no item (the build's review,
-    // its third finding): the bucket reads twins from the items and the
-    // place from the listings, so the texts differ, and each selects the
-    // same items, since the spelling the place sets apart holds none
+    // a second spelling listed and holding no item: the bucket reads twins
+    // from the items and the place from the listings, so the texts differ,
+    // and each selects the same items, since the spelling the place sets
+    // apart holds none
     list_tabs(&mut s, "pc", "standard", json!([tab("d1", "Dump")]), 30);
     let table = &view(&s, "pc", "", json!({ "counts": { "keys": ["tab"] } }))["view"]["counts"]["tables"]
         [0];
@@ -1115,10 +1111,10 @@ fn review_a_tabs_route_selects_its_leagues_spelling_where_two_differ_by_case() {
     assert_eq!(members(&s, bucket), BTreeSet::from(["a".to_string()]));
 }
 
-/// Review, a query gap: `has:Pseudo.dpx` offered the bare `pseudo.dps`,
+/// A query gap: `has:Pseudo.dpx` offered the bare `pseudo.dps`,
 /// which is no query, and `has:pseudo.total_re` bare totals. What is
 /// offered is asked as it was asked — `has:` of the near name, a derived
-/// field's or a total's (C94 as ruled 2026-09-26) — and binds.
+/// field's or a total's (C94) — and binds.
 #[test]
 fn review_has_on_a_misspelt_computed_value_offers_what_binds() {
     let (corpus, _) = generated::fixture(vec![json!({})]);
@@ -1138,7 +1134,7 @@ fn review_has_on_a_misspelt_computed_value_offers_what_binds() {
     }
 }
 
-/// Review, 4 and 5: F4 offered `line("T").arg1=foo`, which the parser
+/// F4 offered `line("T").arg1=foo`, which the parser
 /// refuses, and on a template with a ranged pair and a third number
 /// offered no `arg3`. A reading is a query that binds (rule 5), and the
 /// slot words are every one the template has.
@@ -1179,8 +1175,8 @@ fn review_f4_offers_only_readings_that_bind_and_every_slot_the_template_has() {
 
 /// A unique tab's pages come from GGG with an empty name, or with the
 /// ` (Remove-only)` mark alone: a row placed there printed `~price 4554
-/// chaos / ` (the trade seat: cli-opus calls 20, 21; mcp-opus 25, 26,
-/// 28). Such a page has no name, and the reader is shown its id (C53).
+/// chaos / `. Such a page has no name, and the reader is shown its id
+/// (C53).
 #[test]
 fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
     let mut s = store();
@@ -1275,8 +1271,8 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
         ]
     );
     // the tab named by the mark alone is named by its id alike as the
-    // scope's oldest fetch and as a row's parent (the build review of
-    // round 6: the parent's name kept the mark)
+    // scope's oldest fetch and as a row's parent (else the parent's name
+    // keeps the mark)
     assert_eq!(
         a["scope"]["oldest_fetch_location"],
         json!({ "kind": "stash", "id": "u2", "name": null, "realm": "pc", "league": "Standard" }),
@@ -1284,8 +1280,8 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
         a["scope"]
     );
     // the scope's and the total's newest fetch name that page as the
-    // row's place does: by its id, no name (round 2's close: the scope
-    // kept the mark as the name); the raw name still decides
+    // row's place does: by its id, no name (else the scope
+    // keeps the mark as the name); the raw name still decides
     // `tab.remove_only` (C117, pinned by its field test)
     for at in ["scope", "total"] {
         assert_eq!(
@@ -1297,11 +1293,11 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
     }
 }
 
-/// The answer-facts seat (MCP fault 4; calls 26, 31, 33 to 35): a tab and
-/// a character fetched in one second, the scope named the tab as its
-/// newest fetch and the total the character, one tie broken two ways.
-/// A span's tie is broken by the store's order of locations on every
-/// block, whatever order the facts arrived or the matches were met in.
+/// MCP fault 4: a tab and a character fetched in one second, the scope
+/// named the tab as its newest fetch and the total the character, one tie
+/// broken two ways. A span's tie is broken by the store's order of
+/// locations on every block, whatever order the facts arrived or the
+/// matches were met in.
 #[test]
 fn mcp4_a_tie_in_the_fetch_span_names_one_location_on_every_block() {
     for character_first in [false, true] {
@@ -1364,11 +1360,10 @@ fn mcp4_a_tie_in_the_fetch_span_names_one_location_on_every_block() {
     );
 }
 
-/// "Where do I pick it up" needed the item's cell, which three runs found
-/// only in the stored body (the trade seat: cli-opus calls 30, 33, 34;
-/// cli-sonnet call 23; mcp-sonnet call 22). The place carries GGG's cell
-/// for an item in a tab or a character's inventory; a worn item's place
-/// is its slot, and has none.
+/// "Where do I pick it up" needed the item's cell, which agents found
+/// only in the stored body. The place carries GGG's cell for an item in a
+/// tab or a character's inventory; a worn item's place is its slot, and
+/// has none.
 #[test]
 fn an_items_place_says_which_cell_it_sits_in() {
     let mut s = store();
@@ -1419,10 +1414,9 @@ fn an_items_place_says_which_cell_it_sits_in() {
 
 /// "Where do I pick it up" needed how old the place is, and a row said
 /// the place alone: the age was in `show`'s `last_seen` or `tabs`'s
-/// column, never beside the place (the trade seat: cli-opus-2 call 46,
-/// its fault 2; mcp-sonnet-2 calls 14, 24, its fault 4). C118: the place
-/// carries when its location was last fetched — a tab's, a page's own
-/// and never its tab's, a character's for every item it holds.
+/// column, never beside the place. C118: the place carries when its
+/// location was last fetched — a tab's, a page's own and never its tab's,
+/// a character's for every item it holds.
 #[test]
 fn an_items_place_says_when_its_location_was_fetched() {
     let mut s = store();
@@ -1509,11 +1503,9 @@ fn an_items_place_says_when_its_location_was_fetched() {
 
 /// A map search was given the same flat "2940 locations were never
 /// fetched" as a ring search, over a map tab 61 of 2,550 fetched, and no
-/// run could size what a "you have none" left out (the trade seat:
-/// cli-opus-2 calls 4, 40, its fault 3; cli-sonnet-2, its fault 1;
-/// mcp-opus-2 call 10, its fault 2). C118: the scope counts the never
-/// fetched by type, as `tabs` counts a type, the most never fetched
-/// first, a character's type `character`, folders apart.
+/// reader could size what a "you have none" left out. C118: the scope
+/// counts the never fetched by type, as `tabs` counts a type, the most
+/// never fetched first, a character's type `character`, folders apart.
 #[test]
 fn the_scope_says_the_never_fetched_by_tab_type() {
     let mut s = store();
@@ -1581,16 +1573,14 @@ fn the_scope_says_the_never_fetched_by_tab_type() {
     assert_eq!(a["scope"]["never_fetched_leagues"], json!(["Standard"]));
 }
 
-/// Both second-round Opus runs of the trade seat made "would a buyer see
-/// it" their worst fault, inferring whether a tab is public from
-/// `has:priced` and `price show` at four calls a task (cli-opus-2 calls
-/// 13–17, mcp-opus-2 calls 30–32) while the store held GGG's flag. C117:
-/// GGG's facts about a tab are fields — `tab.public` (the listing's
-/// `metadata.public`; a substash's is its tab's; an item on a character
-/// lacks it), `tab.remove_only` (the mark GGG ends the name with, N47) —
-/// and so is `price.side`, the side that set the effective price; each is
-/// listed in `describe fields` in plain words, and none says what the
-/// site would list.
+/// Agents asking "would a buyer see it" inferred whether a tab is public
+/// from `has:priced` and `price show` at four calls a task while the
+/// store held GGG's flag. C117: GGG's facts about a tab are fields —
+/// `tab.public` (the listing's `metadata.public`; a substash's is its
+/// tab's; an item on a character lacks it), `tab.remove_only` (the mark
+/// GGG ends the name with, N47) — and so is `price.side`, the side that
+/// set the effective price; each is listed in `describe fields` in plain
+/// words, and none says what the site would list.
 #[test]
 fn ggg_s_facts_about_a_tab_and_a_prices_side_are_fields() {
     use acquisition_plan::price::{Buyout, Price, PriceTarget, set_buyout};
@@ -1736,12 +1726,11 @@ fn ggg_s_facts_about_a_tab_and_a_prices_side_are_fields() {
 }
 
 /// A row sorted by a total named one line (`total_ele_res: 32` beside the
-/// crafted fire line alone), so mcp-opus could not see whether anything
-/// else counted (the trade seat: mcp-opus-1 call 20; mcp-opus-2 call 22,
-/// its fault 7). Since step 1 a sort's `shows` keeps every line that
-/// contributed: here three, a hybrid line among them, whose value is the
-/// total's weight times its number — the total 105 is 43 + 36 + 2 × 13.
-/// An item with one contributing line shows that one.
+/// crafted fire line alone), so an agent could not see whether anything
+/// else counted. A sort's `shows` keeps every line that contributed: here
+/// three, a hybrid line among them, whose value is the total's weight
+/// times its number — the total 105 is 43 + 36 + 2 × 13. An item with one
+/// contributing line shows that one.
 #[test]
 fn a_row_sorted_by_a_total_shows_every_line_that_contributed() {
     let mut s = store();

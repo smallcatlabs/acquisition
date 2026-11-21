@@ -1,16 +1,15 @@
-//! Computed values (C94, C101; the build plan,
-//! steps 7, 9c3 and 9d-A): `pseudo.<name>`, one namespace for the named totals
-//! of the table (`totals.rs`), the readings of them and the derived fields
-//! — what a comparison, a sort, a sum or `undecided( … )` consumes when it
-//! names one, and what a row shows of it.
+//! Computed values (C94, C101): `pseudo.<name>`, one namespace for the
+//! named totals of the table (`totals.rs`), the readings of them and the
+//! derived fields — what a comparison, a sort, a sum or `undecided( … )`
+//! consumes when it names one, and what a row shows of it.
 //!
 //! The rules that decide a computed value are this doc's and
 //! `totals.rs`'s (C94, C101). `pseudo.<name>` means computed here, from
 //! this definition; the translation report (C99) says where it
 //! corresponds to one of the site's pseudo stats. The site's 298 pseudo
 //! stats by the mechanism each needs, with the input that admits each, is
-//! `search/pseudo-stats/README.md` (2026-09-18; 109 unresolved, each with
-//! the one read that closes it).
+//! `search/pseudo-stats/README.md` (each unresolved one with the one read
+//! that closes it).
 //!
 //! # Rulings held here
 //!
@@ -71,7 +70,7 @@
 //!   tools state; the `reduced` spelling of an increase is its stat below
 //!   nothing. A roll's percentile is 100 × (roll − minimum) ÷ (maximum −
 //!   minimum). The value is a whole number and takes no slot word.
-//!   - *The shapes round i pinned (J6).* Three defence types on one base
+//!   - *The shapes (J6).* Three defence types on one base
 //!     are the average of three rolls; under the enchant that zeroes
 //!     quality, `Quality does not increase Defences`, the quality term is
 //!     dropped; ward is a roll as the others are; a defence the item
@@ -168,7 +167,7 @@
 //!   where none is taken (`ErrorKind::SlotUnknown`), offering `has:` of
 //!   the total, never as an unknown name (`bind.rs`).
 //! - **A ranged total with no slot word is its `avg`** (C94, the ranged
-//!   family, `totals.rs`; owner, 2026-09-26: "yes, bare means average"),
+//!   family, `totals.rs`; the owner: "yes, bare means average"),
 //!   wherever a computed value is asked: a comparison, `has:`, `--sort`,
 //!   a count's sum. `low` and `high` stay. The bare name is bound and
 //!   printed as written and read as `avg` ([`total_of`]). A ranged total
@@ -218,10 +217,9 @@
 //!   of every total (J29), by a word of which every total would be
 //!   listed, and the percentile's what it reads and answers, never the
 //!   captured counts and the table's provenance its definition prints
-//!   beside that — and none under `line`
-//!   alone, where `--describe` names them (owner, 2026-09-24, T5 in
-//!   `search/LEDGER.md`;
-//!   `counts.rs`), marked computed, with the count of the matches that
+//!   beside that — and none under `line` alone, where `--describe` names
+//!   them (the owner, T5 in `search/LEDGER.md`; `counts.rs`), marked
+//!   computed, with the count of the matches that
 //!   have it, as `has:` of it asks ([`present`]): one whose value is
 //!   established, and a count one of whose totals is — never one lacked,
 //!   nor one left open with nothing established — routed by
@@ -326,10 +324,10 @@ pub(crate) enum Named {
 pub(crate) enum Derived {
     Dps,
     Pdps,
-    /// Elemental damage per second (step 3 of `search/TRADE-PLAN.md` at `77666ea4`).
+    /// Elemental damage per second.
     Edps,
     /// `dps` and `pdps` at 20 % quality, as the trade site's filters state
-    /// them (t41, t42; step 7e).
+    /// them (t41, t42).
     DpsQ20,
     PdpsQ20,
     /// The base defence percentile ([`percentile`]).
@@ -696,11 +694,11 @@ fn shown_evidence(property: &Property) -> Evidence {
     }
 }
 
-/// What a row shows of a computed value it is sorted by (F6, the first
-/// seat): what [`evidence`] gives — and a reading first by its own name
-/// with its value, as a field is, since what it read is named values too
-/// and the first of a sort's is taken for the sort's own. One that has
-/// nothing to print shows nothing.
+/// What a row shows of a computed value it is sorted by (F6): what
+/// [`evidence`] gives — and a reading first by its own name with its
+/// value, as a field is, since what it read is named values too and the
+/// first of a sort's is taken for the sort's own. One that has nothing
+/// to print shows nothing.
 pub(crate) fn sorted_by(named: Named, slot: Option<&str>, held: &Held) -> Vec<Evidence> {
     let Named::Reading { reading, .. } = named else {
         return evidence(named, held);
@@ -836,7 +834,7 @@ const ATTACKS_PER_SECOND: &str = "Attacks per Second";
 const PHYSICAL: &str = "Physical Damage";
 const ELEMENTAL: &str = "Elemental Damage";
 /// The enchant under which quality raises no physical damage, so the q20
-/// damage is the display (the outside review of 7e).
+/// damage is the display.
 const NO_QUALITY: &str = "Quality does not increase Physical Damage";
 /// The quality at and past which the display is the damage at 20 %.
 const Q20: i128 = 20;
@@ -1806,7 +1804,7 @@ mod tests {
     }
 
     /// The site's own answer, `+94.5 total maximum Life` over `+90` life
-    /// and `+9` Strength (the plan, step 7; the fetch capture q4): a half
+    /// and `+9` Strength (the fetch capture q4): a half
     /// weight, and a total never rounded.
     #[test]
     fn a_half_weight_is_exact_and_a_total_is_never_rounded() {
@@ -1979,7 +1977,7 @@ mod tests {
         );
         // a number the game never displays, and a product the units cannot
         // hold, are unread to the field — never a panic, never a rounding
-        // (outside audit, 2026-09-24: `1e34` overflowed, 0.000025 read 0.00003)
+        // (`1e34` would overflow, 0.000025 would read 0.00003)
         for (aps, phys, problem) in [
             (
                 "1e34",
@@ -2010,7 +2008,7 @@ mod tests {
             );
         }
         // an unread element leaves a field open only when it may be one
-        // the field reads (outside audit, 2026-09-24)
+        // the field reads
         let quality = held(
             "pc",
             r#"{"properties": [

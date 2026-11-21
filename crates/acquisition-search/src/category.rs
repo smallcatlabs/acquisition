@@ -1,9 +1,9 @@
-//! Category (C106; the build plan, step 9d-B): the trade site's grouping
-//! above class — its 87 category ids, as spelled — computed from the
-//! item's class and reviewed rules in this one place (rule 10 of the
-//! plan), never by a second classifier. One question is asked of an item
-//! here — does this id hold: yes, no, or undecided with its reason — and
-//! the term, the count, `show` and the help all ask it.
+//! Category (C106): the trade site's grouping above class — its 87
+//! category ids, as spelled — computed from the item's class and
+//! reviewed rules in this one place (rule 10 of the plan), never by a
+//! second classifier. One question is asked of an item here — does this
+//! id hold: yes, no, or undecided with its reason — and the term, the
+//! count, `show` and the help all ask it.
 //!
 //! What reference data admits, and the admission test both tables passed,
 //! is the crate's doc (C106 — what reference data admits, and the
@@ -27,23 +27,23 @@
 //!   class; a case one clause cannot say is an exception row citing its
 //!   capture, never a second clause — none is needed today, and the
 //!   generator stops on a base that holds a leaf's word and misses its
-//!   rule unless the miss is named with its reason (one: `Fossilised
-//!   Delirium Orb`). The Maven's Invitation leaf holds a base named for
-//!   the Maven, and every other invitation takes `map`, the second half
-//!   not asked of the site (J3). A Stackable Currency base whose name
-//!   holds the word `Tattoo` is `currency.tattoo`, the site listing
-//!   Honoured and Journey tattoos there and the answer extended to the
-//!   word for the families not asked (J23; round m). A class no id is
-//!   keyed by gives none: a quest-frame invitation, whose class is Quest
-//!   Items, has no id, its class deciding (J19). A clause may be a
-//!   closed list of names, `among`, which the generator writes from a
-//!   tag the game's export gives each base: the four Viscera leaves split
-//!   the one class Viscera by the export's `viscera_head`, `viscera_arm`,
-//!   `viscera_body` and `viscera_leg` (#276), as the site does (z05 to
-//!   z09, 2026-11-17: each listing under a leaf carries its tag). A base
-//!   is listed again after each size word the class table's generator
-//!   names, `Lesser ` and `Greater ` (#282). The test says of itself its
-//!   count and its tag, never the list.
+//!   rule unless the miss is named with its reason (one:
+//!   `Fossilised Delirium Orb`). The Maven's Invitation leaf holds a base
+//!   named for the Maven, and every other invitation takes `map`, the
+//!   second half not asked of the site (J3). A Stackable Currency base
+//!   whose name holds the word `Tattoo` is `currency.tattoo`, the site
+//!   listing Honoured and Journey tattoos there and the answer extended
+//!   to the word for the families not asked (J23). A class no id is keyed
+//!   by gives none: a quest-frame invitation, whose class is Quest Items,
+//!   has no id, its class deciding (J19). A clause may be a closed list
+//!   of names, `among`, which the generator writes from a tag the game's
+//!   export gives each base: the four Viscera leaves split the one class
+//!   Viscera by the export's `viscera_head`, `viscera_arm`,
+//!   `viscera_body` and `viscera_leg`, as the site does (z05 to z09,
+//!   2026-11-17: each listing under a leaf carries its tag). A base is
+//!   listed again after each size word the class table's generator names,
+//!   `Lesser ` and `Greater `. The test says of itself its count and its
+//!   tag, never the list.
 //! - **A parent matches the classes the site puts at it and every id
 //!   under it by the dot** (J2): `map` holds Inscribed Ultimatums of its
 //!   own and its children's scarabs and breachstones alike. The dot is in

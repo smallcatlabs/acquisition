@@ -1,9 +1,8 @@
-//! The trade catalogue (C113, K6; step 0 of `search/TRADE-PLAN.md` at `77666ea4`, its
-//! loader step 3's): the shipped file loads, holds a row for every filter,
-//! stat category and group type the site's captures list, and names only
-//! fields this build knows — the property fields among them, on the build
-//! that writes them (C114) — and the loader refuses each defect a reviewer
-//! would, by the row it names. The counts are the file's header's,
+//! The trade catalogue (C113, K6): the shipped file loads, holds a row for
+//! every filter, stat category and group type the site's captures list, and
+//! names only fields this build knows — the property fields among them, on
+//! the build that writes them (C114) — and the loader refuses each defect a
+//! reviewer would, by the row it names. The counts are the file's header's,
 //! measured by script and again here.
 
 use std::collections::BTreeSet;
@@ -18,7 +17,7 @@ const FILTERS: &str = catalogue::FILTERS_JSON;
 const STATS: &str = include_str!("../../../search/trade-query/data/stats-2026-11-17.json");
 const GRAMMAR: &str = include_str!("../../../search/trade-query/data/grammar.json");
 
-/// #91: the filters capture this build ships, which `acq web`'s form and
+/// The filters capture this build ships, which `acq web`'s form and
 /// these tests read, is the owner's capture byte for byte: the sha256 of
 /// its evidence row in `search/trade-query/MANIFEST.md`.
 #[test]
@@ -51,14 +50,13 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
         ],
         [90, 18, 34, 9]
     );
-    // the four defence filters ambiguous since step 3 measured the q20
-    // rule against the site (`tests/properties.rs`), and since step 6 an eldritch form
-    // in a `not`, which the site's captures let through
-    // (`tests/trade_oracle.rs`); since step 7e the damage at 20 % quality,
-    // within one of the site's (`tests/trade_dps.rs`), a stat a form of
-    // which no sum holds and a refused form (until a named stat value,
-    // #46), and a map whose base names no tier (u065); since 7e's
-    // outside review, another wording the game data gives, never vouched for
+    // ambiguous: the four defence filters, by the q20 rule measured against
+    // the site (`tests/properties.rs`); an eldritch form in a `not`, which
+    // the site's captures let through (`tests/trade_oracle.rs`); the damage
+    // at 20 % quality, within one of the site's (`tests/trade_dps.rs`); a
+    // stat a form of which no sum holds and a refused form (until a named
+    // stat value, #46); a map whose base names no tier (u065); and another
+    // wording the game data gives, never vouched for
     for key in [
         "stat.text.eldritch",
         "stat.text.forms",
@@ -77,17 +75,15 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
         let row = c.row(key).unwrap();
         assert_eq!(row.disposition, Disposition::Ambiguous, "{key}");
     }
-    // the rows the sitting of 2026-10-16 settled, built at step 7e: an
+    // exact, as the sittings of 2026-10-16 and 2026-10-18 settled them: an
     // explicit id holds the stat's crafted and fractured lines (t13, t15),
     // a vessel's Monster Level (t46) and a heist item's own requirement
-    // (t48) are the site's, and the elemental damage is its own figure;
-    // and at 7f the free text a whole name or base (w06, w07), the foil the
-    // relic mark (t52), the weapon's crit no gem's (t44), a blighted map
-    // its prefix (t55, t56) — ambiguous since the trade seat met a
-    // Blight-ravaged map outside it (2026-10-17) and exact again at round x
-    // (2026-10-18), the site counting none (x01–x03); and at round x a
-    // written digit a number of the line, never the one a bound compares
-    // (t30, t31; x01, x03)
+    // (t48) are the site's, and the elemental damage is its own figure; the
+    // free text a whole name or base (w06, w07), the foil the relic mark
+    // (t52), the weapon's crit no gem's (t44), a blighted map its prefix
+    // (t55, t56), the site counting no Blight-ravaged map among them
+    // (x01–x03); and a written digit a number of the line, never the one a
+    // bound compares (t30, t31; x01, x03)
     for key in [
         "map_filters.map_blighted",
         "map_filters.map_blighted=true",
@@ -124,7 +120,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     ] {
         assert!(c.row(key).unwrap().lacked_meets_maximum, "{key}");
     }
-    // the owner, 2026-10-15: "Unsupported until the sitting"
+    // the owner: "Unsupported until the sitting"
     assert_eq!(
         c.row("stat.text.two").unwrap().disposition,
         Disposition::Unsupported
@@ -185,9 +181,9 @@ fn c113_every_clause_the_captures_list_has_a_row() {
 }
 
 /// C114: every field the catalogue names is one the language binds — the
-/// loader's check, armed on the build that writes the property fields —
-/// and those step 3 built are exactly the property table's and
-/// `pseudo.edps`.
+/// loader's check, armed on the build that writes the property fields — and
+/// those beyond the language's own are exactly the property table's,
+/// `pseudo.edps` and the damage at 20 % quality.
 #[test]
 fn c114_every_field_the_catalogue_names_binds() {
     let c = catalogue::catalogue().unwrap();
@@ -208,7 +204,7 @@ fn c114_every_field_the_catalogue_names_binds() {
             parse_query(&term)
         );
     }
-    // the fields the language had before step 3 …
+    // the language's own fields …
     let before: BTreeSet<&str> = [
         "league",
         "name",
@@ -230,10 +226,10 @@ fn c114_every_field_the_catalogue_names_binds() {
     .into_iter()
     .collect();
     assert!(before.is_subset(&named));
-    // … and the 43 built since: step 3's 40, the property table's 39 and
-    // one computed value, step 7e's two, the damage at 20 % quality the
-    // dps rows land on in place of `pseudo.dps` and `pseudo.pdps` (t41, t42),
-    // and 3.30's `atlas_drops`, which its filters of 2026-11-17 name (#276)
+    // … and the 43 beyond them: the property table's 39 and one computed
+    // value, `pseudo.edps`; the damage at 20 % quality the dps rows land on
+    // in place of `pseudo.dps` and `pseudo.pdps` (t41, t42), two; and
+    // 3.30's `atlas_drops`, which its filters of 2026-11-17 name
     let built: BTreeSet<&str> = named.difference(&before).copied().collect();
     assert_eq!(built.len(), 43);
     let mut table: BTreeSet<&str> = acquisition_search::properties::table()
@@ -245,7 +241,7 @@ fn c114_every_field_the_catalogue_names_binds() {
     table.extend(["pseudo.edps", "pseudo.dps_q20", "pseudo.pdps_q20"]);
     // the displayed defences, which no row names: the four defence rows
     // land them in place of their `.q20` fields where the trade JSON names
-    // its defences' reading (C142; the 4b sitting round)
+    // its defences' reading (C142)
     for displayed in ["armour", "evasion_rating", "energy_shield", "ward"] {
         table.remove(displayed);
     }
@@ -364,7 +360,7 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
         );
     }
     // a note, the row's evidence, never stands without the sentence the
-    // report prints in its place (the trade seat)
+    // report prints in its place
     assert_eq!(
         refused(one("disposition = \"exact\"\nnote = \"n\"")),
         CatalogueError::NoSays(key())
@@ -394,8 +390,8 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
         }
     );
     // a placeholder inside quotes, where the printer's quoting of what
-    // fills it cannot reach (step 4); a quote escaped inside a quoted
-    // string does not end it
+    // fills it cannot reach; a quote escaped inside a quoted string does
+    // not end it
     for lands in ["'league=\"{value}\"'", "'name=\"a\\\" {value}\"'"] {
         assert_eq!(
             refused(one(&format!("disposition = \"exact\"\nlands = {lands}"))),

@@ -210,9 +210,9 @@ fn a_mod_over_several_rows_is_one_occurrence() {
     );
 }
 
-/// C90, the build plan's 9c4: a mod displayed over several rows keeps each
-/// row as a name of it, read on its own — Thread of Hope's, as the trade
-/// site's capture R1 gives it, its resistance the second of three rows.
+/// C90: a mod displayed over several rows keeps each row as a name of it,
+/// read on its own — Thread of Hope's, as the trade site's capture R1 gives
+/// it, its resistance the second of three rows.
 #[test]
 fn c90_a_mod_of_several_rows_keeps_each_row_as_a_name() {
     let it = item(json!({"typeLine": "Crimson Jewel", "explicitMods": [
@@ -374,7 +374,7 @@ fn markup_is_reduced_to_its_display_half() {
 
 /// Properties render by `displayMode` as the game shows them. Each
 /// requirement is kept on its own, its name without a colon, and they are
-/// displayed as one row (owner, 2026-09-19).
+/// displayed as one row (owner).
 #[test]
 fn properties_and_requirements_are_displayed_strings() {
     let mut body = ring();
@@ -460,7 +460,7 @@ fn an_empty_string_is_an_item_without_one() {
     assert_eq!(gem.name, None);
     assert_eq!(gem.rarity, None);
     assert_eq!(gem.frame.as_deref(), Some("Gem"));
-    // GGG's 0: the game shows a gem no item level (owner, 2026-09-19)
+    // GGG's 0: the game shows a gem no item level (owner)
     assert_eq!(gem.ilvl, None);
     assert_eq!(gem.item_level, None);
     assert_eq!(gem.stack, Some(1));
@@ -470,7 +470,7 @@ fn an_empty_string_is_an_item_without_one() {
 
 /// A vaal gem's base skill sits under `hybrid` and is displayed on the
 /// item: its lines are the source `hybrid`, its properties displayed
-/// strings (owner, 2026-09-19).
+/// strings (owner).
 #[test]
 fn a_vaal_gems_base_skill_is_the_source_hybrid() {
     let gem = item(json!({
@@ -517,8 +517,7 @@ fn a_vaal_gems_base_skill_is_the_source_hybrid() {
         "`hybrid.explicitMods[1]` is a number, not a line"
     );
     // a flag inside `hybrid` is the base skill's, never the item's — but
-    // `isVaalGem`, the item's own vaal mark, lifted as `vaal` (the 4b
-    // sitting round)
+    // `isVaalGem`, the item's own vaal mark, lifted as `vaal`
     assert_eq!(gem.flags, ["vaal"]);
 }
 
@@ -601,8 +600,8 @@ fn what_could_not_be_read_is_named_by_collection() {
             &Part::Field("influences".into()),
             &Part::Properties("properties".into()),
             &Part::Properties("requirements".into()),
-            // the array being no array, the Level row may be among what
-            // was lost: `reqlevel` says so under its own name (step 6)
+            // the array being no array, the Level row may be among what was
+            // lost: `reqlevel` says so under its own name
             &Part::Field("reqlevel".into()),
             &Part::Lines("enchant".into()),
             &Part::Lines("explicit".into()),
@@ -637,14 +636,13 @@ fn what_could_not_be_read_is_named_by_collection() {
     }
 }
 
-/// C101 (the build plan, step 8): the sockets are a collection of their
-/// own — group and colour as GGG gives them, `[]` a present collection
-/// with nothing in it, no key no collection — and what could not be read
-/// is unread at the socket's grain: a group that is no whole number
-/// leaves that socket's group open, an `attr` with no `sColour` or a
-/// `sColour` that is no string that socket's colour, an element that is
-/// no object may be any socket, and the array not being one is the
-/// collection.
+/// C101: the sockets are a collection of their own — group and colour as
+/// GGG gives them, `[]` a present collection with nothing in it, no key
+/// no collection — and what could not be read is unread at the socket's
+/// grain: a group that is no whole number leaves that socket's group
+/// open, an `attr` with no `sColour` or a `sColour` that is no string
+/// that socket's colour, an element that is no object may be any socket,
+/// and the array not being one is the collection.
 #[test]
 fn sockets_are_a_collection_read_at_the_sockets_grain() {
     let plate = item(json!({"typeLine": "Plate", "sockets": [

@@ -1,7 +1,6 @@
-//! The values a query compares (4-full part 1, step 6.1;
-//! `roadmap/briefs/4-full-1-step6-values.md`): what a rows view carries
-//! on each row where it names none. They are columns, never an order:
-//! rows stand in the store's order unless a sort is named (#293 cut 3).
+//! The values a query compares: what a rows view carries on each row
+//! where it names none. They are columns, never an order: rows stand
+//! in the store's order unless a sort is named.
 //!
 //! # As built
 //!

@@ -7,11 +7,11 @@
 //!
 //! **The deriver reads; it does not interpret.** A field is what GGG
 //! gives under its own key, and a rule that joins two of them is never
-//! made here: `rarity` and `frame` are two fields (owner, 2026-09-19), a
-//! gem lacking the first and carrying the second. What is normalised is
-//! what every displayed string gets (C90; `shown`, below), and the two
+//! made here: `rarity` and `frame` are two fields (the owner), a gem
+//! lacking the first and carrying the second. What is normalised is what
+//! every displayed string gets (C90; `shown`, below), and the two
 //! spellings GGG has for nothing: an empty string, and an `ilvl` of 0,
-//! which the game shows no item level for (owner, 2026-09-19).
+//! which the game shows no item level for (the owner).
 //!
 //! - **The header** is three text things, each what GGG gives (`name`,
 //!   `typeLine`, `baseType`) under the normalisation every displayed
@@ -42,8 +42,8 @@
 //!   source of lines, its word the key without the suffix (`explicit`,
 //!   `enchant`, `crucible`, …), so an array GGG adds is read the day it
 //!   appears; a vaal gem's base skill, `hybrid.explicitMods`, is the source
-//!   `hybrid`, and `hybrid.properties` are displayed strings (owner,
-//!   2026-09-19); an element is a string or an object with a `description`,
+//!   `hybrid`, and `hybrid.properties` are displayed strings (the
+//!   owner); an element is a string or an object with a `description`,
 //!   and an object's true `flags` are the line's. The template and the
 //!   numbers are `template::typed`'s — the sign in the number, a range
 //!   dash never a sign, `1,500` one number. Two exceptions, each a fact
@@ -53,21 +53,21 @@
 //!   line is a placeholder re-rolled per response (S12), so it keeps its
 //!   template (`Suffix#`) and carries no number — a value query never
 //!   matches it.
-//! - **A mod displayed over several rows** is one occurrence (C90; the
-//!   build plan, 9c4): one source, one set of flags, its whole text one
-//!   template with `\n` at each row break, its numbers in order. Each row
-//!   is kept beside that as a name of the mod ([`Line::rows`],
-//!   [`Line::names`]), read on its own as a line is — its template, its
-//!   numbers — so that a number of one row is named without the rows
-//!   before it, and what is unread of one row is unread of that row
-//!   (rule 8 of the plan). A row knows where its first number sits among
-//!   its mod's ([`Place`]), so a number read by the row and by the mod in
-//!   order is known for one number — but a row whose template another
-//!   displays, which sits in no one place. A row that displays nothing is no name. Two
-//!   rows of one mod displaying one template leave that row's numbers
-//!   unread, every slot of it on each of them, said here: a number named
-//!   by that row would be either's. None is on the census's copy, and
-//!   none among the trade site's 1,984 texts of several rows.
+//! - **A mod displayed over several rows** is one occurrence (C90): one
+//!   source, one set of flags, its whole text one template with `\n` at
+//!   each row break, its numbers in order. Each row is kept beside that as
+//!   a name of the mod ([`Line::rows`], [`Line::names`]), read on its own
+//!   as a line is — its template, its numbers — so that a number of one row
+//!   is named without the rows before it, and what is unread of one row is
+//!   unread of that row (rule 8 of the plan). A row knows where its first
+//!   number sits among its mod's ([`Place`]), so a number read by the row
+//!   and by the mod in order is known for one number — but a row whose
+//!   template another displays, which sits in no one place. A row that
+//!   displays nothing is no name. Two rows of one mod displaying one
+//!   template leave that row's numbers unread, every slot of it on each of
+//!   them, said here: a number named by that row would be either's. None is
+//!   on the census's copy, and none among the trade site's 1,984 texts of
+//!   several rows.
 //! - **A number the search does not read** — more whole digits or decimals
 //!   than any game displays (`exact.rs`, the rule and its measurement) —
 //!   is an unread slot of its line, said here, once, so that no arithmetic
@@ -86,31 +86,29 @@
 //!   phrase never matches across two.
 //! - **Requirements** are kept one by one, the name without a colon
 //!   (`Level 67`, `159 Str`), and displayed as the one row the game, the
-//!   trade site and the C++ app show: `Requires Level 67, 159 Str` (owner,
-//!   2026-09-19). A phrase is tested against the row.
+//!   trade site and the C++ app show: `Requires Level 67, 159 Str` (the
+//!   owner). A phrase is tested against the row.
 //! - **The item level** is a field, `ilvl`, and a displayed string, `Item
-//!   Level: 84`, where the item has one (owner, 2026-09-19).
-//! - **The level required** is a field, `reqlevel`: the one `Level` row
-//!   of `requirements`, its one value as a whole number (the build plan,
-//!   step 6). An item with no such row lacks it — known absence, so
-//!   `-has:reqlevel` finds it — and every other shape is unread under
-//!   `reqlevel`, said here and nowhere else (rule 8 of the plan): a
-//!   `Level` row with no value, several, or a value that is no whole
-//!   number; two `Level` rows; an element of `requirements` that could not
-//!   be read and might be the `Level` row — its name unreadable or
-//!   `Level` — and the array itself not being one. One status, which a
-//!   comparison, a sort and a sum all read: the number is established
-//!   exactly when nothing is unread under `reqlevel`, so a `Level` that
-//!   was read stands beside an unread `Str` and does not beside an
-//!   unread element that may be a second `Level` (the step-6 reviews, 1
-//!   and 2). The row itself stays a displayed string.
+//!   Level: 84`, where the item has one (the owner).
+//! - **The level required** is a field, `reqlevel`: the one `Level` row of
+//!   `requirements`, its one value as a whole number. An item with no such
+//!   row lacks it — known absence, so `-has:reqlevel` finds it — and every
+//!   other shape is unread under `reqlevel`, said here and nowhere else
+//!   (rule 8 of the plan): a `Level` row with no value, several, or a
+//!   value that is no whole number; two `Level` rows; an element of
+//!   `requirements` that could not be read and might be the `Level` row —
+//!   its name unreadable or `Level` — and the array itself not being one.
+//!   One status, which a comparison, a sort and a sum all read: the number
+//!   is established exactly when nothing is unread under `reqlevel`, so a
+//!   `Level` that was read stands beside an unread `Str` and does not
+//!   beside an unread element that may be a second `Level`. The row itself
+//!   stays a displayed string.
 //! - **The class is not the deriver's** (C103, C106): `class.rs` reads it
 //!   from the base in the class table, and says under [`Part::Class`] why
 //!   it could not. What the deriver keeps for it is the fact it is read
-//!   from: the base, the frame, and GGG's `descrText` ([`Item::descr`];
-//!   step 9d-B), the help line a captured beast is known by — as given,
-//!   never interpreted here, unread under its own key where it is no
-//!   string.
+//!   from: the base, the frame, and GGG's `descrText` ([`Item::descr`]),
+//!   the help line a captured beast is known by — as given, never
+//!   interpreted here, unread under its own key where it is no string.
 //! - **A yes or no that is neither** is unread, never a no (C93): a key
 //!   of [`ITEM_FLAGS`] or of `influences` whose value is no boolean is
 //!   unread under that key — `influences.hunter`, so that a no beside it
@@ -124,22 +122,21 @@
 //!   readable line is a witness; absence is claimed only when
 //!   [`Item::unread_in`] finds nothing.
 //!
-//! - **Sockets** (C101; the build plan, step 8) are a collection of their
-//!   own, [`Item::sockets`]: present when the body carries `sockets` as an
-//!   array — GGG's `[]` on a poe2 weapon that grants a skill (N44) is a
-//!   present collection with no socket in it — and absent when it does
-//!   not. A socket is its `group`, as GGG numbers it, and its colour,
-//!   GGG's `sColour` as given (`R`, `G`, `B`, `W`; an abyssal socket's `A`,
-//!   a resonator's `DV`); a socket with neither `sColour` nor `attr` — a
-//!   poe2 socket, `{group, type}` — has no colour, known. The words a
-//!   query names the colours by, and what is counted, is `sockets.rs`.
-//!   Unread at the socket's grain (rule 8 of the plan): a `group` that is
-//!   no whole number is that socket's group unread ([`Part::SocketGroup`]:
-//!   only what places sockets in groups is left open); a `sColour` that is
-//!   no string, or an `attr` given with no `sColour` — a shape this
-//!   deriver does not decode — is that socket's colour unread
-//!   ([`Part::SocketColour`], [`Socket::colour_unread`]: only what counts
-//!   colours); an element that is no object may be any socket
+//! - **Sockets** (C101) are a collection of their own, [`Item::sockets`]:
+//!   present when the body carries `sockets` as an array — GGG's `[]` on a
+//!   poe2 weapon that grants a skill (N44) is a present collection with no
+//!   socket in it — and absent when it does not. A socket is its `group`,
+//!   as GGG numbers it, and its colour, GGG's `sColour` as given (`R`, `G`,
+//!   `B`, `W`; an abyssal socket's `A`, a resonator's `DV`); a socket with
+//!   neither `sColour` nor `attr` — a poe2 socket, `{group, type}` — has no
+//!   colour, known. The words a query names the colours by, and what is
+//!   counted, is `sockets.rs`. Unread at the socket's grain (rule 8 of the
+//!   plan): a `group` that is no whole number is that socket's group unread
+//!   ([`Part::SocketGroup`]: only what places sockets in groups is left
+//!   open); a `sColour` that is no string, or an `attr` given with no
+//!   `sColour` — a shape this deriver does not decode — is that socket's
+//!   colour unread ([`Part::SocketColour`], [`Socket::colour_unread`]: only
+//!   what counts colours); an element that is no object may be any socket
 //!   ([`Part::Sockets`]: every count is open by it, in the unit of one
 //!   socket); the array itself not being one is the collection unread.
 //!   `attr` is the socket's attribute, which the colour determines, and is
@@ -152,7 +149,7 @@
 //! `supportGemRequirements`, and poe2's `gemTabs` and `grantedSkills` (the
 //! plan's holes table, D4).
 //!
-//! # The owner's words (2026-09-19, verbatim but for spelling)
+//! # The owner's words (verbatim but for spelling)
 //!
 //! - A mod displayed over several rows: "the two-line mods should
 //!   contribute to relevant pseudo-lines, but it makes sense they are a
@@ -312,11 +309,10 @@ pub struct Property {
     pub values: Vec<String>,
     /// The string the player sees: its [`Property::pieces`] joined.
     pub text: String,
-    /// The string the player sees in its pieces, in order (4-full part 1,
-    /// step 6.4c): made by the one function that composes it, so the text
-    /// is these joined by construction, and a page writes a value's piece
-    /// as a link without reading the text again. Not a key of the
-    /// document: the text is.
+    /// The string the player sees in its pieces, in order: made by the
+    /// one function that composes it, so the text is these joined by
+    /// construction, and a page writes a value's piece as a link without
+    /// reading the text again. Not a key of the document: the text is.
     #[serde(skip)]
     pub pieces: Vec<Piece>,
 }
@@ -449,8 +445,8 @@ pub struct Unread {
     /// The property's displayed name, when it is one element of a
     /// property-shaped array whose name could be read: what reads that
     /// property is left open by it, and nothing else is (rule 8 of the
-    /// plan, at the element's grain; outside audit, 2026-09-24). An
-    /// element with no readable name may be any property.
+    /// plan, at the element's grain). An element with no readable name may
+    /// be any property.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// The socket it is of, by its place in [`Item::sockets`], when it is
@@ -534,10 +530,10 @@ pub enum Shown<'a> {
 /// Every yes an item's body is known to say: the top-level booleans and
 /// the keys of `influences`, as GGG spells them, as the census of
 /// 2026-09-13 met them (22,721 items), and `vaal`, the mark GGG gives a
-/// vaal gem as `hybrid.isVaalGem`, lifted as the others are (the 4b
-/// sitting round), and `doubleCorrupted`, which 3.30 added (N55). The
-/// language's `is:` words (`bind`), and the keys whose value must be a
-/// boolean to be read.
+/// vaal gem as `hybrid.isVaalGem`, lifted as the others are, and
+/// `doubleCorrupted`, which 3.30 added (N55). The language's `is:`
+/// words (`bind`), and the keys whose value must be a boolean to be
+/// read.
 pub const ITEM_FLAGS: &[&str] = &[
     "abyssJewel",
     "corrupted",

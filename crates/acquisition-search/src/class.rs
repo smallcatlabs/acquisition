@@ -1,6 +1,6 @@
-//! The class table (C106; the build plan, step 6): an item's class as the
-//! game names it, read from its base by reviewed reference data (C68),
-//! and what the search says of an item the table cannot class (C93).
+//! The class table (C106): an item's class as the game names it, read
+//! from its base by reviewed reference data (C68), and what the search
+//! says of an item the table cannot class (C93).
 //!
 //! What reference data admits, and the admission test the table passed,
 //! is the crate's doc (C106 — what reference data admits, and the
@@ -36,43 +36,39 @@
 //!   `baseType` as displayed (`derive::shown`) against the table's names
 //!   as the export spells them. A transfigured gem's base is its own
 //!   name, which the table holds from `gems.json`.
-//! - **Three readings the first seat ruled (V1, V2, 2026-09-26; C106's
-//!   contract detail, taken here at step 9b).** A blighted or
-//!   blight-ravaged map's class is read from its base past the prefix the
-//!   API adds ([`MAP_PREFIXES`]): `Blighted Map (Tier 13)` reads as `Map
-//!   (Tier 13)`, Maps — the prefix is read past, never matched inside, and
-//!   only where the base itself is not in the table. An invitation's
-//!   class is its frame's (V2), which the rule below generalises. A
-//!   captured beast's was to follow the trade site's categories (V1,
-//!   ruled when a beast was thought to have no class); J9 revised it,
-//!   below.
-//! - **What step 9d-B changed here (J9, J18, J20; `search/LEDGER.md`,
-//!   "Holes ruled", the 9d rows).** *A captured beast's class is the
-//!   game's own word for it, Stackable Currency* ([`BEAST_CLASS`]), read
-//!   by its bestiary line ([`BESTIARY_LINE`], GGG's `descrText`, which the
-//!   deriver now keeps) and by nothing else: a beast's name is no base of
-//!   the game's data, and an item of that name without the line is no
-//!   beast. [`captured`] is the one reader of the line, which the
-//!   category asks too (`category.rs`: the class gives a beast no id,
-//!   J10). In a realm with no table a beast is undecided as any item is
-//!   (J18). *Growing Wombgift's class is Wombgifts* (J20: "I want growing
-//!   wombgift to behave like other wombgift items, however they are
-//!   handled."): the export files it under a class it prints no name for,
-//!   so the table lacks it, and the departure is a named rule citing its
-//!   ruling ([`RULED`]) — the table stays what the export states, never an
-//!   unmarked row. *A bestiary line that could not be read* leaves the
-//!   class open among the beast's and what the base says
+//! - **Three readings ruled (V1, V2; C106's contract detail).** A blighted
+//!   or blight-ravaged map's class is read from its base past the prefix
+//!   the API adds ([`MAP_PREFIXES`]): `Blighted Map (Tier 13)` reads as
+//!   `Map (Tier 13)`, Maps — the prefix is read past, never matched
+//!   inside, and only where the base itself is not in the table. An
+//!   invitation's class is its frame's (V2), which the rule below
+//!   generalises. A captured beast's is J9's, below, which revises V1.
+//! - **A captured beast, a wombgift and an unread bestiary line (J9, J18,
+//!   J20; `search/LEDGER.md`, "Holes ruled", the 9d rows).** *A captured
+//!   beast's class is the game's own word for it, Stackable Currency*
+//!   ([`BEAST_CLASS`]), read by its bestiary line ([`BESTIARY_LINE`],
+//!   GGG's `descrText`, which the deriver keeps) and by nothing else: a
+//!   beast's name is no base of the game's data, and an item of that name
+//!   without the line is no beast. [`captured`] is the one reader of the
+//!   line, which the category asks too (`category.rs`: the class gives a
+//!   beast no id, J10). In a realm with no table a beast is undecided as
+//!   any item is (J18). *Growing Wombgift's class is Wombgifts* (J20: "I
+//!   want growing wombgift to behave like other wombgift items, however
+//!   they are handled."): the export files it under a class it prints no
+//!   name for, so the table lacks it, and the departure is a named rule
+//!   citing its ruling ([`RULED`]) — the table stays what the export
+//!   states, never an unmarked row. *A bestiary line that could not be
+//!   read* leaves the class open among the beast's and what the base says
 //!   ([`Classed::BestiaryUnread`]), by the deriver's unread on
-//!   `descrText`; where the base says nothing the class is open whole, as
-//!   it was; and where the base says Stackable Currency too, every
-//!   reading gives one class and that is the class (J17's rule, said of
-//!   the class itself; the owner's ruling, 2026-10-07). *What left a class
-//!   open is made once* (`unread`, below), and is nothing where the class
-//!   is established — a beast whose base is unread has its class by its
-//!   line, one status; what the reading rests on (`rests_on`) is the
-//!   category's reason too.
+//!   `descrText`; where the base says nothing the class is open whole; and
+//!   where the base says Stackable Currency too, every reading gives one
+//!   class and that is the class (J17's rule, said of the class itself;
+//!   the owner's ruling). *What left a class open is made once* (`unread`,
+//!   below), and is nothing where the class is established — a beast whose
+//!   base is unread has its class by its line, one status; what the
+//!   reading rests on (`rests_on`) is the category's reason too.
 //! - **A base under several classes is read by the item's frame, and the
-//!   item is each class that remains** (owner, 2026-09-26, revising G2:
+//!   item is each class that remains** (the owner, revising G2:
 //!   "The frame picks among candidates, then any remaining match is
 //!   true"). The table lists 32 such bases in seven sets of two kinds.
 //!   One name for two things — Energy Blade a gem or a sword, Bone Armour
@@ -104,12 +100,12 @@
 //!   item has a class — so `-has:class` selects nothing, a count by class
 //!   has no `none` bucket, and a class term's failed route is its not.
 //! - **What stays open keeps its candidates** ([`Classed::Among`],
-//!   [`Classed::FrameUnread`]; F2, the first seat): `class:X` on such an
-//!   item is undecided only where a candidate satisfies `X` — a term false
-//!   under every candidate needs no choice and is false (C93: undecided is
-//!   where the truth cannot be established). The class itself stays not
-//!   established: `has:class` is open, `undecided(class)` lists the item,
-//!   a count by class keeps it undecided (`eval.rs`).
+//!   [`Classed::FrameUnread`]; F2): `class:X` on such an item is undecided
+//!   only where a candidate satisfies `X` — a term false under every
+//!   candidate needs no choice and is false (C93: undecided is where the
+//!   truth cannot be established). The class itself stays not established:
+//!   `has:class` is open, `undecided(class)` lists the item, a count by
+//!   class keeps it undecided (`eval.rs`).
 //! - **The version is on the basis** (C98; C106's clause (c)): `classes`
 //!   beside the derivation, so two builds shipping different tables never
 //!   label one answer alike.
@@ -461,9 +457,8 @@ impl ClassTable {
             Captured::Unread => match self.by_base(item) {
                 open @ (Classed::Open(_) | Classed::BaseUnread) => open,
                 // every reading gives one class, so that is the class
-                // (J17's rule, said of the class itself; owner,
-                // 2026-10-07): a stack of orbs is Stackable Currency, a
-                // beast or not
+                // (J17's rule, said of the class itself; the owner): a
+                // stack of orbs is Stackable Currency, a beast or not
                 Classed::Is(class) if class == BEAST_CLASS => Classed::Is(class),
                 otherwise => {
                     let mut candidates: Vec<String> = otherwise
@@ -558,7 +553,7 @@ impl ClassTable {
                         .next()
                         .is_some();
                     // the frame decides and could not be read: the deriver's
-                    // unread on it is the reason, said once (the review of 9b)
+                    // unread on it is the reason, said once
                     return if frame_unread {
                         Classed::FrameUnread { candidates }
                     } else {
@@ -573,7 +568,7 @@ impl ClassTable {
                     };
                 };
                 // the frame picks among the candidates, and the item is each
-                // that remains (the module doc; owner, 2026-09-26)
+                // that remains (the module doc; the owner)
                 let gem = frame.eq_ignore_ascii_case("gem");
                 let quest = frame.eq_ignore_ascii_case("quest");
                 let picked: Vec<String> = candidates
@@ -615,8 +610,8 @@ pub enum Classed {
     /// The class of the item's base, as the game names it.
     Is(String),
     /// One thing the table lists under several classes, the frame having
-    /// picked none out: the item is each of them (the module doc; owner,
-    /// 2026-09-26) — a breachstone is Breachstones and Misc Map Items.
+    /// picked none out: the item is each of them (the module doc; the
+    /// owner) — a breachstone is Breachstones and Misc Map Items.
     All(Vec<String>),
     /// The base is listed under several classes, kept, and the table never
     /// chooses: why, as the one unread that `undecided(class)` shows (the

@@ -1,7 +1,6 @@
-//! The translation (C113, C99, `decisions/trade.md`; the contract detail K6, taken here; step 4
-//! of `search/TRADE-PLAN.md` at `77666ea4`): a decoded site search to the query text a
-//! person would have typed, and a report, clause by clause, of what each
-//! became.
+//! The translation (C113, C99, `decisions/trade.md`; the contract detail K6, taken here): a
+//! decoded site search to the query text a person would have typed, and
+//! a report, clause by clause, of what each became.
 //!
 //! # Rulings held here
 //!
@@ -26,7 +25,7 @@
 //!   tautology its own, and every path is a clause's. What no sitting has
 //!   asked — which number a many-numbered template compares, and each row
 //!   whose note leaves it to one — is ambiguous until one has.
-//! - **C113** (what step 7's sitting settled; a named stat value is
+//! - **C113** (the stat however displayed; a named stat value is
 //!   parked): A site stat is the item's stat however displayed: a bound
 //!   on it is `sum(line(T source=…).arg1)` over the sources the id admits
 //!   — an explicit id holds the stat's crafted and fractured lines — with
@@ -60,17 +59,16 @@
 //!   unsupported, by name, the clause it could change: a filter, every
 //!   filter of its group and the group, a stat group whole, the envelope's
 //!   own key. What the translation does not read it never drops unsaid.
-//! - **A minimum above its maximum matches nothing** (`query.inverted`,
-//!   #150): the site answers such a pair with no results (the owner at the
-//!   site, 2026-11-10), so the clause it bounds — a filter, a stat filter,
-//!   a count's or a weighted sum's own value — is `false()`, exact, its
-//!   note naming the pair: text the reader accepts, which no item meets
-//!   and none leaves undecided, a hidden number included. A stat filter's
-//!   presence stands beside it, so `if` is the stat absent and `not`
-//!   every item, each as the clause matching nothing makes it; a group
-//!   matching nothing is `false()` whatever its filters, which it names
-//!   and which write no node (`Own::Emptied`). `inverted` is the one
-//!   test of a pair.
+//! - **A minimum above its maximum matches nothing** (`query.inverted`):
+//!   the site answers such a pair with no results (T35), so the clause it
+//!   bounds — a filter, a stat filter, a count's or a weighted sum's own
+//!   value — is `false()`, exact, its note naming the pair: text the
+//!   reader accepts, which no item meets and none leaves undecided, a
+//!   hidden number included. A stat filter's presence stands beside it,
+//!   so `if` is the stat absent and `not` every item, each as the clause
+//!   matching nothing makes it; a group matching nothing is `false()`
+//!   whatever its filters, which it names and which write no node
+//!   (`Own::Emptied`). `inverted` is the one test of a pair.
 //! - **A group is composed here from its filters' texts**, whole or not at
 //!   all, `and` excepted (K6): an unsupported filter of any other group
 //!   puts the group and every filter of it in the remainder. Every node a
@@ -107,22 +105,23 @@
 //!   (C94).
 //! - **A bound is a sum** (`stat.text.bounds`): over the line of the text
 //!   and its plural forms alone, `sum(L.slot)` compared as the site's
-//!   `min` and `max` say, made by `tree::sum_of_lines` as a weighted sum's
-//!   is, the slot the text's own `#` — `avg` on a ranged pair of them or
-//!   on a text of exactly two (round x), the first of several — and none where the text has no `#`, which is
-//!   presence alone and drops the bound. Beside a maximum the line `L`
-//!   itself, conjoined, since a sum of nothing is zero and meets it where
-//!   the site's stat of nothing meets none — by the bound's side, so an
-//!   edit of its number keeps the meaning — and beside a minimum at or
-//!   below zero, which its number decides: a person editing such a minimum
-//!   above zero leaves a guard that no longer changes the answer, and one
-//!   editing a minimum down to zero must add it. A form no sum can hold — opposite, numberless,
+//!   `min` and `max` say, made by `tree::sum_of_lines` as a weighted
+//!   sum's is, the slot the text's own `#` — `avg` on a ranged pair of
+//!   them or on a text of exactly two, the first of several — and none
+//!   where the text has no `#`, which is presence alone and drops the
+//!   bound. Beside a maximum the line `L` itself, conjoined, since a sum
+//!   of nothing is zero and meets it where the site's stat of nothing
+//!   meets none — by the bound's side, so an edit of its number keeps the
+//!   meaning — and beside a minimum at or below zero, which its number
+//!   decides: a person editing such a minimum above zero leaves a guard
+//!   that no longer changes the answer, and one editing a minimum down to
+//!   zero must add it. A form no sum can hold — opposite, numberless,
 //!   another wording — labels the bound `stat.text.forms`, a refused one
 //!   the clause `stat.text.refused`, bounded or not, and another wording
 //!   the game data gives the clause `stat.text.wording`, bounded or not:
 //!   the line matches it, and that the site files it under the id is the
-//!   generator's reading, which no capture shows (the outside review of
-//!   7e). A wording the captures show is a row of the hand table, exact.
+//!   generator's reading, which no capture shows. A wording the captures
+//!   show is a row of the hand table, exact.
 //! - **Statuses are read where the clause is read.** A filter's status is
 //!   its category's row, worsened by each line rule that applies to its
 //!   text (a `(Local)` suffix, a text two ids share, several `#`, a form
@@ -131,11 +130,11 @@
 //!   meeting, as the site does (t24): the site lets
 //!   some items carrying that form through a `not` on its id, a fact of
 //!   the captures (`search/pseudo-stats/README.md`, round four) the
-//!   oracle met on 377 items (step 6, `tests/trade_oracle.rs`), so the
+//!   oracle met on 377 items (`tests/trade_oracle.rs`), so the
 //!   exclusion is ambiguous, never exact. A group's is its row's. The
 //!   site's `disabled` is `disabled` whatever the row says. A stat id the
-//!   site lists with two texts in one category is unsupported (the
-//!   owner, 2026-10-15: "Unsupported until the sitting").
+//!   site lists with two texts in one category is unsupported (C113,
+//!   above).
 //! - **Every number the site sends is held to the search's rule for a
 //!   number** (`exact::reads`): one outside it is the clause unsupported,
 //!   never rounded. A weighted sum's quotient is exact or the group is
@@ -165,21 +164,20 @@
 //!   node of their own, and a bounded weighted sum's filters, conditions
 //!   inside `sum( … )`, which take no path. A query
 //!   that is one clause owns the root, written `""`.
-//! - **An ambiguous clause's other reading** (C119, `TRADE-SLICE.md` at `b6197a82` row
-//!   8c): its row's `other`, filled as `lands` is, `{term}` the text of
-//!   the node it stands in for, once the clause stands in the query
-//!   (`readings`). It applies where the clause has every property of the
-//!   shape it was asked for, the review checklist's rule: that node a
-//!   conjunct of the query whole — the clause's own, or the bounded
-//!   weighted sum's it is a line of — never one inside a `not`, a count
-//!   or an `if`; `{forms}` a minimum alone on a filter of an `and`
-//!   group, every form no sum holds the opposite word, their line under
-//!   the category's source (the trade seat's `reduced` Rarity); and
-//!   `{without}` a scourge line beside another of its sum, the sum
-//!   recomposed without it by the one maker of a weighted sum. A reading
-//!   with a placeholder its clause leaves unfilled, or on a clause that
-//!   states nothing, is none, never a reading equal to the clause. What
-//!   it changes is the answer's to count (`answer.rs`).
+//! - **An ambiguous clause's other reading** (C119): its row's `other`,
+//!   filled as `lands` is, `{term}` the text of the node it stands in
+//!   for, once the clause stands in the query (`readings`). It applies
+//!   where the clause has every property of the shape it was asked for,
+//!   the review checklist's rule: that node a conjunct of the query whole
+//!   — the clause's own, or the bounded weighted sum's it is a line of —
+//!   never one inside a `not`, a count or an `if`; `{forms}` a minimum
+//!   alone on a filter of an `and` group, every form no sum holds the
+//!   opposite word, their line under the category's source (`reduced`
+//!   Rarity); and `{without}` a scourge line beside another of its sum,
+//!   the sum recomposed without it by the one maker of a weighted sum. A
+//!   reading with a placeholder its clause leaves unfilled, or on a
+//!   clause that states nothing, is none, never a reading equal to the
+//!   clause. What it changes is the answer's to count (`answer.rs`).
 //! - **Fidelity** is the worst status among the clauses with a stash
 //!   meaning — `exact`, `ambiguous`, or `partial` when the remainder, the
 //!   unsupported clauses, is not empty; listing-only and disabled clauses
@@ -280,7 +278,7 @@ pub struct Clause {
 }
 
 /// The catalogue row of a clause that matches nothing, a range that runs
-/// backwards (#150): what tells such a clause apart, never its term.
+/// backwards: what tells such a clause apart, never its term.
 pub const INVERTED: &str = "query.inverted";
 
 impl Clause {
@@ -336,11 +334,11 @@ fn trade(message: impl Into<String>) -> LanguageError {
     LanguageError::new(ErrorKind::Trade, message)
 }
 
-/// The site stats an item's line under one hash category displays as
-/// (4-full part 1, step 6.4c): each stat whose group a bound on it sums
-/// selects the line — its one text, its ` (Local)` dropped, or a form of
-/// it the bound sums ([`Kind::summed`]) — each display read as a clause
-/// reads it ([`Shown::of`]: a digit its text writes a number of the line)
+/// The site stats an item's line under one hash category displays as:
+/// each stat whose group a bound on it sums selects the line — its one
+/// text, its ` (Local)` dropped, or a form of it the bound sums
+/// ([`Kind::summed`]) — each display read as a clause reads it
+/// ([`Shown::of`]: a digit its text writes a number of the line)
 /// and compared as the group compares a template, the sign before a `#`
 /// dropped (`template::unsigned`) and case aside (`bind::folded`); in the
 /// stat table's order. A stat of several texts is none: the translation
@@ -818,15 +816,16 @@ fn bounds_of(min: Option<Number>, max: Option<Number>) -> Option<(Op, Value)> {
 }
 
 /// Whether a pair runs backwards: a minimum above its maximum, which the
-/// site answers with no results (`query.inverted`, #150).
+/// site answers with no results (`query.inverted`, T35).
 fn inverted(min: Option<Number>, max: Option<Number>) -> bool {
     matches!((min, max), (Some(a), Some(b)) if a.as_f64() > b.as_f64())
 }
 
 /// One display of a stat, as a line's group names it: its template, a
-/// number its text writes as a digit a `#` of it like any other (round x:
-/// a written digit is a number of the line), and the slots of the `#`s the
-/// site's text has, counting from 1 — the numbers a bound compares.
+/// number its text writes as a digit a `#` of it like any other
+/// (`stat.text.numbers`: a written digit is a number of the line), and the
+/// slots of the `#`s the site's text has, counting from 1 — the numbers a
+/// bound compares.
 #[derive(Clone)]
 struct Shown {
     template: String,
@@ -938,7 +937,7 @@ impl Translator<'_> {
     /// A clause whose pair runs backwards (`query.inverted`): `false()`
     /// beside what the clause still reads — `kept`, its status, rows and
     /// notes, which under `if` are its presence's, so a text two ids share
-    /// stays ambiguous (the cold review of b1bdc4dc) — with the row's
+    /// stays ambiguous — with the row's
     /// sentence and the pair. Its other reading, if it had one, is gone:
     /// nothing is at stake where nothing matches.
     fn nothing(
@@ -1768,9 +1767,8 @@ impl Translator<'_> {
         };
         // the node made here is bound alone, as a row's text and a group's
         // node are: one the binder refuses is this clause unsupported with
-        // its words, never the whole translation's defect (the outside
-        // review of 6fdcc581); a bound that runs backwards never reaches it
-        // (`nothing`, #150)
+        // its words, never the whole translation's defect; a bound that
+        // runs backwards never reaches it (`nothing`)
         if let Some(Err(why)) = node.as_ref().map(alone) {
             let mut unknown = self.unknown_landed(&why)?;
             unknown.rows.insert(0, key.clone());
@@ -1778,7 +1776,7 @@ impl Translator<'_> {
             return Ok(read);
         }
         // the other reading of a bound the opposite word may move (C119):
-        // the shape the trade seat asked, a minimum alone on a filter of
+        // the shape it was asked for, a minimum alone on a filter of
         // an `and` group, every form no sum holds the opposite word — an
         // item carrying one the site may put below the bound
         let reading = match opposite {
@@ -2007,7 +2005,7 @@ impl Translator<'_> {
             ("count", true) => "count_none",
             // only where no stat carries a bound of its own: a guarded
             // stat in a sum of no bound is no shape a sitting has asked,
-            // and stays K5's refusal (the outside review of 8f293ff3)
+            // and stays K5's refusal
             ("weight" | "weight2", true) if !active.iter().any(|r| r.bounded) => "present",
             (kind, _) => kind,
         };

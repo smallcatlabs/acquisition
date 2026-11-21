@@ -1,11 +1,11 @@
-//! The trade boundary's decoder (C113, K6; `trade.rs`), step 1 of
-//! `search/TRADE-PLAN.md` at `77666ea4`: a site search URL, its id or its query JSON to
-//! one decoded query, with no network. The eight searches the owner ran
-//! on 2026-09-13 are the fixture (`trade-decode.toml`): each id the site
-//! returned decodes to exactly the query object the owner posted (S56),
-//! which is everything offline rests on. Around them, the URL forms K6
-//! names, each malformed input as a structured error of its own kind
-//! (C47), and a PoE2 URL refused by name.
+//! The trade boundary's decoder (C113, K6; `trade.rs`): a site search
+//! URL, its id or its query JSON to one decoded query, with no network.
+//! The eight searches the owner ran on the site are the fixture
+//! (`trade-decode.toml`): each id the site returned decodes to exactly
+//! the query object the owner posted (S56), which is everything offline
+//! rests on. Around them, the URL forms K6 names, each malformed input as
+//! a structured error of its own kind (C47), and a PoE2 URL refused by
+//! name.
 
 use std::io::Write as _;
 
@@ -302,12 +302,11 @@ fn id_of(raw: &[u8]) -> String {
     base64::Engine::encode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, raw)
 }
 
-/// The first outside review of step 1 (Codex, 2026-10-15), four faults
-/// each pinned as it was found: an empty path segment that moved the
-/// realm into the league's place, a host's query string read as a path,
-/// an escape altered instead of refused, a second gzip member or junk
-/// after the first dropped instead of refused, and an id unbounded before
-/// it was decoded.
+/// The decoder's faults, each pinned: an empty path segment that moved
+/// the realm into the league's place, a host's query string read as a
+/// path, an escape altered instead of refused, a second gzip member or
+/// junk after the first dropped instead of refused, and an id unbounded
+/// before it was decoded.
 #[test]
 fn c47_the_reviews_faults_a_doubled_slash_a_bad_escape_a_second_member_an_unbounded_id() {
     let q1 = &fixture()[0];
@@ -361,8 +360,8 @@ fn c47_the_reviews_faults_a_doubled_slash_a_bad_escape_a_second_member_an_unboun
             ),
             "no escape",
         ),
-        // the second look: a query string before any path, with or without a
-        // scheme, and an escape a number parser would take as signed
+        // a query string before any path, with or without a scheme, and an
+        // escape a number parser would take as signed
         (
             format!("www.pathofexile.com?next=/trade/search/Standard/{}", q1.id),
             "/trade/search/",

@@ -1296,7 +1296,7 @@ fn a_second_maker_an_unread_name_is_blamed_on_the_colour_table() {
 }
 
 /// Unknown said at the wrong grain (rule 8 of the plan; C93; J17's rule,
-/// said of the class itself — the owner, 2026-10-07). Whether `orb` is a
+/// said of the class itself — the owner). Whether `orb` is a
 /// beast is unread, and it is Stackable Currency either way: its class
 /// was left open among one candidate. It is that class, its not fails,
 /// and what stays open is what the two readings differ on — `currency`
@@ -1414,14 +1414,13 @@ fn j23_a_tattoo_is_known_by_the_word_wherever_it_stands_in_its_name() {
     );
 }
 
-/// #276 (C106): a leaf may hold a closed list of bases, written from the
-/// tag the game's export gives each (`among`; the site asked at z05 to z09,
-/// #282). The
-/// four Viscera leaves split the one class Viscera by the export's
+/// C106: a leaf may hold a closed list of bases, written from the tag
+/// the game's export gives each (`among`; the site asked at z05 to z09).
+/// The four Viscera leaves split the one class Viscera by the export's
 /// `viscera_head`, `viscera_arm`, `viscera_body` and `viscera_leg`, so a
 /// Blazing Skull is `viscera.head` and no other leaf, under `viscera`,
 /// and a Chitinous Leg `viscera.leg`; the test says its count and its
-/// tag, never the list. #282: the API names a Viscera's base with its
+/// tag, never the list. The API names a Viscera's base with its
 /// size (`Lesser Justicar's Helm`, `Greater Crescent Blade`) where the
 /// export prints the plain base, so the tables carry each base after
 /// each size word the class table's generator lists, under the plain

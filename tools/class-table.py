@@ -111,7 +111,7 @@ def main():
     rows = sum(len(names) for names in under.values())
 
     out = [
-        f"# The class table — v1 (C106, C68; decisions/search.md), item search step 6.",
+        f"# The class table — v1 (C106, C68; decisions/search.md).",
         "#",
         "# Reference data: reviewed, committed, shipped inside the binary",
         "# (`include_str!` in `src/class.rs`), read-only, never in a store file,",

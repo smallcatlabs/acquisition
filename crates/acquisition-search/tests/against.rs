@@ -1,9 +1,9 @@
-//! `show <id> --against '<query>'` (C100: the why-not; the build plan,
-//! step 10): the item as `show` reads it, and beside it the query's
-//! canonical text, the root's outcome on this item and each node's, with
-//! what a row shows of a matched term and what an undecided item says of
-//! its reason. The seven items of the worked example against
-//! its query, each worked by hand.
+//! `show <id> --against '<query>'` (C100: the why-not): the item as
+//! `show` reads it, and beside it the query's canonical text, the
+//! root's outcome on this item and each node's, with what a row shows
+//! of a matched term and what an undecided item says of its reason. The
+//! seven items of the worked example against its query, each worked by
+//! hand.
 
 use crate::common;
 
@@ -331,12 +331,12 @@ fn against_an_undecided_term_says_its_own_reason_and_no_others() {
 
 /// C113, K6: a site search is a request, its URL's realm its scope, and
 /// the realm is in no term of its text — so `against` reads it in the
-/// item's realm. The outside review of step 5 found an xbox URL showing
-/// a pc item as a match, fidelity exact, where a search of that URL
-/// never holds the item. Here, r1, a pc ring in Standard, against the
-/// empty site search (`{}`, whose text is the league alone): under an
-/// xbox URL refused, naming both realms; under a pc URL, and as the id,
-/// which names no realm, a match with the report beside it.
+/// item's realm, never as an xbox URL showing a pc item as a match,
+/// fidelity exact, where a search of that URL never holds the item.
+/// Here, r1, a pc ring in Standard, against the empty site search
+/// (`{}`, whose text is the league alone): under an xbox URL refused,
+/// naming both realms; under a pc URL, and as the id, which names no
+/// realm, a match with the report beside it.
 #[test]
 fn k6_a_site_search_is_asked_of_an_item_in_its_own_realm_alone() {
     let s = worked();

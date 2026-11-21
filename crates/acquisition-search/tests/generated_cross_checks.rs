@@ -1,9 +1,7 @@
-//! Two parts of an answer that say the same thing must agree, and a copy
-//! of the evidence changes an answer only where the rule says it does: the
-//! cross-checks of step 4b (the build plan; the outside agent's
-//! transformations 10 and 13, which are neither equivalence nor
-//! completion). Through the crate's boundary: a request in, an answer out,
-//! as JSON, and `show`.
+//! Two parts of an answer that say the same thing must agree, and a copy of
+//! the evidence changes an answer only where the rule says it does: the
+//! cross-checks, which are neither equivalence nor completion. Through the
+//! crate's boundary: a request in, an answer out, as JSON, and `show`.
 //!
 //! - **A value's probe is its sort status** (C92, C93): `undecided(V)`
 //!   matches exactly the items that sorting by `V` marks incomplete.
@@ -24,14 +22,14 @@
 //! - **Every occurrence twice** (C92): a term on a line binds one
 //!   occurrence, so no term on a line's group moves; a largest stays; a sum
 //!   doubles, and a probe of a tree holding a sum may move with it.
-//! - **A reading is what its totals make** (C101, C93; step 9c3): a count
+//! - **A reading is what its totals make** (C101, C93): a count
 //!   of totals matches what `holds( … )` over `has:` of each matches, and
 //!   a least what its totals' own comparisons match together — the
 //!   language saying each a second way, which is the oracle the readings
 //!   have. What the second way leaves open a reading's comparison
 //!   leaves open, and may leave more, never less; its presence leaves
 //!   open exactly that.
-//! - **A ranged total is what its rows make** (C94; step 9e): the plain,
+//! - **A ranged total is what its rows make** (C94): the plain,
 //!   the attacks' and the spells' totals of cold damage match what the
 //!   item's own `sum( … )` of their lines matches, outside the two arrays
 //!   no total reads, on an item that has such a line — and, for a row
@@ -78,8 +76,8 @@ fn term_members(
 }
 
 /// `id → sort` of every item, by the empty query: the scalar alone — what
-/// a row shows of its sort (F6, the first seat) is in the item's order,
-/// which the reorderings below change.
+/// a row shows of its sort is in the item's order, which the reorderings
+/// below change.
 fn scalars(corpus: &Corpus, scope: &Ids, value: &str) -> Option<HashMap<String, Value>> {
     let answer = run(corpus, &request("", Some(value), false, scope.len().max(1))).ok()?;
     Some(
@@ -657,7 +655,7 @@ fn every_occurrence_in_another_order(
 /// occurrence is written twice: a sum, which doubles; a term on the
 /// percentile, which moves with the lines it takes as the item's own; and
 /// a probe of a tree holding either, since what moves under it can decide
-/// what was open, or open what was decided (#179: `undecided(links>=2 or
+/// what was open, or open what was decided (`undecided(links>=2 or
 /// sum(…)>=11)` is open while the sum fails and decided once it holds).
 fn moves_with_every_occurrence_twice(q: &Q) -> Vec<bool> {
     match q {
@@ -804,9 +802,8 @@ fn agrees(
     // generated sum doubles (C92); a total is a sum over lines and
     // doubles with them (C94), a ranged one's `avg` too, low summed
     // with low and high with high; the least of totals doubles with
-    // them and a count of totals is no sum and stays (C101, step
-    // 9c3); a derived field reads the properties, which no line is,
-    // and stays (C101)
+    // them and a count of totals is no sum and stays (C101); a derived
+    // field reads the properties, which no line is, and stays (C101)
     every_occurrence_twice(
         &bodies,
         &q,
@@ -850,7 +847,7 @@ fn agrees(
 
 // One property in four tests of a quarter of the cases each: a test is
 // one thread, and four run side by side where one ran alone (46 s of
-// the gate at 192 cases, 14 s as four processes of 48, 2026-10-13).
+// the gate at 192 cases, 14 s as four processes of 48).
 proptest! {
     #![proptest_config(config(8, 48))]
     #[test]
@@ -890,8 +887,8 @@ proptest! {
 /// The property's cases found by its draws, each a row run through the
 /// property's one case and checked to be what it pins: a probe of a tree
 /// whose sum crosses its bound when every occurrence is written twice, so
-/// that the probe matches the item once and fails it twice (#179; both
-/// were drawn on the Linux gate, `ACQ_CASES=full`). The property held the
+/// that the probe matches the item once and fails it twice (both were
+/// drawn on the Linux gate, `ACQ_CASES=full`). The property held the
 /// probe still, and the search was right to move it.
 #[test]
 fn the_property_s_drawn_cases_hold() {
@@ -973,13 +970,12 @@ fn the_property_s_drawn_cases_hold() {
 }
 
 /// Past the bound on the reasons a computed value makes beyond the item's
-/// own parts (step 7's outside audit, 5): the eighth anchor — three line
-/// arrays unread, four properties no number — asked by a probe over a
-/// derived field and a total, shows six distinct parts, counts one out,
-/// and shows the same six whichever order the terms are written in (rule
-/// 9). The generated property meets this one run in two at the gate's
-/// count, so the case is fixed here beside it; an outside review of the
-/// look found the first cut of this test checking the bound alone.
+/// own parts: the eighth anchor — three line arrays unread, four
+/// properties no number — asked by a probe over a derived field and a
+/// total, shows six distinct parts, counts one out, and shows the same
+/// six whichever order the terms are written in (rule 9). The generated
+/// property meets this one run in two at the gate's count, so the case is
+/// fixed here beside it.
 #[test]
 fn a_row_s_reasons_are_bounded_where_a_computed_value_makes_them() {
     let (store, corpus, _) = fixture_with_store(anchors());
@@ -1032,7 +1028,7 @@ fn a_row_s_reasons_are_bounded_where_a_computed_value_makes_them() {
 
 /// The checker's own negative controls, on a real answer: an empty zero
 /// block, a suggestion miscounted and an oversized row must each be
-/// refused — an outside audit (2026-09-21) found the first of these passing.
+/// refused.
 #[test]
 fn the_checks_refuse_an_empty_zero_block_a_miscounted_suggestion_and_an_unbounded_row() {
     let many: Vec<String> = (1..=9).map(|n| format!("+{n} to maximum Life")).collect();

@@ -1,4 +1,4 @@
-# The translation's fixtures (C113, K6; step 4 of search/TRADE-PLAN.md at 77666ea4),
+# The translation's fixtures (C113, K6),
 # read by tests/trade_translate.rs. One case per catalogue row and per
 # group type at least; every expected text worked by hand from the row's
 # `lands` and the catalogue's header before the case ran.
@@ -1148,8 +1148,7 @@ text = 'category="armour.chest" rarity=rare line(("#% increased Armour" or "#% r
 fidelity = "ambiguous"
 statuses = { "misc_filters.mirrored" = "disabled", "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.0.1" = "exact", "status" = "listing_only", "trade_filters.sale_type" = "disabled", "type_filters.category" = "exact", "type_filters.rarity" = "exact" }
 
-# ---- step 7e: the stat however displayed, the fields as the site reads them ----------------------
-# (the brief, search/TRADE-PLAN.md at 77666ea4: "What step 7 found" and "The choice before 7e"; `TRADE-SLICE.md` at `b6197a82`)
+# ---- the stat however displayed, the fields as the site reads them ----------------------------
 
 [[case]]
 name = "a bound is the stat's sum over the lines its id admits (t17–t20): two lines meet it together"
@@ -1360,10 +1359,9 @@ statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.1" = "exact"
 matches = ['{"explicitMods": ["+25% to Fire Resistance"]}', '{}']
 fails = ['{"explicitMods": ["No Physical Damage"]}', '{"explicitMods": ["30% increased Physical Damage"]}']
 
-# ---- the trade seat's tasks, read the other way (C119) -----------------------------------------
-# The URLs of the seat's T4, T5 and T6 (audits/trade-2026-10/seat/, the
-# calls of every run), each ambiguous clause's other reading and what it
-# adds and drops over items worked by hand.
+# ---- three URLs, read the other way (C119) ----------------------------------------------------
+# Each ambiguous clause's other reading, and what it adds and drops over
+# items worked by hand.
 
 [[case]]
 name = "the trade seat's T4: Rarity at 20, one word since 3.30 (#276), so no other reading; the reduced form under a minimum is t30's case"
@@ -1396,7 +1394,7 @@ statuses = { "url.league" = "exact", "status" = "listing_only", "map_filters.map
 matches = ['{"typeLine": "Blighted Map (Tier 14)", "baseType": "Blighted Map (Tier 14)", "rarity": "Normal"}']
 fails = ['{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}', '{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 13)", "baseType": "Blight-ravaged Map (Tier 13)", "rarity": "Normal"}']
 
-# ---- round x: a text of two numbers (2026-10-18) -----------------------------------------------
+# ---- a text of two numbers (the site's answers of 2026-10-18) ---------------------------------
 
 [[case]]
 name = "a text of two numbers is compared by their mean: x14 at 1250 to 1253 found the Burning Ground line at 2500 for 4 seconds and for 1"

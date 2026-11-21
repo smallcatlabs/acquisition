@@ -1,6 +1,5 @@
-# The language corpus (C104; search/LEDGER.md, step 1): every
-# construct of the language
-# at least once, every error the grammar defines with the readings it
+# The language corpus (C104; search/LEDGER.md): every construct of the
+# language at least once, every error the grammar defines with the readings it
 # shows, and the acceptance set's queries. `tests/language.rs` runs it and
 # refuses a construct of its list that has no case here.
 #
@@ -622,7 +621,7 @@ construct = "values.pseudo"
 text = '''pseudo.total_res>=60 pseudo.dps>=400.5 pseudo.pdps<300 pseudo.total_str=90..100'''
 canonical = '''pseudo.total_res>=60 pseudo.dps>=400.5 pseudo.pdps<300 pseudo.total_str=90..100'''
 
-# The base defence percentile: refused by name until step 9d-A built it.
+# The base defence percentile parses and prints back as any computed value does.
 [[case]]
 construct = "values.pseudo_unbuilt"
 text = '''pseudo.defence_pct=90..100'''

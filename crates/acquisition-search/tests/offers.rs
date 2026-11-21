@@ -1,7 +1,6 @@
-//! What a refusal offers (`search/LEDGER.md`, H5; the build plan, step
-//! 11b): a way on that is a command at a terminal is a request too,
-//! beside the reading, for a caller that sends requests and types
-//! nothing — and each one runs.
+//! What a refusal offers (`search/LEDGER.md`, H5): a way on that is a
+//! command at a terminal is a request too, beside the reading, for a
+//! caller that sends requests and types nothing — and each one runs.
 
 use crate::common;
 
@@ -39,7 +38,7 @@ fn a_changed_basis_offers_the_request_from_its_start() {
     assert_eq!(e["kind"], "basis_changed", "{e}");
     let offers = offered(&e);
     assert_eq!(offers.len(), 1, "{e}");
-    // said in the request's words, never a terminal's command (#97)
+    // said in the request's words, never a terminal's command
     assert_eq!(e["offers"][0]["says"], "the same request from its start");
     assert_eq!(
         e["offers"][0]["request"],
@@ -102,10 +101,10 @@ fn a_realm_needed_offers_the_request_in_each_realm() {
     .unwrap();
     let e = request.corpus(&s, &intent(&s)).err().unwrap().to_json();
     assert_eq!(e["kind"], "realm_needed", "{e}");
-    // `all` beside each realm, as the words name it (the league seat,
-    // cli call 40, mcp call 25: "pc | poe2, or all" offered pc and poe2)
+    // `all` beside each realm, as the words name it ("pc | poe2, or all"
+    // offered pc and poe2 alone)
     // its ways on are its offers alone: no readings, which are how what
-    // was typed could be read (#97)
+    // was typed could be read
     assert!(e.get("readings").is_none(), "{e}");
     let says: Vec<&Value> = e["offers"]
         .as_array()

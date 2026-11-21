@@ -175,7 +175,7 @@ def main():
                  f"reviewed diff, the counts in this script among it")
 
     out = [
-        "# The defence table — v1 (C101, C106, C68; decisions/search.md), item search step 9d-A.",
+        "# The defence table — v1 (C101, C106, C68; decisions/search.md).",
         "#",
         "# Reference data: reviewed, committed, shipped inside the binary",
         "# (`include_str!` in `src/defences.rs`), read-only, never in a store file,",

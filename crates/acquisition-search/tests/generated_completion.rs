@@ -1,7 +1,7 @@
 //! C93's own definition, as a test: what an answer calls decided on an
 //! item with something unread is the same under every completion of it.
-//! Step 4b's completion property (the build plan), through the crate's
-//! boundary alone: a request in, an answer out, as JSON.
+//! The completion property, through the crate's boundary alone: a request
+//! in, an answer out, as JSON.
 //!
 //! An item is generated with holes — a flag that is no yes or no, an array
 //! that is no array, an element that is no line or no socket, a number or a
@@ -38,15 +38,15 @@
 //! No query here holds `undecided( … )`: it says something of the evidence
 //! and not of the item, so no completion is owed the same answer.
 //!
-//! **The one value a rule leaves open** (step 9e): the base defence
-//! percentile is a value only where what the item displays fixes one
-//! (J33), so it is undecided on some item with nothing unread — a twin
-//! text no mark tells, a display no roll gives. Such a completion says
-//! nothing of the stored item and is set aside, for the percentile's own
-//! terms, for the root of a query that holds one, and for its sort: what
-//! was decided as stored is held to every completion the rule decides.
-//! Which completions those are is asked of the build, `undecided( … )` of
-//! the field; that the probe is the sort's status is the cross-checks'.
+//! **The one value a rule leaves open**: the base defence percentile is a
+//! value only where what the item displays fixes one (J33), so it is
+//! undecided on some item with nothing unread — a twin text no mark
+//! tells, a display no roll gives. Such a completion says nothing of the
+//! stored item and is set aside, for the percentile's own terms, for the
+//! root of a query that holds one, and for its sort: what was decided as
+//! stored is held to every completion the rule decides. Which completions
+//! those are is asked of the build, `undecided( … )` of the field; that
+//! the probe is the sort's status is the cross-checks'.
 
 use crate::common;
 
@@ -291,8 +291,8 @@ fn check(
         let Ok(answer) = run(corpus, &request("", Some(&value), false, scope.len())) else {
             continue;
         };
-        // the scalar alone: what a row shows of its sort (F6, the first
-        // seat) carries an occurrence's flags, which a completion may fill
+        // the scalar alone: what a row shows of its sort carries an
+        // occurrence's flags, which a completion may fill
         let scalars: HashMap<&str, Value> = answer["rows"]
             .as_array()
             .ok_or("no rows")?

@@ -63,7 +63,7 @@
 //!
 //! **The same route under `--json`** — directly resubmittable, carrying its
 //! count and its denominator; the basis it was counted at is the answer's,
-//! stated once (B3, 2026-10-10). Run where its count has moved it reports
+//! stated once (B3). Run where its count has moved it reports
 //! both counts, and a caller who sends the answer's `basis` beside it as
 //! `counted_at` is told wherever the basis has moved:
 //!
@@ -91,20 +91,20 @@
 //!
 //! # As built
 //!
-//! - **A site search is a query's third spelling** (C113; the brief's
-//!   step 5): `query.trade` holds it — a URL, an id or the query JSON as
-//!   a string, or the JSON as an object — and every read translates it
-//!   again ([`trade::translate`]), so the report an answer holds is this
+//! - **A site search is a query's third spelling** (C113): `query.trade`
+//!   holds it — a URL, an id or the query JSON as a string, or the JSON
+//!   as an object — and every read translates it again
+//!   ([`trade::translate`]), so the report an answer holds is this
 //!   build's and no caller's. The query is the translation's text, bound;
 //!   a text or a tree sent beside it, as a printed request and a
 //!   continuation send one, must be that text, and one that is not —
 //!   edited, or translated by another build's tables — is refused with
 //!   the translation as its reading, never run under the site's label
-//!   (the owner, 2026-10-16, choosing this over the report carried as a
-//!   label: "Site search, re-translated"). The answer's query carries the
-//!   report, `trade`: the source, the fidelity, the remainder, every
-//!   clause, and the versions of the catalogue and the stat table. They
-//!   are the report's, not the basis's, which is the corpus's: a route's
+//!   (the owner's choice, over the report carried as a label: "Site
+//!   search, re-translated"). The answer's query carries the report,
+//!   `trade`: the source, the fidelity, the remainder, every clause, and
+//!   the versions of the catalogue and the stat table. They are the
+//!   report's, not the basis's, which is the corpus's: a route's
 //!   `counted_at` would otherwise move with no corpus moving, and the
 //!   build the basis names digests both tables (`build.rs`). The URL's
 //!   realm is the scope, and is in no term of the text, so a site search
@@ -113,13 +113,12 @@
 //!   `show` holds — and refuses a URL that names another; a scope beside
 //!   a URL is the resolved form an answer prints. It is the one reader of
 //!   a site search, so none decodes one for itself and leaves the realm
-//!   behind (the outside review of step 5: `show` read the query alone
-//!   and showed a pc item matching an xbox URL). A
-//!   continuation and the start offered across a changed basis carry the
-//!   site search; a route, an offer to explain and a forced query are
-//!   queries of their own and carry none. A command made of a request
-//!   that carries one is `--trade` and that search
-//!   (the CLI's `printed.rs`), with no `--realm` where its URL names one.
+//!   behind (a reader that read the query alone showed a pc item matching
+//!   an xbox URL). A continuation and the start offered across a changed
+//!   basis carry the site search; a route, an offer to explain and a
+//!   forced query are queries of their own and carry none. A command made
+//!   of a request that carries one is `--trade` and that search (the
+//!   CLI's `printed.rs`), with no `--realm` where its URL names one.
 //!
 //! - **The request** — `{account, realm | all, membership}`, the query, a
 //!   view, and a basis when it continues (C98, C100; a route carries none, B3). A
@@ -158,25 +157,24 @@
 //!   Every other count keeps its number and drops its request; the view's
 //!   `routes` asks for every one, a terminal's `--routes`, and a
 //!   continuation and the corpus offer keep it. A count with no request
-//!   is still a count of the members its route would return: the answer
-//!   weighed 31 KB by default with every request in it, over every seat
-//!   runner's harness cut (the trade seat), and the terminal already
-//!   printed these alone.
-//! - **What is at stake in an ambiguous clause** (C119, `TRADE-SLICE.md` at `b6197a82`
-//!   row 8c): where the clause carries its other reading (`translate.rs`,
-//!   which says where one applies), the query with the conjunct the
-//!   reading stands in for replaced by it is asked of every item by the
-//!   one evaluator, and the clause's `other` counts the items it matches
-//!   that the query as run fails — `adds` — and those the query matches
-//!   that it fails — `drops`. Each count's route is the query with that
-//!   conjunct replaced by what tells the two apart: the reading and not
-//!   the conjunct, or the conjunct and not the reading, the shared part
-//!   said once where the reading writes the conjunct inside it (`{term}
-//!   or …` adds alone, `{term} -…` drops alone); it returns exactly the
-//!   members counted, an item undecided either way in neither. A count
-//!   of none is a number with no route, and a clause with no reading has
-//!   no `other` (C93). Only where the site's search is the query run:
-//!   under the corpus context it is set aside, and nothing is staked.
+//!   is still a count of the members its route would return: with every
+//!   request in it the answer weighed 31 KB by default, over an agent
+//!   harness's cut, and the terminal already printed these alone.
+//! - **What is at stake in an ambiguous clause** (C119): where the clause
+//!   carries its other reading (`translate.rs`, which says where one
+//!   applies), the query with the conjunct the reading stands in for
+//!   replaced by it is asked of every item by the one evaluator, and the
+//!   clause's `other` counts the items it matches that the query as run
+//!   fails — `adds` — and those the query matches that it fails —
+//!   `drops`. Each count's route is the query with that conjunct replaced
+//!   by what tells the two apart: the reading and not the conjunct, or
+//!   the conjunct and not the reading, the shared part said once where
+//!   the reading writes the conjunct inside it (`{term} or …` adds alone,
+//!   `{term} -…` drops alone); it returns exactly the members counted, an
+//!   item undecided either way in neither. A count of none is a number
+//!   with no route, and a clause with no reading has no `other` (C93).
+//!   Only where the site's search is the query run: under the corpus
+//!   context it is set aside, and nothing is staked.
 //! - **The report's clauses** (C100): an exact clause with a term of its
 //!   own carries `at`, `status`, `term` and `path` alone, the text
 //!   stating the rest; every other — not exact, or with no term of its
@@ -195,8 +193,7 @@
 //!   the query, whose other terms would drop values the selector resolved
 //!   to — counted by the field, or the vocabulary narrowed by the group's
 //!   one template test (`counts.rs`); a `tab` selector has none, since a
-//!   tab is counted by the tab and it resolved to names (outside audit,
-//!   2026-09-22).
+//!   tab is counted by the tab and it resolved to names.
 //! - **What a row shows of one term is bounded** and says how many it left
 //!   out; the item whole is `show <id>` (invariant 5). Of lines and
 //!   strings, six, a sum's value beside them. Of why an item is undecided,
@@ -205,55 +202,53 @@
 //!   and what it leaves out is counted in parts, never in entries
 //!   (`eval::why`).
 //! - **The undecided block is by reason, never by item** (C93's contract
-//!   detail, V8, 2026-09-26; taken here at step 9b): an answer shows its
-//!   undecided items as one line per distinct reason — by what was
-//!   unread, the kind a count tallies (C105) — each with one example
-//!   item, the first met in the store's order, then the one route to
-//!   them all; after the rows, before the routes; the first ten listed
-//!   and the rest counted (invariant 5). No item list and no count per
-//!   reason: no term selects a reason, so such a count would have no
-//!   route. The JSON has the same shape. A per-reason count and its
-//!   selector wait for someone missing the number. The seat's first shape
-//!   — ten items, each with every term's reason — printed one reason
-//!   eighteen times under eighteen `class:` terms (F9).
+//!   detail, V8, taken here): an answer shows its undecided items as one
+//!   line per distinct reason — by what was unread, the kind a count
+//!   tallies (C105) — each with one example item, the first met in the
+//!   store's order, then the one route to them all; after the rows,
+//!   before the routes; the first ten listed and the rest counted
+//!   (invariant 5). No item list and no count per reason: no term selects
+//!   a reason, so such a count would have no route. The JSON has the same
+//!   shape. A per-reason count and its selector wait for someone missing
+//!   the number. An item list of ten, each with every term's reason,
+//!   printed one reason eighteen times under eighteen `class:` terms.
 //! - **Rows** are the matching items in the store's stable order, or by
 //!   the sort scalar with items that have none last either way; past the
 //!   limit they are counted, and the way on is the answer's `next`. No
-//!   order comes from the query (#293 cut 3): where no sort is named the
-//!   rows stand in the store's order, and `sort: none` names that order
-//!   too. A counts view shows none: the matches are handed to
-//!   `counts.rs` instead, with the one maker of a route (`Router`,
-//!   private), so a bucket's route is made as a term's is.
-//! - **A row carries values** (4-full part 1, step 6.1): those the view
-//!   names, or with none named those the query compares (`values.rs`),
-//!   at most [`VALUES`] with the sort among them, the sort joining them
-//!   at their end where they lack it (a full list of the query's gives
-//!   it its last place, the value displaced counted; a full list named,
-//!   which a named sort would push past the bound, is
-//!   refused); each in the shape a sort's number had, said once, so a
-//!   row's sort is the entry `view.rows.sort` names. A continuation names
-//!   what its request named — a sort, `none`, values — and names the
-//!   values the query gave by the query it carries (C100): they are a
-//!   pure function of the canonical query and the build, which its basis
-//!   names (C98), so it fills them again the same and every page says
-//!   them as from the query.
-//! - **A row is compact unless its view names fields** (C100: the
-//!   caller may name fields; 4-full part 1, step 5): `icon`, the URL of
-//!   the item's art, and `item`, the item as `show` gives it — five keys
-//!   flat after the row's own, `item`, `class`, `category`, `price` and
-//!   `lines`, made from the held item by `show`'s one maker
-//!   (`show::ShownItem::of`), so no second maker of any of them
-//!   stands here. A row's `place` stays its own: the corpus names what a
-//!   socketed item sits in, `show` gives its id. Under `item` an answer
-//!   holds at most `acquisition_store::bound::ITEM_ROWS` rows whatever
-//!   its `limit` names, the limit applied said as `view.rows.limit` and
-//!   the rest its continuation at that limit; a smaller limit stands, and
-//!   an item is never cut (C53). A continuation asks the fields its
-//!   answer asked; beside a count they are refused, as a sort is.
+//!   order comes from the query: where no sort is named the rows stand in
+//!   the store's order, and `sort: none` names that order too. A counts
+//!   view shows none: the matches are handed to `counts.rs` instead, with
+//!   the one maker of a route (`Router`, private), so a bucket's route is
+//!   made as a term's is.
+//! - **A row carries values**: those the view names, or with none named
+//!   those the query compares (`values.rs`), at most [`VALUES`] with the
+//!   sort among them, the sort joining them at their end where they lack
+//!   it (a full list of the query's gives it its last place, the value
+//!   displaced counted; a full list named, which a named sort would push
+//!   past the bound, is refused); each in the shape a sort's number had,
+//!   said once, so a row's sort is the entry `view.rows.sort` names. A
+//!   continuation names what its request named — a sort, `none`, values —
+//!   and names the values the query gave by the query it carries (C100):
+//!   they are a pure function of the canonical query and the build, which
+//!   its basis names (C98), so it fills them again the same and every
+//!   page says them as from the query.
+//! - **A row is compact unless its view names fields** (C100: the caller
+//!   may name fields): `icon`, the URL of the item's art, and `item`, the
+//!   item as `show` gives it — five keys flat after the row's own,
+//!   `item`, `class`, `category`, `price` and `lines`, made from the held
+//!   item by `show`'s one maker (`show::ShownItem::of`), so no second
+//!   maker of any of them stands here. A row's `place` stays its own: the
+//!   corpus names what a socketed item sits in, `show` gives its id.
+//!   Under `item` an answer holds at most
+//!   `acquisition_store::bound::ITEM_ROWS` rows whatever its `limit`
+//!   names, the limit applied said as `view.rows.limit` and the rest its
+//!   continuation at that limit; a smaller limit stands, and an item is
+//!   never cut (C53). A continuation asks the fields its answer asked;
+//!   beside a count they are refused, as a sort is.
 //! - **A continuation is a request with its basis and its place** (C98,
-//!   C100; the build plan, step 10): the answer's own request, scope resolved and
-//!   query canonical, with the basis it was counted at and how many rows
-//!   of the order came before. The place is what makes a request a
+//!   C100): the answer's own request, scope resolved and query
+//!   canonical, with the basis it was counted at and how many rows of
+//!   the order came before. The place is what makes a request a
 //!   continuation: with one, a basis that differs in any part from the
 //!   corpus's is refused, both named part by part (`Basis::against`),
 //!   and the offer is the request from its start; without one a basis
@@ -277,7 +272,7 @@
 //!   no occurrence, a field's term matched no item — each with the values
 //!   sharing its words — a suggestion to type, never a match made for the author
 //!   (S107: never fuzzy-matched); an `id:` that matched nothing, with the
-//!   note that an id is whole (F7); the root's undecided route; and the
+//!   note that an id is whole; the root's undecided route; and the
 //!   offers — never their output: explain of each
 //!   part of the query — a child of the root, a root that is no and its
 //!   one part — the part fewest items match first and by path where two
@@ -286,9 +281,9 @@
 //!   typed. An offer is a request, made by the one maker of a route's
 //!   (`Router::request`), and a command only as every route is one
 //!   (the CLI's `printed.rs`): the block computes no forced count.
-//! - **Explain is a view** (the build plan, step 10): it travels in the request as the rows and the counts do,
-//!   so it stands beside neither, and an adapter's flag is an encoding
-//!   of it. The path names a node of the query as returned
+//! - **Explain is a view**: it travels in the request as the rows and the
+//!   counts do, so it stands beside neither, and an adapter's flag is an
+//!   encoding of it. The path names a node of the query as returned
 //!   (`tree::nodes`, the one walk that numbers them); the substitution
 //!   is that walk's too, the one node replaced by `true()` or `false()`
 //!   and nothing around it touched (invariant 1). Each transformed query
@@ -308,31 +303,30 @@
 //!   first, so that one that does not bind is the error it is in any
 //!   context, and counted nowhere: no term, no route and no bucket holds
 //!   it. Nothing typed, nothing set aside.
-//! - **A row says what each value is** (F6, the first seat: a sort on a line
-//!   the query did not name showed the number alone): the field by its
+//! - **A row says what each value is** (without it, a sort on a line the
+//!   query did not name shows the number alone): the field by its
 //!   name, the occurrence whose slot is the largest, a sum's
 //!   contributors, a computed value's inputs — shown as a matched term's
 //!   evidence is, bounded the same way (`eval::sorted_by`).
-//! - **Membership is the corpus's**, a scope value beside realm and
-//!   never a term — `is:removed` is refused toward it (`bind.rs`)
-//!   (`corpus.rs`; C108;
-//!   the build plan, steps 10 and 11d): `live`; `all`, where the store's
-//!   read hands over every item at the place it was last seen; or
-//!   `removed`, the removed of that read alone. A request naming another
-//!   than the corpus holds is refused, as a realm is. Under `all` and
-//!   `removed` a removed item is a row like any other, marked with when
-//!   it left and counted by every term; the scope block counts the live
-//!   and the removed apart, whichever of them was searched; its price is
-//!   lacked (`price.rs`); every route and every command carries the
-//!   membership. No count of an answer under `all` says how many of its
-//!   items are removed: the same request under `removed` does. Under
-//!   `live` an `id:` term that matches nothing says whether the id is among what
-//!   the read left out — an item removed, a tab or a character retired
-//!   — with what it was, when it left and the route under `all`,
-//!   whatever the total; under `all` and `removed` the same is said of
-//!   a retired tab or character that held no item, with no route, there
-//!   being nothing more to find. Never of an id that is also a live
-//!   location's, and never of a live item's asked under `removed`.
+//! - **Membership is the corpus's**, a scope value beside realm and never
+//!   a term — `is:removed` is refused toward it (`bind.rs`) (`corpus.rs`;
+//!   C108): `live`; `all`, where the store's read hands over every item
+//!   at the place it was last seen; or `removed`, the removed of that
+//!   read alone. A request naming another than the corpus holds is
+//!   refused, as a realm is. Under `all` and `removed` a removed item is
+//!   a row like any other, marked with when it left and counted by every
+//!   term; the scope block counts the live and the removed apart,
+//!   whichever of them was searched; its price is lacked (`price.rs`);
+//!   every route and every command carries the membership. No count of an
+//!   answer under `all` says how many of its items are removed: the same
+//!   request under `removed` does. Under `live` an `id:` term that
+//!   matches nothing says whether the id is among what the read left out
+//!   — an item removed, a tab or a character retired — with what it was,
+//!   when it left and the route under `all`, whatever the total; under
+//!   `all` and `removed` the same is said of a retired tab or character
+//!   that held no item, with no route, there being nothing more to find.
+//!   Never of an id that is also a live location's, and never of a live
+//!   item's asked under `removed`.
 
 use std::collections::{HashMap, HashSet};
 
@@ -360,12 +354,12 @@ use crate::{json, parse, print};
 pub const S107: &str = "a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched";
 /// The zero answer's wording where a term's near values are offered: a
 /// suggestion stands beside "never fuzzy-matched" and is said to be one
-/// (the re-sit, mcp-opus fault 4: "Fenumus' Weave" under a promise of
-/// no guessing, "a wrong lead").
+/// (a value offered under a promise of no guessing reads as a wrong
+/// lead).
 pub const SUGGESTED_SAID: &str = "a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched; a value that shares a word with the term is offered beside it as a suggestion with its own count, never as a match";
 
-/// What a zero answer says of an `id:` term that matched nothing (F7, the
-/// first seat): the help's rule, where the reader is.
+/// What a zero answer says of an `id:` term that matched nothing: the
+/// help's rule, where the reader is.
 pub const ID_WHOLE: &str =
     "an id is matched whole, as an answer printed it: a part of one finds nothing";
 
@@ -700,8 +694,7 @@ impl RowField {
     /// order first named; an empty piece beside a word names nothing. A
     /// list that names no field is refused, as an unknown word is: a
     /// typed list left empty is a mistake to say, never the compact row
-    /// it would read as (the cold review of step 5's build, its second
-    /// finding).
+    /// it would read as.
     pub fn list(text: &str) -> Result<Vec<RowField>, LanguageError> {
         let mut fields = Vec::new();
         for word in text.split(',').map(str::trim).filter(|w| !w.is_empty()) {
@@ -1121,10 +1114,10 @@ struct ViewNamed {
     sort: bool,
 }
 
-/// The most values a row carries (4-full part 1, step 6.1): a list
-/// named longer is refused, and the query's own past it are counted. Not
-/// the six of a row's evidence (`eval.rs`): a trade search filters on
-/// more stats than six, and each is a column its table shows.
+/// The most values a row carries: a list named longer is refused, and
+/// the query's own past it are counted. Not the six of a row's evidence
+/// (`eval.rs`): a trade search filters on more stats than six, and each
+/// is a column its table shows.
 pub const VALUES: usize = 12;
 
 /// The sort word for the store's order, which naming no sort gives too:
@@ -1185,10 +1178,10 @@ impl BoundView {
                 values.push((text.clone(), key.clone()));
                 *sort_joined = true;
             }
-            // the bound, held once, on the list a row carries (the cold
-            // reviews at 1ab468eb and 849ccbab found it held on two paths
-            // and missed on a third): named past it is refused; the
-            // query's is cut from its end and counted, the sort kept
+            // the bound, held once, on the list a row carries (held on
+            // several paths, it was missed on one): named past it is
+            // refused; the query's is cut from its end and counted, the
+            // sort kept
             if values.len() > VALUES {
                 if named {
                     return Err(LanguageError::new(
@@ -1398,8 +1391,7 @@ impl Shape {
 /// was asked and over what, the total, the view and how to go on, and
 /// only then the terms block, each term counted alone over the scope, and
 /// the basis. An agent reads the JSON as text, so the order is the
-/// serialized order too (the trade seat: "I learned to scroll for
-/// `total`").
+/// serialized order too (a reader otherwise scrolls for `total`).
 #[derive(Debug, Clone, Serialize)]
 pub struct Answer {
     pub query: QueryOut,
@@ -1485,14 +1477,14 @@ impl From<Translation> for TradeOut {
 /// An exact clause with a term of its own is that term (C100: one
 /// shape, its evidence once): the text states it, the terms block counts
 /// it by its path, and its `site`, `rows` and `notes` would say again
-/// what the term says, a pseudo stat's sentence once a filter (the trade
-/// seat's ring URL: its report 2.7 KB of a 7.9 KB answer of three rows).
+/// what the term says, a pseudo stat's sentence once a filter (on a ring
+/// search, its report was 2.7 KB of a 7.9 KB answer of three rows).
 /// A clause with no term of its own — a filter inside a weighted sum,
 /// whose sum is its group's term, or a group that writes none — or one
 /// that matches nothing, which its term never says why (a range that runs
-/// backwards, its row `query.inverted`, #150), is not stated by the text, and keeps its whole row, as every clause that
-/// differs from the text does; the catalogue's sentences stay in
-/// `describe trade`.
+/// backwards, its row `query.inverted`), is not stated by the text, and
+/// keeps its whole row, as every clause that differs from the text does;
+/// the catalogue's sentences stay in `describe trade`.
 #[derive(Debug, Clone, Serialize)]
 pub struct ClauseOut {
     pub at: String,
@@ -1517,8 +1509,8 @@ pub struct ClauseOut {
 }
 
 impl ClauseOut {
-    /// Whether the clause matches nothing, a range that runs backwards
-    /// (#150): known by its row, never by its term's spelling.
+    /// Whether the clause matches nothing, a range that runs backwards:
+    /// known by its row, never by its term's spelling.
     pub fn matches_nothing(&self) -> bool {
         self.rows
             .iter()
@@ -1531,7 +1523,7 @@ impl From<Clause> for ClauseOut {
         // slimmed only where the text states it: exact, with a term of
         // its own — a filter inside a weighted sum, or a group, has none —
         // and not one that matches nothing, whatever its term's spelling
-        // (`false()`, or `-L or false()` under `if`): no term says why (#150)
+        // (`false()`, or `-L or false()` under `if`): no term says why
         let exact = c.status == Status::Exact && c.term.is_some() && !c.matches_nothing();
         ClauseOut {
             at: c.at,
@@ -1923,8 +1915,8 @@ pub struct Row {
 
 /// What a row shows of one term it matched: the term by its path in the
 /// terms block, and what it touched. The term's text is the terms
-/// block's, said once there (C53, C115: a row of the trade seat's ring
-/// search carried each of its four terms whole, every row).
+/// block's, said once there (C53, C115: otherwise a row of a ring search
+/// carries each of its four terms whole, every row).
 #[derive(Debug, Clone, Serialize)]
 pub struct Touched {
     pub path: String,
@@ -1941,7 +1933,7 @@ fn is_zero(n: &usize) -> bool {
 }
 
 /// An item's number for one value, as the sort reads it, or why it has
-/// none (C92), and what it is (F6, the first seat): the field with its
+/// none (C92), and what it is: the field with its
 /// name, the occurrence whose slot is the largest, a sum's contributors,
 /// a computed value's inputs — as a matched term's `shows` are, bounded
 /// the same way.
@@ -2116,7 +2108,7 @@ fn subject(corpus: &Corpus, at: impl Iterator<Item = usize>) -> (usize, Option<F
         return (0, None);
     }
     // in the store's order of locations, so a tie names the location the
-    // scope's span names (the answer-facts seat, MCP fault 4)
+    // scope's span names
     let mut places = places;
     places.sort_by_key(|p| {
         corpus
@@ -2185,12 +2177,12 @@ fn ordered(
     order
 }
 
-/// Each id's index in the whole order of a rows request (4-full part 1,
-/// step 6.5c, Decision 2): the place [`answer`] lists its row at, its
-/// `after` and `limit` aside, so a window with `after` that index and
-/// `limit` one is that row; none where the order holds no such id, and
-/// none for each id where the view lists no rows. Refused as [`answer`]
-/// refuses the request. One matching and one order with [`answer`]'s.
+/// Each id's index in the whole order of a rows request: the place
+/// [`answer`] lists its row at, its `after` and `limit` aside, so a
+/// window with `after` that index and `limit` one is that row; none where
+/// the order holds no such id, and none for each id where the view lists
+/// no rows. Refused as [`answer`] refuses the request. One matching and
+/// one order with [`answer`]'s.
 pub fn indices(
     corpus: &Corpus,
     request: &Request,
@@ -3291,8 +3283,8 @@ fn routes(term: &Term) -> Routes {
 /// field, or the templates of a line's group — a `sum`'s group too.
 /// Whether every template test of the term's group is a quoted `"T"`. Such
 /// a term resolves to itself and lists nothing — unless it found more than
-/// one spelling, which any-case `=` can (owner, 2026-09-20: six pairs of
-/// the census's templates differ only by capitals), and then it says so.
+/// one spelling, which any-case `=` can (six pairs of the census's
+/// templates differ only by capitals), and then it says so.
 fn exact_only(term: &Term) -> bool {
     match &term.atom {
         Atom::Lines(group) | Atom::Sum { group, .. } => group.quoted_only(),
@@ -3392,7 +3384,7 @@ fn resolved_values(term: &Term, held: &Held, outcome: Outcome) -> Vec<String> {
             .collect(),
         // what the closed set's selector picked of the item's values — an
         // item that is each of two classes carries one the term did not
-        // pick (the rule of 2026-09-26; `class.rs`)
+        // pick (`class.rs`)
         Atom::Closed { thing, values, .. } if outcome == Outcome::Matched => {
             eval::texts(held, *thing)
                 .into_iter()
@@ -3457,7 +3449,7 @@ fn nothing(corpus: &Corpus, term: &Term, picked: bool, matched: usize) -> Option
                 },
                 Atom::Closed { thing, .. },
             ) if matched == 0 => (field.clone(), None, Some(*thing)),
-            // an id is whole, and one that matched nothing says so (F7):
+            // an id is whole, and one that matched nothing says so:
             // no value shares words with it
             (_, Atom::Id(_)) if matched == 0 => {
                 return Some(Nothing {
@@ -3586,8 +3578,8 @@ impl Answer {
     /// a never-fetched tab, the rest of the named that hold one counted;
     /// where the query names none, the league holding the most, every
     /// other counted; never a league the query excludes; none where no
-    /// league it may name holds one (#36: under two `league=` terms the
-    /// pointer named the realm's most, which may be neither).
+    /// league it may name holds one (else, under two `league=` terms, the
+    /// pointer would name the realm's most, which may be neither).
     pub fn tabs_pointer(&self) -> Option<TabsPointer> {
         let Realm::One(realm) = &self.scope.realm else {
             return None;
@@ -3617,7 +3609,7 @@ impl Answer {
     }
 
     /// The one league the answer's query fixes (`fixed_league`'s
-    /// rule): a page's way to that league's places (step 6.5b).
+    /// rule): a page's way to that league's places.
     pub fn fixed_league(&self) -> Option<&str> {
         fixed_league(&self.query.tree)
     }
@@ -3643,7 +3635,7 @@ enum Reach {
 
 /// The query's `league=` terms and where each stands, the one reader of
 /// them: the field named as the binder reads a name, in any case
-/// (`bind::names_field`; the review of round A, finding 2). A term under
+/// (`bind::names_field`). A term under
 /// `undecided( )` or `holds( )` is none of these and is not read: it does
 /// not ask for that league's items, nor exclude them.
 fn league_terms(tree: &Json) -> Vec<(&str, Reach)> {
@@ -3676,8 +3668,8 @@ fn league_terms(tree: &Json) -> Vec<(&str, Reach)> {
 /// The one league a query's tree fixes: the one `league=` term among the
 /// root and its and-ed descendants, through every nested conjunction — a
 /// refinement parenthesizes the old text and appends a term, and means
-/// the same (review 2 of the re-sit: `(league=Standard rarity=rare)
-/// ilvl>=1` had lost its league's list age).
+/// the same (else `(league=Standard rarity=rare) ilvl>=1` would lose its
+/// league's list age).
 fn fixed_league(tree: &Json) -> Option<&str> {
     let terms = league_terms(tree);
     let mut fixed = terms.iter().filter(|(_, reach)| *reach == Reach::Fixed);
@@ -3738,9 +3730,8 @@ impl Counts {
     /// of it as syntax: in a list of several, the rest after `line:` are
     /// texts, which a field could never follow and a text that begins
     /// `line:` could never be told from. Fields, and `line` alone, run
-    /// together in one list until a narrowing ends it. (Outside audit,
-    /// 2026-10-10, twice: a spelling made case by case kept one case
-    /// behind.)
+    /// together in one list until a narrowing ends it. (A spelling made
+    /// case by case keeps one case behind.)
     pub fn lists(&self) -> Vec<String> {
         let mut lists: Vec<String> = Vec::new();
         let mut run: Vec<String> = Vec::new();
@@ -3922,7 +3913,7 @@ impl Shell {
 }
 
 /// One POSIX shell word, in single quotes when it needs them; an
-/// apostrophe inside is `'\''` (the build plan, gap 2).
+/// apostrophe inside is `'\''` (B8).
 pub fn posix_quoted(text: &str) -> String {
     let plain = !text.is_empty()
         && text

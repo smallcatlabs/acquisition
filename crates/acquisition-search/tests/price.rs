@@ -1,8 +1,8 @@
-//! The effective price through the crate's boundary (`search/LEDGER.md`,
-//! step 9; C81, C100, C98): a request in, an answer out, as JSON. Every
-//! count is worked by hand from the fixture below, every route an answer
-//! prints is followed and compared by id, and the price an item shows is
-//! the listing state's — never a reading of this crate's own.
+//! The effective price through the crate's boundary (`search/LEDGER.md`;
+//! C81, C100, C98): a request in, an answer out, as JSON. Every count is
+//! worked by hand from the fixture below, every route an answer prints is
+//! followed and compared by id, and the price an item shows is the
+//! listing state's — never a reading of this crate's own.
 
 use crate::common;
 
@@ -651,13 +651,12 @@ fn a_price_term_over_an_empty_intent_file_is_the_games_alone() {
     assert_eq!(sides, set_of(&["game"]));
 }
 
-/// The step-9 outside review, each finding reproduced (the record,
-/// "Findings"): a body's malformed field is unread at that field and never
-/// fails the search; a note the index cannot see decides nothing whatever
-/// it says; an object note is unread too; a league-less character in a
-/// realm with no league on record is priced by its row; a price past the
-/// search's rule for numbers is unread at its number, never a float that
-/// drops digits into another price's bucket.
+/// Each fault reproduced: a body's malformed field is unread at that
+/// field and never fails the search; a note the index cannot see decides
+/// nothing whatever it says; an object note is unread too; a league-less
+/// character in a realm with no league on record is priced by its row; a
+/// price past the search's rule for numbers is unread at its number,
+/// never a float that drops digits into another price's bucket.
 fn one_priced(public: bool, more: Value, amount: &str) -> (Store, Annotations) {
     let mut s = store();
     list_tabs(
@@ -842,10 +841,10 @@ fn review_a_price_past_the_search_s_number_rule_is_unread_at_its_number() {
     }
 }
 
-/// The review's second look: a field nested past a decoder's depth beside
-/// a valid one loses nothing — the deep field is unread, its sibling
-/// reads — and an unread note where no index sees it is never the reason
-/// an unread row leaves the price unresolved.
+/// A field nested past a decoder's depth beside a valid one loses nothing
+/// — the deep field is unread, its sibling reads — and an unread note
+/// where no index sees it is never the reason an unread row leaves the
+/// price unresolved.
 #[test]
 fn review_a_deep_malformed_field_hides_no_sibling_and_a_private_note_is_never_blamed() {
     let mut deep = json!({ "x": 1 });

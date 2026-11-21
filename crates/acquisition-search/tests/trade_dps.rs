@@ -1,9 +1,9 @@
-//! The damage at 20 % quality against the trade site (C101; step 7e of
-//! `search/TRADE-PLAN.md` at `77666ea4`, the oracle's finding `dps-at-quality`): the
-//! site's Physical DPS and Damage per Second put 20 % quality in (t41,
-//! t42), and its own figures for every weapon it sent are in the captures
-//! (`extended.pdps`, `dps`, `edps`). Each listing is entered as the site
-//! sent it (`search/pseudo-stats/data/bodies.json`), the build's
+//! The damage at 20 % quality against the trade site (C101; the oracle's
+//! finding `dps-at-quality`): the site's Physical DPS and Damage per
+//! Second put 20 % quality in (t41, t42), and its own figures for every
+//! weapon it sent are in the captures (`extended.pdps`, `dps`, `edps`).
+//! Each listing is entered as the site sent it
+//! (`search/pseudo-stats/data/bodies.json`), the build's
 //! `pseudo.pdps_q20`, `pseudo.dps_q20` and `pseudo.edps` read by a sort,
 //! and each set against the site's.
 //!
@@ -38,7 +38,7 @@ fn values(corpus: &acquisition_search::Corpus, field: &str) -> BTreeMap<String, 
         .collect()
 }
 
-/// The step 7e acceptance for `dps-at-quality`: over every listing the
+/// The acceptance for `dps-at-quality`: over every listing the
 /// sittings fetched that carries the site's dps — 1,198 weapons, 1,098 of
 /// them displaying physical damage and an attack speed — the build's
 /// physical mean at 20 % quality is the site's on 904, a half off on 182
@@ -46,8 +46,7 @@ fn values(corpus: &acquisition_search::Corpus, field: &str) -> BTreeMap<String, 
 /// speed); `dps_q20`, the elemental and chaos ranges as displayed, stands
 /// to the site's `dps` with the same spread; and `pseudo.edps` is the
 /// site's `edps` on every one of the 1,198, to the site's two decimals.
-/// The sitting of 2026-11-17 (#282) brought three: y04's bow, claw and
-/// mace, two equal and one a half off.
+/// Among them y04's bow, claw and mace: two equal and one a half off.
 #[test]
 fn dps_at_quality_the_q20_damage_is_within_one_of_every_captured_figure() {
     let captures: Value = serde_json::from_str(CAPTURES).unwrap();
@@ -148,12 +147,12 @@ fn dps_at_quality_the_q20_damage_is_within_one_of_every_captured_figure() {
     assert_eq!(spread(&dps_off), [904, 182, 12, 0], "dps {dps_off:?}");
 }
 
-/// The enchant `Quality does not increase Physical Damage` (the outside
-/// review of 7e): under it the display is the damage at 20 % whatever the
-/// quality — every captured weapon carrying it is at 20 % or more, so this
-/// asks below — and the quality and the enchant are read before either
-/// decides (rule 8): an unread array of lines leaves the value open below
-/// 20 % alone, where the enchant could change it.
+/// The enchant `Quality does not increase Physical Damage`: under it the
+/// display is the damage at 20 % whatever the quality — every captured
+/// weapon carrying it is at 20 % or more, so this asks below — and the
+/// quality and the enchant are read before either decides (rule 8): an
+/// unread array of lines leaves the value open below 20 % alone, where the
+/// enchant could change it.
 #[test]
 fn dps_at_quality_the_enchant_keeps_the_display_below_twenty_percent() {
     let weapon = |id: &str, quality: &str, more: Value| {

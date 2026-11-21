@@ -8,23 +8,22 @@
 //! - **C113** (a search id decodes offline): The id is the query object,
 //!   gzipped and base64url-encoded (S56).
 //!
-//! # As built (step 1 of the brief: decode)
+//! # As built: decode
 //!
 //! - **A URL is a request** (K6). `/trade/search/<league>/<id>` names the
 //!   pc realm; `/trade/search/(xbox|sony)/<league>/<id>` that console. The
 //!   realm is the scope and the league a term — both leave here as words,
-//!   for the translation to place (step 4). The path is what stands
-//!   between the host and the first `?` or `#`, read segment by segment:
-//!   an empty segment inside it is refused, never skipped, so a doubled
-//!   slash can never move a realm into the league's place (the first
-//!   outside review of the step); one trailing slash is nothing; the
-//!   site's `/live` suffix is its live view of the same search and is
-//!   dropped. The league is percent-decoded, and an escape that is no two
-//!   hex digits, or a decoding that is no UTF-8, is refused rather than
-//!   altered — a league is a term, and a changed one would answer nothing
-//!   with no word why. A `/trade2/` URL, or the `poe2` realm, is refused
-//!   by name before anything decodes: inbound is PoE1 only (note 36 at
-//!   `b6197a82`, ruling 5).
+//!   for the translation to place. The path is what stands between the
+//!   host and the first `?` or `#`, read segment by segment: an empty
+//!   segment inside it is refused, never skipped, so a doubled slash can
+//!   never move a realm into the league's place; one trailing slash is
+//!   nothing; the site's `/live` suffix is its live view of the same
+//!   search and is dropped. The league is percent-decoded, and an escape
+//!   that is no two hex digits, or a decoding that is no UTF-8, is refused
+//!   rather than altered — a league is a term, and a changed one would
+//!   answer nothing with no word why. A `/trade2/` URL, or the `poe2`
+//!   realm, is refused by name before anything decodes: inbound is PoE1
+//!   only (note 36 at `b6197a82`, ruling 5).
 //! - **The id is the query object**, gzipped and base64url-encoded without
 //!   padding (S56; the eight captured ids, `tests/trade_decode.rs`). A
 //!   bare id decodes the same way. The id's text is bounded before it is
@@ -54,11 +53,11 @@
 //!   the translated text name the field used; the option is read beside
 //!   `league` (C141, the league beside the JSON) and nothing else of the
 //!   envelope changes.
-//! - Nothing here reads the vocabulary or writes a word of the language:
-//!   that is the translation, [`translate`] (step 4), which consumes a
-//!   [`Decoded`] and reads the stat table, [`stats`] (step 2), for the
-//!   vocabulary and the catalogue, [`catalogue`] (its loader step 3's),
-//!   for what each clause becomes.
+//! - Nothing here reads the vocabulary or writes a word of the
+//!   language: that is the translation, [`translate`], which consumes
+//!   a [`Decoded`] and reads the stat table, [`stats`], for the
+//!   vocabulary and the catalogue, [`catalogue`], for what each clause
+//!   becomes.
 
 use std::io::Read as _;
 

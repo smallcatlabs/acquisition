@@ -1,7 +1,7 @@
-//! The defence table (C101, C106, C68; the build plan, step 9d-A): what
-//! the base defence percentile reads beside the item — each base's
-//! defence ranges, and each text a local defence stat displays with what
-//! it does — as reviewed reference data.
+//! The defence table (C101, C106, C68): what the base defence percentile
+//! reads beside the item — each base's defence ranges, and each text a
+//! local defence stat displays with what it does — as reviewed reference
+//! data.
 //!
 //! The field that reads it, and every rule that decides its answer, is
 //! `pseudo.rs`'s (C101; J5, J6, J8, J33–J35). This module holds the data

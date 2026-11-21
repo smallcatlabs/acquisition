@@ -1,11 +1,10 @@
-//! The moved world (step 4b of the roadmap, `roadmap/briefs/4b-build.md`,
-//! Do 9): what a new league brings first — a base the class table does
-//! not hold, a mechanic's line in an array of its own with a flag that is
-//! no yes or no, and a site search naming a stat the table lacks — is
-//! answered and shown, never refused, each carrying the state a reader is
-//! told it by: undecided with its reason, the flag unknown and the part
-//! unread, the clause not run and the answer not the site's. The web
-//! UI's badges render these states and nothing else (the CLI's
+//! The moved world: what a new league brings first — a base the class
+//! table does not hold, a mechanic's line in an array of its own with a
+//! flag that is no yes or no, and a site search naming a stat the table
+//! lacks — is answered and shown, never refused, each carrying the state
+//! a reader is told it by: undecided with its reason, the flag unknown
+//! and the part unread, the clause not run and the answer not the site's.
+//! The web UI's badges render these states and nothing else (the CLI's
 //! `tests/web.rs`).
 
 use crate::common;

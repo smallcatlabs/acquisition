@@ -1,9 +1,9 @@
 //! Invariant 7 of the surface (the crate's doc): parentheses group and
 //! do nothing else — a rewrite that changes no meaning changes no match, no
 //! count, no error and no route, only the canonical text and the paths.
-//! Step 4b's equivalence property (the build plan), over generated queries
-//! and generated items, through the crate's boundary alone: a request in,
-//! an answer out, as JSON.
+//! The equivalence property, over generated queries and generated items,
+//! through the crate's boundary alone: a request in, an answer out, as
+//! JSON.
 //!
 //! A query is generated as a tree of the test's own (`common::generated`)
 //! and asked three ways: as written; with every nested and and or
@@ -14,15 +14,14 @@
 //! and compared by the ids it returns — and, of an error, the text of a
 //! reading that prints the query's own tree, followed as a route is.
 //!
-//! And a fourth way since the outside review of step 9c4: with an
-//! alternative that holds nowhere beside every line's group. It holds on
-//! none of these items, but on another item it would, so the padded
-//! query is another question that agrees with the first only here. It
-//! changes what is said of the group's syntax — the slot check, the
-//! together bound, what its templates resolved to, the values the query
-//! compares (#292) — and nothing these items decide: the matches, every
-//! term's four counts by their members, and what each row sorts by are
-//! compared.
+//! And a fourth way: with an alternative that holds nowhere beside every
+//! line's group. It holds on none of these items, but on another item it
+//! would, so the padded query is another question that agrees with the
+//! first only here. It changes what is said of the group's syntax — the
+//! slot check, the together bound, what its templates resolved to, the
+//! values the query compares — and nothing these items decide: the
+//! matches, every term's four counts by their members, and what each row
+//! sorts by are compared.
 //!
 //! What this cannot see: a fault every spelling shares. That is the
 //! hand-counted tests' and the completion property's.
@@ -349,9 +348,8 @@ proptest! {
 
 /// Past a bound: seven unread flags and a probe of seven terms, so that
 /// what a row shows is cut — and cut the same however the terms are
-/// ordered. An outside review (2026-09-21) passed this fixture through
-/// `check` and it refused; the generators' items never held more unread
-/// parts than a row shows.
+/// ordered. The generators' items never hold more unread parts than a
+/// row shows, so this fixture is the case they miss.
 #[test]
 fn invariant_7_holds_where_a_block_is_cut() {
     let flags = [
@@ -376,13 +374,13 @@ fn invariant_7_holds_where_a_block_is_cut() {
     }
 }
 
-/// #292: a padding beside a group that changes the values the query
-/// compares. The padded query is another question, which agrees with the
-/// first only on these items, and the values a query compares are its
-/// text's, never an order. In each case the padding changes them: a slot
-/// the padding's one template lacks, refused once the selector folds to
-/// it (the seed's case, and the projection's own slot, where no row has a
-/// number for the value), and one value padded apart into two.
+/// A padding beside a group that changes the values the query compares.
+/// The padded query is another question, which agrees with the first only
+/// on these items, and the values a query compares are its text's, never
+/// an order. In each case the padding changes them: a slot the padding's
+/// one template lacks, refused once the selector folds to it (the seed's
+/// case, and the projection's own slot, where no row has a number for the
+/// value), and one value padded apart into two.
 #[test]
 fn invariant_7_holds_beside_a_padding_that_changes_the_values_compared() {
     let life = || Q::Alt("\"life\"".into(), "text:life".into(), TermKind::Plain);

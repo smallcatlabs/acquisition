@@ -1,9 +1,8 @@
-//! The sockets (C101; the build plan, step 8): what `sockets`, `links`,
-//! `sockets.<colour>` and a link group's `red green blue white size` count
-//! on one item, and what leaves each open. Arithmetic over the collection
-//! the deriver read (`derive::Item::sockets`), and nothing of the query
-//! tree: what `linked( … )` means is `group.rs`'s, which reads the counts
-//! here.
+//! The sockets (C101): what `sockets`, `links`, `sockets.<colour>` and a
+//! link group's `red green blue white size` count on one item, and what
+//! leaves each open. Arithmetic over the collection the deriver read
+//! (`derive::Item::sockets`), and nothing of the query tree: what
+//! `linked( … )` means is `group.rs`'s, which reads the counts here.
 //!
 //! The rules that decide a count are this doc's (C101).
 //!
@@ -43,9 +42,8 @@
 //!   make one of its own ([`Groups`]). A socket whose group is unread is
 //!   a socket still: it adds to its own colour's ceiling and to no other,
 //!   it makes a link group exist, and alone — no group known, no element
-//!   unread — it is a group of one, exactly (an outside review,
-//!   2026-09-24, 2 and 3). A colour a socket's group could turn is a
-//!   reason a `linked( … )` is open (its 1).
+//!   unread — it is a group of one, exactly. A colour a socket's group
+//!   could turn is a reason a `linked( … )` is open.
 //! - **Present and absent** (C93): an item whose body carries no `sockets`
 //!   lacks every count, so `sockets>=1` is false on a ring and `-has:sockets`
 //!   finds it. An item whose collection is present holds `sockets` and
@@ -260,8 +258,8 @@ impl Groups<'_> {
 
     /// The sockets whose group is unread that may add to a colour's count
     /// of a group they are not already members of: those of that colour,
-    /// and those whose colour is unread too (an outside review, 2026-09-24,
-    /// round 2: the socket alone in its collection was counted twice).
+    /// and those whose colour is unread too (else the socket alone in its
+    /// collection is counted twice).
     fn unplaced_of(&self, letter: &str, members: &[usize]) -> usize {
         self.sockets
             .iter()

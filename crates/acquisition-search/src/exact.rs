@@ -1,28 +1,27 @@
 //! A displayed number, and the arithmetic done on it (C92, C94, C95):
 //! exact, and the same in any order.
 //!
-//! **A number is read once, where the body is read.** What a game displays
-//! is a short decimal: over the census's store copy (212,233 numbers on
-//! 22,721 items, 2026-09-21) none has more than two decimals or ten whole
-//! digits. [`reads`] is the rule — at most ten whole digits and four
-//! decimals — and the deriver asks it of every number of every line: one
-//! it does not read is an unread slot of its line (C93; `derive::Slot`),
-//! which is the one failure path evidence has, at the grain the evidence
-//! was lost. Nothing downstream meets a number outside the rule, so
-//! nothing downstream has a fallback, and no answer depends on the order
-//! that a sum happened to overflow in (outside review, 2026-09-21).
+//! **A number is read once, where the body is read.** What a game
+//! displays is a short decimal: over the census's store copy (212,233
+//! numbers on 22,721 items, 2026-09-21) none has more than two decimals
+//! or ten whole digits. [`reads`] is the rule — at most ten whole digits
+//! and four decimals — and the deriver asks it of every number of every
+//! line: one it does not read is an unread slot of its line (C93;
+//! `derive::Slot`), which is the one failure path evidence has, at the
+//! grain the evidence was lost. Nothing downstream meets a number
+//! outside the rule, so nothing downstream has a fallback, and no answer
+//! depends on the order that a sum happened to overflow in.
 //!
 //! **Arithmetic is on whole units.** Added as binary floats, 0.1 + 0.2 +
 //! 0.3 is 0.6000000000000001 one way round and 0.6 the other, and
-//! `sum( … )=0.6` matched one of two items carrying the same lines (outside
-//! audit, 2026-09-21). A number within the rule is a whole count of
-//! hundred-thousandths — four decimals, and one more for the half a ranged
-//! pair's mean may end in — which a float holds exactly; units add as
-//! integers, and the total is written out as the decimal it is and read
-//! by the parser a typed bound is read by, so the two are one float
-//! however large the total (dividing a total past 2^53 as a float rounded
-//! twice: outside review, 2026-09-22). A comparison needs none of this: two
-//! floats read from the same decimal are the same float.
+//! `sum( … )=0.6` matched one of two items carrying the same lines. A
+//! number within the rule is a whole count of hundred-thousandths — four
+//! decimals, and one more for the half a ranged pair's mean may end in —
+//! which a float holds exactly; units add as integers, and the total is
+//! written out as the decimal it is and read by the parser a typed bound
+//! is read by, so the two are one float however large the total (dividing
+//! a total past 2^53 as a float rounds twice). A comparison needs none of
+//! this: two floats read from the same decimal are the same float.
 //!
 //! **Units are carried, never reconstructed.** A displayed number, or the
 //! mean of a ranged pair, becomes units once ([`Exact::of`]), read off the
@@ -32,10 +31,9 @@
 //! orders by; it becomes a float only where a number is compared or
 //! printed. A total's decimal can be longer than a float holds, so a float
 //! made of it does not print it back, and units read from that print are
-//! wrong — an outside audit (2026-09-22) met a bucket ending `.99313` where the
-//! item said `.9931`, and the first fix, which read units off the float
-//! again, left nine cancelling totals and `0.0001` summing to `0.00011`
-//! (its review, 1).
+//! wrong — a bucket ended `.99313` where the item said `.9931`, and units
+//! read off the float again left nine cancelling totals and `0.0001`
+//! summing to `0.00011`.
 //!
 //! **A fraction is whole numbers, never a float** ([`Ratio`]). The base
 //! defence percentile (`pseudo.rs`, C101) works back from a displayed
@@ -58,7 +56,7 @@ const UNITS: f64 = 100_000.0;
 /// Whether the search reads this number, as written: digits, a point and
 /// digits, a sign before them or none, its thousands commas gone — and
 /// nothing else: `1e34` is no number the game displays, and read as one
-/// it overflowed the units (outside audit, 2026-09-24).
+/// it overflowed the units.
 pub(crate) fn reads(literal: &str) -> bool {
     let digits = literal
         .strip_prefix('+')
@@ -118,9 +116,8 @@ impl Exact {
     /// and the mean of its damage (`pseudo.rs`, C101) — where it is a whole
     /// count of units, and none where it is not: a product may need more
     /// decimals than a sum, and one the units cannot hold is unread to what
-    /// asked it, never rounded (outside audit, 2026-09-24; the game
-    /// displays at most two decimals on either, so no displayed weapon
-    /// meets it).
+    /// asked it, never rounded (the game displays at most two decimals on
+    /// either, so no displayed weapon meets it).
     pub fn times(self, other: Exact) -> Option<Exact> {
         let units = UNITS as i128;
         let product = self.0.checked_mul(other.0)?;
@@ -320,9 +317,9 @@ mod tests {
         assert_eq!(sum([9999999999.9997; 19]), 189999999999.9943);
         assert_eq!(sum([-9999999999.9997; 19]), -189999999999.9943);
         // a total added again — a bucket's sum of item totals — is exact
-        // as units, where a float of it is not (outside audit and review,
-        // 2026-09-22): nine means of large pairs, their negatives, and
-        // a ten-thousandth, split over two totals or one
+        // as units, where a float of it is not: nine means of large
+        // pairs, their negatives, and a ten-thousandth, split over two
+        // totals or one
         let total = Exact::sum([Exact::of(9999999999.9997); 23]);
         assert_eq!(total.as_f64(), 229999999999.9931);
         assert_eq!(Exact::sum([total, total]).as_f64(), 459999999999.9862);
@@ -357,7 +354,7 @@ mod tests {
         assert_eq!(times(225.5, 1.25), Some(281.875));
         assert_eq!(times(0.0001, 0.5), Some(0.00005));
         // six decimals do not fit the units: no product, never a rounding
-        // (outside audit, 2026-09-24: 0.000025 read as 0.00003)
+        // (rounded, 0.000025 read as 0.00003)
         assert_eq!(times(0.0001, 0.25), None);
         assert_eq!(times(0.0001, 0.1), Some(0.00001));
         // the rule's largest number squared is within i128 and exact
@@ -430,7 +427,7 @@ mod tests {
             "0.00001",
             "+10000000000000000000000000000",
             // no number the game displays: read as one, `1e34` overflowed
-            // the units (outside audit, 2026-09-24)
+            // the units
             "1e34",
             "inf",
             "NaN",

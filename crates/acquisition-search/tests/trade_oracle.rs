@@ -1,30 +1,29 @@
-//! The oracle of missed matches (C113, K6; step 6 of `search/TRADE-PLAN.md` at `77666ea4`):
-//! every search the site answered with fetched items, translated, and the
-//! items it returned entered through the store's ingest and asked the
-//! translated text. The captures hold what the site returned and never what
-//! it excluded, so this sees missed matches alone; excess matches are step
-//! 4's guard and fixtures.
+//! The oracle of missed matches (C113, K6): every search the site answered
+//! with fetched items, translated, and the items it returned entered
+//! through the store's ingest and asked the translated text. The captures
+//! hold what the site returned and never what it excluded, so this sees
+//! missed matches alone; excess matches are the translation's guard and
+//! fixtures.
 //!
 //! An item entered is the item as the site sent it
 //! (`search/pseudo-stats/data/bodies.json`, `tools/trade-captures.py`): an
 //! item rebuilt from the extract's selection of it lost what the search
 //! reads — the bestiary text that makes a beast a beast, the item level —
-//! and 3,438 of the items missed where 497 do as sent (measured at the
-//! step's opening, 2026-10-16).
+//! and 3,438 of the items missed where 497 do as sent.
 //!
 //! Every item that the text does not match is a disagreement, and an item
 //! the text leaves undecided is one too, of its own kind, never a match.
 //! Each is a row of `trade-oracle.toml`, naming the top-level clauses that
 //! refuse it — each clause's term asked alone, so a row says which clause
 //! and never guesses — and the finding that answers it: a fact of the
-//! site's captures, the owner's ruling, or a question for the sitting
-//! (step 7). The rows are the expected set exactly: a new disagreement and
-//! a vanished one each fail. A fact of the site lies where the item meets
-//! it — the clauses under the refusing one whose term alone the item meets,
-//! the eldritch line a `not` excludes — and the report calls each of them
-//! ambiguous by the fact's catalogue row, so that no clause is read as
-//! exact against what the captures show, and no labelled sibling stands in
-//! for an unlabelled one (the outside review of step 6).
+//! site's captures, the owner's ruling, or a question for a sitting. The
+//! rows are the expected set exactly: a new disagreement and a vanished one
+//! each fail. A fact of the site lies where the item meets it — the clauses
+//! under the refusing one whose term alone the item meets, the eldritch
+//! line a `not` excludes — and the report calls each of them ambiguous by
+//! the fact's catalogue row, so that no clause is read as exact against
+//! what the captures show, and no labelled sibling stands in for an
+//! unlabelled one.
 
 use crate::common;
 
@@ -40,7 +39,7 @@ const CAPTURES: &str = include_str!("../../../search/pseudo-stats/data/captures.
 const BODIES: &str = include_str!("../../../search/pseudo-stats/data/bodies.json");
 const CENSUS: &str = include_str!("../../../search/trade-query/data/fetch-census.json");
 const EXPECTED: &str = include_str!("trade-oracle.toml");
-/// The owner's searches of 2026-09-13 were made in Standard
+/// The owner's searches were made in Standard
 /// (`search/trade-query/MANIFEST.md`); their census names no league.
 const CENSUS_LEAGUE: &str = "Standard";
 
@@ -81,7 +80,7 @@ struct Row {
 /// One search: its name, its league and its query as the site took them,
 /// its items as sent. A search is its league and its query: the league is
 /// translated as the URL would name it, so a translation that writes
-/// another misses every item (the outside review of step 7).
+/// another misses every item.
 struct Search {
     name: String,
     league: String,
@@ -94,8 +93,7 @@ fn searches() -> Vec<Search> {
     let bodies: Value = serde_json::from_str(BODIES).unwrap();
     let census: Value = serde_json::from_str(CENSUS).unwrap();
     // One generation's two files: each names the raw it was made from, and
-    // a pair whose counts agree may still be a new item beside an old body
-    // (the outside review of 373c541a).
+    // a pair whose counts agree may still be a new item beside an old body.
     assert!(captures["_raw"].is_string(), "the extract names no raw");
     assert_eq!(
         captures["_raw"], bodies["_raw"],
@@ -234,19 +232,18 @@ fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
         .collect()
 }
 
-/// Step 6's acceptance, and step 7's sitting read by it: over the
-/// captures with fetched items — the 529 of the pseudo track's sittings,
-/// the 260 of step 7's rounds t to w — and the owner's seven searches
-/// that fetched any, every one whose translation has no remainder runs,
-/// and every item the site returned that the text does not match is a row
-/// of the expected set, which is exactly what is found. The searches with
-/// no item (335, q2b, and 26 of step 7's) are excluded by name; so are the
-/// 31 whose translation has a remainder — 13 weighted groups of mixed
-/// weights, outside the brief, 15 crucible-node searches, and step 7's
-/// questions the build leaves unsupported: two ids of two texts and the
-/// damage filter. Step 7f ran five that were partial (t37, t38, t55, t56,
-/// u059). The sitting of 2026-11-17 (#282) added 31 searches: 11 with no
-/// item, y10 a sixteenth crucible-node search, and 19 run.
+/// The acceptance: over the captures with fetched items — the 529 of the
+/// pseudo track's sittings, the 260 of rounds t to w — and the owner's
+/// seven searches that fetched any, every one whose translation has no
+/// remainder runs, and every item the site returned that the text does not
+/// match is a row of the expected set, which is exactly what is found. The
+/// searches with no item (335, q2b, and 26 of rounds t to w) are excluded
+/// by name; so are the 31 whose translation has a remainder — 13 weighted
+/// groups of mixed weights, outside the brief, 15 crucible-node searches,
+/// and the questions the build leaves unsupported: two ids of two texts and
+/// the damage filter. Five ran partial (t37, t38, t55, t56, u059). Of the 31
+/// y searches, 11 have no item, y10 is a sixteenth crucible-node search,
+/// and 19 run.
 #[test]
 fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     let expected: Expected = toml::from_str(EXPECTED).unwrap();
@@ -359,8 +356,8 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         "disagreements no row names: {new:#?}\nrows no longer found: {gone:#?}"
     );
 
-    // a patch's: every search a row of it names asks a stat 3.30 moved
-    // (#276), so the item's wording predates the text the table gives
+    // a patch's: every search a row of it names asks a stat 3.30 moved,
+    // so the item's wording predates the text the table gives
     let moved_at_330 = stats_moved_at_330();
     for r in expected
         .row
@@ -393,7 +390,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
 
     // a ruling or a question: the clause that refuses the item, or a filter
     // under it, is ambiguous by the finding's row — no row of the set is a
-    // clause reported exact (step 7e; a question too since 8f293ff3's review)
+    // clause reported exact
     for ((search, i), (_, refused_by, finding)) in &want {
         let f = findings[finding];
         let Some(row) = f.row.as_ref().filter(|_| f.home != "site") else {

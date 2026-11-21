@@ -41,69 +41,64 @@
 //!   conjuncts (`template::conjuncts`, the slot check's own reading), when
 //!   it is a lower bound and the selector's sum of that slot is a value
 //!   this build runs; anything else is not applicable.
-//! - **A quoted template names an occurrence by its whole text or by a
-//!   row of it** (C90, C92; the build plan, 9c4): `"T"` holds on a mod
-//!   whose template is `T` and on a mod displayed over several rows one of
-//!   which is — a property of the occurrence, so that a not of it is a no
-//!   on both. `template:` and `template~` test the whole text, across its
-//!   rows, and a pattern's `^` and `$` are its ends.
+//! - **A quoted template names an occurrence by its whole text or by a row
+//!   of it** (C90, C92): `"T"` holds on a mod whose template is `T` and on
+//!   a mod displayed over several rows one of which is — a property of the
+//!   occurrence, so that a not of it is a no on both. `template:` and
+//!   `template~` test the whole text, across its rows, and a pattern's `^`
+//!   and `$` are its ends.
 //! - **The numbers a slot word names are those of the part the quoted
 //!   templates conjoined with it name.** A group is read as its
-//!   alternatives spread out — `("T" arg1>=5) or arg2=3` is two, `("T" or
-//!   "U") arg1>=5` is `"T" arg1>=5` or `"U" arg1>=5` — and in each the
-//!   templates that must hold with a comparison say what it reads: one
+//!   alternatives spread out — `("T" arg1>=5) or arg2=3` is two,
+//!   `("T" or "U") arg1>=5` is `"T" arg1>=5` or `"U" arg1>=5` — and in each
+//!   the templates that must hold with a comparison say what it reads: one
 //!   row of the mod, where they name that row and nothing else of it, so
-//!   `arg1` is the row's first number whatever the rows before it
-//!   display; the mod's numbers in order where they name its whole text
-//!   or where there is none. So an alternative beside a comparison — one
-//!   that holds nowhere, one naming another row — changes no number it
-//!   reads, and a group's or is the item's or of the same alternatives
-//!   (the outside review of step 9c4, finding 1: the first build read
-//!   one part for the whole group, from every template in it). Spread
-//!   out by the truths each part can reach
-//!   ([`Mod::reached`]), never by listing the alternatives, and every
-//!   node weighed once, so a group costs its size. A mod of one row is
-//!   one part, and is read as it always was.
+//!   `arg1` is the row's first number whatever the rows before it display;
+//!   the mod's numbers in order where they name its whole text or where
+//!   there is none. So an alternative beside a comparison — one that holds
+//!   nowhere, one naming another row — changes no number it reads, and a
+//!   group's or is the item's or of the same alternatives (one part read
+//!   for the whole group, from every template in it, breaks both). Spread
+//!   out by the truths each part can reach ([`Mod::reached`]), never by
+//!   listing the alternatives, and every node weighed once, so a group
+//!   costs its size. A mod of one row is one part.
 //! - **What a slot is read beside is weighed before any mod is read**
-//!   ([`Slots`]; owner, 2026-09-28: "refuse"). Two rows named together
-//!   name no one row, and a slot beside them is refused by `tree::check`,
-//!   never read: read of the mod's numbers in order, as the step first
-//!   built it, a row named as a condition moved what the number beside
-//!   it read, and a not of one row's number held beside another row
-//!   named (the same review, its fourth look). What an alternative names
-//!   is weighed from the query alone, by the rule the evaluator names a
-//!   mod's parts by — a quoted template with a row break is the whole
-//!   text, any other a row, one name in any case — so validity asks no
-//!   corpus. Each reading offered keeps one row quoted and asks the
-//!   other of the mod's text, `template:`, which names nothing. The same
-//!   weighing says which slots the one quoted template among the group's
-//!   conjuncts says the numbers of, which is all the slot check holds
-//!   against it: beside the mod's whole text a slot is the mod's.
-//! - **A not is of what it holds, read as it is read there** (the same
-//!   review's second look, finding 1: a not pushed down to its
-//!   comparisons parted each from the template that said what it read,
-//!   so `-("T" arg1=40)` held beside `"T" arg1=40`). What a not holds is
-//!   a group of its own: its alternatives are spread, each reading what
-//!   its templates name together with those conjoined with the not, and
-//!   the not is the not of whether any holds — so a group or its not
-//!   holds on an occurrence that is read, never both. A not names
-//!   nothing: of a name it is of the occurrence. A doubled not is
-//!   neither, taken out when the group is bound, as the slot check reads
-//!   through one.
+//!   ([`Slots`]; the owner: "refuse"). Two rows named together name no one
+//!   row, and a slot beside them is refused by `tree::check`, never read:
+//!   read of the mod's numbers in order, a row named as a condition would
+//!   move what the number beside it reads, and a not of one row's number
+//!   would hold beside another row named. What an alternative names is
+//!   weighed from the query alone, by the rule the evaluator names a mod's
+//!   parts by — a quoted template with a row break is the whole text, any
+//!   other a row, one name in any case — so validity asks no corpus. Each
+//!   reading offered keeps one row quoted and asks the other of the mod's
+//!   text, `template:`, which names nothing. The same weighing says which
+//!   slots the one quoted template among the group's conjuncts says the
+//!   numbers of, which is all the slot check holds against it: beside the
+//!   mod's whole text a slot is the mod's.
+//! - **A not is of what it holds, read as it is read there** (a not
+//!   pushed down to its comparisons would part each from the template
+//!   that says what it reads, so `-("T" arg1=40)` would hold beside
+//!   `"T" arg1=40`). What a not holds is a group of its own: its
+//!   alternatives are spread, each reading what its templates name
+//!   together with those conjoined with the not, and the not is the not
+//!   of whether any holds — so a group or its not holds on an occurrence
+//!   that is read, never both. A not names nothing: of a name it is of
+//!   the occurrence. A doubled not is neither, taken out when the group
+//!   is bound, as the slot check reads through one.
 //! - **An occurrence has a number for each place an alternative that
 //!   holds reads** ([`Asked::parts`], `derive::Place`): a sum adds each,
 //!   a largest is the largest of them. The mod's first number and its
-//!   first row's first are one place, read twice and added once (the
-//!   second look's finding 2); two rows' numbers are two, equal or not;
-//!   and a row whose template another row displays has no one place, so
-//!   nothing read elsewhere is known to be its number (the third look's
-//!   finding 2).
+//!   first row's first are one place, read twice and added once; two
+//!   rows' numbers are two, equal or not; and a row whose template
+//!   another row displays has no one place, so nothing read elsewhere is
+//!   known to be its number.
 //! - **Its template tests**, wherever they sit: whether it makes any, so
 //!   that it resolves to templates; whether each is a quoted `"T"`, which
 //!   resolves to itself; and the words a suggestion is scored against.
-//! - **A link group's** (`linked( … )`, C101; the build plan, step 8) is
-//!   [`Linked`]: the same one reader, over the attributes a link group
-//!   has — `red green blue white`, the colour counts, and `size` — each a
+//! - **A link group's** (`linked( … )`, C101) is [`Linked`]: the same one
+//!   reader, over the attributes a link group has —
+//!   `red green blue white`, the colour counts, and `size` — each a
 //!   comparison, composed with and, or and not as a line's group is, and
 //!   three-valued on one group of the item as `sockets.rs` counts it: a
 //!   count the group's unread sockets leave open leaves the comparison
@@ -293,8 +288,8 @@ impl Mod<'_> {
     /// the alternatives is the tree's own truth wherever every part
     /// reads the same numbers. Every node is weighed once, what it holds
     /// before it, so a not inside a not costs what it holds and no more
-    /// (the outside review of step 9c4, its third look: weighed again
-    /// by each not for each thing named, ten nots deep took 2.7 s).
+    /// (weighed again by each not for each thing named, ten nots deep
+    /// took 2.7 s).
     fn reached(&self, member: &BMember) -> Vec<Reached> {
         let each = |of: &dyn Fn(usize, Named) -> Reached| -> Vec<Reached> {
             self.named
@@ -558,7 +553,7 @@ fn undoubled(member: BMember) -> BMember {
 impl Asked {
     /// The tests are the bound tree's own, compiled once: a total's row
     /// is bound at every ask, and a test compiled again for each was
-    /// most of what the step cost the load (`search/MEASUREMENTS.md`).
+    /// most of what the load cost (`search/MEASUREMENTS.md`).
     fn new(member: BMember) -> Asked {
         fn named(member: &BMember, out: &mut Vec<TextTest>) {
             match member {
@@ -667,7 +662,7 @@ fn truth(member: &BMember, line: &Line, numbers: Numbers<'_>) -> Truth {
         },
         // GGG's spelling in any case, as the word was bound (B2): the
         // vocabulary counts a flag by its legal spelling and routes by it,
-        // and the two must be one compare (outside audit, 2026-09-22)
+        // and the two must be one compare
         BMember::Is(flag) if line.flags.iter().any(|f| f.eq_ignore_ascii_case(flag)) => Truth::True,
         BMember::Is(flag) => {
             if line.flags_unread
@@ -812,7 +807,7 @@ impl Group {
     /// The one template test the selector is, when it is nothing else:
     /// then what the group resolved to is exactly what the vocabulary
     /// narrowed by that test lists, and the answer can route to the rest
-    /// of it (outside audit, 2026-09-22).
+    /// of it.
     pub fn sole_template_test(&self) -> Option<(Op, String)> {
         match &self.selector_tree {
             Member::Test {
@@ -1158,8 +1153,7 @@ impl Linked {
     }
 
     /// Whether the group asks a colour's count: then a socket whose colour
-    /// could not be read is a reason it is open (an outside review,
-    /// 2026-09-24, 1).
+    /// could not be read is a reason it is open.
     pub fn asks_colour(&self) -> bool {
         fn asks(member: &BLink) -> bool {
             match member {

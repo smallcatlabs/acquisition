@@ -1,4 +1,4 @@
-//! M9 (`search/MEASUREMENTS.md`; 4-full part 1, step 5): a rows answer
+//! M9 (`search/MEASUREMENTS.md`): a rows answer
 //! asked `fields: ["icon", "item"]` over a held corpus, at 20, 200 and
 //! 1,000 rows of the empty query — the answer's compact JSON bytes, and
 //! the median of eleven asks of the answer and its JSON, the projection

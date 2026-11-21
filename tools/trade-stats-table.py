@@ -128,7 +128,7 @@ def main():
     pairs = sum(len(texts[r]) for r in first)
     out = [
         f"# The stat table — the capture of {VERSION} (C113, C106; K6 in",
-        "# src/trade/translate.rs), step 2 of search/TRADE-PLAN.md at 77666ea4.",
+        "# src/trade/translate.rs).",
         "#",
         "# Reference data: generated, committed, shipped inside the binary",
         "# (`include_str!` in `src/trade/stats.rs`), read-only, read by the",

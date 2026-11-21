@@ -1,18 +1,17 @@
-# The forms table — v1 (C113, C106; src/trade/forms.rs), step 7e of
-# search/TRADE-PLAN.md at 77666ea4.
+# The forms table — v1 (C113, C106; src/trade/forms.rs).
 #
 # Reference data: reviewed by hand, committed, shipped inside the binary
 # (`include_str!` in `src/trade/forms.rs`), read-only, read by the
 # translation alone (C90: a stat id exists only at the trade boundary) and
 # cited by version in the report of every answer a translation produced,
-# beside the catalogue's and the stat table's. The sitting of 2026-10-16
-# (rounds t to w) found the site's stat the item's stat however displayed
-# (tests/trade-oracle.toml: `reduced-spelling`, `displayed-forms`,
+# beside the catalogue's and the stat table's. The site's stat is the
+# item's stat however displayed (the sitting of 2026-10-16;
+# tests/trade-oracle.toml: `reduced-spelling`, `displayed-forms`,
 # `no-physical-damage`). The forms are first the game's own, generated
 # beside this file (reference/trade-game-forms-v1.toml, from the PoE1
-# export's stat descriptions; the owner, 2026-10-17, choosing "Game data,
-# rules beside" when the brief's blanket rules were found to name forms the
-# game never shows); this file holds what the export cannot say. What the
+# export's stat descriptions; the owner's choice, "Game data, rules
+# beside", since blanket rules name forms the game never shows); this file
+# holds what the export cannot say. What the
 # game displays and the site files under one id, never a judgment. A named
 # stat value, the language naming a stat however displayed (#46; its
 # design is note 37 at `b6197a82`), lifts both.

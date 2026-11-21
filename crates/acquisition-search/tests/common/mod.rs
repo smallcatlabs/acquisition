@@ -123,8 +123,7 @@ pub fn item(id: &str, name: &str, base: &str, rarity: &str, more: Value) -> Valu
     body
 }
 
-/// A track's committed table, read where it lies (the build plan, "The
-/// steps left": the expected answers first): a CSV text as rows of
+/// A track's committed table, read where it lies: a CSV text as rows of
 /// fields, a comment line dropped, a quoted field kept whole with its
 /// commas, a doubled quote one quote.
 pub fn csv(text: &str) -> Vec<Vec<String>> {
@@ -210,7 +209,7 @@ pub fn as_json(answer: &Answer) -> Value {
 }
 
 /// A row's sort scalar alone — its value and status — without what the
-/// row shows of it (F6, the first seat), which follows the item's order.
+/// row shows of it, which follows the item's order.
 pub fn scalar(sort: &Value) -> Value {
     let mut scalar = sort.clone();
     if let Some(fields) = scalar.as_object_mut() {
@@ -221,8 +220,8 @@ pub fn scalar(sort: &Value) -> Value {
 }
 
 /// A row's one value, where the view orders by it and the query compares
-/// none other (4-full part 1, step 6.1: a row's values replaced its
-/// `sort`); a row carrying more than one is a test that must name which.
+/// none other; a row carrying more than one is a test that must name
+/// which.
 pub fn sort_value(row: &Value) -> &Value {
     match row["values"].as_array().map(Vec::as_slice) {
         Some([one]) => one,
@@ -335,12 +334,12 @@ pub const STATS_NOW: &str =
 
 /// Whether a search's capture was taken before 3.30, so that its lines
 /// under a stat 3.30 moved may show the wording before the patch
-/// (`stats_moved_at_330`). Every capture before the sitting of 2026-11-17
-/// is; that sitting's rounds are y, z and za, the first after the patch
+/// (`stats_moved_at_330`). Every capture before the first sitting after
+/// the patch is; that sitting's rounds are y, z and za
 /// (`search/pseudo-stats/MANIFEST.md`), no earlier search's name begins
-/// with either letter, and the rounds after it go on under z (#282). A
-/// capture taken after the patch shows the current wording and is held
-/// like any other.
+/// with either letter, and the rounds after it go on under z. A capture
+/// taken after the patch shows the current wording and is held like any
+/// other.
 pub fn captured_before_330(search: &str) -> bool {
     !search.starts_with('y') && !search.starts_with('z')
 }
@@ -349,9 +348,9 @@ pub fn captured_before_330(search: &str) -> bool {
 /// text 3.30 moved: listed in the capture of 2026-09-12 and absent from
 /// the stat table's capture, or listed in both with other texts. A stat
 /// translates to the text of the stats capture the table is made from and
-/// to no earlier text (#276), so a sitting's capture taken before 3.30
-/// shows such a stat's line in a wording no translation gives: the tests
-/// that hold those captures to the translation hold the rest.
+/// to no earlier text, so a sitting's capture taken before 3.30 shows
+/// such a stat's line in a wording no translation gives: the tests that
+/// hold those captures to the translation hold the rest.
 pub fn stats_moved_at_330() -> std::collections::BTreeSet<String> {
     let texts = |capture: &str| -> BTreeMap<String, Vec<String>> {
         let doc: Value = serde_json::from_str(capture).unwrap();

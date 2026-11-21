@@ -69,7 +69,7 @@
 //!   deriver's unread parts — shown, tallied and hinted as they are, its
 //!   hint the table's. A base the table lists under several classes keeps
 //!   them, and `class:X` on it is undecided only where a candidate
-//!   satisfies `X`, failed otherwise (F2, the first seat): the class is
+//!   satisfies `X`, failed otherwise (F2): the class is
 //!   not established, but the term's truth is. `reqlevel` is the
 //!   deriver's number.
 //! - **A category term asks the ids it picked** (`category.rs`): matched
@@ -805,7 +805,7 @@ pub(crate) fn outcome(atom: &Atom, held: &Held, earlier: &[Outcome]) -> Outcome 
             // unread sockets turn out to be; the group that unplaced sockets
             // may make of their own (`GroupCounts::members` empty) may not
             // exist, so it is never a witness — it leaves the term open
-            // where it could hold (the completion property, step 8)
+            // where it could hold (the completion property)
             let each = groups.each();
             let known = |truth: Truth| {
                 each.iter()
@@ -1108,12 +1108,12 @@ const SHOWN: usize = 6;
 /// it rests on. The bound is on the parts, the first [`SHOWN`] in the
 /// item's own order — a reason made beyond the item's parts (the class
 /// table's, a total's, a derived field's) is a part of its own, told from
-/// another by what it says, after the item's and ordered by what it says
-/// — its part, then its problem — never by the term that met it first,
-/// which a rewrite that changes no meaning may reorder (rule 9 of the
-/// plan; outside audit, 2026-09-24, twice) — every term's pair with each
-/// kept, how many terms a query has being its author's, and the parts
-/// past the bound are counted.
+/// another by what it says, after the item's and ordered by what it
+/// says — its part, then its problem — never by the term that met it
+/// first, which a rewrite that changes no meaning may reorder (rule 9
+/// of the plan) — every term's pair with each kept, how many terms a
+/// query has being its author's, and the parts past the bound are
+/// counted.
 pub(crate) fn why<'a>(
     terms: &'a [Term],
     blamed: &[usize],
@@ -1135,9 +1135,8 @@ pub(crate) fn why<'a>(
 /// The distinct reasons an item is undecided under these terms, by what
 /// was unread — the kind a count tallies beneath `undecided` (C105) — the
 /// first part met of each kind carrying its problem, in the order [`why`]
-/// gives: what the answer's undecided block is made of (V8, the first
-/// seat; `answer.rs`). No term is named: a reason is the item's, however
-/// many terms met it.
+/// gives: what the answer's undecided block is made of (V8; `answer.rs`).
+/// No term is named: a reason is the item's, however many terms met it.
 pub(crate) fn distinct_reasons(terms: &[Term], blamed: &[usize], held: &Held) -> Vec<Reason> {
     let mut out: Vec<Reason> = Vec::new();
     for (_, _, unread) in ordered(terms, blamed, held) {
@@ -1481,10 +1480,10 @@ fn reason(unread: &Unread) -> Reason {
     }
 }
 
-/// What a row shows of its sort (F6, the first seat): the field by its
-/// name with its number, the occurrence whose slot is the largest — the
-/// first of them where several tie — a sum's contributors, a computed
-/// value's inputs; bounded as a term's evidence is, the rest counted.
+/// What a row shows of its sort (F6): the field by its name with its
+/// number, the occurrence whose slot is the largest — the first of them
+/// where several tie — a sum's contributors, a computed value's inputs;
+/// bounded as a term's evidence is, the rest counted.
 pub(crate) fn sorted_by(key: &SortKey, held: &Held) -> (Vec<Evidence>, usize) {
     let mut all: Vec<Evidence> = match key {
         SortKey::Number(thing) => number(held, *thing)

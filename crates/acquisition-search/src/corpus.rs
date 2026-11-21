@@ -22,21 +22,20 @@
 //!   (`class.rs`; C106), the category table's and the beast colour
 //!   table's (`category.rs`; C106), the totals table's (`totals.rs`; C94),
 //!   the defence table's (`defences.rs`) and the property table's
-//!   (`properties.rs`; C114). The store is named by twelve
-//!   hex digits of the SHA-256 of its file's canonical path, as C83 names
-//!   a world (owner, 2026-09-20: "(a') now and park (c)"): no path in an
-//!   answer, no migration, and two files of one account are two stores. A
-//!   file moved is another store, which costs a reload; a file
-//!   deleted and refetched at one path is told by when its highest
-//!   response was recorded (the store's `corpus.rs`). Stores that are no
-//!   file — a test's, in memory — share one name. The intent file's
-//!   revision joins it with the price (`price.rs`; the build plan, step
-//!   9), with the currency table's and the note parser's versions the
-//!   listing state was resolved under. [`Corpus::is_current`] is C98's
-//!   check before every answer: a consumer that holds a corpus across asks
-//!   compares, and reloads whole when it differs; an answer already given
-//!   stays what its basis says it was. [`Holder`] is that consumer, one
-//!   shape for every resident frontend.
+//!   (`properties.rs`; C114). The store is named by twelve hex digits of
+//!   the SHA-256 of its file's canonical path, as C83 names a world (the
+//!   owner's choice): no path in an answer, no migration, and two files of
+//!   one account are two stores. A file moved is another store, which
+//!   costs a reload; a file deleted and refetched at one path is told by
+//!   when its highest response was recorded (the store's `corpus.rs`).
+//!   Stores that are no file — a test's, in memory — share one name. The
+//!   intent file's revision joins it with the price (`price.rs`), with the
+//!   currency table's and the note parser's versions the listing state was
+//!   resolved under. [`Corpus::is_current`] is C98's check before every
+//!   answer: a consumer that holds a corpus across asks compares, and
+//!   reloads whole when it differs; an answer already given stays what its
+//!   basis says it was. [`Holder`] is that consumer, one shape for every
+//!   resident frontend.
 //! - **Each item's price is the listing state's** (`price.rs`, C81, C100):
 //!   after the one read, one pricing snapshot and one `resolve` for each
 //!   (realm, league) the scope's locations name, joined by item id. Those
@@ -107,7 +106,7 @@ use crate::totals::{self, TOTALS_TABLE_VERSION, TotalsTable};
 /// body would derive to another item.
 pub const DERIVATION: u32 = 12;
 
-/// The realms GGG has (owner, 2026-09-20: "the full list").
+/// The realms GGG has (the owner: "the full list").
 pub const REALMS: [&str; 4] = ["pc", "xbox", "sony", "poe2"];
 
 /// Which realms a request covers (C96): the scope, never a term.
@@ -301,7 +300,7 @@ pub struct Place {
     /// The location's name as GGG gives it, or none where it gives no
     /// text: a unique tab's page comes with an empty name, or with the
     /// ` (Remove-only)` mark alone, and is shown by its id (C53: every
-    /// nothing says which nothing; the trade seat, 2026-10-17).
+    /// nothing says which nothing).
     pub name: Option<String>,
     /// GGG's `type` of the tab, verbatim, as the store's read hands it
     /// over (C108); a substash's own, or its tab's where it has none; a
@@ -316,9 +315,9 @@ pub struct Place {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub socketed_in: Option<Named>,
     /// Where in a tab or a character's inventory the item sits: GGG's
-    /// cell, so a reader can say where to pick it up (the trade seat,
-    /// 2026-10-17: three runs found it in the body alone). None on a worn
-    /// item or a socketed one, whose place is its slot or its holder.
+    /// cell, so a reader can say where to pick it up (without it, a reader
+    /// found it in the body alone). None on a worn item or a socketed one,
+    /// whose place is its slot or its holder.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cell: Option<crate::derive::Cell>,
     /// When the location the item sits in was last fetched — a tab's, a
@@ -395,8 +394,7 @@ pub struct Corpus {
     pub(crate) games: Vec<GameSeen>,
     /// Each location's place in the store's order of locations, by its
     /// coordinate: an answer's span breaks a tie by it, as the scope's
-    /// does, so where both blocks hold the tied locations they name one
-    /// (the answer-facts seat, MCP fault 4).
+    /// does, so where both blocks hold the tied locations they name one.
     pub(crate) order: HashMap<Coordinate, usize>,
 }
 
@@ -967,8 +965,7 @@ fn realm_needed(held: &[String], account: &str) -> SearchError {
 /// What the store's read could not give of a stash tab's type, said once
 /// where the place is read (rule 8 of the plan): GGG's `type` that was no
 /// string is stored as none, and every stash tab has one, so none on a
-/// stash tab is unread — never the known absence a character's item has
-/// (the review of 9b, 2026-09-26).
+/// stash tab is unread — never the known absence a character's item has.
 pub(crate) fn tab_type_unread(place: &Place) -> Option<Unread> {
     (place.kind == "stash" && place.tab_type.is_none()).then(|| Unread {
         part: Part::TabType,

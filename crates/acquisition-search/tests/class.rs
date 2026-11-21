@@ -1,4 +1,4 @@
-//! The class table (`search/LEDGER.md`, step 6; C106, C93, C105),
+//! The class table (`search/LEDGER.md`; C106, C93, C105),
 //! through the crate's boundary: the shipped file, every reason the table
 //! gives, `undecided(class)` and its route, the count's tally, `show`, and
 //! `reqlevel` beside it. Every count is worked by hand from the fixture
@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 /// `Gear` (g1): `ring` an Iron Ring; `nova`, a transfigured gem whose
 /// base is its own name (`Ice Nova of Frostbolts`); `blade`, a rare
 /// Energy Blade, which the table lists under three classes and its frame
-/// leaves two of (owner, 2026-09-26; `tests/seat_faults.rs`); `invite`, a
+/// leaves two of (owner; `tests/seat_faults.rs`); `invite`, a
 /// Polaric Invitation, under two, which its frame decides (V2); `beast`,
 /// a base named as a beast is and carrying no bestiary line, so no beast
 /// (J9) and a base no table lists;
@@ -122,7 +122,7 @@ fn c106_the_shipped_table_is_what_the_generator_measured() {
         ["One Hand Swords", "Skill Gems", "Two Hand Swords"]
     );
     assert_eq!(t.of("Blighted Map (Tier 1)"), [] as [&str; 0]);
-    // #282: a Viscera base under each size word the API names it with,
+    // a Viscera base under each size word the API names it with,
     // and under no other word (the sitting of 2026-11-17, z05 to z09)
     for base in [
         "Justicar's Helm",
@@ -220,7 +220,7 @@ fn a_class_is_picked_among_the_games_names_and_never_guessed() {
     let corpus = load(&s, Some("pc"));
     assert_eq!(ids(&asked(&s, "pc", "class=rings")), ["ring"]);
     assert_eq!(ids(&asked(&s, "pc", "class:GEM")), ["nova"]);
-    // the blade is each of two sword classes (owner, 2026-09-26)
+    // the blade is each of two sword classes (owner)
     let swords = asked(&s, "pc", "class:sword");
     assert_eq!(ids(&swords), ["blade"]);
     assert_eq!(
@@ -229,7 +229,7 @@ fn a_class_is_picked_among_the_games_names_and_never_guessed() {
     );
     // the resolved list is of the matches, so a selector that picked
     // classes no item carries is listed in the zero block with nothing
-    // to suggest (found 2026-09-21 by the zero-block cross-check)
+    // to suggest
     let bows = asked(&s, "pc", "class:bow");
     assert_eq!(bows["terms"][0]["resolved"]["values"], json!([]));
     assert_eq!(bows["total"]["matched"], 0);
@@ -353,7 +353,7 @@ fn c106_show_says_the_class_or_why_there_is_none_and_the_basis_cites_the_table()
     assert_eq!(beast["item"]["unread"], json!([]));
 }
 
-/// `reqlevel` (step 6): the `Level` requirement as a number; absent where
+/// `reqlevel`: the `Level` requirement as a number; absent where
 /// the requirements were readable and hold none; unread, under its own
 /// name only, where the value is no whole number.
 #[test]
@@ -376,11 +376,10 @@ fn reqlevel_is_the_level_requirement_as_a_number() {
     assert_eq!(shown["item"]["unread"][0]["of"], "reqlevel");
 }
 
-/// The step-6 review's findings 1 and 2, reproduced first: a `Level` row
-/// with no value, several values or a twin is no absence and no number —
-/// unread under `reqlevel`; and a `Level` that was read is a witness to
-/// its number whatever else in `requirements` could not be read, so a
-/// comparison, a sort and a sum agree.
+/// A `Level` row with no value, several values or a twin is no absence
+/// and no number — unread under `reqlevel`; and a `Level` that was read
+/// is a witness to its number whatever else in `requirements` could not
+/// be read, so a comparison, a sort and a sum agree.
 #[test]
 fn review_a_malformed_level_row_is_unread_and_a_read_one_is_a_witness() {
     let mut s = store();
@@ -439,14 +438,14 @@ fn review_a_malformed_level_row_is_unread_and_a_read_one_is_a_witness() {
         ],
         20,
     );
-    // finding 1: none of the three malformed rows is an absence
+    // none of the three malformed rows is an absence
     assert_eq!(asked(&s, "pc", "-has:reqlevel")["total"]["matched"], 0);
     assert_eq!(
         ids(&asked(&s, "pc", "undecided(reqlevel)")),
         ["empty", "twin", "two"]
     );
     assert_eq!(ids(&asked(&s, "pc", "reqlevel=10")), ["beside", "plain"]);
-    // finding 2: a read Level is a witness beside an unread sibling
+    // a read Level is a witness beside an unread sibling
     assert_eq!(ids(&asked(&s, "pc", "reqlevel>30")), [] as [&str; 0]);
     let over = asked(&s, "pc", "reqlevel>30");
     assert_eq!(counts(&over, "0"), (0, 2, 0, 3));
@@ -470,8 +469,8 @@ fn review_a_malformed_level_row_is_unread_and_a_read_one_is_a_witness() {
     );
 }
 
-/// The review's finding 3: every reading a class error offers is a
-/// query that binds — a name with a space is quoted by the printer.
+/// Every reading a class error offers is a query that binds — a name
+/// with a space is quoted by the printer.
 #[test]
 fn review_every_reading_a_class_error_offers_binds() {
     let s = stash();
@@ -480,7 +479,7 @@ fn review_every_reading_a_class_error_offers_binds() {
         let e = ask(&corpus, text).unwrap_err().to_json();
         assert_eq!(e["kind"], "unknown_value", "{text}");
         // a word with no name near it offers nothing, and points at
-        // `--describe class` (F5, the first seat)
+        // `--describe class`
         for reading in e["readings"].as_array().into_iter().flatten() {
             let reading = reading.as_str().unwrap();
             assert!(
@@ -493,11 +492,10 @@ fn review_every_reading_a_class_error_offers_binds() {
     assert_eq!(e["readings"][0], "class=\"Body Armours\"");
 }
 
-/// The second review's findings 1 and 2: one status for `reqlevel` — a
-/// read `Level` beside an element that may be a second `Level` row is
-/// not established, for a comparison, a sort and a sum alike — and a
-/// `[Level]` row, which the reader shows as `Level`, is told as one
-/// when it could not be read.
+/// One status for `reqlevel` — a read `Level` beside an element that
+/// may be a second `Level` row is not established, for a comparison, a
+/// sort and a sum alike — and a `[Level]` row, which the reader shows as
+/// `Level`, is told as one when it could not be read.
 #[test]
 fn review_two_reqlevel_has_one_status_and_markup_hides_no_level_row() {
     let mut s = store();
@@ -536,7 +534,7 @@ fn review_two_reqlevel_has_one_status_and_markup_hides_no_level_row() {
         ],
         20,
     );
-    // finding 1: neither a match nor a failure nor a complete sum
+    // neither a match nor a failure nor a complete sum
     assert_eq!(asked(&s, "pc", "reqlevel=10")["total"]["matched"], 1);
     assert_eq!(ids(&asked(&s, "pc", "reqlevel=10")), ["named"]);
     assert_eq!(counts(&asked(&s, "pc", "reqlevel>30"), "0"), (0, 1, 0, 3));
@@ -564,7 +562,7 @@ fn review_two_reqlevel_has_one_status_and_markup_hides_no_level_row() {
     let r = as_json(&answer(&load(&s, Some("pc")), &sorted).unwrap());
     assert_eq!(r["rows"][0]["id"], "named");
     assert!(sort_value(&r["rows"][1])["status"].is_string());
-    // finding 2: `[Level]` is a Level row, so its loss is said
+    // `[Level]` is a Level row, so its loss is said
     assert_eq!(asked(&s, "pc", "-has:reqlevel")["total"]["matched"], 0);
     let shown = serde_json::to_value(common::show(&s, "marked", false).unwrap()).unwrap();
     assert_eq!(shown["item"]["reqlevel"], Value::Null);
@@ -575,11 +573,7 @@ fn review_two_reqlevel_has_one_status_and_markup_hides_no_level_row() {
             .iter()
             .any(|u| u["of"] == "reqlevel")
     );
-    // the review's third finding: the derivation moved — to 7 then, to 8
-    // when an unread property gained its name (the step-7 audit, 2026-09-24),
-    // to 9 when the sockets were read (step 8), to 10 when a mod of
-    // several rows kept each row (step 9c4), to 11 when the bestiary line
-    // was read, which a beast's class is read by (step 9d-B, J9), to 12
-    // when an item's cell was read (the trade seat, 2026-10-17)
+    // the basis names the current derivation, 12: the one that reads an
+    // item's cell
     assert_eq!(shown["basis"]["derivation"], 12);
 }

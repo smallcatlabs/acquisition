@@ -1,5 +1,4 @@
-# The property table — v1 (C114, C101, C106; decisions/trade.md), step 3
-# of search/TRADE-PLAN.md at 77666ea4.
+# The property table — v1 (C114, C101, C106; decisions/trade.md).
 #
 # Reference data: reviewed by hand, committed, shipped inside the binary
 # (`include_str!` in `src/properties.rs`), read-only, never in a store file,
@@ -7,7 +6,7 @@
 # in every basis (C98). One row per field over a property the game displays:
 # every numeric property the trade site's filters read that the catalogue
 # (reference/trade-catalogue-v1.toml) lands as a field, named by the
-# displayed name (owner, 2026-10-15: "build all using displayed names") —
+# displayed name (C114) —
 # lowercased, spaces as underscores, `.of` the second number of a `#/#`
 # value, `.q20` a defence at 20 % quality — and the one field over the base
 # type the catalogue names, `map_tier`. Written from GGG's bodies as the
@@ -28,9 +27,9 @@
 # item's own requirement, `Level {0} in {1}`, t48); `at_max`, on a
 # `percent` row, the value of an item displaying none whose `level` row
 # reads its value beside a mark — a gem at its maximum level displays no
-# experience, and the trade site reads it at 100 (u090). The sitting of
-# 2026-10-16 (rounds t to w, tests/trade-oracle.toml) widened four rows to
-# what the site's filter reads: `area_level` a vessel's `Monster Level`
+# experience, and the trade site reads it at 100 (u090). Four rows are as
+# wide as the site's filter reads them (the sitting of 2026-10-16,
+# tests/trade-oracle.toml): `area_level` a vessel's `Monster Level`
 # (t46), the heist skills a heist item's requirement (t48), `quality` the
 # twelve catalysts' kinds (t49; ten in the captures, the twelve named in
 # PathOfBuilding at its pin, src/Classes/ItemsTab.lua), `experience` a gem
@@ -67,8 +66,8 @@
 #
 # The q20 rule against the site's own figure (`extended.ar|ev|es|ward` of a
 # fetched listing), measured when the table was written, by
-# tests/properties.rs: within one on every row — over the 4,819 items the
-# sitting's 864 captures fetched (search/pseudo-stats/data/captures.json),
+# tests/properties.rs: within one on every row — over the 4,819 items that
+# 864 captures fetched (search/pseudo-stats/data/captures.json),
 # 1,148 of 1,313 rows equal and 165 one off; over the owner's eight searches'
 # 70 (search/trade-query/data/fetch-census.json), 32 of 37 equal and 5 one
 # off. The site works from the roll, which the display has rounded, so the
@@ -139,8 +138,8 @@ property = ["Ward"]
 reads = "q20"
 definition = "the displayed `Ward` at 20 % quality, by `armour.q20`'s rule"
 
-# The displayed defences, as the item stands (the 4b sitting round,
-# 2026-10-25): the same four properties the `.q20` rows read, at the
+# The displayed defences, as the item stands: the same four properties
+# the `.q20` rows read, at the
 # item's own quality, beside the site's normalised reading, never in its
 # place (C114, the property bridge; C142, the defences' reading beside
 # the trade JSON).

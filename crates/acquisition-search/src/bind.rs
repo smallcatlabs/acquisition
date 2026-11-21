@@ -1,8 +1,8 @@
-//! The binder (C91, C92, C93; the build plan, step 4): a tree in, a query
-//! the evaluator can run out — or an authoring error. The parser knows the
-//! grammar and no name; every name is known here, from closed lists this
-//! file holds, so a query's validity never depends on a corpus (invariant
-//! 3 of the surface).
+//! The binder (C91, C92, C93): a tree in, a query the evaluator can run
+//! out — or an authoring error. The parser knows the grammar and no name;
+//! every name is known here, from closed lists this file holds, so a
+//! query's validity never depends on a corpus (invariant 3 of the
+//! surface).
 //!
 //! What a name means is said beside its list here, and `--describe`
 //! prints it from these lists (`describe.rs`).
@@ -42,7 +42,7 @@
 //!   value of more than a word and is quoted, as the grammar has every
 //!   such value — `category="armour.boots"` — and printed so.
 //! - **`reqlevel` is a number** the deriver reads from the `Level`
-//!   requirement (the build plan, step 6): `reqlevel=..30`, `-has:reqlevel`.
+//!   requirement: `reqlevel=..30`, `-has:reqlevel`.
 //! - **`id:` takes any id an answer printed, whole**: the item's own, or
 //!   its tab's, substash's or character's, which finds what is in it.
 //!   `:` and `=` mean the same. `acq show` takes an item's id.
@@ -60,25 +60,24 @@
 //! - **A bare word's closed-set readings** arrive here: the parser offers
 //!   `"rare"` and `line(template:rare)`, and [`parse_query`] puts
 //!   `rarity=rare` before them.
-//! - **A computed value is bound by name** (`pseudo.rs`; the build plan,
-//!   steps 7 and 9d-C): a total of the table or a derived field, in any
-//!   case, with its slot word checked against what it is — a ranged total
-//!   takes `low`, `high` or `avg` and with none is its `avg`, nothing
-//!   else takes one. A name nothing defines is an unknown name with the
-//!   near ones offered, with a slot word or without.
-//! - **The sockets are numbers** (`sockets.rs`, C101; the build plan, step
-//!   8): `sockets`, `links` and `sockets.<colour>` for the four colour
-//!   words are fields of `Kind::Number`, so a comparison, `has:`, a
-//!   sort, a sum and a count's key take them as they take `ilvl`; a colour
-//!   word outside the four is an authoring error offering them. A link
-//!   group, `linked( … )`, is bound in `group.rs` beside a line's.
-//! - **A tab's type is the place field `tab.type`** (V10, the first seat;
-//!   the park's trigger fired 2026-09-26): GGG's `type` verbatim from the
-//!   store's read (C108, `corpus::Place`), text like the other place
-//!   fields, so `tab.type=MapStash` and `tab.type:map` find everything in
-//!   a map tab whatever it is called; no list is embedded, since GGG adds
-//!   a type with a league, and `--count tab.type` reads what the store
-//!   holds.
+//! - **A computed value is bound by name** (`pseudo.rs`): a total of the
+//!   table or a derived field, in any case, with its slot word checked
+//!   against what it is — a ranged total takes `low`, `high` or `avg` and
+//!   with none is its `avg`, nothing else takes one. A name nothing
+//!   defines is an unknown name with the near ones offered, with a slot
+//!   word or without.
+//! - **The sockets are numbers** (`sockets.rs`, C101): `sockets`, `links`
+//!   and `sockets.<colour>` for the four colour words are fields of
+//!   `Kind::Number`, so a comparison, `has:`, a sort, a sum and a count's
+//!   key take them as they take `ilvl`; a colour word outside the four is
+//!   an authoring error offering them. A link group, `linked( … )`, is
+//!   bound in `group.rs` beside a line's.
+//! - **A tab's type is the place field `tab.type`** (V10): GGG's `type`
+//!   verbatim from the store's read (C108, `corpus::Place`), text like
+//!   the other place fields, so `tab.type=MapStash` and `tab.type:map`
+//!   find everything in a map tab whatever it is called; no list is
+//!   embedded, since GGG adds a type with a league, and `--count
+//!   tab.type` reads what the store holds.
 //! - **GGG's facts about a tab are fields, and the side of a price**
 //!   (C117): `tab.public` — the listing's `metadata.public` as the
 //!   listing state reads it, joined with the price (`price.rs`), a
@@ -88,15 +87,15 @@
 //!   false); `price.side` is `game` or `manual`, the listing state's word
 //!   (`Effective::side_word`), lacked where no price applies. None says
 //!   what the site would list: that inference is the reader's.
-//! - **The price is four names** (`price.rs`, C81, C100; the build plan,
-//!   step 9): `priced` is presence alone — `has:priced`, `-has:priced`,
-//!   `undecided(priced)` — and a comparison on it or a count by it is an
-//!   authoring error that offers those, or `price.currency`; `price.amount`
-//!   and `price.lot` are numbers, and `price.currency` a closed set whose
-//!   legal values are the currency table's tags (C68), so a tag outside
-//!   the table is an authoring error with the near ones offered.
+//! - **The price is four names** (`price.rs`, C81, C100): `priced` is
+//!   presence alone — `has:priced`, `-has:priced`, `undecided(priced)` —
+//!   and a comparison on it or a count by it is an authoring error that
+//!   offers those, or `price.currency`; `price.amount` and `price.lot` are
+//!   numbers, and `price.currency` a closed set whose legal values are the
+//!   currency table's tags (C68), so a tag outside the table is an
+//!   authoring error with the near ones offered.
 //!
-//! # The owner's words (2026-09-19, verbatim but for spelling)
+//! # The owner's words (verbatim but for spelling)
 //!
 //! - `~`: "Using ~ for regex makes sense". Two notes for the help: patterns
 //!   are for words and comparisons for numbers; a `sum` over
@@ -122,10 +121,7 @@ use crate::tree::{self, Collection, Node, Number, Op, Probe, Value, ValueRef};
 // ---- what is not built -------------------------------------------------------
 
 /// A construct of the language this build refuses, and the step of the
-/// plan that builds it — none, where it waits for a consumer that asks:
-/// the plan's step 10 left four so, and the slice closed with them;
-/// `--view locations` left since, the list it stood for being `tabs`
-/// (C118).
+/// plan that builds it — none, where it waits for a consumer that asks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct NotBuilt {
     pub construct: &'static str,
@@ -298,7 +294,7 @@ pub(crate) struct FieldDef {
 impl FieldDef {
     /// Whether `has:` asks something of the field: every field but `text`
     /// and `id`, which every item has. The one source for `has:`'s
-    /// binding, a count's keys and the `has:` a refusal offers (#174).
+    /// binding, a count's keys and the `has:` a refusal offers.
     pub(crate) fn takes_has(&self) -> bool {
         !matches!(self.thing, Thing::Text | Thing::Id)
     }
@@ -546,9 +542,9 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// The known names a typed one may have meant, nearest first: an edit or
 /// two away — from the word or from a plural it may take, since the
-/// game's names are plural (G1) and `staff` means `Staves` (F5, the
-/// first seat) — or one the start of the other, or, last, a name that
-/// holds the word whole (`Warstaves`). A suggestion, never a binding.
+/// game's names are plural (G1) and `staff` means `Staves` (F5) — or one
+/// the start of the other, or, last, a name that holds the word whole
+/// (`Warstaves`). A suggestion, never a binding.
 pub(crate) fn near<'a>(word: &str, known: &[&'a str]) -> Vec<&'a str> {
     let word = word.to_ascii_lowercase();
     let forms = plural_forms(&word);
@@ -807,10 +803,10 @@ pub(crate) enum Key {
 
 /// Bind one key, as a request names it: a field's name, `line`,
 /// `line:<text>` or `line~<pattern>` — the rest of the string is the text,
-/// as it stands, whitespace and all; a name is trimmed, a text never (outside
-/// review, 2026-09-22). A field is a key when `has:` can be asked of it, since
-/// `-has:<key>` is where its `none` bucket routes: every field but `text`
-/// and `id`. What a later step builds is refused by that step's name.
+/// as it stands, whitespace and all; a name is trimmed, a text never. A
+/// field is a key when `has:` can be asked of it, since `-has:<key>` is
+/// where its `none` bucket routes: every field but `text` and `id`. What
+/// a later step builds is refused by that step's name.
 pub(crate) fn bind_key(text: &str) -> Result<Key, LanguageError> {
     let narrowed = text
         .char_indices()
@@ -1109,8 +1105,7 @@ impl Binder {
                     .with_readings(vec![format!("has:pseudo.{name}")]));
                 }
                 let (named, _) = bind_pseudo(short, None).map_err(|e| {
-                    // a near name is offered as it is asked here (the
-                    // review of 9b)
+                    // a near name is offered as it is asked here
                     if e.kind != ErrorKind::UnknownName {
                         return e;
                     }
@@ -1150,8 +1145,7 @@ impl Binder {
                         unknown_among("is:", name, ITEM_FLAGS, ITEM_FLAGS, Some("is"), |near| {
                             format!("is:{near}")
                         });
-                    // a field `has:` takes is asked with it (#174:
-                    // `-is:priced`, CLI run 2 of the answer-facts seat)
+                    // a field `has:` takes is asked with it (`-is:priced`)
                     e.readings.splice(0..0, has_reading(name));
                     Err(e)
                 }
@@ -1264,8 +1258,7 @@ pub(crate) fn unknown(
 /// are offered from a list longer than a refusal prints inline, the
 /// message names the entry of `--describe` that lists them all (`listed`),
 /// so a reading that does not fit leaves a way on (F5's rule for a closed
-/// set; the trade seat: mcp-sonnet-2 call 5, its fault 7, offered `int`,
-/// `line` and `links` for the key `kind`).
+/// set; the key `kind`, say, is offered `int`, `line` and `links`).
 pub(crate) fn unknown_among(
     what: &str,
     name: &str,
@@ -1486,8 +1479,8 @@ pub(crate) fn closed(
     if !picked.is_empty() {
         return Ok(picked);
     }
-    // the near names first, and a long list behind `--describe` (F5, the
-    // first seat: `class:staff` answered with all 82 names, twice)
+    // the near names first, and a long list behind `--describe` (F5:
+    // listed inline, `class:staff` answered with all 82 names)
     let near = near(word, list);
     let (message, offered) = if !near.is_empty() {
         (format!("`{word}` is no `{name}`; near it:"), near)
@@ -1506,8 +1499,7 @@ pub(crate) fn closed(
         )
     };
     Err(LanguageError::new(ErrorKind::UnknownValue, message)
-        // through the printer, so a value with a space is quoted (the
-        // step-6 review, 3)
+        // through the printer, so a value with a space is quoted
         .with_readings(
             offered
                 .iter()
@@ -1528,8 +1520,8 @@ pub(crate) fn closed(
 /// knows put first: `rare` → `rarity=rare`, `corrupted` → `is:corrupted`.
 /// Each reading replaces exactly the span: under a `-` or `not` the
 /// reader typed, the span takes it in and every reading carries it as
-/// `-`, so a reading pasted there means what it offers (the review of
-/// round A, finding 1: `-has:priced` over `priced` was `--has:priced`).
+/// `-`, so a reading pasted there means what it offers (else the reading
+/// for `-priced` would be `--has:priced`).
 fn closed_set_readings(mut e: LanguageError, text: &str) -> LanguageError {
     if e.kind != ErrorKind::BareWord {
         return e;
@@ -1545,8 +1537,7 @@ fn closed_set_readings(mut e: LanguageError, text: &str) -> LanguageError {
     let inside = !e.readings.iter().any(|r| r.starts_with('"'));
     let mut first = Vec::new();
     if !inside {
-        // a field `has:` takes, asked with it (#174: `-priced`, CLI run 2
-        // of the answer-facts seat)
+        // a field `has:` takes, asked with it (`-priced`)
         first.extend(has_reading(word));
     }
     if inside {
@@ -1603,7 +1594,7 @@ mod tests {
 
     /// Every field and computed value is named in the spelling the parser
     /// gives a name, so one typed in any case binds to it and has its one
-    /// text (#273): a field the parser reads back as itself, and a computed
+    /// text: a field the parser reads back as itself, and a computed
     /// value too.
     #[test]
     fn every_name_the_language_knows_is_the_parsers_spelling_of_it() {

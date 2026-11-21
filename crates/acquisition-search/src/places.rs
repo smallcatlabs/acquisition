@@ -1,21 +1,20 @@
 //! A league's places as `acq web`'s "Stash tabs" and "Characters" pages
-//! list them (4-full part 1, step 6.5a; the design's §3, "a group is a
-//! place"): its stash tabs as a tree in stash order, or its characters in
-//! the store's order, each place its store row whole, beside the league's
-//! counts; and, asked a filter or a query (step 6.5b), which of them the
-//! page lists and how many of the query's matches each holds.
+//! list them (the design's §3, "a group is a place"): its stash tabs as a
+//! tree in stash order, or its characters in the store's order, each
+//! place its store row whole, beside the league's counts; and, asked a
+//! filter or a query, which of them the page lists and how many of the
+//! query's matches each holds.
 //!
 //! # As built
 //!
 //! One maker each over one store read: [`Places::tabs`] over
 //! `Store::tabs_document`'s snapshot, [`Places::characters`] over
 //! `Store::characters`. The tree is the store's listing order nested: a
-//! folder holds its tabs, a map or unique tab its pages (the rule
-//! `Tabs::grouped` held until this module took it, its one reader the
-//! page). A page whose tab the store does not hold stands at the top, a
-//! page still. A parent counts the places it holds and those of them
-//! never fetched (`holds`), so a page can say what a closed parent holds
-//! without listing it.
+//! folder holds its tabs, a map or unique tab its pages (the rule's one
+//! reader is the page). A page whose tab the store does not hold stands
+//! at the top, a page still. A parent counts the places it holds and
+//! those of them never fetched (`holds`), so a page can say what a closed
+//! parent holds without listing it.
 //!
 //! A place that can hold items carries the request that lists them
 //! (`request`): `id:<its id>` over its realm, with the league for a tab
@@ -37,7 +36,7 @@
 //! (C53): the page is a selection, and a place it does not list cannot
 //! be ticked.
 //!
-//! # Asked: a filter and a query (step 6.5b)
+//! # Asked: a filter and a query
 //!
 //! [`Asking`] carries a filter, a query's text and a view. The document
 //! still lists every place, so a tick or an open on a place the page
@@ -63,9 +62,8 @@
 //! answer. The matches in places of the other kind or of another league
 //! stand beside it as `elsewhere`, counted by kind and league in the
 //! same pass's terms (the query over the corpus), so a page that lists
-//! one league's tabs says where the rest of its total are (the page seat
-//! after GUI step 6, its fault 1); the tests hold `matched` and
-//! `elsewhere` to the query's `total`.
+//! one league's tabs says where the rest of its total are; the tests
+//! hold `matched` and `elsewhere` to the query's `total`.
 //!
 //! The document stands at the corpus's basis (C98): the corpus is the
 //! holder's, the listing is read, and [`Corpus::is_current`] is asked
@@ -137,7 +135,7 @@ impl Asking {
     }
 }
 
-/// A filter over the places (step 6.5b): each field present must pass.
+/// A filter over the places: each field present must pass.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct Filter {
     /// Words the name holds, each, case aside.
@@ -237,8 +235,7 @@ pub struct Queried {
 
 /// The query's matches in one kind of place of one league other than a
 /// places document's own: a page that lists one league's tabs or its
-/// characters says where the rest of the query's matches stand (the page
-/// seat after GUI step 6, its fault 1).
+/// characters says where the rest of the query's matches stand.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Elsewhere {
     /// `stash` or `character`, as the corpus names a place's kind.
@@ -423,7 +420,7 @@ pub struct Reading<'a> {
 impl Places {
     /// The league's stash tabs as a tree in stash order, from one read
     /// snapshot (`Store::tabs_document`): the rows, the facts block the
-    /// counts carry (#172), and the realm's leagues, which say whether a
+    /// counts carry, and the realm's leagues, which say whether a
     /// tab's league term must name its spelling; asked a filter and a
     /// query, each marked (the module doc).
     pub fn tabs(
@@ -549,10 +546,10 @@ impl Places {
         out
     }
 
-    /// The place `id` and each place holding it, top first (step 6.5c,
-    /// Decision 6): what a page opens to show the place's items, a
-    /// folder's tab or a map tab's page under its tab; none where the
-    /// document holds no place `id`.
+    /// The place `id` and each place holding it, top first:
+    /// what a page opens to show the place's items, a folder's tab or a
+    /// map tab's page under its tab; none where the document holds no
+    /// place `id`.
     pub fn holders(&self, id: &str) -> Option<Vec<&str>> {
         fn walk<'a>(places: &'a [Place], id: &str, path: &mut Vec<&'a str>) -> bool {
             for place in places {
@@ -771,9 +768,8 @@ fn read_asked<T>(
 /// three times (`corpus::REREADS`), then the error a moving store is.
 /// The places document stands at its corpus's basis through it, and a
 /// page that answers over the corpus beside the document reads both
-/// inside one `read`, so the page stands at one basis (step 6.5b, the
-/// review of f36033f5: a page's segments read a corpus of their own
-/// after the document).
+/// inside one `read`, so the page stands at one basis (else a page's
+/// segments read a corpus of their own after the document).
 pub fn steady<T>(
     at: Reading,
     request: &Request,
@@ -790,10 +786,10 @@ pub fn steady<T>(
 }
 
 /// The spelling a place page names a league by, where a query named it
-/// in another case (`league=` is any-case; the review of f36033f5, its
-/// second finding): of the leagues `held` that `=` takes `named` for, the
-/// one held as written, else the one alone, else `named` as written, so
-/// that two spellings held apart are never chosen between.
+/// in another case (`league=` is any-case): of the leagues `held` that
+/// `=` takes `named` for, the one held as written, else the one alone,
+/// else `named` as written, so that two spellings held apart are never
+/// chosen between.
 pub fn held_spelling<'a>(named: &'a str, held: &'a [String]) -> &'a str {
     let folded = crate::bind::folded(named);
     let mut taken = held.iter().filter(|h| crate::bind::folded(h) == folded);
@@ -940,7 +936,7 @@ mod tests {
 
     /// A league a query named in another case is the spelling the store
     /// holds; held as written, or held twice apart, it is the name as
-    /// written (the review of f36033f5, its second finding).
+    /// written.
     #[test]
     fn a_league_named_in_another_case_is_the_spelling_held() {
         use super::held_spelling;
@@ -953,10 +949,10 @@ mod tests {
         assert_eq!(held_spelling("STANDARD", &twins), "STANDARD");
     }
 
-    /// C98 (step 6.5b, Decision 2): a write between the listing's read
-    /// and the check reads both again, so the listing and the corpus
-    /// stand at one basis; a store that moves at every read is an error
-    /// after three, as a corpus's read is.
+    /// C98: a write between the listing's read and the
+    /// check reads both again, so the listing and the corpus stand at
+    /// one basis; a store that moves at every read is an error after
+    /// three, as a corpus's read is.
     #[test]
     fn a_write_between_the_listing_and_the_check_reads_both_again() {
         let dir = tempfile::tempdir().unwrap();

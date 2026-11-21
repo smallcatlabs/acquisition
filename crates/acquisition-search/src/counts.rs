@@ -48,16 +48,16 @@
 //!   most specific id that holds on it (J11) — under each of two leaves
 //!   not nested (J16) — and a bucket's term says exactly that: the id,
 //!   and none beneath it known to hold (`category::Tables::listed_under`).
-//! - **A place value is one realm's under an all-realms scope** (F3, the
-//!   first seat: pc's Standard and poe2's were one `Standard` of 21,409,
+//! - **A place value is one realm's under an all-realms scope** (F3:
+//!   keyed by value alone, pc's Standard and poe2's were one `Standard`,
 //!   and its route returned both): a league, a character, a container, a
 //!   tab's type is keyed by realm as a tab and a vocabulary row are,
 //!   labelled with it, and its route is scoped to it (C96, C97). Under
 //!   one realm the value alone is the key.
-//! - **A league the matches are not in has no bucket, and the table names
-//!   it** (#173; the answer-facts seat, MCP run 2, call 38: three buckets
-//!   beside eight leagues in scope). A bucket is a value an item holds, so
-//!   a table keyed by `league`, or a cross with `league` among its keys,
+//! - **A league the matches are not in has no bucket, and the table
+//!   names it** (else three buckets beside eight leagues in scope say
+//!   nothing of the other five). A bucket is a value an item holds, so a
+//!   table keyed by `league`, or a cross with `league` among its keys,
 //!   lists in `unmatched_leagues` the scope's leagues (`scope.leagues`)
 //!   that no match is in, under any realm, and is silent where every one
 //!   has a bucket. Counted over every value, the cut ones too.
@@ -68,12 +68,12 @@
 //!   is an id alone: a tab is its full coordinate, realm, league and id
 //!   (C54, C58), and the store has held one id under two realms. The
 //!   bucket is that coordinate, its route `id:<id> league=<league>` over
-//!   its realm, and its label carries all three (outside audit, 2026-09-22).
+//!   its realm, and its label carries all three.
 //! - **`=` is any-case, so a value spelled two ways is two buckets with two
 //!   terms.** Where the corpus holds another spelling of a value the term
 //!   is a pattern that turns case back on, `name~"(?-i)^…$"`, which selects
-//!   that spelling alone (owner, 2026-09-20, on templates; one rule for
-//!   every text). Spellings are told apart by the matcher's own fold
+//!   that spelling alone (the owner, on templates; one rule for every
+//!   text). Spellings are told apart by the matcher's own fold
 //!   (`bind::folded`), over the whole held corpus and not only the matches,
 //!   so a term pasted into another query still selects its row. A closed
 //!   set is counted by its legal value, which its `=` matches in any case.
@@ -96,7 +96,7 @@
 //!   row's count is its term's matched count: an item counted under a
 //!   template it could be read to carry. A mod displayed over several
 //!   rows is listed by its whole text, and counted beside that under each
-//!   listed template that names it by a row (C90; the build plan, 9c4), as
+//!   listed template that names it by a row (C90), as
 //!   that template's term matches it — with the row's numbers, and the
 //!   mod's source and flags — whatever the narrowing makes of its whole
 //!   text; a row no mod displays alone, a wrapped sentence's, is no row of
@@ -113,8 +113,8 @@
 //!   is counted and has no route. The vocabulary lists beside its
 //!   templates the computed values whose name or own definition its
 //!   narrowing matches — a total's rows and its limit, never the rule
-//!   every total's definition prints of what no total reads (J29;
-//!   owner, 2026-10-08: "i approve your recommendation") — none under
+//!   every total's definition prints of what no total reads (J29; the
+//!   owner: "i approve your recommendation") — none under
 //!   `line` alone (T5, `search/LEDGER.md`,
 //!   "Holes ruled"; `pseudo::matching`), marked computed,
 //!   each with the count of the
@@ -122,7 +122,7 @@
 //!   its route, and the sum beside it; ranked by that count, then by
 //!   name, and cut by the same limit, the rest counted apart from the
 //!   templates (`computed`, `computed_left_out`), since a computed value
-//!   is no value the items carry (outside audit, 2026-09-24, twice).
+//!   is no value the items carry.
 //! - **The sum** (C95) adds one number of each item of a bucket, exactly
 //!   (`exact.rs`): an item lacking the thing adds nothing and is counted as
 //!   lacking; one whose number could not be read adds what was readable of
@@ -231,11 +231,10 @@ pub(crate) fn bind(
 
 // ---- what an answer carries ---------------------------------------------------------------
 
-/// What lists the values a table left out: the request's own field, never
-/// a terminal's flag, since the JSON is every surface's (C115; the trade
-/// seat: `left_out_needs: "--limit"` in the MCP's answer, mcp-opus call
-/// 33, mcp-sonnet call 17). A terminal's text says `--limit` in its own
-/// words.
+/// What lists the values a table left out: the request's own field,
+/// never a terminal's flag, since the JSON is every surface's (C115:
+/// else the MCP's answer says `left_out_needs: "--limit"`, a flag it
+/// has not). A terminal's text says `--limit` in its own words.
 const TABLE_LIMIT: &str = "view.counts.limit";
 const CROSS_LIMIT: &str = "view.cross.limit";
 
@@ -257,7 +256,7 @@ pub struct CrossOut {
     /// How many cells hold an item.
     pub cells_in_all: usize,
     /// With `league` a key: the scope's leagues no match is in, which
-    /// have no cell, since a bucket is a value an item holds (#173).
+    /// have no cell, since a bucket is a value an item holds.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub unmatched_leagues: Vec<String>,
     /// The cells that hold one, ranked; a cell is a bucket of each key.
@@ -303,7 +302,7 @@ pub struct Table {
     /// How many values the matching items carry.
     pub values: usize,
     /// Keyed by `league`: the scope's leagues no match is in, which have
-    /// no bucket, since a bucket is a value an item holds (#173).
+    /// no bucket, since a bucket is a value an item holds.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub unmatched_leagues: Vec<String>,
     /// The values, ranked and cut; then `none`, then `undecided`, each only
@@ -720,13 +719,12 @@ fn label_of(
 /// the place or in a page of it holds, and for a tab or a page the
 /// league it is listed under. `=` is any-case, so where another spelling
 /// of the league folds to this one (`twinned`) the term names this
-/// spelling alone (the review of 9b: one id under `Standard` and
-/// `standard` was two buckets of one whose route returned both). The
-/// twins are the caller's: a bucket reads them from the items its corpus
-/// holds, a place from its realm's listings. Where a spelling is listed
-/// and holds no item, the two texts differ and select the same items,
-/// since the spelling the place sets apart holds none (the build review
-/// of step 6.5a, its third finding; `seat_faults.rs` pins it).
+/// spelling alone (else one id held under `Standard` and `standard` is
+/// two buckets, each route returning both). The twins are the caller's:
+/// a bucket reads them from the items its corpus holds, a place from its
+/// realm's listings. Where a spelling is listed and holds no item, the
+/// two texts differ and select the same items, since the spelling the
+/// place sets apart holds none (`seat_faults.rs` pins it).
 pub(crate) fn place_terms(id: &str, league: Option<&str>, twinned: bool) -> Vec<Node> {
     let test = |field: &str, op: Op, value: Value| Node::Test {
         field: field.to_string(),
@@ -1062,7 +1060,7 @@ pub(crate) fn crossed(bound: &BoundCounts, matches: &Matches<'_>) -> CrossOut {
 }
 
 /// The scope's leagues that none of these buckets is: a league counts as
-/// held when any realm's bucket is it (#173).
+/// held when any realm's bucket is it.
 fn unmatched<'a>(corpus: &Corpus, buckets: impl Iterator<Item = &'a Of>) -> Vec<String> {
     let held: HashSet<&str> = buckets
         .filter_map(|of| match of {
@@ -1375,17 +1373,16 @@ fn vocabulary(
     }
 }
 
-/// A count's keys as a list spells them, the one parse of it (the 4b
-/// sitting round, Do 5): the CLI's `--count` and `--cross`, and the web
-/// UI's count control, call it; the MCP's `keys` array takes each key
-/// whole and has no list to read. A comma list, where `line:` takes the
-/// rest of the list as its texts — `line:resist,life` is the vocabulary
-/// narrowed twice, a table each (`line[:text,…]`) — and a text is a
-/// pattern after `~`. A text
-/// with a comma, or a `~` of its own, is quoted, `"…"`, with the
-/// language's three escapes (`\"`, `\\`, `\n`) and no other; what is
-/// quoted is the text as written, never syntax, and a quote that does not
-/// close is an error, as it is in a query (outside audit, 2026-09-22).
+/// A count's keys as a list spells them, the one parse of it: the CLI's
+/// `--count` and `--cross`, and the web UI's count control, call it; the
+/// MCP's `keys` array takes each key whole and has no list to read. A
+/// comma list, where `line:` takes the rest of the list as its texts —
+/// `line:resist,life` is the vocabulary narrowed twice, a table each
+/// (`line[:text,…]`) — and a text is a pattern after `~`. A text with a
+/// comma, or a `~` of its own, is quoted, `"…"`, with the language's
+/// three escapes (`\"`, `\\`, `\n`) and no other; what is quoted is the
+/// text as written, never syntax, and a quote that does not close is an
+/// error, as it is in a query.
 pub fn count_keys(raw: &str) -> Result<Vec<String>, String> {
     // each part as characters, each marked quoted or not: what was quoted
     // is text as written, and only an unquoted character is syntax

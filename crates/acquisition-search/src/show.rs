@@ -30,14 +30,14 @@
 //! rows view asking `item` holds (`answer.rs`), so a row's item is
 //! `show`'s for the same id at the same basis and no second maker stands.
 //! [`item_aged`] ages both. It also says the values an item's numbers are
-//! read by (4-full part 1, step 6.4c), each a text a sort takes: a line's
-//! `value`, the value a trade filter on the stat it displays as compares,
-//! asked of the translation itself, and for a line that displays as no
-//! site stat the sum over its own group by the translation's rule and
-//! writer (`line_value`); and `number_fields`, each number field the item
-//! displays with its number. Where a field is displayed is a row's pieces
-//! ([`Displays`]), made by the one function that composes the row
-//! (`derive.rs`), so a page links a number without reading a text again.
+//! read by, each a text a sort takes: a line's `value`, the value a trade
+//! filter on the stat it displays as compares, asked of the translation
+//! itself, and for a line that displays as no site stat the sum over its
+//! own group by the translation's rule and writer (`line_value`); and
+//! `number_fields`, each number field the item displays with its number.
+//! Where a field is displayed is a row's pieces ([`Displays`]), made by
+//! the one function that composes the row (`derive.rs`), so a page links
+//! a number without reading a text again.
 //!
 //! **`--against '<query>'`** (C100: the why-not) puts beside the item the query's canonical
 //! text and tree, the root's outcome on this item — match, no match,
@@ -87,7 +87,7 @@ pub struct Shown {
     pub place: Place,
     /// The item without its lines, which follow with their slots: no
     /// `lines` is printed under it, an empty list there having read as an
-    /// item with none (the MCP seat, step 11c).
+    /// item with none.
     #[serde(serialize_with = "without_lines")]
     pub item: Item,
     /// What the class table says of it (`class.rs`).
@@ -139,8 +139,7 @@ pub struct ShownItem {
     /// Each number field the item displays, by the field's text, which
     /// sorts by it, with its number: the item level, the level required,
     /// and each property the property table reads as the number it
-    /// displays, in the item's order (4-full part 1, step 6.4c). Absent
-    /// where it displays none.
+    /// displays, in the item's order. Absent where it displays none.
     #[serde(skip_serializing_if = "serde_json::Map::is_empty")]
     pub number_fields: serde_json::Map<String, serde_json::Value>,
     /// Where each of `number_fields` is displayed, for a page's pieces
@@ -166,11 +165,11 @@ enum Side {
     Denominator,
 }
 
-/// An item's displayed rows with the number fields each displays, borrowed
-/// from `show`'s document or a row's item (4-full part 1, step 6.4c):
-/// each row in its pieces, a piece the item displays as one of
-/// `number_fields` carrying that field's text, which a page writes as a
-/// link without reading the row's text again.
+/// An item's displayed rows with the number fields each displays,
+/// borrowed from `show`'s document or a row's item: each row in its
+/// pieces, a piece the item displays as one of `number_fields` carrying
+/// that field's text, which a page writes as a link without reading the
+/// row's text again.
 #[derive(Clone, Copy)]
 pub struct Displays<'a> {
     item: &'a Item,
@@ -266,9 +265,9 @@ impl Displays<'_> {
     }
 }
 
-/// One piece of a displayed row (4-full part 1, step 6.4c): its words,
-/// and the text of the value that reads them where one does. The row's
-/// string is its pieces joined, by construction.
+/// One piece of a displayed row: its words, and the text of the value that
+/// reads them where one does. The row's string is its pieces joined, by
+/// construction.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Part {
     pub text: String,
@@ -355,11 +354,11 @@ pub struct ShownLine {
     /// The words that name this occurrence's numbers, each with its number.
     pub slots: Vec<(String, serde_json::Value)>,
     /// The value a trade filter on this line's stat compares, which sorts
-    /// by it (4-full part 1, step 6.4c): `sum(line("<template>"
-    /// source=<source>).<slot>)`, its slot `avg` where the template's
-    /// numbers are a mean pair and else `arg1`, the sum over every line of
-    /// the item its group selects (`line_value`). Absent where that
-    /// slot reads no number: a line with none, or one unread.
+    /// by it: `sum(line("<template>" source=<source>).<slot>)`, its slot
+    /// `avg` where the template's numbers are a mean pair and else `arg1`,
+    /// the sum over every line of the item its group selects
+    /// (`line_value`). Absent where that slot reads no number: a line with
+    /// none, or one unread.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
     /// A limit this line meets, in the register's words (C102).
@@ -367,17 +366,16 @@ pub struct ShownLine {
     pub limit: Option<&'static str>,
 }
 
-/// The value a line's number is read by (4-full part 1, step 6.4c): the
-/// value a trade filter on the stat the line displays as compares, asked
-/// of the translation itself (`trade_value`), so a stat the trade form
-/// filtered and the same line on an item name one value — its group, its
-/// forms and which of its numbers the site's text leaves open all the
-/// translation's. A line that displays as no site stat is read by the
-/// same rule over its own group, `sum(line("<template>"
-/// source=<source>).<slot>)`, every number of it open
-/// (`template::compared_slot`, the translation's rule, made by its writer
-/// of a stat's sum, `tree::sum_of_lines`). None where that slot reads no
-/// number of the line.
+/// The value a line's number is read by: the value a trade filter on the
+/// stat the line displays as compares, asked of the translation itself
+/// (`trade_value`), so a stat the trade form filtered and the same line
+/// on an item name one value — its group, its forms and which of its
+/// numbers the site's text leaves open all the translation's. A line that
+/// displays as no site stat is read by the same rule over its own group,
+/// `sum(line("<template>" source=<source>).<slot>)`, every number of it
+/// open (`template::compared_slot`, the translation's rule, made by its
+/// writer of a stat's sum, `tree::sum_of_lines`). None where that slot
+/// reads no number of the line.
 fn line_value(line: &Line) -> Option<String> {
     let (value, slot) = match trade_value(line) {
         Some(found) => found,
@@ -891,14 +889,14 @@ mod tests {
         }
     }
 
-    /// 4-full part 1, step 6.4c: over every stat the table ships under a
-    /// category a line's source is filed under, the value a bound on it
-    /// compares is the value a line of each template its translated group
-    /// names gets (`line_value`). Nothing here restates how the
-    /// translation matches a line: the templates are read from the tree
-    /// the translation made. Where two stats' groups name one template
-    /// under one category with different values, the first in the table's
-    /// order is the line's; those are counted, so a new one is seen.
+    /// Over every stat the table ships under a category a line's source
+    /// is filed under, the value a bound on it compares is the value a
+    /// line of each template its translated group names gets
+    /// (`line_value`). Nothing here restates how the translation matches
+    /// a line: the templates are read from the tree the translation made.
+    /// Where two stats' groups name one template under one category with
+    /// different values, the first in the table's order is the line's;
+    /// those are counted, so a new one is seen.
     #[test]
     fn a_lines_value_is_the_translations_for_every_stat_it_displays_as() {
         let stats = crate::trade::stats::table().unwrap();
@@ -964,11 +962,11 @@ mod tests {
         assert_eq!(collisions.len(), 4, "{}", collisions.join("\n"));
     }
 
-    /// The lines the reviews of step 6.4c named each pass through the stat
-    /// they display as (`trade_value`), never the rule over a line's own
-    /// group: a `+` the site writes before a `#`, the site's digit where
-    /// an item shows another number, a plural form the bound sums, and a
-    /// number the site writes as a digit.
+    /// These lines each pass through the stat they display as
+    /// (`trade_value`), never the rule over a line's own group: a `+`
+    /// the site writes before a `#`, the site's digit where an item
+    /// shows another number, a plural form the bound sums, and a number
+    /// the site writes as a digit.
     #[test]
     fn the_reviews_lines_pass_through_their_stat() {
         for text in [

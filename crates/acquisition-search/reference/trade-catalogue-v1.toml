@@ -1,10 +1,9 @@
 # The trade catalogue — v1 (C113, K6; src/trade/translate.rs), the trade-URL
-# import, step 0 of search/TRADE-PLAN.md at 77666ea4.
+# import.
 #
 # Reference data: reviewed by hand, committed, shipped inside the binary
 # (`include_str!` in `src/trade/catalogue.rs`, whose loader holds a row to
-# what this header says, step 3; the translation reads it at step 4),
-# read-only, enumerable by
+# what this header says; the translation reads it), read-only, enumerable by
 # `acq search --describe trade`, cited by version in the report of every
 # answer a translation produced, its `query.trade`; the build its basis
 # names digests it (C98). One row per clause the site's
@@ -25,7 +24,7 @@
 # `ambiguous` (runs, with `says` in the report), `unsupported` (the
 # remainder), `listing_only` (no stash meaning; reported). A clause the
 # site sends `disabled` is `disabled` whatever its row says.
-# `lands` is the text the clause becomes (step 4, src/trade/translate.rs).
+# `lands` is the text the clause becomes (src/trade/translate.rs).
 # Its placeholders are filled from the clause and never stand inside
 # quotes, the loader refuses one that does: `{value}` and `{option}` are
 # written through the printer's quoting, `{text}` as a stat's displays
@@ -59,8 +58,8 @@
 # unsupported, by name (`query.unknown`), the clause it could change: a
 # filter, every filter of its group and the group, a stat group whole. `fields` names the
 # fields of the language the text needs, each written in `lands`: the
-# loader refuses one the build does not know (step 3, where the C114 fields
-# landed, named by the displayed property, lowercased, spaces as
+# loader refuses one the build does not know (the C114 fields are named by
+# the displayed property, lowercased, spaces as
 # underscores, `.of` the denominator of a `#/#` value, `.q20` a defence at
 # 20 % quality: reference/properties-v1.toml). `lacked = "meets_maximum"`,
 # on a row landing one field's `{bounds}` alone: an item lacking the field
@@ -69,8 +68,8 @@
 # `note` is the row's evidence, its citations among it, kept in this file
 # alone, and every ambiguous or unsupported clause has one. `says` is what
 # the report and `--describe trade` print for the clause, in a reader's
-# words with no citation, given wherever a note is (the trade seat,
-# 2026-10-17). An option value or key no row names is
+# words with no citation, given wherever a note is. An option value or key
+# no row names is
 # unsupported by its name (K6), by `query.unknown`.
 # `other`, on an ambiguous row alone, is the clause's other reading
 # (C119): the fragment the clause would be read the other way, filled
@@ -81,8 +80,8 @@
 # for, and is none elsewhere, as is one holding a placeholder its clause
 # does not fill: the clause, or the weighted sum it is a line of, a
 # conjunct of the query whole; `{forms}` a bound with a minimum alone in
-# an `and` group, every form no sum holds the opposite word (the trade
-# seat's `increased Rarity` at 20); `{without}` a filter of a bounded
+# an `and` group, every form no sum holds the opposite word (an
+# `increased Rarity` at 20); `{without}` a filter of a bounded
 # weighted sum beside another. The answer counts the items in scope the
 # reading adds and drops against the query as run, each with its route
 # (`answer.rs`).
@@ -92,34 +91,15 @@
 # what no row names and a range that runs backwards, 93 filters and 6 option rows, 10 for the stat groups
 # (8 types, the disabled and the option-valued filter), 27 for the stats
 # (14 categories and 13 line rules); 90 exact, 18 ambiguous, 34
-# unsupported, 9 listing-only — the four defence filters ambiguous since
-# step 3 measured them, and from step 4 to round x `stat.text.numbers`,
-# by the owner's verdict until a sitting asked it; `stat.text.two`,
-# `stat.text.numbers` and `query.unknown` are step 4's,
-# `stat.text.eldritch` step 6's. Step 7e built what the sitting of
-# 2026-10-16 settled: `stat.explicit`, `map_filters.area_level`, the nine
-# heist skills and `weapon_filters.edps` exact; `weapon_filters.dps` and
-# `pdps` on the damage at 20 % quality, within one of the site's;
-# `map_filters.map_tier` ambiguous for a base naming no tier; the four
-# requirement rows' `lacked`; `stat.text.forms` and `stat.text.refused`,
-# and since its outside review `stat.text.wording`, the forms tables'
-# (reference/trade-forms-v1.toml, trade-game-forms-v1.toml). Step 7f the
-# rest: `query.term`, `uniquefoil`, `crit` and `map_blighted` exact, and
-# since its outside review the two open questions labelled where they
-# stand, `query.type.map` and `stat.scourge.summed`. Round x (2026-10-18)
-# `map_blighted` exact again, a Blight-ravaged map no blighted one,
-# `map_uberblighted` exact in its shape, and `stat.text.numbers` exact.
-# The 4b sitting round (2026-10-25): `misc_filters.gem_vaal` exact, on
-# GGG's own mark, `is:vaal`, where it read the type line's prefix.
+# unsupported, 9 listing-only.
 # Every one of the capture's 94 filters, 14 categories and 8 group types
 # has a row (tests/trade_catalogue.rs). 59 fields named. Every one of the
 # stat table's 14,700 category and id pairs translates, alone and with a
 # bound (tests/trade_translate.rs): alone 13,661 exact, 819 ambiguous,
 # 220 unsupported — the two-text ids, every one; with a bound 9,400, 5,080
 # and 220, 4,585 of them by `stat.text.forms`; 300 by `stat.text.wording`;
-# 373 by `stat.text.collision`, its texts read as templates since round x;
-# 14 by `stat.text.many`, a text of two `#` compared by their mean since
-# round x.
+# 373 by `stat.text.collision`, its texts read as templates; 14 by
+# `stat.text.many`, a text of two `#` compared by their mean.
 
 version = 1
 filters = "2026-11-17"

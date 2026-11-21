@@ -1,8 +1,6 @@
-//! Faults of the first surface found from outside (step 4b; an audit of
-//! 2026-09-21 and its reviews to 2026-09-22) that the generated properties
-//! had not met, each reproduced here as a failing test before it was
-//! fixed: C92 (a sum is exact in any order), C93 (a number beyond reach is
-//! unread at its slot; a reason is the open occurrence's own), C100 and
+//! Faults of the surface that the generated properties had not met, each
+//! held here: C92 (a sum is exact in any order), C93 (a number beyond reach
+//! is unread at its slot; a reason is the open occurrence's own), C100 and
 //! invariants 4 and 5 of the surface (a count has a route; every block is
 //! bounded), C97 (`--describe` is the help).
 
@@ -143,7 +141,6 @@ fn c100_a_pattern_that_resolved_to_nothing_is_in_the_zero_block() {
         ("sum(line(template~\"nothing\").arg1)>0", "template"),
         ("name~\"nothing\"", "name"),
         ("name:nothing", "name"),
-        // found by the zero-block cross-check on its first day
         ("rarity:ma", "rarity"),
     ] {
         let answer = run(&corpus, &request(query, None, false, 10)).unwrap();
@@ -238,10 +235,10 @@ fn c97_describe_says_how_terms_compose_and_knows_the_words_it_prints() {
             .unwrap_or_else(|_| panic!("`{word}`"));
         assert_eq!(one[block].as_array().unwrap().len(), 1, "`{word}`: {one}");
     }
-    // The league seat (cli calls 57, 58): the language's refusal spells
-    // its calls with their `(` (`sum(`, `holds(`), and describe refused
-    // `sum(` as nothing it knows. Every call the refusal spells reaches
-    // the entry or the block that holds it, as its bare name does.
+    // The language's refusal spells its calls with their `(` (`sum(`,
+    // `holds(`): every call the refusal spells reaches the entry or the
+    // block that holds it, as its bare name does, never refused as nothing
+    // describe knows.
     let readings = acquisition_search::parse_query("nocall(x)")
         .unwrap_err()
         .readings;
@@ -259,11 +256,10 @@ fn c97_describe_says_how_terms_compose_and_knows_the_words_it_prints() {
     }
 }
 
-/// Outside review, 2026-09-21: a number is read once, where the body is
-/// read, and one the search does not read — more digits than any game
-/// displays — is an unread slot of its line (C93), never a sum that is
-/// exact in one order of occurrences and rounded in another. So both
-/// orders answer alike, and say why.
+/// A number is read once, where the body is read, and one the search does
+/// not read — more digits than any game displays — is an unread slot of its
+/// line (C93), never a sum that is exact in one order of occurrences and
+/// rounded in another. So both orders answer alike, and say why.
 #[test]
 fn c93_a_number_beyond_reach_is_unread_where_it_is_read_and_no_order_matters() {
     let huge = "10000000000000000000000000000";
@@ -298,12 +294,12 @@ fn c93_a_number_beyond_reach_is_unread_where_it_is_read_and_no_order_matters() {
     assert_eq!(phrase["total"]["matched"], 3);
 }
 
-/// The follow-up, 2: what is shown of why an item is undecided is bounded
-/// by the item's unread parts, in the item's order — never by the order
-/// the terms were written in, which a rewrite that changes no meaning may
-/// change (invariant 7). On an `undecided( … )` row, that is; the answer's
-/// own block is by reason since the first seat (V8), seven kinds here,
-/// none left out, in the same order either way.
+/// What is shown of why an item is undecided is bounded by the item's
+/// unread parts, in the item's order — never by the order the terms were
+/// written in, which a rewrite that changes no meaning may change
+/// (invariant 7). On an `undecided( … )` row, that is; the answer's own
+/// block is by reason (V8), seven kinds here, none left out, in the same
+/// order either way.
 #[test]
 fn c100_the_reasons_shown_are_the_items_first_six_however_the_terms_are_ordered() {
     let flags = [
@@ -359,11 +355,10 @@ fn c100_the_reasons_shown_are_the_items_first_six_however_the_terms_are_ordered(
     assert!(forward.3.is_null());
 }
 
-/// Outside review, 2026-09-22: a number the search does not read is an
-/// unread *slot* — not an absent one, and not an unread array. What needs
-/// the number is undecided, through a not as well; what needs the line's
-/// text, template, source or sibling numbers keeps its answer (C93: only
-/// the terms that needed it).
+/// A number the search does not read is an unread *slot* — not an absent
+/// one, and not an unread array. What needs the number is undecided,
+/// through a not as well; what needs the line's text, template, source or
+/// sibling numbers keeps its answer (C93: only the terms that needed it).
 #[test]
 fn c93_an_unread_number_is_unknown_to_what_asks_it_and_to_nothing_else() {
     let (corpus, _) = fixture(vec![
@@ -415,9 +410,9 @@ fn c93_an_unread_number_is_unknown_to_what_asks_it_and_to_nothing_else() {
     assert_eq!(why["unread"], "the numbers of explicit lines", "{why}");
 }
 
-/// The third review, 2: a sum past what a float holds exactly is still the
-/// decimal sum, read once: nineteen of the largest numbers the search
-/// reads equal the bound typed for them.
+/// A sum past what a float holds exactly is still the decimal sum, read
+/// once: nineteen of the largest numbers the search reads equal the bound
+/// typed for them.
 #[test]
 fn c92_a_sum_at_the_edge_of_what_is_read_equals_its_typed_bound() {
     let nineteen: Vec<String> = (0..19)
@@ -434,12 +429,10 @@ fn c92_a_sum_at_the_edge_of_what_is_read_equals_its_typed_bound() {
     assert_eq!(sort_value(&a["rows"][0])["value"], json!(189999999999.9943));
 }
 
-/// Found by the completion property the day its generators learned to
-/// write an unread number, and nothing to do with one: an item "reaches a
-/// bound only together" when its occurrences' sum does — and a sum of no
-/// occurrence is no such thing, though 0 is at least any bound of zero or
-/// less. The count said 1 and its route, which asks for a selected line,
-/// returned none (invariant 4).
+/// An item "reaches a bound only together" when its occurrences' sum does —
+/// and a sum of no occurrence is no such thing, though 0 is at least any
+/// bound of zero or less. The count said 1 and its route, which asks for a
+/// selected line, returned none (invariant 4).
 #[test]
 fn c92_nothing_reaches_a_bound_together_without_an_occurrence_that_counts() {
     let (corpus, _) = fixture(vec![
@@ -478,12 +471,11 @@ fn c92_nothing_reaches_a_bound_together_without_an_occurrence_that_counts() {
     );
 }
 
-/// Outside review, 2026-09-22: why an item is undecided names the occurrence
-/// that left it open — never another of the same array that happens to be
-/// unread too. Six Spirit lines nobody asked about come before the one
-/// Life line that matters; the reason given is that line's, `[6]`, and
-/// nothing relevant is left out. Both paths: the total's `why` and an
-/// `undecided( … )` row.
+/// Why an item is undecided names the occurrence that left it open — never
+/// another of the same array that happens to be unread too. Six Spirit
+/// lines nobody asked about come before the one Life line that matters; the
+/// reason given is that line's, `[6]`, and nothing relevant is left out.
+/// Both paths: the total's `why` and an `undecided( … )` row.
 #[test]
 fn c93_the_reason_given_is_the_open_occurrences_own() {
     let unread_number = |of: &str| json!(format!("1.12345 to {of}"));
@@ -715,8 +707,8 @@ fn c53_the_index_is_every_entry_at_one_line_and_each_name_it_prints_answers_whol
         );
     }
     // a construct no block or entry answers to is refused as not built;
-    // `basis` is an answer's key, which describe answers first (#97: the
-    // list names the request's words)
+    // `basis` is an answer's key, which describe answers first (the list
+    // names the request's words)
     for unbuilt in acquisition_search::NOT_BUILT {
         let construct = unbuilt.construct.trim_end_matches([':', '*', '.']);
         match describe::describe(&[construct.to_string()]) {
@@ -758,13 +750,13 @@ fn described(items: &[&str]) -> Value {
         .unwrap()
 }
 
-/// #154, a slice by pattern: `~` and a pattern reads the language's
-/// entries by name and by definition, the categories by id, text and what
-/// makes one hold, and answers its matches whole where they are the
-/// store's count or fewer (ten) and at one line each past it, counted.
-/// `~resistance` matches ten and `~resist` eleven over the tables this
-/// build ships (the eleventh the answer's `view`, whose definition names
-/// `line:resist`): the bound seen from both sides.
+/// A slice by pattern: `~` and a pattern reads the language's entries by
+/// name and by definition, the categories by id, text and what makes one
+/// hold, and answers its matches whole where they are the store's count or
+/// fewer (ten) and at one line each past it, counted. `~resistance` matches
+/// ten and `~resist` eleven over the tables this build ships (the eleventh
+/// the answer's `view`, whose definition names `line:resist`): the bound
+/// seen from both sides.
 #[test]
 fn c53_a_pattern_answers_ten_matches_whole_and_eleven_at_one_line() {
     let whole = described(&["all"]);
@@ -816,7 +808,7 @@ fn c53_a_pattern_answers_ten_matches_whole_and_eleven_at_one_line() {
     );
 }
 
-/// #154: a pattern reads an entry's definition whole, not its one line —
+/// A pattern reads an entry's definition whole, not its one line —
 /// `critical_strike_chance` says "weapon" after its first `: ` — and the
 /// name and the definition each as its own string, so `^` and `$` are the
 /// ends of one: `^GGG's` finds `name`, whose definition starts so, and
@@ -889,7 +881,7 @@ fn c97_a_pattern_reads_names_and_definitions_each_its_own_string() {
     assert!(!sliced(&total).is_empty());
 }
 
-/// #154: a pattern that matches nothing names itself and what a pattern
+/// A pattern that matches nothing names itself and what a pattern
 /// reads, as `unknown_name` (the reader's move is a name's: ask again),
 /// with no readings and one offer, `describe` with no names, the index;
 /// one that does not compile is the compiler's own refusal.
@@ -920,11 +912,10 @@ fn c53_a_pattern_that_matches_nothing_offers_the_index() {
     );
 }
 
-/// #83: the anatomy of an answer left the MCP's tool text for the
-/// `answer` section, read on demand, so the section is held to the
-/// answer: every key an answer prints — with rows, with a zero total and
-/// its offers, under the corpus context with the query set aside — is an
-/// entry's name or the head of one's path.
+/// The anatomy of an answer is the `answer` section, read on demand, so the
+/// section is held to the answer: every key an answer prints — with rows,
+/// with a zero total and its offers, under the corpus context with the
+/// query set aside — is an entry's name or the head of one's path.
 #[test]
 fn the_answer_section_names_every_key_an_answer_prints() {
     let (corpus, _) = fixture(vec![lines(&["+20 to maximum Life"])]);

@@ -1,8 +1,8 @@
 //! Explain over generated queries and generated items (`answer.rs`,
-//! `tree.rs`; the build plan, step 10), through the crate's boundary
-//! alone. Nothing explain answers is new arithmetic: a forced node is the
-//! query with that node replaced by `true()` or `false()`, which a user
-//! could type. So, at every path the answer names:
+//! `tree.rs`), through the crate's boundary alone. Nothing explain
+//! answers is new arithmetic: a forced node is the query with that node
+//! replaced by `true()` or `false()`, which a user could type. So, at
+//! every path the answer names:
 //!
 //! - each forced answer has the counts the build gives the transformed
 //!   query it prints, asked as a request of its own — by its text and by

@@ -1,24 +1,23 @@
-//! Generators for step 4b's properties (the build plan, "Step 4b"):
-//! queries as a tree of this file's own, so that a rewrite is made on the
-//! tree and only text crosses the crate's boundary, and item bodies with
-//! holes — something the deriver cannot read — that a completion fills.
+//! Generators for the generated properties (`generated_*.rs`): queries as
+//! a tree of this file's own, so that a rewrite is made on the tree and
+//! only text crosses the crate's boundary, and item bodies with holes —
+//! something the deriver cannot read — that a completion fills.
 //!
-//! Since step 7's third look the generators reach the computed values
-//! (`search/LEDGER.md`, "7 · the third look"): `pseudo.total_res` over resistance
-//! lines of three templates and two weights, `pseudo.dps` and
+//! The generators reach the computed values: `pseudo.total_res` over
+//! resistance lines of three templates and two weights, `pseudo.dps` and
 //! `pseudo.pdps` over a `properties` array — as comparisons, `has:`,
 //! probes and sorts in the one composition — and the array's own holes:
 //! no array, an element that is no property, a property whose values
 //! cannot be read, and a value the fields cannot read as a number.
 //!
-//! Since step 8 they reach the sockets (C101): `sockets`, `links` and
+//! They reach the sockets (C101): `sockets`, `links` and
 //! `sockets.<colour>` as comparisons, `has:` and sorts, `linked( … )` as
 //! a group of colour and size counts in the one composition — and the
 //! collection's own holes: no array, an element that is no socket, a
 //! socket whose colour could not be read (an `attr` and no `sColour`),
 //! and one whose group could not.
 //!
-//! Since step 9 they reach the price (C81, C100): the fixture's tab is
+//! They reach the price (C81, C100): the fixture's tab is
 //! public and carries the owner's row, a note is a game price, a bulk
 //! ratio, a `~skip`, a word that is no price, or a hole — a note that is no
 //! string, which the store carries as unread and the listing state leaves
@@ -26,7 +25,7 @@
 //! `price.lot` join the composition as comparisons, `has:`, probes and
 //! sorts.
 //!
-//! Since step 9c3 they reach the readings of other totals (C101):
+//! They reach the readings of other totals (C101):
 //! `pseudo.count_ele_res` and `pseudo.total_all_ele_res` over the same
 //! resistance lines, three templates feeding the three totals each reads
 //! — the cold and the fire line one apiece, the all-elemental line every
@@ -34,7 +33,7 @@
 //! every occurrence is written twice, and a least doubles as a total
 //! does.
 //!
-//! Since step 9c4 they reach a mod displayed over several rows (C90):
+//! They reach a mod displayed over several rows (C90):
 //! Thread of Hope's three, its resistance the second, and a mod of two
 //! rows, life and cold resistance, each with a number — so that a row's
 //! first number is not its mod's — named by a row and by the whole text,
@@ -43,31 +42,31 @@
 //! what a term that names a row, a sum of one and a total are to answer
 //! alike.
 //!
-//! Since step 9e they reach what step 9d built (C94, C101, C106): an
-//! item's base — a ring, a sword, two body armours, or a `baseType` that
-//! is no string — so that `class` and `category` vary and may be open,
-//! as terms, `has:`, probes and a count's keys; the ranged family, the
-//! plain, the attacks' and the spells' totals of cold damage over the
-//! unsuffixed line and the spells' own, with and without a slot word, the
-//! plain and the spells' reading what the item is; the two arrays no
-//! total reads, `crucibleMods` and `utilityMods`, with their holes; and
-//! the base defence percentile over a displayed `Armour` and `Energy
-//! Shield`, the lines the defence table names — a twin text, a text only
-//! a local stat displays, the enchant — and the two marks that say whose
-//! an implicit twin is, each a yes, a no or neither. The percentile is
-//! the one value a rule leaves open on an item with nothing unread
-//! (J33), which [`TermKind::Ruled`] says of its terms.
+//! They reach the bases, the ranged family and the percentile (C94, C101,
+//! C106): an item's base — a ring, a sword, two body armours, or a
+//! `baseType` that is no string — so that `class` and `category` vary and
+//! may be open, as terms, `has:`, probes and a count's keys; the ranged
+//! family, the plain, the attacks' and the spells' totals of cold damage
+//! over the unsuffixed line and the spells' own, with and without a slot
+//! word, the plain and the spells' reading what the item is; the two
+//! arrays no total reads, `crucibleMods` and `utilityMods`, with their
+//! holes; and the base defence percentile over a displayed `Armour` and
+//! `Energy Shield`, the lines the defence table names — a twin text, a
+//! text only a local stat displays, the enchant — and the two marks that
+//! say whose an implicit twin is, each a yes, a no or neither. The
+//! percentile is the one value a rule leaves open on an item with nothing
+//! unread (J33), which [`TermKind::Ruled`] says of its terms.
 //!
 //! Nothing here reads the crate's tree, binder or evaluator: a query is
 //! rendered to text and asked, and a body enters through `Store::record`;
 //! a row enters through the pricing area's one write.
 //!
 //! [`cases`] and [`config`], how a generated property runs, are the shape
-//! two copies take (#85): `acquisition-daemon/src/tests/generated.rs` and
+//! two copies take: `acquisition-daemon/src/tests/generated.rs` and
 //! `acquisition-client/src/tests/generated.rs`, kept as copies because a
-//! test module is no other crate's to link and a shared test-support crate
-//! would be a new dependency edge, none ruled (#117). A change of the shape
-//! here is made in both.
+//! test module is no other crate's to link and a shared test-support
+//! crate would be a new dependency edge, none ruled. A change of the
+//! shape here is made in both.
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -533,9 +532,9 @@ pub const PRICE: [&str; 3] = ["priced", "price.amount", "price.currency"];
 /// derived fields over the properties, compared within the bounds of
 /// `comparison()`; `has:` of a derived field and of a reading; and — one
 /// time in fifteen — `has:` of a total, which asks its presence (C94).
-/// Since step 9e the ranged family's three totals of cold damage, a bare
-/// name being its `avg`, and the base defence percentile, compared
-/// within the bounds of `percent()`.
+/// And the ranged family's three totals of cold damage, a bare name being
+/// its `avg`, and the base defence percentile, compared within the bounds
+/// of `percent()`.
 pub const PSEUDO: [&str; 9] = [
     "pseudo.total_res",
     "pseudo.count_ele_res",
@@ -938,14 +937,13 @@ pub fn sort_shuffled(sort: &Sort, seed: u64) -> Sort {
 /// line's group: `false()`, or a quoted template — a row of a mod of
 /// several rows among them — from a source no generated line has. The
 /// rewrite changes no match, and no number a comparison of the group
-/// reads (the outside review of step 9c4, finding 1). A quoted template
-/// holds on an item that has its line, so the padded query is another
-/// question, which agrees with the first only on generated items. What
-/// it may change is what is said of the group's own syntax — the slot
-/// check, the together bound, what its templates resolved to, the
-/// values the query compares and so the order it gives where no sort is
-/// named (#292) — so its answers are compared by [`said`], in the
-/// store's order where no sort is named.
+/// reads. A quoted template holds on an item that has its line, so the
+/// padded query is another question, which agrees with the first only
+/// on generated items. What it may change is what is said of the
+/// group's own syntax — the slot check, the together bound, what its
+/// templates resolved to, the values the query compares and so the
+/// order it gives where no sort is named — so its answers are compared
+/// by [`said`], in the store's order where no sort is named.
 pub fn padded(q: &Q, seed: u64) -> Q {
     fn walk(q: &Q, rng: &mut Lcg) -> Q {
         let each = |children: &[Q], rng: &mut Lcg| -> Vec<Q> {
@@ -1450,8 +1448,7 @@ pub struct Body {
     pub shaper: Tri,
     pub hunter: Tri,
     pub ilvl: Known<i64>,
-    /// The `Level` requirement; its hole is a `Level` row with no value
-    /// (the step-6 review, 1).
+    /// The `Level` requirement; its hole is a `Level` row with no value.
     pub reqlevel: Known<i64>,
     pub name: Known<&'static str>,
     pub note: Known<&'static str>,
@@ -2420,8 +2417,9 @@ fn fast(name: &str) -> Value {
 
 /// The six items the audits' reproductions were made of, a seventh that
 /// is past every bound, an eighth past the bound on the reasons a
-/// computed value makes beyond the item's own parts, a ninth of sockets,
-/// and two of what step 9d built.
+/// computed value makes beyond the item's own parts, a ninth of
+/// sockets, and two of bases and the lines the ranged family and the
+/// percentile read.
 pub fn anchors() -> Vec<Value> {
     vec![
         json!({"explicitMods": ["+95 to maximum Life"]}),
@@ -2443,23 +2441,23 @@ pub fn anchors() -> Vec<Value> {
             "influences": {"shaper": "unread", "hunter": "unread"}}),
         // past the bound on reasons: three line arrays unread, which a
         // total rests on, and four properties the derived fields read
-        // that are no number — seven parts, four of them made beyond the
-        // item's own (step 7's outside audit, 5)
+        // that are no number — seven parts, four of them made beyond
+        // the item's own
         json!({
             "implicitMods": "unread", "explicitMods": "unread", "craftedMods": "unread",
             "properties": [
                 fast("Attacks per Second"), fast("Physical Damage"),
                 fast("Elemental Damage"), fast("Chaos Damage")]}),
-        // the sockets with every hole the deriver names (step 8): a red
-        // socket read whole, one whose colour is unread, one whose group
-        // is, and an element that is no socket
+        // the sockets with every hole the deriver names: a red socket read
+        // whole, one whose colour is unread, one whose group is, and an
+        // element that is no socket
         json!({"explicitMods": ["+50 to maximum Life"], "sockets": [
             {"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D"},
             {"sColour": "B"}, 7]}),
-        // what step 9d built, with its holes (step 9e): a body armour
-        // displaying its defence, an implicit twin whose side a mark that
-        // is no yes or no leaves open, a resistance among a flask's own
-        // lines, and a crucible node's lines unread, which no total reads
+        // a base with its holes: a body armour displaying its defence, an
+        // implicit twin whose side a mark that is no yes or no leaves open,
+        // a resistance among a flask's own lines, and a crucible node's
+        // lines unread, which no total reads
         json!({"baseType": "Plate Vest", "searing": "unread",
             "properties": [{"name": "Armour", "values": [["23", 0]], "displayMode": 0}],
             "implicitMods": ["+3 to Armour"],
@@ -2616,7 +2614,7 @@ pub fn members(
     Ok(ids)
 }
 
-// ---- a site query (the trade translation, step 4 of search/TRADE-PLAN.md at 77666ea4) --------------------
+// ---- a site query (the trade translation) -----------------------------------------------------
 
 /// The words a site query's texts and options are drawn from: plain ones,
 /// and ones that carry the language's own marks — a quote, a backslash, a

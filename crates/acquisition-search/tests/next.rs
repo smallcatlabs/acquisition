@@ -1,8 +1,8 @@
-//! Continuing and exchanging (`answer.rs`; C98, C100; the
-//! build plan, step 10): an answer cut at its limit says how to go on, a
-//! continuation names its basis and is refused across a change, and a
-//! route resubmitted on a later basis reports both counts — through the
-//! crate's boundary, a request in, an answer out, as JSON.
+//! Continuing and exchanging (`answer.rs`; C98, C100): an answer cut at
+//! its limit says how to go on, a continuation names its basis and is
+//! refused across a change, and a route resubmitted on a later basis
+//! reports both counts — through the crate's boundary, a request in, an
+//! answer out, as JSON.
 
 use crate::common;
 
@@ -115,12 +115,11 @@ fn the_pages_of_an_answer_are_the_answer_at_a_limit_past_the_total() {
     assert_eq!(second["terms"], first["terms"]);
 }
 
-/// Each id's index in a rows request's whole order (step 6.5c, Decision
-/// 2): asked of `answer` with `after` that index and `limit` one, it is
-/// that row, in the store's order, under a sort either way, and with
-/// the query's values as columns, in the store's order still; an id
-/// outside the order has none, whatever the request's own `after` and
-/// `limit`.
+/// Each id's index in a rows request's whole order: asked of `answer`
+/// with `after` that index and `limit` one, it is that row, in the
+/// store's order, under a sort either way, and with the query's values
+/// as columns, in the store's order still; an id outside the order has
+/// none, whatever the request's own `after` and `limit`.
 #[test]
 fn an_ids_index_is_the_place_answer_lists_its_row_at() {
     let s = worked();
@@ -172,10 +171,9 @@ fn an_ids_index_is_the_place_answer_lists_its_row_at() {
 }
 
 /// A continuation of rows whose values the query gave unasked goes on
-/// with them (4-full part 1, step 6.1): it names what its request named
-/// and the query fills the rest again, the same at the basis it names, so
-/// every page says the values came from the query; values named are
-/// carried, and `none` is.
+/// with them: it names what its request named and the query fills the
+/// rest again, the same at the basis it names, so every page says the
+/// values came from the query; values named are carried, and `none` is.
 #[test]
 fn a_continuation_goes_on_with_the_values_the_query_gave() {
     let s = worked();
@@ -640,11 +638,11 @@ fn nothing_of_a_request_stands_beside_a_request() {
 /// lines' sum at 70 or more, with a crucible tree path in the remainder.
 const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
-/// C113, the request-level rules of a site search (step 5 of the trade
-/// brief): a continuation keeps the site search and its report; a text
-/// beside it that is not its translation is refused; a scope realm beside
-/// a URL is the URL's or a refusal; a trade that is neither text nor an
-/// object is refused — each a `trade` refusal, before anything is counted.
+/// C113, the request-level rules of a site search: a continuation keeps
+/// the site search and its report; a text beside it that is not its
+/// translation is refused; a scope realm beside a URL is the URL's or a
+/// refusal; a trade that is neither text nor an object is refused — each
+/// a `trade` refusal, before anything is counted.
 #[test]
 fn a_site_search_is_kept_by_its_continuation_and_its_request_is_whole() {
     let s = worked();

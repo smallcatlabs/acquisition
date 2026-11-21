@@ -1,10 +1,9 @@
-//! Why not (`answer.rs`, `tree.rs`; the build plan, step 10): `--explain`,
-//! `--context corpus` and the zero block's offer of them, through the
-//! crate's boundary — a request in, an answer out, as JSON. Every count
-//! is worked by hand on the worked example's seven items (`common::worked`)
-//! before it was run: a forced node is the query with that node replaced
-//! by `true()` or `false()`, so each cell is what the build answers the
-//! transformed query, typed.
+//! Why not (`answer.rs`, `tree.rs`): `--explain`, `--context corpus` and
+//! the zero block's offer of them, through the crate's boundary — a request
+//! in, an answer out, as JSON. Every count is worked by hand on the worked
+//! example's seven items (`common::worked`) before it was run: a forced
+//! node is the query with that node replaced by `true()` or `false()`, so
+//! each cell is what the build answers the transformed query, typed.
 
 use crate::common;
 
@@ -733,10 +732,7 @@ fn describe_says_what_explain_context_and_against_do() {
             "{construct}"
         );
     }
-    // the two that wait keep their names, and no step builds them;
-    // `--view locations` left when `tabs` became the list it waited for
-    // (C118; note 38 at `16bba23e`, step 4), and `fields` when a row's
-    // fields were built (4-full part 1, step 5)
+    // the two that wait keep their names, and no step builds them
     let waiting: Vec<&str> = NOT_BUILT.iter().map(|n| n.construct).collect();
     assert_eq!(waiting, ["rebind", "show basis"]);
     assert!(NOT_BUILT.iter().all(|n| n.step.is_none()));
@@ -861,11 +857,11 @@ fn c143_the_view_selections_refusals_name_the_requests_fields() {
     }
 }
 
-/// The review of #97's fix round and Part B, its finding P3: a name
-/// asked as a terminal types it, each flag in it as its word, is asked
-/// as the request's words, for a built entry and an unbuilt one alike:
-/// `show --against` is the entry `show against`, `--rebind` is refused
-/// as not built, and `show --basis` answers as `show basis` does.
+/// A name asked as a terminal types it, each flag in it as its word, is
+/// asked as the request's words, for a built entry and an unbuilt one
+/// alike: `show --against` is the entry `show against`, `--rebind` is
+/// refused as not built, and `show --basis` answers as `show basis`
+/// does.
 #[test]
 fn a_name_typed_with_flags_is_asked_as_the_requests_words() {
     use acquisition_search::describe;

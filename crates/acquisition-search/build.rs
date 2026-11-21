@@ -15,7 +15,7 @@
 //! reads a realm through; the root manifest, where the
 //! workspace's dependencies and their features are set; and the lock,
 //! for the matcher. Every crate this one links from the workspace is
-//! there (the owner, 2026-10-10: "i accept your recommendation"). It is
+//! there (the owner: "i accept your recommendation"). It is
 //! conservative the way the contract revision is: any edit to one of
 //! them is another build, and the cost of a false one is a search asked
 //! again from its start. Features, rustc, profile and target are not

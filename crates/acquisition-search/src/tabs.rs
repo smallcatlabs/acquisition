@@ -7,15 +7,13 @@
 //! # As built
 //!
 //! One maker for both surfaces: `acq tabs` prints its text from this
-//! document and `--json` prints it, and the MCP's `tabs` returns it. The
-//! whole list stayed the JSON's alone, the counts-first shape the text's,
-//! so the MCP's answer for the owner's Standard was 745,672 bytes and no
-//! limit, cut to its head in three of the trade seat's runs (mcp-opus
-//! call 9, both rounds; mcp-sonnet-2 call 6). The rows are the store's
-//! own (`TabRow`), whole; what is left out is the request's `expand`, as
-//! a table's rest is its limit. A league of thirty tabs or fewer was
-//! listed whole until step 2g folded that into the one rule: the number
-//! is the store's (`acquisition_store::bound::LISTED`), not this file's.
+//! document and `--json` prints it, and the MCP's `tabs` returns it, so
+//! the JSON never lists whole where the text counts first (listed whole,
+//! the MCP's answer for the owner's Standard reached 745,672 bytes and
+//! was cut to its head). The rows are the store's own (`TabRow`), whole;
+//! what is left out is the request's `expand`, as a table's rest is its
+//! limit. The number listed is the store's
+//! (`acquisition_store::bound::LISTED`), not this file's.
 //!
 //! The counter by type ([`by_type`]) is also a search's: its scope names
 //! the never fetched by the same types, so the two say one thing (C118).
@@ -23,8 +21,7 @@
 //! coverage it counts for.
 //!
 //! A [`Selection`] narrows `rows` to one type, to the never fetched, or
-//! both: the never fetched by name, which every run of the re-sit asked
-//! for first or second (`audits/trade-2026-10/re-sit/`, T7: "0 matches"
+//! both: the never fetched by name (without it a reader met "0 matches"
 //! on a unique, and no way to say which unique-stash pages a refresh
 //! should read). The counts stay the league's, so a reader sees the
 //! selection against the whole; `selected` counts the rows it holds, and
@@ -81,7 +78,7 @@ pub struct TabCounts {
     pub folders: usize,
     /// The live items in the league's tabs.
     pub items: i64,
-    /// How old the league's tab facts are (#172; C162, the store's one
+    /// How old the league's tab facts are (C162, the store's one
     /// derivation): the oldest and newest fetch of its tabs with their
     /// locations, and when its stash listing was seen, each age in words
     /// at the answer's time, under the keys a search's scope names them
@@ -204,7 +201,7 @@ impl Tabs {
     }
 
     /// [`Tabs::of`] the league's tabs as `store` holds them, with the
-    /// facts block over them (#172), and what the store holds of each of
+    /// facts block over them, and what the store holds of each of
     /// the realm's leagues, for the wrapper beside it (`leagues_held`),
     /// all from one read snapshot (`Store::tabs_document`): the one read
     /// `acq tabs` and the MCP's `tabs` make, and the places document
@@ -219,7 +216,6 @@ impl Tabs {
         now: i64,
     ) -> anyhow::Result<(Tabs, Vec<acquisition_store::LeagueHeld>)> {
         // the rows, their facts and the holdings from one read snapshot
-        // (the review of round C, finding 1; of its fix round, finding 3)
         let (rows, coverage, held) = store.tabs_document(realm, league, now)?;
         let mut tabs = Tabs::of(realm, league, rows, select, limit, expand, now);
         tabs.counts.span = coverage.span;

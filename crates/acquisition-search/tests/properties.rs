@@ -1,12 +1,11 @@
-//! The property fields (C114, C101, C93; step 3 of
-//! `search/TRADE-PLAN.md` at `77666ea4`), through the crate's boundary: the shipped
-//! table and what its loader refuses; every field asked every way a
-//! number is — a comparison, `has:` and its not, `undecided( … )`, the
-//! sort, a count's sum and a count's key — on an item that displays its
-//! property, one that lacks it and one that displays it as no number;
-//! the q20 rule's arithmetic; `map_tier`; `pseudo.edps`; and the q20
-//! rule against the trade site's own figures, every captured row of it.
-//! Every count and value is worked by hand from the spec beside it.
+//! The property fields (C114, C101, C93), through the crate's boundary:
+//! the shipped table and what its loader refuses; every field asked every
+//! way a number is — a comparison, `has:` and its not, `undecided( … )`,
+//! the sort, a count's sum and a count's key — on an item that displays
+//! its property, one that lacks it and one that displays it as no number;
+//! the q20 rule's arithmetic; `map_tier`; `pseudo.edps`; and the q20 rule
+//! against the trade site's own figures, every captured row of it. Every
+//! count and value is worked by hand from the spec beside it.
 
 use crate::common;
 
@@ -1279,12 +1278,6 @@ fn against_the_site(fetched: Vec<&Value>) -> (usize, usize, usize, usize) {
 /// field — 2,049 of 2,362 equal and 313 one off — and equal on all 440
 /// rows at 20 % quality or more or under the enchant, where the display
 /// stands. Over the owner's eight searches, 32 of 37 equal and 5 one off.
-/// The brief's "812 rows" was stated before it was measured: the 864
-/// captures of the pseudo track held 1,313 (1,148 equal, 165 one off, 164
-/// standing); step 7's sitting added 874 (2026-10-16), and round x's
-/// armour and boots 97 more (2026-10-18), and the sitting of 2026-11-17 78
-/// more (#282: 62 equal, 16 one off, 17 standing), each listing entered
-/// within one.
 #[test]
 fn s26_the_q20_fields_are_within_one_of_every_captured_figure() {
     let captures: Value = serde_json::from_str(CAPTURES).unwrap();

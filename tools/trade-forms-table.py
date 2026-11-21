@@ -242,7 +242,7 @@ def main():
     pin = PINS["poe1"][:8]
     game = (POE1 / "version.txt").read_text().strip()
     head = f"""# The game's forms of each trade stat — v{VERSION} (C113, C106;
-# src/trade/forms.rs), step 7e of search/TRADE-PLAN.md at 77666ea4.
+# src/trade/forms.rs).
 #
 # Reference data: generated, committed, shipped inside the binary
 # (`include_str!` in src/trade/forms.rs), read-only, read by the translation

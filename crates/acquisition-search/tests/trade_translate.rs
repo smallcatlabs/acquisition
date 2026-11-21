@@ -1,6 +1,6 @@
-//! The translation (C113, K6; `trade/translate.rs`), step 4 of
-//! `search/TRADE-PLAN.md` at `77666ea4`, through the crate's boundary: a decoded site
-//! search in, the text and the report out, the text asked of items.
+//! The translation (C113, K6; `trade/translate.rs`), through the crate's
+//! boundary: a decoded site search in, the text and the report out, the
+//! text asked of items.
 //!
 //! - **Every fixture** (`trade-translate.toml`, its expected texts worked by
 //!   hand from the catalogue's rows): the text, the scope, every clause's
@@ -17,7 +17,7 @@
 //!   catalogue and the stat table — translates, its text binds, its
 //!   print reads back to the same tree, and the guard holds; and as a
 //!   request's query, alone and beside its own text, it reads as the
-//!   same translation (step 5).
+//!   same translation.
 
 use crate::common;
 
@@ -205,7 +205,7 @@ fn guard(t: &Translation) -> Result<(), String> {
                         && running == 1)
                     || (group_row(&c.at).is_some() && none_runs())
                     // a filter of a group whose own pair runs backwards:
-                    // the group matches nothing and is the one node (#150)
+                    // the group matches nothing and is the one node
                     || by_at
                         .get(group_of)
                         .is_some_and(|g| g.rows.iter().any(|r| r == "query.inverted"))
@@ -466,11 +466,10 @@ fn worked_by_hand(case: &Case) {
 /// asked over the fixture's items as the site's search, the answer counts
 /// the items the reading adds and drops against the text as run, each
 /// count's route returning exactly those items. The trade seat's T5 is a
-/// row of its own, the sum with and without its scourge line; T4's rarity,
-/// once the `reduced` form under a minimum, carries none since 3.30 spells
-/// it in one word (#276), t30's `per # Strength` holding that form; T6's
-/// blighted maps carry none since round x read a Blight-ravaged map as no
-/// blighted one.
+/// row of its own, the sum with and without its scourge line; T4's rarity
+/// carries none, 3.30 spelling its `reduced` form under a minimum in one
+/// word, t30's `per # Strength` holding that form; T6's blighted maps carry
+/// none, a Blight-ravaged map being no blighted one.
 #[test]
 fn c119_an_ambiguous_clause_says_what_its_other_reading_adds_and_drops() {
     let mut read = 0;
@@ -610,21 +609,17 @@ struct Stat {
 }
 
 /// C113, K6: every one of the stat table's category and id pairs
-/// translates, alone and with a bound — each a filter of one `and`
-/// group — and holds what every translation holds; the statuses are the
-/// catalogue header's count — alone 13,661 exact, 819 ambiguous, 220
-/// unsupported, the two-text ids every one; with a bound 9,400, 5,080 and
-/// 220, 4,585 of them a stat a form of which no sum holds (step 7e) — 49
-/// pairs carry a refused form either way, 300 a wording the game data
-/// gives, 2,243 a number written as a digit, exact since round x, and 14
-/// a text of three numbers or more with no one `# to #`, 44 before round x
-/// read a text of two by their mean (11,232 and 2,607 alone before it,
-/// 7,357 and 6,482 with a bound). The counts are the stat table's of
-/// 2026-11-17 (#276); at 2026-09-12's, 14,068 pairs: alone 12,719, 1,120
-/// and 229, with a bound 8,571, 5,268 and 229, 4,461 by a form, 1,613 by
-/// a digit. Every pair and the counts where
-/// `ACQ_CASES=full` (CI); here a sixteenth of them, a fresh one each run,
-/// since a debug build binds the whole table's text in half a minute.
+/// translates, alone and with a bound — each a filter of one `and` group —
+/// and holds what every translation holds; the statuses are the catalogue
+/// header's count — alone 13,661 exact, 819 ambiguous, 220 unsupported, the
+/// two-text ids every one; with a bound 9,400, 5,080 and 220, 4,585 of them
+/// a stat a form of which no sum holds — 49 pairs carry a refused form
+/// either way, 300 a wording the game data gives, 2,243 a number written as
+/// a digit, exact, and 14 a text of three numbers or more with no one
+/// `# to #`. The counts are the stat table's of 2026-11-17. Every pair and
+/// the counts where `ACQ_CASES=full` (CI); here a sixteenth of them, a
+/// fresh one each run, since a debug build binds the whole table's text in
+/// half a minute.
 #[test]
 fn c113_every_stat_id_of_the_table_translates() {
     let table: Table = toml::from_str(include_str!("../reference/trade-stats-v1.toml")).unwrap();
@@ -706,12 +701,11 @@ fn with_nulls(value: &Json) -> Json {
 /// What a record's citation looks like in a reader's words: a decision,
 /// claim or contract id (`C96`, `S26`, `K6`), a sitting's search (`t55`,
 /// `u065`, `e043`), a file's path, or the builder's own words for its
-/// process. The trade seat met each in the report and could not read it
-/// (2026-10-17: every run).
+/// process. A reader meets each in the report and cannot read it.
 fn cites(text: &str) -> Vec<String> {
     // a quoted span is the game's own words (a stat's text, a form of it),
-    // never a record: the Linux gate on 686263cf met a numberless stat
-    // whose text says "captured" and read it as the research word
+    // never a record: a numberless stat's text says "captured", which is
+    // no research word
     let mut unquoted = String::new();
     for (i, part) in text.split('"').enumerate() {
         if i % 2 == 0 {
@@ -770,10 +764,9 @@ fn a_stats_quoted_words_cite_no_record() {
 }
 
 /// The report's words are a reader's: every row's `says`, and every note a
-/// clause carries over every fixture, cite no record (the trade seat,
-/// 2026-10-17: all four runs met `S26`, `t55`, `decisions/trade.md` in the
-/// clause notes; cli-opus call 14, mcp-opus calls 11, 13, mcp-sonnet calls
-/// 10–19). The row's `note` keeps its evidence for `--describe trade`.
+/// clause carries over every fixture, cite no record (a reader meets `S26`,
+/// `t55` or `decisions/trade.md` in a clause's notes and cannot read it).
+/// The row's `note` keeps its evidence for `--describe trade`.
 #[test]
 fn the_reports_words_cite_no_record() {
     let c = acquisition_search::trade::catalogue::catalogue().unwrap();
@@ -810,7 +803,7 @@ proptest! {
         let t = translate(&decoded).map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
         holds(&t).map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
         // a pair that runs backwards matches nothing, as the site answers
-        // it (#150), and never reaches the binder: no clause is refused for
+        // it (T35), and never reaches the binder: no clause is refused for
         // a range or a count that runs from high to low, on a filter, a stat
         // filter or a group's value, which the generator draws alike
         for clause in &t.clauses {
@@ -834,15 +827,15 @@ proptest! {
         let report = serde_json::to_value(&t).unwrap();
         let carried: Node = from_json(&report["tree"]).unwrap();
         prop_assert_eq!(&carried, &t.tree);
-        // a key sent null is absent wherever it stands (u059; the outside
-        // review of 8f293ff3): the query with a null beside every key it
-        // holds, and every filter's own, translates as the query
+        // a key sent null is absent wherever it stands (u059): the query
+        // with a null beside every key it holds, and every filter's own,
+        // translates as the query
         let nulled = translate(&decode(&with_nulls(&query).to_string()).unwrap())
             .map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
         prop_assert_eq!(&nulled.text, &t.text);
         prop_assert_eq!(&nulled.clauses, &t.clauses);
         prop_assert_eq!(nulled.fidelity, t.fidelity);
-        // as a request's query (step 5): the site search alone, as an
+        // as a request's query: the site search alone, as an
         // object and as its text, and beside the text it translates to —
         // what a printed request and a continuation send — read as the
         // translation, its report this build's
@@ -861,11 +854,10 @@ proptest! {
     }
 }
 
-/// A report clause is one of two shapes (C100): an exact clause with a
-/// term of its own is `at`, `status`, `term` and `path` exactly; any
-/// other — or one that matches nothing, whose term never says why (#150),
-/// a slimmed row carrying no `rows` — keeps the site's filter and its
-/// catalogue rows.
+/// A report clause is one of two shapes (C100): an exact clause with a term
+/// of its own is `at`, `status`, `term` and `path` exactly; any other — or
+/// one that matches nothing, whose term never says why, a slimmed row
+/// carrying no `rows` — keeps the site's filter and its catalogue rows.
 fn slim_or_whole(c: &Value) {
     let mut keys: Vec<&str> = c.as_object().unwrap().keys().map(String::as_str).collect();
     keys.sort();
@@ -882,10 +874,10 @@ fn slim_or_whole(c: &Value) {
 /// The trade report weighed 2,732 bytes of a three-row answer of 7,888:
 /// each clause echoed the site's filter, its catalogue row and the row's
 /// sentence beside the text that states the whole translation. An exact
-/// clause with a term of its own is that term alone; every other clause,
-/// a weighted sum's filter with no term of its own among them (the outside
-/// review of step 3), keeps the site's filter, its rows and what they say,
-/// and `describe` keeps every row's sentence.
+/// clause with a term of its own is that term alone; every other clause, a
+/// weighted sum's filter with no term of its own among them, keeps the
+/// site's filter, its rows and what they say, and `describe` keeps every
+/// row's sentence.
 #[test]
 fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
     const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
@@ -939,7 +931,7 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
         assert!(c["site"]["id"].is_string(), "{c}");
     }
     // a clause that matches nothing is exact and its term `false()`,
-    // which says nothing of why: it keeps its row, the pair named (#150)
+    // which says nothing of why: it keeps its row, the pair named
     let inverted = asked(
         json!({ "query": { "filters": { "misc_filters": { "filters": { "ilvl": { "min": 85, "max": 80 } } } } } }),
     );
@@ -962,7 +954,7 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
     );
     // under `if` the clause's term is the stat absent or `false()`, which
     // says nothing of the pair either: the clause is known by its row,
-    // never by its term's spelling (#150, the cold review of 23f225c1)
+    // never by its term's spelling
     let under_if = asked(json!({ "query": { "stats": [{ "type": "if", "filters": [
         { "id": "implicit.stat_3299347043", "value": { "min": 5, "max": 0 } }] }] } }));
     let c = under_if["query"]["trade"]["clauses"]
@@ -989,7 +981,7 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
     // the check refuses a row that says neither its term nor its filter
     let bare = json!({ "at": "stats.0.0", "status": "exact" });
     assert!(std::panic::catch_unwind(|| slim_or_whole(&bare)).is_err());
-    // the sentence an exact clause no longer carries is the catalogue's
+    // the sentence an exact clause does not carry is the catalogue's
     let described =
         serde_json::to_value(acquisition_search::describe(&["trade".to_string()]).unwrap())
             .unwrap();

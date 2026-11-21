@@ -1,9 +1,9 @@
-//! The sockets (`search/LEDGER.md`, step 8; C101, C93, C105), through
-//! the crate's boundary: the counts over the whole item and within one
-//! link group (S59), what an item lacks and what is left open at the
-//! socket's grain, every route followed by id, the counts view's buckets,
-//! the sort, `show`, and every authoring error a socket term has. Every
-//! count is worked by hand from the fixture below.
+//! The sockets (C101, C93, C105), through the crate's boundary: the
+//! counts over the whole item and within one link group (S59), what an
+//! item lacks and what is left open at the socket's grain, every route
+//! followed by id, the counts view's buckets, the sort, `show`, and every
+//! authoring error a socket term has. Every count is worked by hand from
+//! the fixture below.
 
 use crate::common;
 
@@ -594,8 +594,7 @@ fn a_group_is_ggg_s_number_and_an_unplaced_socket_widens_every_group() {
     );
 }
 
-/// An outside review of step 8 (2026-09-24), each finding reproduced
-/// here before it was fixed: a `linked( … )` left open by a socket's
+/// Four cases, numbered below: a `linked( … )` left open by a socket's
 /// colour says why; a socket whose group is unread adds to its own
 /// colour's count and to no other; alone in the collection it is a group
 /// of one, exactly, so `links=1` and `has:links` hold and nothing sorts
@@ -663,7 +662,7 @@ fn review_a_socket_whose_group_is_unread_is_a_socket_still_and_an_open_group_say
         ["alone"]
     );
     assert_eq!(ids(&asked("undecided(links)")), ["green"]);
-    // round 2: the socket alone is counted once — its colour is exactly
+    // the socket alone is counted once — its colour is exactly
     // one, and one socket never holds two of anything
     assert_eq!(ids(&asked("id:alone linked(red=1 size=1)")), ["alone"]);
     assert_eq!(ids(&asked("id:alone linked(red>=2)")), Vec::<String>::new());
@@ -689,7 +688,7 @@ fn review_a_socket_whose_group_is_unread_is_a_socket_still_and_an_open_group_say
         serde_json::to_value(acquisition_search::describe(&["sockets.red".to_string()]).unwrap())
             .unwrap();
     assert_eq!(d["fields"][0]["name"], "sockets.<colour>");
-    // round 2: in any case, as every name is (B1)
+    // in any case, as every name is (B1)
     let d =
         serde_json::to_value(acquisition_search::describe(&["SOCKETS.RED".to_string()]).unwrap())
             .unwrap();

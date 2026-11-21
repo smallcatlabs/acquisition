@@ -1,16 +1,16 @@
 //! The ranged family (C94; `search/LEDGER.md`, "Holes ruled", J7 and
-//! J29–J31; the build plan, 9d-C), through the crate's boundary: the 21
-//! totals named `adds_…`, whose rows mean one of two stats displaying one
-//! text, and the rule of every total that the piece's sitting brought —
-//! no total reads a crucible node's lines or a flask's own (J29).
+//! J29–J31), through the crate's boundary: the 21 totals named
+//! `adds_…`, whose rows mean one of two stats displaying one text, and
+//! the rule every total keeps — no total reads a crucible node's lines
+//! or a flask's own (J29).
 //!
 //! The first test reads the track's expected answers where they lie
 //! (`search/pseudo-stats/data/ranged-expected.csv`, written before
-//! anything was built, from the site's captures and the owner's rulings)
-//! and holds the build to every row. The others are fixtures worked by
-//! hand before running: the plan's closing row, J29 on the totals shipped
-//! before the family, and a row that reads the item's category under
-//! `not` and `or` (C93).
+//! anything was built, from the site's captures and the owner's
+//! rulings) and holds the build to every row. The others are fixtures
+//! worked by hand before running: the plan's closing row, J29 on the
+//! totals outside the family, and a row that reads the item's category
+//! under `not` and `or` (C93).
 
 use crate::common;
 
@@ -258,7 +258,7 @@ fn kind_of(cause: &str) -> &'static str {
 /// line in the array and under the flags the row gives — is answered as
 /// the row says. Each of the 21 totals is asked of each case: lacked, by
 /// `has:` and its not; or its `low`, `high` and `avg`, each by its slot
-/// word, and the bare name beside `avg` (the owner, 2026-09-26: "yes,
+/// word, and the bare name beside `avg` (the owner: "yes,
 /// bare means average"); or undecided, by what could not be established.
 /// A total a case does not list is lacked.
 #[test]
@@ -397,13 +397,11 @@ fn c94_every_row_of_the_ranged_expected_answers_is_answered_as_the_row_says() {
             }
         }
     }
-    // every cell asked: 1,118 cases of 21 totals (598 before step 7's
-    // sitting), the table's 1,124 lacked rows and each total a case does
-    // not list
+    // every cell asked: 1,118 cases of 21 totals, the table's 1,124 lacked
+    // rows and each total a case does not list
     assert_eq!(asked.0 + asked.1 + asked.2, 1118 * 21);
     // the table's own tally (`ranged-expected.py`, rows by kind and
-    // status): 4,329 values (2,387 before step 7's sitting, 4,229 before
-    // round x) and 52 undecided since J32, three cells of
+    // status): 4,329 values and 52 undecided (J32), three cells of
     // `r-unread-flag` a value where the table read a flag no row asks
     assert_eq!((asked.1, asked.2), (4329, 52));
     assert!(
@@ -652,11 +650,11 @@ fn arrays() -> Store {
     s
 }
 
-/// J29 (the owner, 2026-10-08, of both arrays: "Leave both out."), on
-/// the totals shipped before the ranged family: no total reads a line of
-/// `crucibleMods` or `utilityMods`, and an array a total does not read
-/// cannot leave it incomplete. A line's term and the item's own `sum( … )`
-/// read both arrays as they did: the rule is a total's.
+/// J29 (the owner, of both arrays: "Leave both out."), on the totals
+/// outside the ranged family: no total reads a line of `crucibleMods`
+/// or `utilityMods`, and an array a total does not read cannot leave it
+/// incomplete. A line's term and the item's own `sum( … )` read both
+/// arrays still: the rule is a total's.
 #[test]
 fn j29_no_total_reads_a_crucible_nodes_lines_or_a_flasks_own() {
     let s = arrays();
@@ -836,9 +834,7 @@ fn total_named(site: &str) -> Option<String> {
 /// (`search/pseudo-stats/data/captures.json`), entered whole — every line
 /// the capture holds in the array it came in, never the table's `lines`
 /// column — answers each such pseudo's number as the total's `avg`, a
-/// value and no subtotal: 857 cells, of 822 items (459 of 459 before
-/// step 7's sitting, whose round v asked the family's open cells; 837 of
-/// 802 before round x asked the two cells v left, 2026-10-18). It holds the totals to
+/// value and no subtotal: 857 cells, of 822 items. It holds the totals to
 /// what the site counted on real items, the lines no row names among
 /// them; it asks nothing of a total the site did not show.
 #[test]
@@ -1067,7 +1063,7 @@ fn c93_a_row_that_reads_the_category_under_not_and_or() {
 /// them read what the item is, the site's id and text, the limit and
 /// J29's rule with the two arrays; the table's own line carries its
 /// version and the rule; every total's definition prints the rule, the
-/// totals shipped before the family among them.
+/// totals outside the family among them.
 #[test]
 fn c97_describe_of_a_ranged_total_says_its_rows_the_limit_and_what_no_total_reads() {
     let all = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
@@ -1262,12 +1258,12 @@ fn j31_a_ranged_total_is_nothing_only_where_its_low_and_its_high_both_are() {
 
 /// Rule 5 of the plan, at a ranged total asked by a slot word: the
 /// routes of its failed and its lacked count are commands the build
-/// answers. They were `has:` of the value as written, slot word and all —
-/// `-has:pseudo.adds_fire.low` — which `has:` refuses, taking none (found
-/// by the generated cross-checks at step 9e). Worked by hand on the two
-/// items of `fire`, one line each, low 10 and high 21: the plain total is
-/// nothing on the wand, a weapon, and lacked under every slot word; on
-/// the ring its low 10 fails `>=11`, its high 21 and its avg 15.5 pass.
+/// answers, never `has:` of the value as written, slot word and all —
+/// `-has:pseudo.adds_fire.low` — which `has:` refuses, taking none.
+/// Worked by hand on the two items of `fire`, one line each, low 10 and
+/// high 21: the plain total is nothing on the wand, a weapon, and
+/// lacked under every slot word; on the ring its low 10 fails `>=11`,
+/// its high 21 and its avg 15.5 pass.
 #[test]
 fn a_ranged_total_asked_by_a_slot_word_routes_its_failed_and_lacked_by_has_of_the_total() {
     let s = fire();
@@ -1354,15 +1350,15 @@ fn c93_a_row_that_does_not_count_on_the_item_reads_nothing_of_it() {
     );
 }
 
-/// C97, T5, J29: the vocabulary lists a computed value beside the
-/// templates where a narrowing matches its name or what the total itself
-/// is defined as — its rows, its limit — and never by the rule the table
-/// states of every total, which every definition prints: narrowed by a
-/// word of that rule alone, `crucible` or `utility`, it lists no total,
-/// where it would list every one (the fault T5 was ruled on, come back by
-/// a sentence). The base defence percentile is listed under `crucible`
-/// since step 9d-A, and that is the same rule: its own definition says
-/// what it answers of a crucible node's defence line (J33).
+/// C97, T5, J29: the vocabulary lists a computed value beside the templates
+/// where a narrowing matches its name or what the total itself is defined
+/// as — its rows, its limit — and never by the rule the table states of
+/// every total, which every definition prints: narrowed by a word of that
+/// rule alone, `crucible` or `utility`, it lists no total, where it would
+/// list every one (the fault T5 was ruled on, come back by a sentence). The
+/// base defence percentile is listed under `crucible`, and that is the same
+/// rule: its own definition says what it answers of a crucible node's
+/// defence line (J33).
 #[test]
 fn c97_a_narrowing_matches_a_totals_own_definition_and_never_the_tables_rule() {
     let s = arrays();

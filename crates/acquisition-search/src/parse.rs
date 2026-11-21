@@ -37,7 +37,7 @@
 //! deliberate signal for text: an adapter may offer a plain text box that
 //! wraps its input in `text:` — the query itself never does.
 //!
-//! # The owner's words (2026-09-19, verbatim but for spelling)
+//! # The owner's words (verbatim but for spelling)
 //!
 //! - Names: "for named pseudo-mods, let's use underscored, because dashes
 //!   have meaning elsewhere." With it, the language is shown to be formally
@@ -915,13 +915,12 @@ impl<'a> Parser<'a> {
         .at(start, self.pos)
     }
 
-    /// `line("T")>=15` (F4, the first seat): the group is the line, and a
-    /// comparison names one of its numbers — after the group,
-    /// `line("T").low>=15`, or inside it, `line("T" low>=15)`. One pair of
-    /// readings for each slot word the group's one quoted template takes
-    /// — `low`, `high`, `avg` on a ranged line, `avg` and `arg<N>` on one of
-    /// two numbers, `arg<N>` otherwise — and
-    /// for `arg1` where it names no template; each a query that binds.
+    /// `line("T")>=15` (F4): the group is the line, and a comparison names
+    /// one of its numbers — after the group, `line("T").low>=15`, or inside
+    /// it, `line("T" low>=15)`. One pair of readings for each slot word the
+    /// group's one quoted template takes — `low`, `high`, `avg` on a ranged
+    /// line, `avg` and `arg<N>` on one of two numbers, `arg<N>` otherwise —
+    /// and for `arg1` where it names no template; each a query that binds.
     fn comparison_after_group(&mut self, where_: Member, start: usize) -> LanguageError {
         let at = self.pos;
         let message = "a comparison on `line( … )` names one of the line's numbers: after the group, line( … ).<slot>>=…, or inside it, line( … <slot>>=…)";
@@ -934,8 +933,7 @@ impl<'a> Parser<'a> {
             return self.error(ErrorKind::SlotMissing, message, start);
         };
         // a reading is a query that binds (rule 5): a text compares with
-        // no number, and a template with no number takes no slot (the
-        // review of 9b, 2026-09-26)
+        // no number, and a template with no number takes no slot
         if matches!(rhs, Value::Text(_)) {
             return self.error(
                 ErrorKind::ComparisonNeedsNumber,

@@ -2,13 +2,13 @@
 //!
 //! The shapes are the worked example's (`answer.rs`): `{"all": […]}`,
 //! `{"field", "op", "value"}`, `{"exists": "lines", "where": …}` with
-//! `{"attr", "op", "value"}` inside, `{"value": {"pseudo": …}, "op",
-//! "number"}`. Reading is strict — an unknown key or a missing one is an
-//! error that names its path, and a tree that is read re-serializes to
-//! what was read (the refresh slice's lesson on envelopes), its every
-//! key and node kept, a field's and a computed value's name spelled as
-//! the language spells it (`tree::spelled`, #273: `"SOCKETS.Red"` comes
-//! back `"sockets.red"`) — and what is read is checked by
+//! `{"attr", "op", "value"}` inside,
+//! `{"value": {"pseudo": …}, "op", "number"}`. Reading is strict — an
+//! unknown key or a missing one is an error that names its path, and a
+//! tree that is read re-serializes to what was read, its every key and
+//! node kept, a field's and a computed value's name spelled as the
+//! language spells it (`tree::spelled`: `"SOCKETS.Red"` comes back
+//! `"sockets.red"`) — and what is read is checked by
 //! [`crate::tree::check`] before it is returned.
 
 use serde_json::{Map, Value as Json, json};

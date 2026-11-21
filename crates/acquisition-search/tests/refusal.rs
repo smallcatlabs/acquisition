@@ -61,7 +61,7 @@ fn every_construct_of_the_reference_evaluates_or_is_refused_by_its_name_on_the_l
         .map(|c| (c, json!({ "view": { "rows": { "sort": c.text } } })));
     for (case, request) in queries.chain(sorts) {
         if case.canonical.is_none() {
-            continue; // an authoring error of the grammar: step 1's
+            continue; // an authoring error of the grammar: language.rs's
         }
         match answer(&corpus, &serde_json::from_value(request).unwrap()) {
             // invariant 3: valid over a store holding nothing, and the
@@ -88,10 +88,9 @@ fn every_construct_of_the_reference_evaluates_or_is_refused_by_its_name_on_the_l
         stray.join("\n")
     );
     assert!(evaluated > 0);
-    // nothing the corpus can reach is on the list since step 9d-A built
-    // `pseudo.defence_pct`, the last construct of the query it held: what
-    // is left there is a request's words, a frontend's to refuse by the
-    // same function (the list whole: explain.rs)
+    // nothing the corpus can reach is on the list: what is left there is a
+    // request's words, a frontend's to refuse by the same function (the
+    // list whole: explain.rs)
     assert!(refusals.is_empty(), "{refusals:?}");
 }
 
@@ -126,7 +125,7 @@ fn c102_s53_a_class_is_a_derivation_the_search_owns_and_says_so() {
         .iter()
         .map(|l| l["said"].as_str().unwrap())
         .collect();
-    // the wording since the first seat (F1): what step 6 made true
+    // the wording of F1: what the class table makes true
     assert!(limits.contains(
         &"an item's class is a derivation the search owns — read from its base by the class table, never a fact GGG gives — and an item the table cannot class is undecided with its reason"
     ));
@@ -150,9 +149,9 @@ fn a_name_the_language_does_not_know_is_an_authoring_error_with_near_names() {
     let store = common::store();
     let corpus = common::load(&store, None);
     // `readings` is the head of what is offered, in order: a bare word is
-    // a closed value's first where it is one, then a name (a Sonnet run of
-    // the re-sit took a phrase reading and searched line text for a unique,
-    // mcp-sonnet calls 18 to 21), and every bare word's readings run.
+    // a closed value's first where it is one, then a name (offered a
+    // phrase reading first, an agent searched line text for a unique), and
+    // every bare word's readings run.
     for (text, kind, readings) in [
         ("rarty=rare", "unknown_name", &["rarity=rare"][..]),
         ("rarity=rar", "unknown_value", &["rarity=rare"]),
@@ -165,9 +164,8 @@ fn a_name_the_language_does_not_know_is_an_authoring_error_with_near_names() {
         ("Loreweave", "bare_word", &["name:Loreweave"]),
         ("corrupted", "bare_word", &["is:corrupted"]),
         ("line(fractured)", "bare_word", &["is:fractured"]),
-        // a field `has:` takes is offered with it first (#174; the
-        // answer-facts seat's CLI run 2, calls 66, 67); under a minus the
-        // reader typed every offer carries it, its span taking it in
+        // a field `has:` takes is offered with it first; under a minus
+        // the reader typed every offer carries it, its span taking it in
         ("priced", "bare_word", &["has:priced", "name:priced"]),
         (
             "links=6 league=Standard -priced",
@@ -191,7 +189,7 @@ fn a_name_the_language_does_not_know_is_an_authoring_error_with_near_names() {
             let first = json["readings"][0].as_str().unwrap();
             common::ask(&corpus, first).unwrap_or_else(|e| panic!("`{first}`: {e}"));
             // every offer replaces exactly its span: pasted there, it
-            // parses (the review of round A, finding 1)
+            // parses
             for reading in json["readings"].as_array().unwrap() {
                 let pasted = pasted(text, &json["span"], reading.as_str().unwrap());
                 acquisition_search::parse_query(&pasted)

@@ -1,11 +1,11 @@
-//! The property fields (C114, C101, C106, `decisions/trade.md`; step 3 of
-//! `search/TRADE-PLAN.md` at `77666ea4`): every numeric property the trade site's
-//! filters read, a field named by its displayed name — `quality`,
+//! The property fields (C114, C101, C106, `decisions/trade.md`;
+//! `search/TRADE-PLAN.md` at `77666ea4`): every numeric property the trade
+//! site's filters read, a field named by its displayed name — `quality`,
 //! `attacks_per_second`, `wings_revealed.of` — defined once, in one table,
-//! and read by one reader. The quality-normalised defences, `armour.q20`
-//! and its three kin (S26), and a map's tier, `map_tier`, over its base
-//! type, are rows of the same table. No general accessor (C101): a
-//! property is reached by a row, and a row is reviewed reference data.
+//! and read by one reader. The quality-normalised defences, `armour.q20` and
+//! its three kin (S26), and a map's tier, `map_tier`, over its base type, are
+//! rows of the same table. No general accessor (C101): a property is reached
+//! by a row, and a row is reviewed reference data.
 //!
 //! # Rulings held here
 //!
@@ -992,10 +992,9 @@ fn pair(text: &str) -> Option<(i128, i128)> {
     Some((whole(a)?, whole(b)?))
 }
 
-/// A value displayed `a/b`, at its one `/`: the two texts [`pair`]
-/// reads, which `show` displays as two pieces (4-full part 1, step
-/// 6.4c), the one reading of where they are. None where `pair` reads
-/// none.
+/// A value displayed `a/b`, at its one `/`: the two texts [`pair`] reads,
+/// which `show` displays as two pieces, the one reading of where they
+/// are. None where `pair` reads none.
 pub(crate) fn split_pair(text: &str) -> Option<(&str, &str)> {
     let (a, b) = text.split_once('/')?;
     let whole = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());

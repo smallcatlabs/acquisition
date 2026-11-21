@@ -162,11 +162,11 @@ fn a_large_league_is_counted_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(all["by_type"], doc["by_type"]);
 }
 
-/// C53, the one rule (step 2g): a league of thirty tabs or fewer, once
-/// listed whole, lists the bound's ten with the most items like any
-/// other; `limit` names more or fewer, zero included, and a limit past
-/// the league lists it whole in the listing's order; `expand` is the
-/// whole whatever `limit` says.
+/// C53, the one rule: a league of thirty tabs or fewer, once listed
+/// whole, lists the bound's ten with the most items like any other;
+/// `limit` names more or fewer, zero included, and a limit past the
+/// league lists it whole in the listing's order; `expand` is the whole
+/// whatever `limit` says.
 #[test]
 fn a_league_of_thirty_or_fewer_lists_the_ten_with_the_most_items_and_limit_names_more() {
     // Rings and Dump fetched, and eighteen tabs never fetched: twenty
@@ -307,12 +307,12 @@ fn a_selection_narrows_the_rows_under_the_leagues_counts() {
     assert_eq!(never.words(), "never-fetched UniqueStash tabs");
 }
 
-/// A league's places (step 6.5a, `src/places.rs`) over a folder, a map
-/// tab with pages, a page whose tab the store does not hold, a tab fetched
-/// empty and one never fetched: the tree in stash order, each place's
-/// kind, each parent's counts of what it holds, the league's counts as
-/// `tabs` counts them; and each place's request answers the items the
-/// store counts there, a map tab's with its pages', a folder none.
+/// A league's places (`src/places.rs`) over a folder, a map tab with
+/// pages, a page whose tab the store does not hold, a tab fetched empty
+/// and one never fetched: the tree in stash order, each place's kind,
+/// each parent's counts of what it holds, the league's counts as `tabs`
+/// counts them; and each place's request answers the items the store
+/// counts there, a map tab's with its pages', a folder none.
 #[test]
 fn the_places_are_the_stash_tree_in_order_and_each_request_lists_its_items() {
     use acquisition_search::places::Kind;
@@ -411,7 +411,7 @@ fn the_places_are_the_stash_tree_in_order_and_each_request_lists_its_items() {
     assert_eq!(at("s1").item_count(), 2);
     assert_eq!(at("t1").item_count(), 2);
 
-    // an item's place and each place holding it, top first (step 6.5c):
+    // an item's place and each place holding it, top first:
     // the place an item's row names is the document's
     let placed = |item: &str| {
         let request: acquisition_search::Request = serde_json::from_value(json!({
@@ -508,7 +508,7 @@ fn doc_place<'a>(doc: &'a Value, id: &str) -> &'a Value {
     find(&doc["places"], id).unwrap_or_else(|| panic!("no place {id}: {doc}"))
 }
 
-/// 6.5a's fixture: a folder, a map tab with pages, a page whose tab the
+/// The stash tree: a folder, a map tab with pages, a page whose tab the
 /// store does not hold, a tab fetched empty and one never fetched.
 fn stash_tree() -> Store {
     use acquisition_store::Endpoint;
@@ -599,11 +599,11 @@ fn rows_view(a: &acquisition_search::Answer) -> (Vec<String>, Option<String>, bo
     }
 }
 
-/// Each place's `matched` held to its own request (step 6.5b, Decision
-/// 2): a place with a request, that request's `total.matched`; a folder,
-/// its places' sum; the top level's sum the document's `query.matched`;
-/// and the query's own `total` its request's. Each request answers the
-/// query's own values, sort and order. Returns the document.
+/// Each place's `matched` held to its own request: a place with a
+/// request, that request's `total.matched`; a folder, its places' sum;
+/// the top level's sum the document's `query.matched`; and the query's
+/// own `total` its request's. Each request answers the query's own
+/// values, sort and order. Returns the document.
 fn held_to_their_requests(s: &Store, league: &str, asking: &Asking) -> Value {
     let places = places(s, Listed::Tabs, "pc", league, asking, NOW).unwrap();
     let doc = serde_json::to_value(&places).unwrap();
@@ -637,19 +637,19 @@ fn held_to_their_requests(s: &Store, league: &str, asking: &Asking) -> Value {
     let top: usize = places.places.iter().map(|p| p.matched.unwrap()).sum();
     assert_eq!(queried.matched, top, "{doc}");
     // the matches this league's places do not hold are said where they
-    // stand, so the page's count and the rest make the query's whole (the
-    // page seat after GUI step 6, its fault 1)
+    // stand, so the page's count and the rest make the query's whole
     let elsewhere: usize = queried.elsewhere.iter().map(|e| e.matched).sum();
     assert_eq!(queried.matched + elsewhere, queried.total.matched, "{doc}");
     doc
 }
 
-/// Under a query (step 6.5b): each place's matches are its request's,
-/// a folder's its places' sum, the top level's the document's, over
-/// 6.5a's fixture with a map tab holding an item of its own beside its
+/// Under a query: each place's matches are its request's, a folder's
+/// its places' sum, the top level's the document's, over the stash
+/// tree's fixture with a map tab holding an item of its own beside its
 /// pages, which says it as `own`; in a view that names a value, a sort
-/// and an order too; and over one tab id listed under two spellings of a
-/// league (`seat_faults.rs`), each spelling's place its own match alone.
+/// and an order too; and over one tab id listed under two spellings of
+/// a league (`seat_faults.rs`), each spelling's place its own match
+/// alone.
 #[test]
 fn under_a_query_each_place_counts_what_its_request_matches() {
     use acquisition_search::answer::Rows;
@@ -761,12 +761,12 @@ fn folds(doc: &Value) -> (Vec<String>, Value, Vec<(String, Value)>) {
     (listed, doc["folded"].clone(), parents)
 }
 
-/// The filter and the query fold (step 6.5b, Decision 2): a place is
-/// listed where it passes every field and, under a query, holds a match,
-/// or where it holds a listed place; each level counts what it folds and
-/// of that the never fetched. Unasked, no key of the fold stands, as in
-/// 6.5a's document. A `fetched` that is not `never`, a type on the
-/// characters, and a query the search refuses are refused.
+/// The filter and the query fold: a place is listed where it passes
+/// every field and, under a query, holds a match, or where it holds a
+/// listed place; each level counts what it folds and of that the never
+/// fetched. Unasked, no key of the fold stands, as in the places'
+/// document. A `fetched` that is not `never`, a type on the characters,
+/// and a query the search refuses are refused.
 #[test]
 fn a_filter_and_a_query_fold_the_places_the_page_does_not_list() {
     use acquisition_search::places::Filter;

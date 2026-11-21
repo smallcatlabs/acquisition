@@ -1,7 +1,6 @@
-//! C93 — what could not be read is never a no: the uncertainty follows
-//! the evidence a predicate needs, no further and no less. Each case was
-//! reproduced by an outside audit of step 4 (2026-09-20) against the build
-//! at `28606ed4`, which answered every one of them definitely.
+//! C93 — what could not be read is never a no: the uncertainty follows the
+//! evidence a predicate needs, no further and no less. Each case below is
+//! one a build answered definitely.
 
 use crate::common;
 
@@ -356,10 +355,9 @@ fn c93_an_unread_flag_never_erases_the_known_no_beside_it() {
     );
 }
 
-/// A group's selector is what it means, never where its comparisons sit
-/// (outside audit, 2026-09-20): a nested comparison takes no
-/// restriction with it, so the lacked route returns what it counted and
-/// the resolved list is the unnested query's.
+/// A group's selector is what it means, never where its comparisons sit: a
+/// nested comparison takes no restriction with it, so the lacked route
+/// returns what it counted and the resolved list is the unnested query's.
 #[test]
 fn c92_a_selector_is_the_groups_meaning_wherever_its_comparisons_sit() {
     let s = one_tab(vec![
@@ -489,10 +487,10 @@ fn c92_a_sort_scalar_that_is_not_established_says_so_and_sorts_last() {
 }
 
 /// An occurrence that names no such number cannot contribute, selected or
-/// not (outside audit, 2026-09-20): whether `crafted` is yes
-/// or no, the sum is a complete zero and the projection has no occurrence,
-/// so neither is left open by the flag (C93's known absence; C94's sum of
-/// nothing). One that does name the number leaves both open.
+/// not: whether `crafted` is yes or no, the sum is a complete zero and the
+/// projection has no occurrence, so neither is left open by the flag (C93's
+/// known absence; C94's sum of nothing). One that does name the number
+/// leaves both open.
 #[test]
 fn c93_an_open_occurrence_without_the_slot_leaves_no_value_open() {
     let open = |text: &str| json!({ "description": text, "flags": { "crafted": "unread" } });
@@ -557,9 +555,9 @@ fn c93_an_open_occurrence_without_the_slot_leaves_no_value_open() {
     );
 }
 
-/// C92's together count is the group's, however its and is parenthesised
-/// (outside audit, 2026-09-20): the diagnostic and its route, for both
-/// spellings — the four counts alone do not show it.
+/// C92's together count is the group's, however its and is parenthesised:
+/// the diagnostic and its route, for both spellings — the four counts alone
+/// do not show it.
 #[test]
 fn c92_parentheses_never_change_whether_the_together_count_applies() {
     let s = one_tab(vec![
@@ -623,11 +621,11 @@ fn c92_parentheses_never_change_whether_the_together_count_applies() {
     }
 }
 
-/// The build plan's rule 5 against step 1's slot check (outside audit,
-/// 2026-09-20): a slot the quoted template does not have is an
-/// authoring error wherever the template sits among the group's conjuncts,
-/// so no answer can print a route the same build refuses — and a generated
-/// route is checked before it is offered, whatever folding made of it.
+/// The build plan's rule 5 against the slot check: a slot the quoted
+/// template does not have is an authoring error wherever the template sits
+/// among the group's conjuncts, so no answer can print a route the same
+/// build refuses — and a generated route is checked before it is offered,
+/// whatever folding made of it.
 #[test]
 fn rule_5_no_group_is_accepted_whose_route_would_be_refused() {
     let s = one_tab(vec![ring(
@@ -647,8 +645,8 @@ fn rule_5_no_group_is_accepted_whose_route_would_be_refused() {
             "{query}"
         );
     }
-    // a template under an or states no numbers: the evaluator's, as step 1
-    // says — and folding one into the selector's and must offer no route
+    // a template under an or states no numbers: the evaluator's, as the slot
+    // check says — and folding one into the selector's and must offer no route
     // the checker refuses
     for query in [
         r##"line(("# to maximum Life" or "# to Strength") arg3>=0)"##,
@@ -662,9 +660,9 @@ fn rule_5_no_group_is_accepted_whose_route_would_be_refused() {
     }
 }
 
-/// The zero block reads the group as the rest of the answer does (outside
-/// audit, 2026-09-20): a selector that picked occurrences resolved
-/// to something, whatever a template test inside it would find alone.
+/// The zero block reads the group as the rest of the answer does: a
+/// selector that picked occurrences resolved to something, whatever a
+/// template test inside it would find alone.
 #[test]
 fn a_selector_that_resolved_to_something_is_never_said_to_resolve_to_nothing() {
     let s = one_tab(vec![ring(
@@ -697,9 +695,8 @@ fn a_selector_that_resolved_to_something_is_never_said_to_resolve_to_nothing() {
     }
 }
 
-/// A number that could not be read is no known absence in the order either
-/// (outside audit, 2026-09-20): the row says incomplete, as
-/// `undecided(ilvl)` says of the same item.
+/// A number that could not be read is no known absence in the order either:
+/// the row says incomplete, as `undecided(ilvl)` says of the same item.
 #[test]
 fn c93_sorting_by_an_unread_number_says_unread_not_absent() {
     let s = one_tab(vec![
@@ -724,7 +721,7 @@ fn c93_sorting_by_an_unread_number_says_unread_not_absent() {
     assert_eq!(of(&corpus, "none", "undecided(ilvl)"), (0, 0));
 }
 
-/// B1 (owner, 2026-09-20: "i agree with any-case everywhere after this
+/// B1 (owner: "i agree with any-case everywhere after this
 /// investigation"): GGG has spelled some lines two ways, and one typed
 /// spelling finds both — never silently: the term lists the spellings it
 /// found, and a pattern that turns case back on selects one.

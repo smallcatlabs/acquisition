@@ -1,7 +1,7 @@
-//! The effective price, joined read-only (C81, C100; the build plan, step
-//! 9): what an item is priced as, as the pricing area's listing state
-//! resolves it, made once there and read here — never a second reading of
-//! a note, a tab name or a row (rule 10 of the plan).
+//! The effective price, joined read-only (C81, C100): what an item is
+//! priced as, as the pricing area's listing state resolves it, made
+//! once there and read here — never a second reading of a note, a tab
+//! name or a row (rule 10 of the plan).
 //!
 //! # Rulings held here
 //!
@@ -33,19 +33,18 @@
 //! - **The join is over every (realm, league) the corpus's locations
 //!   name**, one snapshot and one `resolve` each; an item's price is its
 //!   own item listing's, by id. A league-less character is carried by the
-//!   snapshot of every league of its realm; where its realm names no
-//!   league at all, one snapshot under the empty league name — which no
-//!   tab has — carries it, so its rows decide as they would (the step-9
-//!   review). The snapshots are reads of their own,
-//!   after the corpus's one transaction, so the facts revision and the
-//!   intent revision are read again after them (`corpus.rs`): a corpus
-//!   whose facts or intent moved between is read again, never labelled
-//!   with a basis its prices do not belong to (C98).
+//!   snapshot of every league of its realm; where its realm names no league
+//!   at all, one snapshot under the empty league name — which no tab has —
+//!   carries it, so its rows decide as they would. The snapshots are reads
+//!   of their own, after the corpus's one transaction, so the facts
+//!   revision and the intent revision are read again after them
+//!   (`corpus.rs`): a corpus whose facts or intent moved between is read
+//!   again, never labelled with a basis its prices do not belong to (C98).
 //! - **`price.amount` is the number the price states**: a decimal price's
 //!   decimal, a bulk ratio's `wanted` (C67); `price.lot` is the ratio's
 //!   lot, and a decimal price lacks it — what the owner or the game wrote,
-//!   never a lot of one invented (P2, ruled 2026-09-25: 5 and 5/1 stay
-//!   two spellings, as the game keeps them). `price.currency` is the tag of the currency table
+//!   never a lot of one invented (P2: 5 and 5/1 stay two spellings, as the
+//!   game keeps them). `price.currency` is the tag of the currency table
 //!   (C68), a closed set whose legal values the table's rows are.
 //! - **What a row shows** of a price term: the price as the listing state
 //!   prints it, the side that decided it, and the target it came from
@@ -96,7 +95,7 @@ impl PriceGap {
     /// for a row, the body for a note, and for a number the search's own
     /// rule, which no refresh and no rewrite of the row within the rule
     /// changes. Said in the request's words, the read by its name, which
-    /// each surface spells (C143; #97).
+    /// each surface spells (C143).
     pub fn hint(self) -> &'static str {
         match self {
             PriceGap::Unresolved => {

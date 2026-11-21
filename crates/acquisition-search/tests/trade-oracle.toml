@@ -1,8 +1,8 @@
-# The oracle's expected disagreements (C113, K6; step 6 of
-# search/TRADE-PLAN.md at 77666ea4), read by tests/trade_oracle.rs: every item the site
-# returned for a search whose translation has no remainder, that the
-# translated text does not match. The set is exact — a new disagreement and
-# a vanished one each fail the test.
+# The oracle's expected disagreements (C113, K6), read by
+# tests/trade_oracle.rs: every item the site returned for a search whose
+# translation has no remainder, that the translated text does not match.
+# The set is exact — a new disagreement and a vanished one each fail the
+# test.
 #
 # A `finding` is stated once: `home` is where its answer lives — `site`, a
 # fact of the captures, its clause labelled by the catalogue `row` it names
@@ -11,57 +11,27 @@
 # labels its clause, and the test holds the clause, or a filter under it,
 # ambiguous by it — no expected disagreement sits under a clause reported
 # exact — but a ruling by which the owner chose to differ from the site,
-# `differs = true`, which names none (the outside review of 8f293ff3);
-# `patch`, an item a game patch reworded after its capture: its clause's
-# stat is one 3.30 moved (#276), so the item, fetched before, shows a
-# wording no translation gives; it names no row and differs by no ruling;
-# `sitting`, a question for step 7, `asks` what the sitting is to settle,
-# each answered by searches with a mutant (the site-sitting skill). Nothing
-# here is a tolerance: each is the site reading a clause otherwise, and the
-# translation is fixed when its finding is answered.
+# `differs = true`, which names none; `patch`, an item a game patch
+# reworded after its capture: its clause's stat is one 3.30 moved, so the
+# item, fetched before, shows a wording no translation gives; it names no
+# row and differs by no ruling. A `sitting` finding `asks` what the sitting
+# is to settle, each answered by searches with a mutant (the site-sitting
+# skill). Nothing here is a tolerance: each is the site reading a clause
+# otherwise, and the translation is fixed when its finding is answered.
 #
 # A `row` is one search's items under one finding: `items` by their index in
 # the fetch (search/pseudo-stats/data/bodies.json), `outcome` `missed` or
 # `undecided`, `clauses` the paths of the top-level clauses whose term alone
 # refuses the item (the translation's report, `path`).
 #
-# Measured at writing (2026-10-16), by the test: 518 searches run, 4,733
-# items, 4,236 matched, 497 missed in 55 rows, none undecided — 377 items
-# the eldritch `not`, 61 the `reduced` spelling, 21 `No Physical Damage`,
-# 25 the twin and 10 the skill gems by the owner's rulings, 2 (one item
-# twice) the scourge line, 1 q6. Classified by a script from each item's
-# lines, and each item's lines read by hand against its finding.
-# Step 7's sitting (rounds t to w, 2026-10-16) added 242 searches run and
-# 2,402 items, 192 of them missed in 26 rows, none undecided: 760 searches,
-# 7,135 items, 6,446 matched, 689 missed in 81 rows. Each of the sitting's
-# rows is a search that asked its question, classified by the search, its
-# items read by hand. Its questions answered, three findings moved from the
-# sitting to the owner's ruling and eight were added under it; each states
-# what step 7e builds, and a row it builds leaves the set.
-# Step 7e built them (2026-10-17): 101 items left the set in 17 rows —
-# presence over every form (t01, t09, t11, c4), the stat summed (q6,
-# t17–t19), a plural summed (t27, t29), and the fields widened (t41, t42,
-# t46, t48, t49, u061, u090) — none came in, and seven findings went with
-# their rows: 760 searches, 7,135 items, 6,547 matched, 588 missed in 64
-# rows. What stays ambiguous stays under its finding, labelled by its row.
-# Step 7f (2026-10-17) let five searches run that were partial — t37, t38,
-# t55, t56, u059: 50 items, 40 matched — and t55's ten are a new question
-# for the sitting, `blighted-base`: 765 searches, 7,185 items, 6,587
-# matched, 598 missed in 65 rows.
-# Round x (2026-10-18) ran eleven searches more and 110 items, every one
-# matched once a text of two `#` is compared by their mean (x14, x16) and
-# `map_uberblighted` is the `Blight-ravaged` prefix (x01, x03): 776
-# searches, 7,295 items, 6,697 matched, 598 missed in 65 rows.
-# 3.30 (#276, the stats capture of 2026-11-17): one item more missed, g034's
-# Torment Gyre, whose rarity lines 3.30 reworded after it was fetched — a
-# `patch` row: 776 searches, 7,295 items, 6,696 matched, 599 missed in 66 rows.
-# The sitting of 2026-11-17 (rounds y, z and za; #282) ran 19 searches and
-# 164 items; y10, of twenty crucible ids, is partial. 36 of the items are
-# Viscera whose base carries a size word, matched once the tables name each
-# base after `Lesser ` and `Greater `. Twenty are missed in two rows, each a
-# question the round asked and answered, which the translation does not yet
-# build: y07's ten under `pair-mean`, y18's ten under `blighted-base`. 795
-# searches, 7,459 items, 6,840 matched, 619 missed in 68 rows.
+# Measured by the test: 795 searches run, 7,459 items, 6,840 matched,
+# 619 missed in 68 rows, none undecided; y10, of twenty crucible ids, is
+# partial. A row of a search a sitting ran is a search that asked its
+# question, classified by the search; a row of another search is
+# classified by a script from each item's lines; every row's items are
+# read by hand against its finding. A finding states what the translation
+# is to build, and a row it builds leaves the set; what stays ambiguous
+# stays under its finding, labelled by its row.
 
 [[finding]]
 key = "eldritch-not"

@@ -1,11 +1,10 @@
-//! A row of a mod displayed over several rows (the build plan, step 9c4;
-//! C90, C92, C93, C97), through the crate's boundary: an exact template
-//! names a mod by its whole text or by a row of it, the mod stays one
-//! occurrence, a slot word names the named row's numbers, and what is
-//! unread of one row is unread of that row. A total's row names a row the
-//! same way, which `tests/pseudo.rs` holds on the trade site's captures.
-//! Every count is worked by hand from the fixture below, and every route
-//! followed.
+//! A row of a mod displayed over several rows (C90, C92, C93, C97),
+//! through the crate's boundary: an exact template names a mod by its
+//! whole text or by a row of it, the mod stays one occurrence, a slot
+//! word names the named row's numbers, and what is unread of one row is
+//! unread of that row. A total's row names a row the same way, which
+//! `tests/pseudo.rs` holds on the trade site's captures. Every count is
+//! worked by hand from the fixture below, and every route followed.
 
 use crate::common;
 
@@ -157,11 +156,11 @@ fn shaped(pairs: &[(&str, u64)]) -> Vec<(String, u64)> {
     pairs.iter().map(|(l, n)| (l.to_string(), *n)).collect()
 }
 
-/// C90 (owner, 2026-09-27, of a line's term as of a total: "From my side
-/// the answer is yes."): an exact template names a mod by a row of it, in
-/// any case, and its whole text still names it; `template:` and
-/// `template~` test the whole text, across its rows. Naming is the
-/// occurrence's, so a not of a row's template is a no on the mod.
+/// C90 (owner, of a line's term as of a total: "From my side the answer
+/// is yes."): an exact template names a mod by a row of it, in any case,
+/// and its whole text still names it; `template:` and `template~` test
+/// the whole text, across its rows. Naming is the occurrence's, so a not
+/// of a row's template is a no on the mod.
 #[test]
 fn c90_an_exact_template_names_a_mod_by_its_whole_text_or_by_a_row() {
     let s = stash();
@@ -212,10 +211,10 @@ fn c90_an_exact_template_names_a_mod_by_its_whole_text_or_by_a_row() {
     assert_eq!(follow(&s, &term["undecided"]), ["long", "twice"]);
 }
 
-/// `derive.rs` (owner, 2026-09-19: "it makes sense they are
-/// a single occurrence"): a mod named by a row is one occurrence — its
-/// source and its flags are its rows', a row shows it whole, and it is
-/// shown once however many of its rows a term names.
+/// `derive.rs` (owner: "it makes sense they are a single occurrence"): a
+/// mod named by a row is one occurrence — its source and its flags are
+/// its rows', a row shows it whole, and it is shown once however many of
+/// its rows a term names.
 #[test]
 fn a_mod_named_by_a_row_is_one_occurrence() {
     let s = stash();
@@ -348,12 +347,12 @@ fn c92_a_slot_names_the_numbers_of_the_row_named() {
     );
 }
 
-/// C91, C92 (the outside review of step 9c4, finding 1): a comparison
-/// reads the numbers of the part the quoted templates conjoined with it
-/// name, so an alternative beside it — one that holds nowhere, one that
-/// names another row, one with no template — changes no number it reads.
-/// The group is its alternatives spread out, each read on its own, as the
-/// same alternatives are at the item's level.
+/// C91, C92: a comparison reads the numbers of the part the quoted
+/// templates conjoined with it name, so an alternative beside it — one
+/// that holds nowhere, one that names another row, one with no template —
+/// changes no number it reads. The group is its alternatives spread out,
+/// each read on its own, as the same alternatives are at the item's
+/// level.
 #[test]
 fn c92_an_alternative_changes_no_number_a_comparison_reads() {
     let s = stash();
@@ -472,15 +471,14 @@ fn both_stash() -> Store {
     s
 }
 
-/// C91, C92 (owner, 2026-09-28: "refuse"; the outside review of step
-/// 9c4, its fourth look): a number word beside two rows of a mod named
-/// together has no one row to read, and which is never guessed — the
-/// term is refused however it is spelled, as a text and as a tree, and
-/// each reading offered is one this build answers. Read of the mod's
-/// numbers in order, as it was, a row named as a condition moved what
-/// the number beside it read: `one` left `"# to maximum Life" arg1>=40`
-/// when the cold damage it shows was named, and a not of cold damage's
-/// `high` held on `ranged`, whose `high` is 9.
+/// C91, C92 (owner: "refuse"): a number word beside two rows of a mod
+/// named together has no one row to read, and which is never guessed —
+/// the term is refused however it is spelled, as a text and as a tree,
+/// and each reading offered is one this build answers. Read of the mod's
+/// numbers in order, a row named as a condition would move what the
+/// number beside it reads: `one` would leave `"# to maximum Life"
+/// arg1>=40` when the cold damage it shows is named, and a not of cold
+/// damage's `high` would hold on `ranged`, whose `high` is 9.
 #[test]
 fn c92_a_number_beside_two_rows_named_together_is_refused() {
     let s = both_stash();
@@ -620,14 +618,14 @@ fn c92_a_number_beside_two_rows_named_together_is_refused() {
     );
 }
 
-/// C92, `template.rs` (the same look, finding 1): what is not
-/// refused is read as it was — two rows named with no number beside
-/// them, alternatives each naming its own row, a row asked of the mod's
-/// text, a not of a name, a mod named by its whole text beside a row of
-/// it — and a slot is checked against the one quoted template among the
-/// group's conjuncts where that template alone says what the slot reads:
-/// beside the mod's whole text the numbers are the mod's, and the check
-/// that took `arg3` for the row's refused a term the evaluator reads.
+/// C92, `template.rs`: what is not refused is still read — two rows named
+/// with no number beside them, alternatives each naming its own row, a
+/// row asked of the mod's text, a not of a name, a mod named by its whole
+/// text beside a row of it — and a slot is checked against the one quoted
+/// template among the group's conjuncts where that template alone says
+/// what the slot reads: beside the mod's whole text the numbers are the
+/// mod's, and the check that took `arg3` for the row's refused a term the
+/// evaluator reads.
 #[test]
 fn c92_a_slot_is_checked_against_the_template_that_says_what_it_reads() {
     let s = both_stash();
@@ -774,8 +772,7 @@ fn parts_stash() -> Store {
     s
 }
 
-/// C91, C93 (the outside review of step 9c4, its second look, finding
-/// 1): a not is of what it holds, read as it is read there — the
+/// C91, C93: a not is of what it holds, read as it is read there — the
 /// templates inside it say what its comparisons read, as they do outside
 /// one, and those conjoined with the not say it where it has none. On an
 /// occurrence that is read, a group or its not holds, never both and
@@ -836,10 +833,9 @@ fn c93_a_not_is_of_what_it_holds_read_as_it_is_read_there() {
     }
 }
 
-/// C92, C95 (the same look, finding 2): a number of a mod is added
-/// once, however many alternatives read it — the mod's first number and
-/// its first row's first are one number — and two numbers of two rows are
-/// two, equal or not.
+/// C92, C95: a number of a mod is added once, however many alternatives
+/// read it — the mod's first number and its first row's first are one
+/// number — and two numbers of two rows are two, equal or not.
 #[test]
 fn c95_a_number_two_alternatives_read_is_added_once() {
     let s = parts_stash();
@@ -920,12 +916,11 @@ fn c95_a_number_two_alternatives_read_is_added_once() {
     );
 }
 
-/// C93, rule 8 of the plan (the outside review of step 9c4, its third
-/// look, finding 2): a row whose template another row of its mod
+/// C93, rule 8 of the plan: a row whose template another row of its mod
 /// displays has no one place among the mod's numbers — its number is
 /// either's — so nothing read elsewhere is known to be it, and what it
-/// leaves open stays open beside a number that is added. twice's two
-/// rows are life, 3 and 7.
+/// leaves open stays open beside a number that is added. twice's two rows
+/// are life, 3 and 7.
 #[test]
 fn c93_a_number_that_is_either_rows_is_no_number_added_already() {
     let s = stash();
@@ -957,13 +952,13 @@ fn c93_a_number_that_is_either_rows_is_no_number_added_already() {
     assert_eq!(term["together"]["count"], 0);
 }
 
-/// A group costs its size (the same look, finding 1): a not inside a
-/// not inside a not is weighed once for each, where each had weighed
-/// all it held again for every part a template may name — ten deep took
-/// 2.7 s of a release build on one item, four times eight deep's.
-/// Fifteen deep is no time — thirty-one levels, a not and its group two
-/// each and the first group's own one more, as deep as a query nests
-/// (`tree::MAX_DEPTH`) — and an even number of nots is none.
+/// A group costs its size: a not inside a not inside a not is weighed
+/// once for each, where each had weighed all it held again for every part
+/// a template may name — ten deep took 2.7 s of a release build on one
+/// item, four times eight deep's. Fifteen deep is no time — thirty-one
+/// levels, a not and its group two each and the first group's own one
+/// more, as deep as a query nests (`tree::MAX_DEPTH`) — and an even
+/// number of nots is none.
 #[test]
 fn a_not_inside_a_not_costs_its_size() {
     let s = parts_stash();
@@ -1336,11 +1331,11 @@ fn c100_a_rows_item_is_the_one_show_makes() {
     assert!(seen.contains("thread"), "{seen:?}");
 }
 
-/// C53's line of 2026-11-08: under `item` a rows answer holds at most the
-/// item rows' bound whatever its `limit` names, says the limit it applied
-/// and the one asked,
-/// and continues the rest at it, asking the same fields; every row it
-/// holds carries its item whole. Without `item` the limit asked stands.
+/// C53: under `item` a rows answer holds at most the item rows' bound
+/// whatever its `limit` names, says the limit it applied and the one
+/// asked, and continues the rest at it, asking the same fields; every row
+/// it holds carries its item whole. Without `item` the limit asked
+/// stands.
 #[test]
 fn an_item_row_view_holds_at_most_the_cap_and_continues() {
     use acquisition_store::bound::ITEM_ROWS;
@@ -1503,10 +1498,10 @@ fn c140_a_row_carries_the_icon_when_the_view_names_it() {
     }
 }
 
-// ---- values on rows (4-full part 1, step 6.1; #38) ----------------------
+// ---- values on rows -----------------------------------------------------
 
 /// The values a query compares, in its order, each once (`values.rs`):
-/// columns, never an order (#293 cut 3). A row each, the query and the
+/// columns, never an order. A row each, the query and the
 /// values the answer says it used; every answer names no sort and stands
 /// in the store's order, the order `none` names.
 #[test]
@@ -1522,7 +1517,7 @@ fn the_values_a_query_compares_are_columns_and_never_an_order() {
         ("ilvl=80..84".into(), vec!["ilvl"]),
         // a duplicate is one value
         ("ilvl>=80 ilvl<=84".into(), vec!["ilvl"]),
-        // a name in any case is one value, in the language's spelling (#273)
+        // a name in any case is one value, in the language's spelling
         (
             "SOCKETS.Red>=1 or sockets.red>=2".into(),
             vec!["sockets.red"],
@@ -1592,11 +1587,11 @@ fn the_values_a_query_compares_are_columns_and_never_an_order() {
     }
 }
 
-/// #38, the re-sit's case: a query that filters on the explicit sum of
-/// rarity stands in the store's order, unnamed, and naming that sum
-/// orders the rows by it — not by the sum over every source, which put a
-/// 41 explicit with 16 implicit above a 51. `none` is the store's order,
-/// and `desc` beside it is refused.
+/// A query that filters on the explicit sum of rarity stands in the
+/// store's order, unnamed, and naming that sum orders the rows by it —
+/// not by the sum over every source, which put a 41 explicit with 16
+/// implicit above a 51. `none` is the store's order, and `desc` beside it
+/// is refused.
 #[test]
 fn issue_38_a_filtered_sum_orders_the_rows_where_it_is_named() {
     const RARITY: &str = "#% increased Rarity of Items found";
@@ -1716,10 +1711,9 @@ fn ids_in_order(a: &Value) -> Vec<String> {
         .collect()
 }
 
-/// The bound on a row's values, held once on the list a row carries
-/// (the cold reviews at 1ab468eb and 849ccbab, each of which found it
-/// missed on another path): every way a list is filled — named alone,
-/// the query's alone, either with a named sort or `none` — and the
+/// The bound on a row's values, held once on the list a row carries, so
+/// no path misses it: every way a list is filled — named alone, the
+/// query's alone, either with a named sort or `none` — and the
 /// continuation of each, which fills it again the same. Named past
 /// twelve, the sort among them, is refused; the query's is cut from its
 /// end and counted, the sort kept.
@@ -1867,17 +1861,16 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
     }
 }
 
-/// Items whose displayed rows carry number fields (4-full part 1, step
-/// 6.4c), beside this file's mods of several rows: `armour`, a body armour
-/// of item level 84 displaying quality and armour, requiring level 64 and
-/// 16 Str, two life lines of one source (30 and 40) and a ranged physical
-/// line (10 to 20), and a line the site's text writes a digit of (15%
-/// Phasing for 4 seconds, the review at 4a1e21c3, its first finding);
-/// `gem`, a gem at level 20 of its maximum, requiring level 70; `stack`, a
-/// currency stack of 3 of 10; `blueprint`, 1 of 3 wings revealed (its
-/// second finding); `kit`, three lines the fix round's review named — a
-/// `+` the site writes before a `#`, a digit its text writes as another
-/// number, a plural form the bound sums with the text.
+/// Items whose displayed rows carry number fields beside this file's mods
+/// of several rows: `armour`, a body armour of item level 84 displaying
+/// quality and armour, requiring level 64 and 16 Str, two life lines of
+/// one source (30 and 40) and a ranged physical line (10 to 20), and a
+/// line the site's text writes a digit of (15% Phasing for 4 seconds);
+/// `gem`, a gem at level 20 of its maximum, requiring level 70; `stack`,
+/// a currency stack of 3 of 10; `blueprint`, 1 of 3 wings revealed;
+/// `kit`, three lines — a `+` the site writes before a `#`, a digit its
+/// text writes as another number, a plural form the bound sums with the
+/// text.
 fn displayed() -> Store {
     let mut s = stash();
     list_tabs(
@@ -1952,14 +1945,13 @@ fn displayed() -> Store {
     s
 }
 
-/// 4-full part 1, step 6.4c (Decision 5): every value a shown item
-/// carries — a line's `value`, each of `number_fields` — binds as a sort
-/// and, asked of that item, is the number it stands beside: a field's,
-/// or the line's slot of that name summed over every occurrence its group
-/// selects, a mod of several rows by the row it names, and `avg` where
-/// the template's numbers are a mean pair. Each displayed row's pieces
-/// join to the row's own text, the number fields' pieces carrying their
-/// fields' texts.
+/// Every value a shown item carries — a line's `value`, each of
+/// `number_fields` — binds as a sort and, asked of that item, is the
+/// number it stands beside: a field's, or the line's slot of that name
+/// summed over every occurrence its group selects, a mod of several rows
+/// by the row it names, and `avg` where the template's numbers are a mean
+/// pair. Each displayed row's pieces join to the row's own text, the
+/// number fields' pieces carrying their fields' texts.
 #[test]
 fn every_value_a_shown_item_carries_is_the_number_it_stands_beside() {
     let s = displayed();
@@ -2115,8 +2107,7 @@ fn every_value_a_shown_item_carries_is_the_number_it_stands_beside() {
         json!({ "ilvl": 84 }),
     );
     // an `a/b` both of whose sides a field reads: two numbers, each its
-    // own piece and its own field (the review at 4a1e21c3, its second
-    // finding)
+    // own piece and its own field
     let blueprint = show(&s, "blueprint", false).unwrap();
     assert_eq!(
         serde_json::to_value(&blueprint.number_fields).unwrap(),
@@ -2134,15 +2125,14 @@ fn every_value_a_shown_item_carries_is_the_number_it_stands_beside() {
     );
 }
 
-/// Step 6.4c: a trade filter on a stat and that stat's line on an item
-/// name one value, so a click on a stat the form filtered lands on its
-/// column and adds no twin: life, and a text the site writes a digit of,
-/// whose written number the filter does not compare (the review at
-/// 4a1e21c3, its first finding: the line's two numbers are no mean pair
-/// to the site); and the three the fix round's review at 9fe51220 found
-/// the stat's line found too narrowly: a `+` before the site's `#`, the
-/// site's digit where the item shows another number, a plural form the
-/// bound sums with the text — each a line the stat's group selects.
+/// A trade filter on a stat and that stat's line on an item name one
+/// value, so a click on a stat the form filtered lands on its column and
+/// adds no twin: life, and a text the site writes a digit of, whose
+/// written number the filter does not compare (the line's two numbers are
+/// no mean pair to the site); and three lines the stat's line must not
+/// find too narrowly: a `+` before the site's `#`, the site's digit where
+/// the item shows another number, a plural form the bound sums with the
+/// text — each a line the stat's group selects.
 #[test]
 fn a_trade_filter_on_a_stat_and_its_line_on_an_item_name_one_value() {
     let s = displayed();

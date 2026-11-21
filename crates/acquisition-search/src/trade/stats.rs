@@ -1,10 +1,9 @@
-//! The stat table (C113, C106, `decisions/trade.md`; K6, taken by `translate.rs`; step 2 of
-//! `search/TRADE-PLAN.md` at `77666ea4`): the trade site's stat ids in its six hash
-//! categories, to the text the site displays for each — the vocabulary
-//! the translation writes a `line("…")` from (step 4), and nothing else
-//! reads (C90: a stat id exists only at the trade boundary); `show` asks
-//! the translation which stat a line displays as (4-full part 1, step
-//! 6.4c, `translate::displayed_as`), and never says an id.
+//! The stat table (C113, C106, `decisions/trade.md`; K6, taken by `translate.rs`): the
+//! trade site's stat ids in its six hash categories, to the text the
+//! site displays for each — the vocabulary the translation writes a
+//! `line("…")` from, and nothing else reads (C90: a stat id exists only
+//! at the trade boundary); `show` asks the translation which stat a
+//! line displays as (`translate::displayed_as`), and never says an id.
 //!
 //! # As built
 //!
@@ -35,8 +34,8 @@
 //!   defect surfaced as [`StatTableError`] to whoever asks, never a
 //!   partial table; the corpus never loads it, so an ordinary search
 //!   neither pays for it nor fails by it.
-//! - **The version is the basis's** (C98) from the step whose answer reads
-//!   the table (step 4): only an answer that used it cites it.
+//! - **The version is the basis's** (C98): only an answer that used the
+//!   table cites it.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
@@ -189,7 +188,7 @@ static TABLE: LazyLock<Result<StatTable, StatTableError>> =
 
 /// Whether a word is a stat id as the table keys it: one ASCII letter,
 /// digit, `_` or `|` or more, which every id of the capture is (10,303 of
-/// 10,303, measured at step 2's review). Stated as what an id is, not as
+/// 10,303). Stated as what an id is, not as
 /// what it may not hold, so no category prefix, whitespace or control
 /// character passes by being one the rule forgot.
 pub fn is_id(word: &str) -> bool {
@@ -320,7 +319,7 @@ impl StatTable {
     /// The texts the site displays for a stat as its query names it,
     /// `<category>.<id>` — `explicit.stat_3299347043` — in the capture's
     /// order; none where the category is no hash category or does not
-    /// carry the id (the catalogue's `stat.unknown`, step 4).
+    /// carry the id (the catalogue's `stat.unknown`).
     pub fn texts(&self, stat: &str) -> Option<&[String]> {
         let (category, id) = stat.split_once('.')?;
         let at = HASH_CATEGORIES.iter().position(|c| *c == category)?;
@@ -333,8 +332,8 @@ impl StatTable {
     /// catalogue's `stat.text.collision`); none where the category is no
     /// hash category. Texts are compared as templates, a digit the site
     /// writes a `#` as the site's own are — a written digit is a number of
-    /// the line (round x) — so `… per 10 Dexterity` and `… per 25
-    /// Dexterity` are one text.
+    /// the line (the catalogue's `stat.text.numbers`) — so `… per 10
+    /// Dexterity` and `… per 25 Dexterity` are one text.
     pub fn ids_of(&self, category: &str, text: &str) -> &[String] {
         HASH_CATEGORIES
             .iter()

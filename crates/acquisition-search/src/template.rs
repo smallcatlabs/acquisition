@@ -20,7 +20,7 @@
 //!                       reads `# to #`: positional only — a line, and searchable, like any other
 //! ```
 //!
-//! # The owner's words (2026-09-19, verbatim but for spelling)
+//! # The owner's words (verbatim but for spelling)
 //!
 //! - Positions are `arg<N>`, his form, after he asked whether `#1` and `#2`
 //!   could lose the special character: the template is a format string and
@@ -79,7 +79,7 @@ pub(crate) fn selected(where_: &Member) -> Option<&str> {
 
 /// Every template a line group names by `template="…"`, anywhere in it,
 /// in its order: what `show.rs`'s whole-table test reads from each
-/// translated group (4-full part 1, step 6.4c).
+/// translated group.
 #[cfg(test)]
 pub(crate) fn named(where_: &Member) -> Vec<String> {
     let mut out = Vec::new();
@@ -100,7 +100,7 @@ pub(crate) fn named(where_: &Member) -> Vec<String> {
 }
 
 /// How many numbers the template has, which two are its ranged pair — a
-/// template with exactly one `# to #` is ranged (owner, 2026-09-19) — and
+/// template with exactly one `# to #` is ranged (the owner) — and
 /// which two `avg` is the mean of: the ranged pair, or the template's two
 /// numbers where it has exactly two (round x).
 pub(crate) struct Slots {

@@ -1,10 +1,10 @@
-//! Membership (`corpus.rs`, `answer.rs`; C108, C100; the build
-//! plan, step 10 and gap 3, step 11d): `live` by default, `all` on
-//! request — the removed beside the live, each marked with when it left,
-//! at the place it was last seen — or `removed`, those alone; through the crate's boundary, a request in, an
-//! answer out, as JSON. Every count is worked by hand on a store built
-//! through the store's own ingest: a fetch that no longer has an item,
-//! and a listing that no longer names a tab.
+//! Membership (`corpus.rs`, `answer.rs`; C108, C100): `live` by default,
+//! `all` on request — the removed beside the live, each marked with when
+//! it left, at the place it was last seen — or `removed`, those alone;
+//! through the crate's boundary, a request in, an answer out, as JSON.
+//! Every count is worked by hand on a store built through the store's own
+//! ingest: a fetch that no longer has an item, and a listing that no
+//! longer names a tab.
 
 use crate::common;
 
@@ -586,7 +586,7 @@ fn a_removed_character_item_is_in_the_league_it_was_last_seen_in() {
     assert_eq!(shown["place"]["league"], "Settlers");
 }
 
-// ---- `removed` alone (ruled 2026-10-10; `search/LEDGER.md`, "Holes ruled", 11c) --------------
+// ---- `removed` alone (`search/LEDGER.md`, "Holes ruled", 11c) ---------------------------------
 
 /// The corpus a request under `removed` is asked of, as an adapter
 /// loads it.

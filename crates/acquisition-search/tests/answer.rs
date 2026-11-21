@@ -64,7 +64,7 @@ fn c100_the_worked_example_whole_counts_as_printed_there() {
         ),
         (&json!(20), &json!(30), &json!(10))
     );
-    // each names the location it is the fetch of (#11)
+    // each names the location it is the fetch of
     assert_eq!(
         (
             &scope["oldest_fetch_location"]["kind"],
@@ -386,8 +386,8 @@ fn c92_the_sort_scalar_and_an_item_without_one_last_either_way() {
     // r3 100; r1 and r5 95 in the store's order; r2's largest is 75; r6's
     // 95 is no largest while its implicit array is unread; r7 has none
     assert_eq!(order, ["r3", "r1", "r5", "r2", "r6", "r7"]);
-    // a row says what it sorts by since the first seat (F6): the
-    // occurrence whose slot is the largest, beside the number
+    // a row says what it sorts by: the occurrence whose slot is the
+    // largest, beside the number
     assert_eq!(down[3].1["value"], 75);
     assert_eq!(down[3].1["shows"][0]["line"]["text"], "+75 to maximum Life");
     assert_eq!(down[4].1["value"], 95);
@@ -607,10 +607,9 @@ fn c98_a_held_corpus_answers_at_its_basis_and_the_check_sees_the_change() {
     );
 }
 
-/// C98 — the basis names the store (outside audit, 2026-09-20;
-/// owner, 2026-09-20: "(a') now and park (c)"): two facts files of one
-/// account at one revision are two stores, their bases differ, and a
-/// corpus read from one is not current against the other.
+/// C98 — the basis names the store: two facts files of one account at
+/// one revision are two stores, their bases differ, and a corpus read
+/// from one is not current against the other.
 #[test]
 fn c98_the_basis_names_the_store_and_the_check_tells_two_files_apart() {
     let (dir_a, dir_b) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
@@ -639,7 +638,7 @@ fn c98_the_basis_names_the_store_and_the_check_tells_two_files_apart() {
     );
 }
 
-/// C98 — one holder for every resident frontend (`Holder`, #82): two
+/// C98 — one holder for every resident frontend (`Holder`): two
 /// asks over an unchanged store are answered over one corpus; a tab
 /// recorded between them hands back another, at a higher snapshot,
 /// counting the new item; another membership loads anew and replaces;
@@ -743,8 +742,8 @@ fn c104_a_tree_is_accepted_and_the_answer_returns_both() {
         serde_json::from_value(json!({ "query": { "tree": by_text["query"]["tree"] } })).unwrap();
     let by_tree = as_json(&answer(&corpus, &request).unwrap());
     assert_eq!(by_tree, by_text);
-    // a name in any case, sent as a tree, is the name its text spells
-    // (#273): one value, the same order and the same answer
+    // a name in any case, sent as a tree, is the name its text spells:
+    // one value, the same order and the same answer
     let mixed = "(SOCKETS.Red>=1 or sockets.red>=2) PSEUDO.Total_Res>=0";
     let by_text = as_json(&ask(&corpus, mixed).unwrap());
     let request = serde_json::from_value(json!({ "query": { "tree": { "all": [
@@ -773,17 +772,16 @@ fn c104_a_tree_is_accepted_and_the_answer_returns_both() {
 }
 
 /// C115: an answer weighed 31 KB by default on the owner's store, over
-/// every seat runner's harness cut, a count's request a third of it — 13,693
-/// bytes for 17 numbers (the trade seat, mcp-sonnet-1 call 8). Unasked, it
-/// carries the routes a next step hangs on — what is undecided, what holds
-/// only together, what each term matched where nothing matched, what a key
-/// could not place — and every other count is its number alone; asked,
-/// every count that is not zero holds its route, and the numbers are the
-/// same either way.
+/// every seat runner's harness cut, a count's request a third of it —
+/// 13,693 bytes for 17 numbers. Unasked, it carries the routes a next step
+/// hangs on — what is undecided, what holds only together, what each term
+/// matched where nothing matched, what a key could not place — and every
+/// other count is its number alone; asked, every count that is not zero
+/// holds its route, and the numbers are the same either way.
 /// A vocabulary's computed values are placed as its templates are: a
 /// default `line:resist` count kept five of their requests when only
-/// `value` buckets shed theirs (the review of note 38 at `16bba23e`, step 1), the CLI
-/// printing those routes without `--routes`.
+/// `value` buckets shed theirs, the CLI printing those routes without
+/// `--routes`.
 #[test]
 fn c115_a_computed_bucket_sheds_its_route_as_a_value_does() {
     let s = worked();
@@ -896,8 +894,7 @@ fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
     let corpus = load(&s, Some("pc"));
     let fixed = as_json(&ask(&corpus, "league=Standard").unwrap());
     assert_eq!(fixed["scope"]["list_seen"], 10, "{}", fixed["scope"]);
-    // the field's name in any case, as the binder reads it (the review of
-    // round A, finding 2)
+    // the field's name in any case, as the binder reads it
     let shouted = as_json(&ask(&corpus, "LEAGUE=Standard").unwrap());
     assert_eq!(shouted["scope"]["list_seen"], 10, "{}", shouted["scope"]);
     let refined = as_json(&ask(&corpus, "(league=Standard rarity=rare) ilvl>=1").unwrap());
@@ -908,14 +905,13 @@ fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
     assert_eq!(unknown["scope"]["list_seen"], 5, "{}", unknown["scope"]);
 }
 
-/// #36 — the scope's `tabs` pointer names a league the query names: of
-/// the leagues its `league=` terms name through and and or, the first in
-/// the scope's order (the most never-fetched tabs first) that holds a
+/// The scope's `tabs` pointer names a league the query names: of the
+/// leagues its `league=` terms name through and and or, the first in the
+/// scope's order (the most never-fetched tabs first) that holds a
 /// never-fetched tab, the rest of the named that hold one counted. A term
 /// under a not names nothing and excludes its league; a query that names
 /// none points at the realm's most it does not exclude, every other
-/// counted. The field's name is read in any case (the review of round A,
-/// finding 2). Phrecia holds three
+/// counted. The field's name is read in any case. Phrecia holds three
 /// never-fetched tabs, Allflame two, Standard one (`worked`'s `Never`).
 #[test]
 fn the_tabs_pointer_names_a_league_the_query_names() {
@@ -966,13 +962,13 @@ fn the_tabs_pointer_names_a_league_the_query_names() {
     }
 }
 
-/// #173 — a counts or cross view keyed by `league` names the scope's
-/// leagues no match is in (the answer-facts seat, MCP run 2, call 38:
-/// three buckets beside eight leagues): a bucket is a value a matching
-/// item holds, so Allflame, whose one listed tab was never fetched, or a
-/// query every Standard item fails, leaves a league with none. A league is held under any realm
-/// (call 38's `Standard` twice); the field is absent where every league in
-/// scope has a bucket, and beside any key but `league`.
+/// A counts or cross view keyed by `league` names the scope's leagues
+/// no match is in (without it, three buckets stood beside eight leagues
+/// and said nothing of the five): a bucket is a value a matching item
+/// holds, so Allflame, whose one listed tab was never fetched, or a query
+/// every Standard item fails, leaves a league with none. A league is held
+/// under any realm; the field is absent where every league in scope has
+/// a bucket, and beside any key but `league`.
 #[test]
 fn a_league_count_names_the_scopes_leagues_no_match_is_in() {
     let mut s = worked();
@@ -1110,7 +1106,7 @@ fn shell_words() -> Vec<(String, [(acquisition_search::answer::Shell, String); 4
         .collect()
 }
 
-/// #16, C156 — a printed command's words are quoted for the shell it
+/// C156 — a printed command's words are quoted for the shell it
 /// will be pasted into: a POSIX shell's single quotes, `'\''` for a
 /// quote inside; PowerShell's, a quote inside doubled (the typographic
 /// ones too), `@` and `,` quoted, and a bare word PowerShell would read
@@ -1143,7 +1139,7 @@ fn a_printed_word_is_quoted_for_the_declared_shell() {
     }
 }
 
-// ---- the matches' fetch span on `total` (#155; C118, C162) ----------------------------------
+// ---- the matches' fetch span on `total` (C118, C162) ----------------------------------------
 
 const DAY: i64 = 86_400;
 /// The answer's time for the span's ages: eight days after the first
@@ -1223,7 +1219,7 @@ fn three_tabs() -> Store {
     s
 }
 
-/// The seat quoted the scope's ages for the matches (#155): `total` says
+/// The scope's ages, read alone, pass for the matches': `total` says
 /// the matches' own, over their two locations, on the rows however
 /// limited, on the counts and on the cross view alike, and the scope's
 /// oldest is its own older location's.

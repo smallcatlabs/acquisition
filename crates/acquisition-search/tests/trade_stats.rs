@@ -1,10 +1,9 @@
-//! The stat table (C113, C106; step 2 of `search/TRADE-PLAN.md` at `77666ea4`): the
-//! shipped file loads at the capture's date, answers every entry of the
-//! capture it was generated from and nothing the capture lacks, and the
-//! loader refuses each defect a reviewer would, by the row it names. The
-//! counts are the generator's, measured at generation and printed in the
-//! file's header; the table regenerating byte-for-byte is
-//! `tools/trade-stats-table.py --check`.
+//! The stat table (C113, C106): the shipped file loads at the capture's
+//! date, answers every entry of the capture it was generated from and
+//! nothing the capture lacks, and the loader refuses each defect a reviewer
+//! would, by the row it names. The counts are the generator's, measured at
+//! generation and printed in the file's header; the table regenerating
+//! byte-for-byte is `tools/trade-stats-table.py --check`.
 
 use std::collections::BTreeMap;
 
@@ -255,14 +254,14 @@ fn c113_the_stat_table_loader_refuses_what_a_reviewer_would() {
     }
 }
 
-/// The picker's listing (`trade/vocabulary.rs`; step 4b, Do 3; #243):
-/// the entries that hold every word asked, case aside, in a text or in
-/// their group's name, the totals table's pseudo group first and the
-/// stat table's after it in its order, the first `limit` with what the
-/// translation makes of each alone and with a bound, the rest counted;
-/// a `~` before the ask changes nothing; an empty ask is every entry of
-/// both tables, and a stat of two texts is listed under both and
-/// unsupported, as the translation reports it.
+/// The picker's listing (`trade/vocabulary.rs`): the entries that hold
+/// every word asked, case aside, in a text or in their group's name,
+/// the totals table's pseudo group first and the stat table's after it
+/// in its order, the first `limit` with what the translation makes of
+/// each alone and with a bound, the rest counted; a `~` before the ask
+/// changes nothing; an empty ask is every entry of both tables, and a
+/// stat of two texts is listed under both and unsupported, as the
+/// translation reports it.
 #[test]
 fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
     use acquisition_search::trade::translate::Status;
@@ -306,7 +305,7 @@ fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
         every.totals,
         acquisition_search::totals::table().unwrap().version()
     );
-    // the site's mark and a kind's word (#243, the owner's sitting of
+    // the site's mark and a kind's word (the owner's sitting of
     // 2026-11-10): a `~` before the ask changes nothing, and a word that
     // stands in a group's name holds for that group's entries
     let ids = |ask: &str| -> Vec<String> {

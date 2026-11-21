@@ -1,6 +1,5 @@
-//! A mod displayed over several rows, generated (the build plan, step 9c4;
-//! C90, C92, C94, C97), through the crate's boundary: a request in, an
-//! answer out, as JSON.
+//! A mod displayed over several rows, generated (C90, C92, C94, C97),
+//! through the crate's boundary: a request in, an answer out, as JSON.
 //!
 //! - **A row named answers as the row alone.** The items are asked as
 //!   GGG gives them, a mod's rows in one description, and again with
@@ -27,9 +26,8 @@
 //!   neither**, and the two are open together (C93): any generated group,
 //!   `template:` and patterns among its tests, over items of one line —
 //!   a mod of several rows or not, its flags and its number read or not.
-//!   A not that parted a comparison from the template saying what it
-//!   reads held beside the group it was the not of (the outside review
-//!   of step 9c4, its second look).
+//!   A not that parts a comparison from the template saying what it
+//!   reads would hold beside the group it is the not of.
 //! - **A group's or is the item's or of the same alternatives**: `line(A
 //!   or B)` and `line(A) or line(B)` return the same items of one line,
 //!   and leave the same open.
@@ -110,7 +108,6 @@ fn term() -> BoxedStrategy<String> {
     );
     // a row named and words that hold of the same row, the mod's first
     // with a number: one number, read by the row and by the mod in order
-    // (the second look's finding 2)
     let twice = (
         proptest::sample::select(vec![(LIFE, "life"), (ALL_RES, "elemental")]),
         compared(),
@@ -125,9 +122,8 @@ fn term() -> BoxedStrategy<String> {
                 _ => format!("line({either}).arg1{compared}"),
             }
         });
-    // alternatives inside one group, each naming its own row: what the
-    // same alternatives say at the item's level, a mod written apart or
-    // not (the outside review of step 9c4, finding 1)
+    // alternatives inside one group, each naming its own row: what the same
+    // alternatives say at the item's level, a mod written apart or not
     let either = (
         (named(), compared()),
         (named(), compared()),
