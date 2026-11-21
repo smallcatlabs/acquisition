@@ -46,7 +46,11 @@
 //!   refuses a list naming no field: sent empty or not at all, the page's
 //!   default, the item with its art, so the answer page renders cards;
 //!   `icon`, the compact table. A count asks no row's fields, and one sent
-//!   beside it is the view selection's refusal. And `text`, the query box:
+//!   beside it is the view selection's refusal. A search sent with a
+//!   count lets go of `view.sort`, `view.desc` and `view.value`, which a
+//!   page carries hidden from the answer it stands under and a count shows
+//!   none of (#304): no refusal comes of what a reader could not see. And
+//!   `text`, the query box:
 //!   a query in the language, run as the user's own in place of the trade
 //!   input. And `trade`, the trade site box: a site search as the CLI's
 //!   `--trade` takes it — its URL, its bare id or its query JSON — run in
@@ -520,6 +524,15 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
                 put(&mut query, &steps, typed(last, value));
             }
         }
+    }
+    // a count shows no rows: a search a page sends that asks one lets go
+    // of the order, its direction and the values the page carried, which
+    // the reader may not see (#304, the owner's rule); the shared refusal
+    // of a sort beside a count stands at every other door
+    if folded.count.is_some() {
+        folded.sort = None;
+        folded.desc = false;
+        folded.values.clear();
     }
     if folded.text.is_some() && folded.trade.is_some() {
         return Err(

@@ -847,18 +847,11 @@ pub(crate) fn search_form(
     out
 }
 
-/// What the search form carries of the view and the saved search: the
-/// view's boxes ([`view_boxes`]), its count being the form's own field; and
-/// hidden, the saved search the page was opened from at the revision its
-/// URL names.
+/// What the search form carries hidden: the view the URL named
+/// ([`view_hidden`]), its count being the form's own field, and the saved
+/// search the page was opened from at the revision its URL names.
 fn carried(view: &BoxView, saved: Option<(&str, i64)>) -> String {
-    let hidden = |name: &str, value: &str| {
-        format!(
-            "<input type=\"hidden\" name=\"{name}\" value=\"{}\">",
-            esc(value)
-        )
-    };
-    let mut out = view_boxes(view, false);
+    let mut out = view_hidden(view, false);
     if let Some((id, at)) = saved {
         out.push_str(&hidden("saved", id));
         out.push_str(&hidden("saved_revision", &at.to_string()));
@@ -869,34 +862,35 @@ fn carried(view: &BoxView, saved: Option<(&str, i64)>) -> String {
     out
 }
 
-/// What an editor carries of the view the URL named, the one renderer both
-/// editors share: the order, its direction and each value named, never the
-/// query's own, and with `count` a count's keys, each a box ticked in the
-/// editor's own controls, so an edit run again keeps it and a reader can
-/// let it go (a count, which shows no rows, refuses an order or a value
-/// beside it in the shared words). Nothing here types a sort.
-fn view_boxes(view: &BoxView, count: bool) -> String {
-    let kept = |name: &str, value: &str, words: &str| {
-        format!(
-            "<label class=\"control\"><input type=\"checkbox\" name=\"{name}\" value=\"{}\" checked> {}</label>",
-            esc(value),
-            esc(words)
-        )
-    };
-    let mut boxes = Vec::new();
+/// A hidden field.
+fn hidden(name: &str, value: &str) -> String {
+    format!(
+        "<input type=\"hidden\" name=\"{name}\" value=\"{}\">",
+        esc(value)
+    )
+}
+
+/// What an editor carries hidden of the view the URL named, the one
+/// renderer both editors share: the order, its direction and each value
+/// named, never the query's own, and with `count` a count's keys, so an
+/// edit run again keeps them. A search sent with a count lets go of the
+/// order and the values, which a count shows none of (`form.rs`, the
+/// fold): nothing carried hidden can make a page's search refused.
+fn view_hidden(view: &BoxView, count: bool) -> String {
+    let mut out = String::new();
     if let Some(sort) = &view.sort {
-        boxes.push(kept("view.sort", sort, &format!("ordered by {sort}")));
+        out.push_str(&hidden("view.sort", sort));
         if view.desc {
-            boxes.push(kept("view.desc", "true", "largest first"));
+            out.push_str(&hidden("view.desc", "true"));
         }
     }
     for value in &view.values {
-        boxes.push(kept("view.value", value, &format!("the column {value}")));
+        out.push_str(&hidden("view.value", value));
     }
     if count && let Some(keys) = &view.count {
-        boxes.push(kept("view.count", keys, &format!("counted by {keys}")));
+        out.push_str(&hidden("view.count", keys));
     }
-    boxes.join(" ")
+    out
 }
 
 /// The stat groups, from the envelope's `query.stats` where the fill renders
@@ -1044,11 +1038,11 @@ const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched
 /// loop survives an edit. Its rows' number is the big form's "Show", set on
 /// an answer to the rows view it showed; "Show" offers the search's own
 /// default first, sent empty, so a box left as it is asks no limit. Nothing
-/// is typed to sort: on an answer it carries the sort, its direction, the
-/// values the URL named and a count's keys, each a box ticked
-/// ([`view_boxes`]), so an edited query keeps the order and the columns its
-/// reader chose by a head or a card, and any can be let go; the values the
-/// query gave unasked are never carried, so the edited query gives its own. Its "Results as" is the big form's: cards,
+/// is typed to sort: on an answer it carries, hidden as it carries the
+/// realm, the sort, its direction, the values the URL named and a count's
+/// keys ([`view_hidden`]), so an edited query keeps the order and the
+/// columns its reader chose by a head or a card; the values the query gave
+/// unasked are never carried, so the edited query gives its own. Its "Results as" is the big form's: cards,
 /// sent empty, or the table, set on an answer to the way it showed, so an
 /// edited query keeps it. What it carries of the view is one [`BoxView`],
 /// an answer's or, on a refused search, the URL's as sent (#190), and the
@@ -1061,12 +1055,6 @@ fn query_box(filled: &Filled) -> String {
     let text = filled.text.as_str();
     let saved = filled.saved.as_ref().map(|(id, at)| (id.as_str(), *at));
     let view = &filled.view;
-    let hidden = |name: &str, value: &str| {
-        format!(
-            "<input type=\"hidden\" name=\"{name}\" value=\"{}\">",
-            esc(value)
-        )
-    };
     let mut carried = hidden("realm", realm);
     if let Some(membership) = membership {
         carried.push_str(&hidden("membership", membership));
@@ -1092,13 +1080,9 @@ fn query_box(filled: &Filled) -> String {
             )
         })
         .collect();
-    // the view the URL named, each part a box ticked (the one renderer
-    // both editors share), a count's keys among them, which the box has
-    // no control of its own for
-    let kept = match view_boxes(view, true) {
-        boxes if boxes.is_empty() => boxes,
-        boxes => format!("{boxes} "),
-    };
+    // the view the URL named, hidden (the one renderer both editors
+    // share), a count's keys among them, which the box has no control for
+    carried.push_str(&view_hidden(view, true));
     // the presentation, as the big form's "Results as": cards, the default
     // sent empty, or the table, selected where the answer was one
     let tabled = view.table;
@@ -1108,7 +1092,7 @@ fn query_box(filled: &Filled) -> String {
         if tabled { " selected" } else { "" }
     );
     format!(
-        "<details class=\"query-details\"{}><summary>The query, in the language</summary><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} {kept}<button type=\"submit\">Run this query</button> {COUNT}</form></details>\n",
+        "<details class=\"query-details\"{}><summary>The query, in the language</summary><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}</form></details>\n",
         if filled.text_open { " open" } else { "" },
         esc(text)
     )

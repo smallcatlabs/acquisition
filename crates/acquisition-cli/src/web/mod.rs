@@ -247,10 +247,10 @@
 //!   rows' values by `view.value`, one each in order as the CLI's
 //!   `--value`, beside `view.sort` and `view.desc`; no control of a form
 //!   types the three ([`form::UNTYPED`]): both editors carry what the URL
-//!   named of them, the query box a count's keys too, each as a box
-//!   ticked (`page::view_boxes`, the one renderer), so an edited search
-//!   keeps them and a reader can let one go (a count refuses an order
-//!   beside it, in the shared words). One
+//!   named of them hidden, the query box a count's keys too
+//!   (`page::view_hidden`, the one renderer), so an edited search keeps
+//!   them; a search sent with a count lets go of them, a count showing no
+//!   rows (`form.rs`, the fold; #304). One
 //!   maker gives a change to the view ([`view_link`]): the same page
 //!   ordered by one value, largest first or the other way where the rows
 //!   are ordered by it, the value joining the answer's list where the list
@@ -316,9 +316,9 @@
 //!   text, closed; a text fills the query box, open, over an empty form; a
 //!   continuation is read by its token's request, a site search first where
 //!   a text stands beside it. Both editors carry one `page::BoxView` — the
-//!   order and values the URL named, the table, a count's keys, the rows'
-//!   or the count's number — made from an answer's rows or a request's
-//!   count, and the saved search the page was opened from; a line by the
+//!   order and values the URL named, hidden, the table, a count's keys,
+//!   the rows' or the count's number — made from an answer's rows or a
+//!   request's count, and the saved search the page was opened from; a line by the
 //!   save form names each part of the view a save leaves behind, a saved
 //!   search being its query and its scope (C167). So a saved form search
 //!   and a saved site search open with the form filled. A refused search

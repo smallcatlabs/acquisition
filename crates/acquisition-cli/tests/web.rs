@@ -999,66 +999,63 @@ fn every_search_stands_under_its_editor_filled_with_what_was_asked() {
     }
     let boxed_answer = web.get_json(&sent_path(&boxed));
     assert_eq!(boxed_answer["view"], count_answer["view"], "{boxed_answer}");
-    // what an editor carries of the view the URL named stands in it as a
-    // box ticked, the one renderer both share: a text's order and a count,
-    // refused together, are let go of in the query box, which keeps the
-    // text, and the count it asks is the text's own
+    // an editor whose page carried an order and its columns, sent with a
+    // count, answers the count over the query it held: a count shows no
+    // rows, so a page's search lets go of what it carried hidden (#304)
     let box_form = "<form class=\"query-box\" method=\"get\" action=\"search#answer\" data-count>";
-    let both = format!(
-        "search?{}",
-        query_string(&[
-            ("realm", "pc"),
-            ("text", "class:rings"),
-            ("view.count", "rarity"),
-            ("view.sort", "ilvl"),
-        ])
-    );
-    let refused = web.get(&both);
-    assert_eq!(refused.status, 400, "{}", refused.body);
-    assert!(
-        refused.body.contains("orders rows, and a count shows none"),
-        "{}",
-        refused.body
-    );
-    for kept in [
-        "<input type=\"checkbox\" name=\"view.sort\" value=\"ilvl\" checked> ordered by ilvl",
-        "<input type=\"checkbox\" name=\"view.count\" value=\"rarity\" checked> counted by rarity",
+    let mut ordered_form = two.to_vec();
+    ordered_form.extend([
+        ("view.sort", "ilvl"),
+        ("view.desc", "true"),
+        ("view.value", "ilvl"),
+    ]);
+    for (sent, editor, own) in [
+        (
+            vec![
+                ("realm", "pc"),
+                ("text", "class:rings"),
+                ("view.sort", "ilvl"),
+                ("view.value", "ilvl"),
+            ],
+            box_form,
+            vec![
+                ("realm", "pc"),
+                ("text", "class:rings"),
+                ("view.count", "rarity"),
+            ],
+        ),
+        (ordered_form, SEARCH_FORM, {
+            let mut own = two.to_vec();
+            own.retain(|(k, _)| *k != "view.limit");
+            own.push(("view.count", "rarity"));
+            own
+        }),
     ] {
-        assert!(refused.body.contains(kept), "{kept}:\n{}", refused.body);
+        let page = web.get(&format!("search?{}", query_string(&sent)));
+        assert_eq!(page.status, 200, "{}", page.body);
+        let mut form = submitted(&page.body, editor);
+        for carried in [("view.sort", "ilvl"), ("view.value", "ilvl")] {
+            assert!(
+                form.contains(&(carried.0.to_string(), carried.1.to_string())),
+                "{form:?}"
+            );
+        }
+        assert!(
+            !page.body.contains("type=\"checkbox\" name=\"view."),
+            "{}",
+            page.body
+        );
+        form.retain(|(k, _)| k != "view.count" && k != "view.limit");
+        form.push(("view.count".to_string(), "rarity".to_string()));
+        let path = sent_path(&form);
+        let reply = web.get(&path);
+        assert_eq!(reply.status, 200, "{path}: {}", reply.body);
+        let counted = web.get_json(&path);
+        let expected = web.get_json(&format!("search?{}", query_string(&own)));
+        assert_eq!(counted["query"], expected["query"], "{path}");
+        assert_eq!(counted["view"], expected["view"], "{path}");
+        assert_eq!(counted["total"], expected["total"], "{path}");
     }
-    let mut again = submitted(&refused.body, box_form);
-    assert!(
-        again.contains(&("text".to_string(), "class:rings".to_string())),
-        "{again:?}"
-    );
-    again.retain(|(name, _)| name != "view.sort");
-    let recovered = web.get_json(&sent_path(&again));
-    let own = web.get_json(&format!(
-        "search?{}",
-        query_string(&[
-            ("realm", "pc"),
-            ("text", "class:rings"),
-            ("view.count", "rarity")
-        ])
-    ));
-    assert_eq!(recovered["query"], own["query"], "{recovered}");
-    assert_eq!(recovered["view"], own["view"], "{recovered}");
-    // the search form keeps an answer's order as its box too
-    let ordered = format!(
-        "search?{}",
-        query_string(&[
-            ("realm", "pc"),
-            ("text", "class:rings"),
-            ("view.sort", "ilvl")
-        ])
-    );
-    let page = web.get(&ordered);
-    assert_eq!(page.status, 200, "{}", page.body);
-    let form = submitted(&page.body, SEARCH_FORM);
-    assert!(
-        form.contains(&("view.sort".to_string(), "ilvl".to_string())),
-        "{form:?}"
-    );
     // refused: the fold's refusal over the empty form; a site search the
     // decode refuses in its box as sent; the form's fields the request
     // refuses, filled; each its status and its JSON the refusal's
@@ -1157,8 +1154,8 @@ fn the_query_box_sorts_and_pages_a_typed_query() {
     let boxed = &answer.body[answer.body.find("class=\"query-box\"").unwrap()..];
     for control in [
         "<option value=\"20\" selected>20</option>",
-        "<input type=\"checkbox\" name=\"view.sort\" value=\"ilvl\" checked> ordered by ilvl",
-        "<input type=\"checkbox\" name=\"view.desc\" value=\"true\" checked> largest first",
+        "<input type=\"hidden\" name=\"view.sort\" value=\"ilvl\">",
+        "<input type=\"hidden\" name=\"view.desc\" value=\"true\">",
     ] {
         assert!(boxed.contains(control), "{control}: {boxed}");
     }
@@ -1327,15 +1324,11 @@ fn a_head_orders_by_its_value_and_flips_and_the_box_keeps_what_was_named() {
     let next = web.get(&format!("search?next={token}")).body;
     let first_rows = link_saying(&next, "first rows");
     assert_eq!(go(&web, &first_rows, true)["view"], cards["view"]);
-    // no page holds a control that types a sort: the form, an answer; the
-    // search form's box that keeps the URL's order, or lets it go, types
-    // none
+    // no page holds a control that types a sort: the form, an answer
     for body in [web.get("").body, page.to_string()] {
         for name in ["view.sort", "view.desc"] {
             let typed = body.split("<input ").skip(1).any(|tag| {
-                tag.contains(&format!("name=\"{name}\""))
-                    && !tag.starts_with("type=\"hidden\"")
-                    && !tag.starts_with("type=\"checkbox\"")
+                tag.contains(&format!("name=\"{name}\"")) && !tag.starts_with("type=\"hidden\"")
             });
             assert!(!typed, "a control types {name}");
         }
@@ -1746,15 +1739,6 @@ fn every_search_page_is_a_wording_golden() {
         ],
     );
     every_request_an_answer_carries_is_a_way_on_its_page(&web, zero_path, &zero);
-    // a sort beside a count is the shared view selection's refusal, as
-    // the CLI's `--count` beside `--sort` is
-    let both = web.get("search?realm=pc&view.count=rarity&view.sort=ilvl");
-    assert_eq!(both.status, 400, "{}", both.body);
-    pages.page(
-        "GET search?realm=pc&view.count=rarity&view.sort=ilvl",
-        &both,
-        &["orders rows, and a count shows none"],
-    );
     let item = web.get("item/r1");
     pages.page(
         "GET item/r1",
@@ -1832,8 +1816,8 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "<div class=\"refusal\">",
             "name=\"text\" rows=\"3\">class:rings sort:life</textarea>",
-            "<input type=\"checkbox\" name=\"view.sort\" value=\"ilvl\" checked> ordered by ilvl</label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\" checked> largest first",
-            "<input type=\"checkbox\" name=\"view.value\" value=\"ilvl\" checked> the column ilvl</label> <label class=\"control\"><input type=\"checkbox\" name=\"view.value\" value=\"pseudo.total_life\" checked> the column pseudo.total_life",
+            "<input type=\"hidden\" name=\"view.sort\" value=\"ilvl\"><input type=\"hidden\" name=\"view.desc\" value=\"true\">",
+            "<input type=\"hidden\" name=\"view.value\" value=\"ilvl\"><input type=\"hidden\" name=\"view.value\" value=\"pseudo.total_life\">",
             "<option value=\"icon\" selected>a table</option>",
         ],
     );
