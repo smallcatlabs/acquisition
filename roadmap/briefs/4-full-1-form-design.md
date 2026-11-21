@@ -7,7 +7,10 @@ owner's rulings of 2026-11-20 on #193 (the source is the row) and #296
 at his ask of 2026-11-21, a search's way back to the trade site (§7).
 Ruled by him on 2026-11-21 ("Approve"), the four choices of §9 as
 recommended; the registry lines are entered and nothing is built. The
-build briefs follow. Read-only at `84d71d21`; nothing was run.
+build briefs follow. Read-only at `84d71d21`; nothing was run. Cut
+the same day under the cold review at `22337d17`
+(`roadmap/reviews/4-full-1-form-design-brief-22337d17.md`): the foot
+says what each finding changed.
 
 What was read: the road and `decisions/process.md`; issues #180, #181,
 #183, #184, #185, #188, #190, #193, #194, #296, #243, #244, #285, #182
@@ -64,11 +67,14 @@ one function met from another side.
   drops silently. A control that is the listing's shows the value it
   was filled with and sends nothing, as today, and is named the same
   way.
-- **The fill is the fold's inverse, and that is its pin.** The form
-  rendered from an envelope, read as a browser submits it, folds to
-  that envelope, less the listing's fields: over every captured site
-  search the trade tests hold and one envelope that fills every
-  control.
+- **The fill parts an envelope in two, and that is its pin.** What
+  the form holds, read as a browser submits it, folds back to it
+  exactly; what the form names as left out (the listing's fields, and
+  each path no control reads) is all of the rest. Both are compared in
+  the fold's own normal form, empties and a `disabled` of false
+  dropped. Held over every captured site search the trade tests hold,
+  the translation's cases of a key it does not read among them, and
+  one envelope that fills every control.
 - **Stat fields are positional, as `view.value` is.** `group.type`
   begins a group and `stat.id` a row in it; `group.min`, `group.max`
   and `group.disabled` belong to the group last begun, and `stat.min`,
@@ -89,7 +95,12 @@ one function met from another side.
   where its group's type sums, an option where its filter holds one,
   and a remove button. After the last group, "Add Stat Group" offers
   the types. What a type shows (a count's bound, a row's weight) is
-  CSS over the type's select, not script. The finder is driven from
+  CSS over the type's select, not script. CSS hides and the browser
+  still sends, so the fold drops a field its group's type does not
+  take, asked of the translation's own key lists (`translate.rs`,
+  `stat_value_keys`) and never restated in the page; on a filled form
+  such a field is a path no control reads. A weighted group changed to
+  `and` is one case of the browser-driven check. The finder is driven from
   the keyboard as the site's: arrows move, Enter picks, and Enter
   there never submits. A page loaded from its URL shows every row
   with no script; adding one needs the script.
@@ -101,7 +112,11 @@ one function met from another side.
   text fills the query box, open, over an empty form. A continuation
   is read by its token's query the same way. A refused search is the
   same page with the editor filled from what was sent, its status and
-  JSON unchanged. "Clear" is a link to the page with its scope alone.
+  JSON unchanged: from the envelope where the fold or the decode gave
+  one; the site box holding its text as sent where the decode refused
+  it; the refusal over an empty form where the fold refused the
+  fields, since such a URL was never the form's. "Clear" is a link to
+  the page with its scope alone.
 - **A site search is one box and one button**, in the bar: it runs as
   given, labelled with its report as today, and the form stands filled
   from it. Searching from the form then asks the form's fields. No
@@ -187,7 +202,10 @@ names its command as a person's act at a terminal.
   `show.rs`'s `trade_value` makes a line's. A pick sends the page's
   form with one field naming the entry, answered `303` to the page
   ordered by that value through `view_link`, the one maker of a change
-  to the view. No script composes a value or a URL.
+  to the view. No script composes a value or a URL. It lists an
+  entry only where the search crate makes a value for it today
+  (`trade_value` answers one, or the field is a number's); no
+  translation is widened for it.
 - **#296, as ruled.** With no sort asked, a place's items stand by
   position, top row first and left to right, then by id: one default
   order for every door, made where the corpus is loaded. A line
@@ -237,33 +255,52 @@ language, the answer and the fold gain no case.
   sitting tool's composer reproduces the site's ids
   (`tools/trade-sheet.py --self-test`); whether the site takes another
   encoder's bytes, or a query with no status, is not known. The step
-  is built on the sitting's record, and writes a status only if the
-  site refuses a query without one.
+  is built on the sitting's record. The link is the object as held, so
+  nothing is added to it: if the site refuses a query with no status,
+  the step stops and the question is the owner's (C179, what reaches
+  him).
 
 ## 8. The build
 
 In series on the shared checkout, each one brief from `TEMPLATE.md`,
 a cold review per round, the page seat after the last and before the
-owner sits.
+owner sits. This document is the design each brief names as its
+input; a brief carries its own find-first commands, and its done-when
+starts from its step's "seen when" here.
 
 1. **The source in the row** (§3): store, verbs, CLI, MCP, the save
    form and the opening. Consumer: an agent saving a site search.
+   *Seen when:* a site search saved on each surface opens with its
+   report, and a version 1 row still runs.
 2. **The editor, served** (§2 less its script): the positional fold,
    the fill and its inverse pin, the one page, the refused search.
    The stat rows render from the envelope; an empty form offers one
-   group and typed rows as today until step 3.
+   group and typed rows as today until step 3. *Seen when:* a form
+   search's answer, a refused one, a site search's and a saved form
+   search's each stand under the form filled with it.
 3. **Rows and groups** (§2's script): the templates, the finder as
    the adder, remove, groups, weights, the keyboard; held by the
    browser-driven check (C187, a script's rule), which retires the
-   pick-fills-the-first-empty-row case by name.
+   pick-fills-the-first-empty-row case by name. *Seen when:* a search
+   of two groups, one weighted, is made, edited and run from the page
+   with no id typed.
 4. **What rides** (§4 less the sockets): the quality box, the switch,
-   the fates, the site box in the bar, Clear.
-5. **The landing rule** (§5).
-6. **The value finder** (§6).
-7. **A place's line** (#296).
+   the fates, the site box in the bar, Clear. *Seen when:* each of
+   the five is in the form's golden, filled and empty.
+5. **The landing rule** (§5). *Seen when:* each submit, and each
+   refused write or plan, leads back to its page holding what was
+   sent.
+6. **The value finder** (§6). *Seen when:* a tab opened with no query
+   is ordered by a value picked by name.
+7. **A place's line** (#296). *Seen when:* a currency tab reads in its
+   own order with its stacks and rarities, on its page and at `acq
+   search`.
 8. **Abyssal sockets** (#185), then **the index** (#183's rest).
+   *Seen when:* the word answers in the language and from the form's
+   box, and the query box links the index.
 9. **The link to the site** (§7), after its sitting; last, so it can
-   wait or fall away without touching a step before it.
+   wait or fall away without touching a step before it. *Seen when:*
+   a form search's answer carries a link that decodes to that search.
 
 Closes #180, #181, #183, #184, #185, #188, #190, #193, #296. #194
 stays open for its rest.
@@ -343,3 +380,18 @@ trade report.
 - The look (#285), the jobs page's words (#182), the other league's
   never-fetched tabs (#194), a saved view, live results as he types,
   a remembered switch: each has its issue or its "Not doing" line.
+
+## Taken from the review (`22337d17`, cut 2026-11-21)
+
+1 the status fallback is gone: the link is the object as held, and a
+site that refuses one without a status is the owner's question (§7); 2
+the fill's pin is a partition in the fold's normal form, the named
+paths all of the rest (§2); 3 the fold drops a field its group's type
+does not take, by the translation's own key lists (§2); 4 a refused
+search fills from the nearest thing read, and a fold's refusal stands
+over an empty form (§2); 5 each step says what is seen when it is
+done, and its brief carries the commands (§8); 6 the finder lists only
+what has a value today (§6). Not taken: 7, the size and the reading
+list. This is the design nine briefs name as their input, as the two
+designs before it are, and each brief is held to the template's
+bound.
