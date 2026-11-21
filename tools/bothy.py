@@ -42,8 +42,9 @@ The entry rule. An entry is one bullet,
    The headline and the ruling together are at most six clauses. A
    clause is counted on the text before *Why:*, each code span read as
    one word and parenthesised text left out, split at `. ` or `; ` and
-   at a final `.` or `;`. An entry that needs more is two rulings: the
-   second takes a new id, by the owner's ruling.
+   at a final `.` or `;`. An entry that needs more carries mechanism,
+   which stands in the code's doc comment (C192), or is two rulings:
+   the second takes a new id, by the owner's ruling.
 7. *Pinned:* names at most three files, and every name it ticks
    exists. A ticked token with a `/` or a file extension is a path, a
    file or a directory, written as the registry writes one: from the

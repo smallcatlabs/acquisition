@@ -76,8 +76,11 @@ The close is one commit, and its message is the step's record
   named leaves it unchanged, and the message says so.
 
 A decision in the owner's classes that the step needs or took is an
-issue labelled `trigger:ruling` (C179), opened before the close, and
-the close says how many such issues are open
+issue labelled `trigger:ruling` (C179), filed before the close. A
+question stays open; a decision taken under his delegation is closed
+as it is filed, its title beginning `Taken under delegation:`, and he
+reopens it to reverse it. A question about what the code does names
+the test that shows it. The close says how many such issues are open
 (`gh issue list --label trigger:ruling`). Nothing is left "for his
 later read".
 
