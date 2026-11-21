@@ -874,8 +874,10 @@ fn hidden(name: &str, value: &str) -> String {
 /// renderer both editors share: the order, its direction and each value
 /// named, never the query's own, and with `count` a count's keys, so an
 /// edit run again keeps them. A search sent with a count lets go of the
-/// order and the values, which a count shows none of (`form.rs`, the
-/// fold): nothing carried hidden can make a page's search refused.
+/// order, its direction and the values, which a count shows none of
+/// (`form.rs`, the fold), so a count is never refused for what was
+/// carried beside it; a carried order the search refuses on its own is
+/// refused again, in its own words.
 fn view_hidden(view: &BoxView, count: bool) -> String {
     let mut out = String::new();
     if let Some(sort) = &view.sort {
