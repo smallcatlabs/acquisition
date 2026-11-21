@@ -916,7 +916,20 @@ fn filter_keys(shape: &str) -> &'static [&'static str] {
     }
 }
 
-fn stat_value_keys(kind: &str) -> &'static [&'static str] {
+/// The keys a stat group's own value takes, by its `kind`: the bounds only
+/// a count or a weighted sum reads. Public, as [`stat_value_keys`] is, so
+/// a form's fold drops a bound its group's type does not take by this list.
+pub fn group_value_keys(kind: &str) -> &'static [&'static str] {
+    match kind {
+        "count" | "weight" | "weight2" => &GROUP_VALUE,
+        _ => &[],
+    }
+}
+
+/// The keys a stat filter's value takes in a group of `kind`: the weight
+/// only in a weighted sum. Public so a form's fold drops what a group's
+/// type does not take by this list, never a copy of it.
+pub fn stat_value_keys(kind: &str) -> &'static [&'static str] {
     match kind {
         "weight" | "weight2" => &["min", "max", "option", "weight"],
         _ => &["min", "max", "option"],
@@ -1893,10 +1906,7 @@ impl Translator<'_> {
                 &[]
             }
         };
-        let value_keys: &[&str] = match kind {
-            "count" | "weight" | "weight2" => &GROUP_VALUE,
-            _ => &[],
-        };
+        let value_keys = group_value_keys(kind);
         let group_value = match read(Some(group), &STAT_GROUP).and_then(|_| {
             read(object.get("value"), value_keys).map_err(|w| format!("its value: {w}"))
         }) {

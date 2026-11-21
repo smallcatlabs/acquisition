@@ -353,4 +353,41 @@ fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
     // nothing held is nothing listed and nothing counted
     let none = vocabulary("zzzz qqqq", 10).unwrap();
     assert!(none.entries.is_empty() && none.left_out == 0);
+    // a filled form's rows by their ids, in the order given: each entry as
+    // a listing gives it, its fate the same, and an id no table holds none
+    let by_id = acquisition_search::trade::vocabulary::entries(&[
+        "explicit.stat_1145451936",
+        "explicit.stat_9999999999",
+        "pseudo.pseudo_total_life",
+        "nonsense",
+    ])
+    .unwrap();
+    let found: Vec<Option<(&str, &str, Status, Status)>> = by_id
+        .iter()
+        .map(|e| {
+            e.as_ref()
+                .map(|e| (e.id.as_str(), e.group, e.alone, e.bounded))
+        })
+        .collect();
+    assert_eq!(
+        found,
+        [
+            Some((
+                "explicit.stat_1145451936",
+                "explicit",
+                two.alone,
+                two.bounded
+            )),
+            None,
+            Some((
+                "pseudo.pseudo_total_life",
+                "pseudo",
+                Status::Exact,
+                Status::Exact
+            )),
+            None,
+        ]
+    );
+    assert_eq!(by_id[0].as_ref().unwrap().texts, two.texts);
+    assert_eq!(by_id[2].as_ref().unwrap().texts, ["+# total maximum Life"]);
 }

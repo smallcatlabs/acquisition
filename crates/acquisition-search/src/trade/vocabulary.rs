@@ -137,6 +137,50 @@ pub fn vocabulary(ask: &str, limit: usize) -> Result<Vocabulary, LanguageError> 
     })
 }
 
+/// Each id as an entry, in the order given, with the statuses a listing
+/// gives it: a filled form's row says its text and fate as a pick's does.
+/// An id no table holds, a total's or the stat table's, is none. An error
+/// is [`vocabulary`]'s: a build defect, said.
+pub fn entries(ids: &[&str]) -> Result<Vec<Option<Entry>>, LanguageError> {
+    let table = stats::table().map_err(|e| defect(e.to_string()))?;
+    let totals = totals::table().map_err(|e| defect(e.to_string()))?;
+    let found: Vec<Option<(&'static str, String, Vec<String>)>> = ids
+        .iter()
+        .map(|id| {
+            if let Some(site) = id.strip_prefix(&format!("{PSEUDO}.")) {
+                let text = totals
+                    .totals()
+                    .iter()
+                    .map(|total| (&total.site, &total.text))
+                    .chain(totals.readings().iter().map(|r| (&r.site, &r.text)))
+                    .find(|(s, _)| s.as_deref() == Some(site))
+                    .and_then(|(_, text)| text.clone())?;
+                return Some((PSEUDO, id.to_string(), vec![text]));
+            }
+            let (category, _) = id.split_once('.')?;
+            let group = stats::HASH_CATEGORIES.iter().find(|c| **c == category)?;
+            Some((*group, id.to_string(), table.texts(id)?.to_vec()))
+        })
+        .collect();
+    let listed: Vec<(&'static str, String, Vec<String>)> =
+        found.iter().flatten().cloned().collect();
+    let alone = statuses(&listed, &json!({}))?;
+    let bounded = statuses(&listed, &json!({ "min": 1 }))?;
+    let mut made = listed.into_iter().zip(alone.into_iter().zip(bounded)).map(
+        |((group, id, texts), (alone, bounded))| Entry {
+            id,
+            texts,
+            group,
+            alone,
+            bounded,
+        },
+    );
+    Ok(found
+        .iter()
+        .map(|f| f.as_ref().and_then(|_| made.next()))
+        .collect())
+}
+
 /// Each listed entry's clause status as a filter with `value`, read from
 /// one translation of them all as an `and` group.
 fn statuses(
