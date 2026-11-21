@@ -246,10 +246,11 @@
 //! - **The view's links**: nothing is typed to sort. The URL names the
 //!   rows' values by `view.value`, one each in order as the CLI's
 //!   `--value`, beside `view.sort` and `view.desc`; no control of a form
-//!   types the three ([`form::UNTYPED`]): the query box carries what the
-//!   URL named of them, hidden, so an edited query keeps them, and the
-//!   search form each as a box ticked, which keeps it or lets it go (a
-//!   count refuses an order beside it, in the shared words). One
+//!   types the three ([`form::UNTYPED`]): both editors carry what the URL
+//!   named of them, the query box a count's keys too, each as a box
+//!   ticked (`page::view_boxes`, the one renderer), so an edited search
+//!   keeps them and a reader can let one go (a count refuses an order
+//!   beside it, in the shared words). One
 //!   maker gives a change to the view ([`view_link`]): the same page
 //!   ordered by one value, largest first or the other way where the rows
 //!   are ordered by it, the value joining the answer's list where the list

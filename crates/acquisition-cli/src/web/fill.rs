@@ -86,12 +86,13 @@ impl Fill {
         Some(at)
     }
 
-    /// The value at `path` written as `rendered`, held where it folds back
-    /// to itself by the fold's typing of `path`'s last key.
+    /// The value at `path` written as `rendered`, held where a box sends it
+    /// back unchanged ([`boxed`]) and it folds back to itself by the fold's
+    /// typing of `path`'s last key.
     fn hold(&self, path: &str, rendered: String) -> Option<String> {
         let value = self.at(path)?;
         let key = path.rsplit('.').next().unwrap_or(path);
-        (form::typed(key, &rendered) == *value && rendered == rendered.trim()).then(|| {
+        (form::typed(key, &rendered) == *value && boxed(&rendered)).then(|| {
             self.held.borrow_mut().insert(path.to_string());
             rendered
         })
@@ -139,9 +140,8 @@ impl Fill {
 
     /// The query's stat groups, in the normal form, where the form can
     /// render them whole: a list of objects, each a `filters` list of
-    /// objects each with an `id` its box holds (a string equal to its
-    /// trim), so a group and a row of the form stand at each one's place
-    /// and fold back there. Any other is none: the pane is the empty
+    /// objects each with an `id` its box holds ([`boxed`]), so a group and
+    /// a row of the form stand at each one's place and fold back there. Any other is none: the pane is the empty
     /// form's, and every leaf of the stats is left (the module doc).
     pub(crate) fn stats(&self) -> &[Value] {
         let Some(groups) = self.at("query.stats").and_then(Value::as_array) else {
@@ -152,11 +152,8 @@ impl Fill {
                 .get("filters")
                 .and_then(Value::as_array)
                 .is_some_and(|rows| {
-                    rows.iter().all(|row| {
-                        row.get("id")
-                            .and_then(Value::as_str)
-                            .is_some_and(|id| id == id.trim())
-                    })
+                    rows.iter()
+                        .all(|row| row.get("id").and_then(Value::as_str).is_some_and(boxed))
                 })
         };
         match groups.iter().all(|g| g.is_object() && rows(g)) {
@@ -174,6 +171,12 @@ impl Fill {
             .filter(|(path, _)| !held.contains(path))
             .collect()
     }
+}
+
+/// Whether a box sends `text` back as it was written: a browser strips a
+/// line break from a text box's value, and the fold trims what it reads.
+fn boxed(text: &str) -> bool {
+    text == text.trim() && !text.contains(['\n', '\r'])
 }
 
 /// Every leaf of a value by its path: an object's keys joined by `.`, an
@@ -401,6 +404,12 @@ mod tests {
                     "query.stats[1].type",
                 ],
             ),
+            (
+                json!({"query": {"stats": [{"type": "and", "filters": [
+                    {"id": "explicit.stat_329934\n7043"}]}]}}),
+                vec!["query.stats[0].filters[0].id", "query.stats[0].type"],
+            ),
+            (json!({"query": {"term": "a\nterm"}}), vec!["query.term"]),
             (
                 json!({"query": {"stats": [{"type": "and", "filters": [
                     {"id": "explicit.stat_3299347043", "value": {"weight": 2}}]}]}}),

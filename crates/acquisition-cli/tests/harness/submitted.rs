@@ -66,7 +66,8 @@ fn html_number(text: &str) -> bool {
 /// first form whose opening tag is `form`, an element another form owns
 /// left out, a disabled control and an unticked box sending
 /// nothing, a select its selected option or else its first, a number
-/// box its value only where it reads as a number.
+/// box its value only where it reads as a number, a text box its value
+/// with its line breaks stripped.
 pub fn submitted(html: &str, form: &str) -> Vec<(String, String)> {
     let open = html
         .find(form)
@@ -102,7 +103,10 @@ pub fn submitted(html: &str, form: &str) -> Vec<(String, String)> {
                         out.push((name, sent));
                     }
                     "search" | "button" | "submit" => {}
-                    _ => out.push((name, value)),
+                    // a hidden field sends its value as written
+                    "hidden" => out.push((name, value)),
+                    // a text box's value has its line breaks stripped
+                    _ => out.push((name, value.replace(['\n', '\r'], ""))),
                 }
             }
             body = &body[end..];
