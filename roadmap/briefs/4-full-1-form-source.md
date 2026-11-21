@@ -21,14 +21,10 @@ source, and a row written before this step still reads and runs.
   dropped), C113 (a site search is a query's third spelling), C52 (no
   blind replace by an agent), C143 (a refusal in the request's words),
   C46 (semantics in Rust, every frontend an adapter).
-- Code: `acquisition-store/src/user.rs` (the kind),
-  `acquisition-verbs/src/saved.rs` (the verbs, their module doc),
-  `acquisition-search/src/answer.rs` (`QueryInput::read`, `decoded`,
-  `trade_word`), `acquisition-cli/src/saved_cmd.rs` and
-  `search_cmd.rs` (`--trade`, `--trade-file`), `acquisition-mcp`'s
-  `saved_search_set` and `saved_into`, `web/mod.rs` (`saved_open`,
-  `saved_set`, `asked_by_the_form`, the `Way` spelling) and
-  `web/page.rs` (`save_forms`).
+- Code: the store's `user.rs`, the verbs' `saved.rs`, the search's
+  `QueryInput` (`read`, `trade_word`), `acq search`'s `--trade`, the
+  MCP's `saved_search_set` and `saved_into`, `web/mod.rs`'s saved
+  routes and `web/page.rs`'s `save_forms`.
 - CI on `main`: `gh run list --branch main --workflow "Gate (Linux)"
   --limit 1`, the same for `Gate (Windows)`. Both green at `33f9e9e0`
   when this brief was written (runs 44912135713, 44912135610).
@@ -50,9 +46,12 @@ source, and a row written before this step still reads and runs.
    spells a `Set` (an undo, a re-aimed write, a recovery offer) spells
    its source on each surface.
 3. **The door reads the source** with `QueryInput::read` in the row's
-   realm, before any file is opened, and refuses in the language's
-   words (C143). A URL's realm is the row's: a write naming a URL that
-   names a realm and naming no realm takes the URL's, never one
+   realm, refused in the language's words (C143), in two moments: what
+   the write names (its source, its realm) is read before any file is
+   opened; the merged value, the source and the realm a write keeps
+   from the prior row among them, is read after that row is read and
+   before the write lands. A URL's realm is the row's: a write naming a
+   URL that names a realm and naming no realm takes the URL's, never one
    settled from the facts; one naming another realm is the request's
    conflict, as at `acq search`.
 4. **The list's row** keeps `text`, now the text the source reads as
@@ -67,9 +66,12 @@ source, and a row written before this step still reads and runs.
    `--trade-file FILE|-`, as `acq search` reads them, each conflicting
    with the positional query; MCP `saved_search_set` takes `trade`, a
    string or an object, beside `text`, never both; `search` with
-   `saved` sets the row's request query whole; the page's save form
-   carries the answer's source, `text` or `trade` (the form's envelope
-   as JSON text), and `POST saved` takes `trade`; `saved/open`
+   `saved` sets the row's request query whole. The page's save form
+   carries the source of the request the page answered (the handler's
+   `Request`, a continuation's included, passed to `page::answer` and
+   `save_forms`; the answer document gains nothing): `text`, the
+   answer's canonical text, or `trade`, its `trade_word`, the form's
+   envelope as JSON text. `POST saved` takes `trade`; `saved/open`
    redirects to `search?text=` or `search?trade=`, the row's scope
    beside it as the page reads it. The form is not filled (step 2).
 6. **The words**: the CLI's list and show say a site search's
@@ -79,16 +81,17 @@ source, and a row written before this step still reads and runs.
 ## Find first
 - `git grep -n "SavedSearch\b" crates/`: each maker and reader of the
   kind.
-- `git grep -n "SavedSearchSet\|saved::Set\|Set {" crates/`: each
-  spelling of a write, per surface.
-- `git grep -n "VERSION: i64" crates/`: test kinds that stage a row
-  this build cannot read; one at version 2 for this kind now reads.
+- `git grep -n "SavedSearchSet\|saved::Set\b\|Set {" crates/ | grep -iv "header\|policy\|price"`:
+  each spelling of a write, per surface.
+- `git grep -n "VERSION: i64\|NewerSaved\|version 2" crates/` and
+  `git grep -n '"version": 2' crates/`: the kinds and raw rows that
+  stage a saved search newer than this build. Each stays a newer row
+  after the bump (version 3, in the version 2 shape), its goldens
+  regenerated.
 - `git grep -ln "saved" crates/*/tests crates/*/unit`: the tests and
   goldens over the saved documents and pages.
 - `git grep -n "asked_by_the_form\|saved_open\|save_forms" crates/acquisition-cli/src/web/`:
   the page's opening and saving.
-- `cargo nextest run -p acquisition-search --test main trade` before
-  and after: the translation is untouched by this step.
 
 ## Done when
 - `SavedSearch` is at version 2 with `query`; a version 1 row staged
@@ -101,6 +104,12 @@ source, and a row written before this step still reads and runs.
   --saved`, MCP `search` with `saved`, `saved/open`) to an answer
   carrying its translation's report.
 - A JSON string saved as `trade` is stored as its object (a test).
+- The source survives: a site search whose JSON holds a field the
+  translation does not run, saved on each surface, is stored equal to
+  what was sent (after the one normalization of Decision 2), and
+  opened and saved again from the page is stored equal again. The
+  retention is pinned once in the verbs; each adapter's test pins that
+  it hands the source on whole.
 - A source that does not read is refused before `user.db` exists (a
   test); a stored one this build cannot translate is listed with its
   `fault` and refused when run (a test).
