@@ -169,20 +169,22 @@ pub(crate) fn trade_word(trade: &serde_json::Value) -> String {
 /// and, for a site search, that it is one and how faithful the text is;
 /// or why this build cannot read it (C194, the text derived at the read).
 fn query_words(row: &saved::ReadRow) -> String {
-    match (&row.text, &row.fault, &row.query) {
-        (Some(text), _, SavedQuery::Text(_)) => text.clone(),
-        (Some(text), _, SavedQuery::Trade(_)) => format!(
+    query_said(&serde_json::to_value(row).unwrap_or_default())
+}
+
+/// [`query_words`] of a row as its JSON holds it: the one maker of a
+/// row's query in words, the terminal's and the saved pages'.
+pub(crate) fn query_said(row: &serde_json::Value) -> String {
+    let word = |key: &str| row.get(key).and_then(serde_json::Value::as_str);
+    match (word("text"), row.pointer("/query/trade")) {
+        (Some(text), None) => text.to_string(),
+        (Some(text), Some(_)) => format!(
             "{text}  (from a site search: {})",
-            row.fidelity
-                .map(|f| serde_json::to_value(f)
-                    .ok()
-                    .and_then(|v| v.as_str().map(str::to_string))
-                    .unwrap_or_default())
-                .unwrap_or_default()
+            word("fidelity").unwrap_or_default()
         ),
-        (None, fault, _) => format!(
+        (None, _) => format!(
             "this build cannot read its query: {}",
-            fault.as_deref().unwrap_or_default()
+            word("fault").unwrap_or_default()
         ),
     }
 }

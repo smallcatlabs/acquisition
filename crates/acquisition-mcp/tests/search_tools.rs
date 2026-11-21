@@ -30,7 +30,7 @@ struct Seat {
 }
 
 /// Where the server and the `acq` beside it look for the mock's stores.
-fn stores(base: &Path) -> PathBuf {
+pub(crate) fn stores(base: &Path) -> PathBuf {
     base.join("store").join("mock")
 }
 

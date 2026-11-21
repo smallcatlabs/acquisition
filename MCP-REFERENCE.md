@@ -172,7 +172,7 @@ Save a search, or change one; local, it sends nothing (no daemon). No `id`: a cr
 - `if_revision` (integer | null) — The revision of the row at `id` this write replaces, from saved_searches or a refusal: the fields not named keep the row's values. Omitted, or 0, a create: at `id`, the whole search, landing only where none stands.
 - `membership` (string | null) — live (a create's default), all or removed.
 - `name` (string | null) — A label, one to sixty-four characters; two searches may share one.
-- `realm` (string | null) — pc, xbox, sony, poe2 or all. A create naming none takes the one realm the facts hold, the named account's or else every known account's, and is refused offering each where several are held.
+- `realm` (string | null) — pc, xbox, sony, poe2 or all. A create naming none takes its trade URL's, else the one realm the facts hold, the named account's or else every known account's, refused offering each where several are held.
 - `text` (string | null) — The query, in the language `describe` prints; stored canonical.
 - `trade` (string | object | null) — In place of `text`, a trade site search as `search` takes it: a URL or an id as a string, or the query JSON. Kept as given and translated at each read; a URL's realm is the search's.
 

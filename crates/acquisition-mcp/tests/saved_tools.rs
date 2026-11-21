@@ -364,7 +364,63 @@ fn c194_a_site_search_saved_by_an_agent_keeps_its_source_and_runs_with_its_repor
         json!({ "name": "x", "text": "rarity=rare", "trade": url }),
         "arguments",
     );
+    // a version 1 row, the text alone, as a build before C194 wrote it:
+    // listed with its text, run as that text, and left as it was written
+    let v1 = json!({ "version": 1, "name": "old", "text": "class:ring   rarity=rare",
+                     "scope": { "realm": "pc", "membership": "live" } });
+    let dir = search_tools::stores(&by_mcp.0);
+    acquisition_store::User::open_for(&dir)
+        .unwrap()
+        .put::<Before>(
+            acquisition_store::SAVED_SEARCH_SCOPE,
+            "0000000000b1",
+            &v1,
+            None,
+            &acquisition_store::Provenance::via("test"),
+        )
+        .unwrap();
+    let row = answered(
+        &mut mcp,
+        "saved_searches",
+        json!({ "saved": "0000000000b1" }),
+    );
+    assert_eq!(
+        row["query"],
+        json!({ "text": "class:ring   rarity=rare" }),
+        "{row}"
+    );
+    let ran = answered(&mut mcp, "search", json!({ "saved": "0000000000b1" }));
+    let typed = answered(
+        &mut mcp,
+        "search",
+        json!({ "query": { "text": "class:ring   rarity=rare" }, "scope": { "realm": "pc" } }),
+    );
+    assert_eq!(ran["query"], typed["query"]);
+    assert_eq!(row["text"], ran["query"]["text"], "{row}");
+    let stood = acquisition_store::User::open_for(&dir)
+        .unwrap()
+        .get(
+            acquisition_store::SAVED_SEARCH_SCOPE,
+            "0000000000b1",
+            "saved-search",
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(stood.value, v1, "a read rewrote the version 1 row");
     assert!(no_daemon_appeared(&by_mcp.0));
+}
+
+/// The saved search's kind as a build before C194 wrote it.
+#[derive(serde::Serialize)]
+#[serde(transparent)]
+struct Before(Value);
+
+impl acquisition_store::IntentValue for Before {
+    const KIND: &'static str = "saved-search";
+    const VERSION: i64 = 1;
+    fn parse(value: &Value) -> Result<Self, String> {
+        Ok(Before(value.clone()))
+    }
 }
 
 /// The refusals the CLI can make for the same request are its documents,

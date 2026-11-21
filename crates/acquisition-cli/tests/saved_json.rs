@@ -364,6 +364,16 @@ fn c194_a_site_search_saved_at_a_terminal_keeps_its_source_and_runs_with_its_rep
         assert_eq!(undone["written"], Value::Null, "{undone}");
     }
     put_v1(&mock, "0000000000b4", "old", "rarity=rare   class:rings");
+    let stored = || {
+        User::open_for(&mock)
+            .unwrap()
+            .get(SAVED_SEARCH_SCOPE, "0000000000b4", "saved-search")
+            .unwrap()
+            .unwrap()
+            .value
+    };
+    let v1 = stored();
+    assert_eq!(v1["version"], 1, "{v1}");
     assert_eq!(
         json_of(&base, &["search", "--saved", "0000000000b4"])["query"],
         json_of(
@@ -371,6 +381,9 @@ fn c194_a_site_search_saved_at_a_terminal_keeps_its_source_and_runs_with_its_rep
             &["search", "--realm", "pc", "rarity=rare class:rings"]
         )["query"]
     );
+    json_of(&base, &["saved", "list"]);
+    json_of(&base, &["saved", "show", "0000000000b4"]);
+    assert_eq!(stored(), v1, "a read rewrote the version 1 row");
 }
 
 /// Every command a receipt or a refusal of `acq saved` prints runs as

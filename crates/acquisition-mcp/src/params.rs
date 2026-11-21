@@ -537,9 +537,10 @@ pub(crate) struct SavedSearchSetParams {
     #[serde(default)]
     #[schemars(schema_with = "string_or_object")]
     pub(crate) trade: Option<serde_json::Value>,
-    /// pc, xbox, sony, poe2 or all. A create naming none takes the one
-    /// realm the facts hold, the named account's or else every known
-    /// account's, and is refused offering each where several are held.
+    /// pc, xbox, sony, poe2 or all. A create naming none takes its trade
+    /// URL's, else the one realm the facts hold, the named account's or
+    /// else every known account's, refused offering each where several
+    /// are held.
     pub(crate) realm: Option<String>,
     /// live (a create's default), all or removed.
     pub(crate) membership: Option<String>,

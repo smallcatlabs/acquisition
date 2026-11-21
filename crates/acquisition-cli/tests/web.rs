@@ -5710,6 +5710,57 @@ fn the_saved_pages_are_a_wording_golden() {
             ">Save this search</button>",
         ],
     );
+    // C194: a stored source this build cannot read lists its fault where
+    // its query stands, and its opening is refused; a version 1 row, the
+    // text alone, lists, opens and answers, and stays as it was written
+    User::open_for(&mock)
+        .unwrap()
+        .put::<acquisition_store::SavedSearch>(
+            SAVED_SEARCH_SCOPE,
+            "0000000000c1",
+            &json!({ "version": 2, "name": "lost", "query": { "trade": "not a site search" },
+                     "scope": { "realm": "pc", "membership": "live" } }),
+            None,
+            &Provenance::via("test"),
+        )
+        .unwrap();
+    crate::saved_json::put_v1(
+        &mock,
+        "0000000000c2",
+        "old rings",
+        "class:rings   rarity=rare",
+    );
+    let stored = || {
+        User::open_for(&mock)
+            .unwrap()
+            .get(SAVED_SEARCH_SCOPE, "0000000000c2", "saved-search")
+            .unwrap()
+            .unwrap()
+            .value
+    };
+    let v1 = stored();
+    let listed = web.get("saved?expand=true");
+    pages.page(
+        "GET saved?expand=true <a source this build cannot read, and a version 1 row>",
+        &listed,
+        &[
+            "saved/open?id=0000000000c1\">lost</a></td><td>pc · live</td><td>this build cannot read its query:",
+            "saved/open?id=0000000000c2\">old rings</a></td><td>pc · live</td><td>class:rings rarity=rare</td>",
+        ],
+    );
+    let lost = follow(&web, &format!("/{}/saved/open?id=0000000000c1", web.token));
+    pages.page(
+        "GET saved/open?id=0000000000c1 <a source this build cannot read>",
+        &lost,
+        &[
+            "saved search 0000000000c1 at revision 1 asks what this build cannot read",
+            "a page cannot open it",
+        ],
+    );
+    let (old, opened) = redirected(&web, &format!("/{}/saved/open?id=0000000000c2", web.token));
+    assert_eq!(opened.status, 200, "{}", opened.body);
+    assert!(old.contains("text=class%3Arings"), "{old}");
+    assert_eq!(stored(), v1, "a read rewrote the version 1 row");
     page_golden(file!(), "saved_pages", &pages);
 }
 

@@ -462,12 +462,14 @@ summary.")]
         #[command(subcommand)]
         cmd: Option<PriceCmd>,
     },
-    /// The saved searches (no daemon, no login): a name, a query's text
-    /// and its scope, kept in the world's own file, not an account's, so
-    /// any account runs one (`acq search --saved`). Each has an id, the
-    /// identity, printed last; the name is a label two may share. A new
-    /// search naming no realm takes the one realm the facts hold: the
-    /// account's named with `--account`, else every known account's.
+    /// The saved searches (no daemon, no login): a name, what was asked —
+    /// a query, or a trade site search kept as given and translated each
+    /// time it is read — and its scope, kept in the world's own file, not
+    /// an account's, so any account runs one (`acq search --saved`). Each
+    /// has an id, the identity, printed last; the name is a label two may
+    /// share. A new search naming no realm takes its site search URL's,
+    /// else the one realm the facts hold: the account's named with
+    /// `--account`, else every known account's.
     /// `--json` is the document whole; a write's is its receipt, the
     /// row before it and the command that puts it back.
     Saved {
@@ -644,8 +646,9 @@ pub(crate) enum SavedCmd {
         #[arg(value_name = "ID|NAME")]
         search: String,
     },
-    /// Save a search, or change one. A new one is `--name` and the query,
-    /// with no `--id`: its realm is `--realm`, else the one the facts
+    /// Save a search, or change one. A new one is `--name` and the query
+    /// or the site search, with no `--id`: its realm is `--realm`, else
+    /// the realm its site search's URL names, else the one the facts
     /// hold, the account's named with `--account` or else every known
     /// account's (`all` where they hold none; over several it is
     /// required), its membership `--membership`, else live. A change is
