@@ -3,9 +3,11 @@
 A Fable design, 2026-11-21, for the road's first item
 (`roadmap/README.md`, "Next", 1): the search form's reshaping, with the
 owner's rulings of 2026-11-20 on #193 (the source is the row) and #296
-(a place's line) built in, and the landing rule noted on #194. Nothing
-here is built or ruled: §8 is drafts for the owner, and the build
-briefs follow his word. Read-only at `84d71d21`; nothing was run.
+(a place's line) built in, and the landing rule noted on #194; and,
+at his ask of 2026-11-21, a search's way back to the trade site (§7).
+Nothing here is built or ruled: §9 is drafts for the owner, and the
+build briefs follow his word. Read-only at `84d71d21`; nothing was
+run.
 
 What was read: the road and `decisions/process.md`; issues #180, #181,
 #183, #184, #185, #188, #190, #193, #194, #296, #243, #244, #285, #182
@@ -17,7 +19,8 @@ POST handlers and `to_job`; `web/page.rs`'s `search_form`, `query_box`,
 `trade_box`, `save_forms`; the two form scripts; the search crate's
 `QueryInput`, `trade.rs`, `trade/vocabulary.rs`, the translation's key
 lists, `show.rs`'s `trade_value`; the store's `user.rs`; the verbs'
-`saved.rs` doc.
+`saved.rs` doc; for §7, the trade area's "Not doing" lines,
+`SURFACES.md`'s trade rows and `tools/trade-sheet.py`'s composer.
 
 His words that set the reference: "my muscle memory and search skills
 are highly adapted to the trade site"; and of a saved search, "load a
@@ -46,6 +49,7 @@ one function met from another side.
 | A refused search keeps its input (#190) | The page is the editor filled from what was sent, the refusal where the answer would stand |
 | A typed stat id has no fate (#183) | No id is typed: a row is a pick or the fill's, and both carry its text and fate |
 | Sort by a value a player names (the seat, fault 2) | The stat finder, asked for values, beside the rows' order |
+| Run a search on the trade site (his ask, 2026-11-21) | The site's JSON the search holds, written as the site's id; nothing is translated |
 
 ## 2. The form is the JSON's editor
 
@@ -57,11 +61,14 @@ one function met from another side.
   holds a value renders open. What the envelope holds and no control
   reads is named above the form by the site's own path, with one
   sentence saying a search from the form leaves it out: the fill never
-  drops silently.
+  drops silently. A control that is the listing's shows the value it
+  was filled with and sends nothing, as today, and is named the same
+  way.
 - **The fill is the fold's inverse, and that is its pin.** The form
   rendered from an envelope, read as a browser submits it, folds to
-  that envelope: over every captured site search the trade tests hold
-  and one envelope that fills every control.
+  that envelope, less the listing's fields: over every captured site
+  search the trade tests hold and one envelope that fills every
+  control.
 - **Stat fields are positional, as `view.value` is.** `group.type`
   begins a group and `stat.id` a row in it; `group.min`, `group.max`
   and `group.disabled` belong to the group last begun, and `stat.min`,
@@ -144,9 +151,10 @@ one function met from another side.
   mark and its title. One line by the switch says so.
 - **Abyssal sockets (#185).** The language gains a fifth socket word,
   `abyssal`, GGG's `A`, over the item and within a link group, counted
-  as the four are. The form's Sockets row gains an "A" box, the
-  envelope key `a` on that filter, read by the translation; the Link
-  Groups row gains none, an abyssal socket being a group of its own.
+  as the four are. The form's Sockets row gains an "A" box, which the
+  envelope carries as a count beside its query, `abyssal`, read by the
+  translation (§7, nothing of ours inside the query); the Link Groups
+  row gains none, an abyssal socket being a group of its own.
   The site's own `min` and `max` are untouched: what they count of an
   abyssal socket is a sitting's question.
 
@@ -186,13 +194,53 @@ names its command as a person's act at a terminal.
   carries its rarity in words from one row maker the CLI's row shares.
   The Stack column is the value `stack`, which the default list holds
   wherever a match carries a stack: its head sorts as any value's
-  does, and its cell is empty on a gear row (§8 asks whether this
+  does, and its cell is empty on a gear row (§9 asks whether this
   reaches every door).
 - **The language's index (#183's rest).** `GET describe` renders the
   `describe` document, the index and an entry by name, linked from the
   query box.
 
-## 7. The build
+## 7. A search goes back to the site
+
+His choice among three ways, 2026-11-21 ("A, the ask goes back"): what
+goes to the site is what was asked, the site's JSON a search holds as
+its source, written as the site's id. Nothing is translated, so the
+language, the answer and the fold gain no case.
+
+- **The rule that makes it an encoding**: nothing of Acquisition's
+  stands inside a site search's query object. What the site's form
+  lacks stands beside it, as the league and the defences' reading do
+  (C141, C142), and §4's abyssal count joins them.
+- **The link.** One function in the search crate writes the id from
+  the query object as held and the URL from the realm and the league:
+  the decode's rule (`trade.rs`) run backwards. Its pin is the decode:
+  a composed link decodes to its query, its realm and its league. The
+  tool sends nothing and a person opens the link (C79, governed
+  surfaces).
+- **Where none is made**, each said in one sentence: a search typed in
+  the language, whose translation outward stays declined; a search
+  over no one league, or over every realm.
+- **What stands beside the link**: each thing beside the query that
+  the site cannot be asked (defences as the item stands, an abyssal
+  count); and that the link carries what was asked, so a field not run
+  here runs there.
+- **One place.** The trade report of an answer whose source is a site
+  search carries the link: the page shows it beside the answer, the
+  CLI prints it and an agent can hand it on. It is the search that
+  ran, never a form's unsent edits.
+- **The listing's fields stay as they are** (§2): a site search opened
+  and run as given goes back whole, and one edited in the form leaves
+  them out and says so. Making them editable is a question about what
+  the form is for, not taken here.
+- **A sitting first** (the site-sitting skill): a few links from the
+  Rust composer, one with no `status`, opened by the owner. The
+  sitting tool's composer reproduces the site's ids
+  (`tools/trade-sheet.py --self-test`); whether the site takes another
+  encoder's bytes, or a query with no status, is not known. The step
+  is built on the sitting's record, and writes a status only if the
+  site refuses a query without one.
+
+## 8. The build
 
 In series on the shared checkout, each one brief from `TEMPLATE.md`,
 a cold review per round, the page seat after the last and before the
@@ -214,14 +262,16 @@ owner sits.
 6. **The value finder** (§6).
 7. **A place's line** (#296).
 8. **Abyssal sockets** (#185), then **the index** (#183's rest).
+9. **The link to the site** (§7), after its sitting; last, so it can
+   wait or fall away without touching a step before it.
 
 Closes #180, #181, #183, #184, #185, #188, #190, #193, #296. #194
 stays open for its rest.
 
-## 8. Drafts for the owner
+## 9. Drafts for the owner
 
-Each is his; nothing is entered until he rules. The two registry
-lines pass `python3 -I tools/bothy.py check` on a copy of the registry
+Each is his; nothing is entered until he rules. The registry lines
+pass `python3 -I tools/bothy.py check` on a copy of the registry
 holding them.
 
 - **The shape**: §1's sentence.
@@ -241,6 +291,23 @@ holding them.
 - **C101, one clause** (a change to what a user types): "Socket
   colours, and abyssal sockets beside them, are asked over the whole
   item and within one link group."
+- **C<next+1> — A search held as the site's JSON goes back to the
+  site as it was asked.** Drafted: "Nothing of Acquisition's stands
+  inside a site search's query object: what the site's form lacks
+  stands beside it (C141, the league beside the JSON). A search whose
+  source is the site's JSON is written as a site link from that
+  object, its realm and its league, and each thing beside it that the
+  site cannot be asked is named as left out. Acquisition sends
+  nothing, and a person opens the link (C79, governed surfaces). A
+  query in the language has no link. *Why:* the link is then an
+  encoding of what was asked, and no second translation taxes the
+  language. *Pinned:* nothing yet." With it, the trade area's "Not
+  doing" line reads "The outbound translation of a query in the
+  language, and PoE2 on the trade site: not until a user needs a
+  search they typed or an agent wrote sent to the site, or PoE2 trade
+  is in use."; and `SURFACES.md`'s row for the site's data endpoints
+  permits a link the tool writes for a user's own search, opened by
+  that user.
 - **The route** (C138, the listener): `describe`, GET, joins. Nothing
   else is a new route: the finder's two asks are one route's field.
 - **Four choices with a second defensible answer**:
@@ -255,14 +322,17 @@ holding them.
 
 Agent-facing design, the session's, for his review: the row's `query`
 and each surface's `trade`; the positional names; `from`; the envelope
-key `a`; the finder's value ask.
+key `abyssal`; the finder's value ask; where the link stands in the
+trade report.
 
-## 9. What not to do
+## 10. What not to do
 
 - Fill, add or order anything in a script: a script copies the
   server's template and sends the server's fields (C46).
 - A second envelope for the form: the site's JSON is the form's, and
-  what the site lacks stands beside or inside it by a named key.
+  what the site lacks stands beside it by a named key (§7).
+- Translating a query outward, a second "open on the site" button on
+  the form, or a link for unsent edits (§7).
 - Storing the translated text beside the source: declined on #193.
 - An option list on a stat row: the stat table holds none.
 - The look (#285), the jobs page's words (#182), the other league's
