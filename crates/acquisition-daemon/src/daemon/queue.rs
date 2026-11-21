@@ -1761,8 +1761,7 @@ pub(super) const PARAMS_MAX_BYTES: usize = 8 << 20;
 /// The bound guards the frame, not a plan's size: the planner has no size limit
 /// of its own, and a plan is one (realm, league), the largest observed,
 /// the owner's Standard, at most 3,408 actions (two listings, 3,347 tabs
-/// by N47, the realm's 59 characters by the sample of 2026-09-02 in
-/// `RUN-LEDGER.md`). A heavy account, with a remove-only map tab from
+/// by N47, the realm's 59 characters by N42). A heavy account, with a remove-only map tab from
 /// each of some 35 leagues, is estimated at 10,000 to 12,000; 50,000 is
 /// four to five times that.
 pub(super) const APPLY_MAX_ACTIONS: usize = 50_000;

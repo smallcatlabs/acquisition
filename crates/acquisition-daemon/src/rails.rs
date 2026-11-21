@@ -59,9 +59,7 @@
 //!   values that identify which code sent (C84): the shared-contract
 //!   revision the daemon was compiled against and the SHA-256 of the
 //!   `acqd` file it ran from (`null` from the in-process harness, which
-//!   runs from no executable of its own; an earlier daemon's journal
-//!   carries the runtime revision as `runtime`, or a git commit as
-//!   `build`), and whether time was the system's or a test's
+//!   runs from no executable of its own), and whether time was the system's or a test's
 //!   manual clock. A send line carries method, `route`, status, `counted`,
 //!   `wait_ms` and every `X-Rate-Limit-*` header. `route` is the
 //!   limiter's endpoint key — `stash@Alice#1234` for a send on an account,
