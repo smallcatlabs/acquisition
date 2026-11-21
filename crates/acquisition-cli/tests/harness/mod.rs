@@ -382,7 +382,7 @@ pub fn start_daemon_with(base: &Path, env: &[(&str, &str)]) -> (Proc, u64) {
 /// stop returns once the daemon's connection has ended and its endpoint
 /// is gone, for at most the client's `STOPPED_WITHIN` (20 s), and
 /// returns success past that bound all the same
-/// (`acquisition_client::client::Stopped::Gone`, #130). It counts
+/// (`acquisition_client::client::Stopped::Gone`). It counts
 /// endpoints, not processes: a daemon that removed its endpoint and
 /// lingered would not be seen. One left fails a test that is not
 /// already failing, naming it; a failing one prints it beside the
@@ -464,7 +464,7 @@ pub fn login_as_mock(base: &Path, env: &[(&str, &str)]) -> StopOnDrop {
 /// that lost a fact from one command fails even where another still
 /// prints it; a path under a placeholder may be written in a fact with
 /// forward slashes, as the golden writes it ([`placeholder_paths`]), so
-/// one fact holds on Windows (#125). A `--json` command is never recorded: JSON is the contract
+/// one fact holds on Windows. A `--json` command is never recorded: JSON is the contract
 /// and is asserted by field.
 pub struct Transcript {
     base: PathBuf,
@@ -645,12 +645,10 @@ pub fn fetch_place_rule(text: &str) -> String {
                 return line.to_string();
             }
             let mut line = line.to_string();
-            // Which location is the oldest or the newest hangs on a second
-            // (the gate, 2026-10-31, on the launch-morning transcript), and
+            // Which location is the oldest or the newest hangs on a second, and
             // so does the form: places all fetched in one second are one
-            // location, named once (the gate, 2026-11-03, the same
-            // transcript). The clause ends at its own ")", the line's last,
-            // since a character's place carries a ")" of its own
+            // location, named once. The clause ends at its own ")", the line's
+            // last, since a character's place carries a ")" of its own
             // ("(character)") and an undecided count after it holds none.
             if let Some(at) = ["(the oldest fetch ", "(fetched "]
                 .iter()
@@ -1055,7 +1053,7 @@ fn log_rule(text: &str) -> String {
 /// the plan`, since the gap between a seeded listing and the compile is
 /// the test's own timing. An age padded in a table's cell, two spaces or
 /// more after it, keeps the cell's width, the age and those spaces, so
-/// `9s ago` and `10s ago` in one column read the same (issue #127), never
+/// `9s ago` and `10s ago` in one column read the same, never
 /// with fewer than one space; one space after an age is prose or a
 /// separator and stays one.
 fn age_rule(text: &str) -> String {
@@ -1159,7 +1157,7 @@ fn basis_rule(text: &str) -> String {
 /// `<response>`: one apply's children run at once on their routes, so a
 /// listing fetched beside a selection's tabs or characters takes its id
 /// in the order the daemon's scheduler lands them, which differs between
-/// platforms (#192). A test that pins a plan page's basis reads the line
+/// platforms. A test that pins a plan page's basis reads the line
 /// unmasked against the envelope the page holds.
 fn basis_meta_rule(line: &str) -> String {
     let mut out = line.to_string();
@@ -1482,13 +1480,12 @@ pub fn no_state(reply: &Reply, token: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// The search form's panes and controls, from the panes' opening line to
-/// the form's close: the part of the page goldens every page carrying
-/// the form repeated whole (51 KB of the form page's 54 KB), whatever its realm
-/// (`roadmap/briefs/99-web-leftovers.md`, Do 2). It is cut from each page
-/// that carries it, which says so in one line, and pinned once, in the
-/// golden named here ([`panes_golden`]), so an edit to the form changes
-/// one golden.
+/// The search form's panes and controls, from the panes' opening line to the
+/// form's close: the part of the page every golden of a page carrying the form
+/// would repeat whole (51 KB of the form page's 54 KB), whatever its realm. It
+/// is cut from each page that carries it, which says so in one line, and pinned
+/// once, in the golden named here ([`panes_golden`]), so an edit to the form
+/// changes one golden.
 const FORM_PANES: (&str, &str, &str) = ("<div class=\"panes\">\n", "</form>\n", "search_form");
 
 /// The pages of a golden (C122): each page as `GET <path>` or `POST
@@ -1543,7 +1540,7 @@ impl Pages {
 
     /// The pages read a world fetched in real time through the daemon:
     /// which location is the oldest or newest, and the facts line's form,
-    /// hang on a second (#172: the stash tabs page's facts line), so
+    /// hang on a second (the stash tabs page's facts line among them), so
     /// [`fetch_place_rule`] masks the fetch clause.
     pub fn fetched_live(mut self) -> Pages {
         self.fetched_live = true;
@@ -1587,8 +1584,7 @@ impl Pages {
     pub fn page(&mut self, label: &str, reply: &Reply, facts: &[&str]) {
         no_state(reply, &self.web_token).unwrap_or_else(|e| panic!("{label}: {e}"));
         // a counted form's count is written by its script: a page that
-        // holds one loads `count.js` (the review of 306e0abd, its first
-        // finding)
+        // holds one loads `count.js`
         assert!(
             !reply.body.contains(" data-count>")
                 || reply.body.contains("/assets/count.js\"></script>"),

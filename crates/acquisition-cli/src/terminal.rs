@@ -17,7 +17,7 @@ use crate::daemon_cmd::mismatch_remedy;
 use crate::{plan_cmd, saved_cmd, search_cmd};
 
 /// `n` and its noun, `one` for exactly one and `many` otherwise: the
-/// count words every text of this crate prints (#91: five copies).
+/// count words every text of this crate prints, from one copy.
 pub(crate) fn plural(n: usize, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
 }
@@ -108,7 +108,7 @@ pub(crate) fn fault_words(fault: &Fault) -> String {
             ),
         },
         // the plan compiled again as the account and in the scope the
-        // apply ran in, so it runs as printed (fault 1's rule)
+        // apply ran in, so it runs as printed
         Fault::Replan {
             username,
             realm,
@@ -125,7 +125,7 @@ pub(crate) fn fault_words(fault: &Fault) -> String {
         Fault::Spend(_) => fault.to_string(),
         // A merge reads the stored row to merge into, so the retry is a
         // whole write naming the revision; the read-back as the account it
-        // was refused for, as every printed command names it (#97).
+        // was refused for, as every printed command names it.
         Fault::UnreadablePolicy {
             username, revision, ..
         } => format!(
@@ -151,7 +151,7 @@ pub(crate) fn fault_words(fault: &Fault) -> String {
 /// The way on after an account refusal, by its kind, in the CLI's
 /// words: one place for the verbs' fault and the daemon's refusal of the
 /// same kind, so the two cannot drift (C143: the daemon's sentence names
-/// no frontend's flag, and each frontend adds its own way on; #178).
+/// no frontend's flag, and each frontend adds its own way on).
 fn account_way(kind: &str) -> &'static str {
     match kind {
         "unknown_account" => " (see `acq accounts`)",
@@ -185,21 +185,19 @@ pub(crate) fn failure_words_by(e: &anyhow::Error, words: impl Fn(&Fault) -> Stri
     format!("{e:#}")
 }
 
-/// Under a text refusal whose JSON offers accounts (#168's text half;
-/// the answer-facts seat, CLI run 1 call 11; the review of round C,
-/// finding 4) — an account to pick from those known, or one no login
-/// made, with the names known — one ready command per account: the
-/// offers of the refusal document `surface` prints (`refusal::document`,
-/// never a second construction), each running as printed (C156): a
-/// line as it stands, and a request read whole (`--request`, `--next`)
-/// as the request it offers — rebound to the account, its continuation
-/// reset (`refusal::again`), never the file beside a scope naming
-/// another (the review of round C's fix round, finding 1) — spelled by
-/// the search's one command of a request ([`offered_command`]); the
-/// first of the store's bound (`acquisition_store::bound::LISTED`), the
-/// rest counted with the command that lists every account. Every text
-/// path that reports such a refusal prints it: main's, and `search
-/// --request`'s own. Nothing for any other refusal.
+/// Under a text refusal whose JSON offers accounts — an account to pick
+/// from those known, or one no login made, with the names known — one ready
+/// command per account: the offers of the refusal document `surface` prints
+/// (`refusal::document`, never a second construction), each running as
+/// printed (C156): a line as it stands, and a request read whole
+/// (`--request`, `--next`) as the request it offers — rebound to the
+/// account, its continuation reset (`refusal::again`), never the file
+/// beside a scope naming another — spelled by the search's one command of a
+/// request ([`offered_command`]); the first of the store's bound
+/// (`acquisition_store::bound::LISTED`), the rest counted with the command
+/// that lists every account. Every text path that reports such a refusal
+/// prints it: main's, and `search --request`'s own. Nothing for any other
+/// refusal.
 pub(crate) fn ready_accounts(e: &anyhow::Error, surface: &Terminal) -> String {
     let picking = e.chain().any(|c| {
         matches!(
@@ -274,9 +272,9 @@ fn offered_command(offered: &serde_json::Value) -> Option<String> {
 }
 
 /// A failure's `--json` document (C11): the one refusal shape every
-/// surface prints (`acquisition_verbs::refusal::document`; round 4 of
-/// the 2g build), its words this terminal's and its offers command lines
-/// ([`Terminal`]), this command's own repeated as another account.
+/// surface prints (`acquisition_verbs::refusal::document`), its words this
+/// terminal's and its offers command lines ([`Terminal`]), this command's
+/// own repeated as another account.
 pub(crate) fn error_report(e: &anyhow::Error) -> serde_json::Value {
     acquisition_verbs::refusal::document(e, &Terminal::this_command())
 }
@@ -291,8 +289,7 @@ pub(crate) struct Terminal {
 }
 
 /// What "the same request as another account" is at this terminal, made
-/// from the command as parsed, never from its words as typed (round 4's
-/// review, findings 1 and 2).
+/// from the command as parsed, never from its words as typed.
 pub(crate) enum Repeat {
     /// The parsed command's arguments, each given on the command line,
     /// as a shell takes them: `acq --account <name>` is put before them.
@@ -344,9 +341,8 @@ pub(crate) fn policy_show_words(account: &str) -> Vec<String> {
 
 /// A scope option and its value as the words of a printed command: two
 /// words, or one, `--league=-L`, where the value starts with `-`, which
-/// the parser would otherwise read as an option of its own (the review
-/// of the league seat's fix round, finding 3). Quoted after, as every
-/// word is ([`printed_line`]).
+/// the parser would otherwise read as an option of its own. Quoted after,
+/// as every word is ([`printed_line`]).
 pub(crate) fn option_words(name: &str, value: &str) -> Vec<String> {
     match value.starts_with('-') {
         true => vec![format!("{name}={value}")],
@@ -755,7 +751,7 @@ mod tests {
 
     /// The unreadable policy's remedy names both flags the retry needs:
     /// the merge would read the row it cannot; and its read-back names
-    /// the account it was refused for (#97).
+    /// the account it was refused for.
     #[test]
     fn the_unreadable_policy_remedy_names_a_whole_write_at_its_revision() {
         let words = fault_words(&Fault::UnreadablePolicy {

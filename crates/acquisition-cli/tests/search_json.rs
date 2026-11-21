@@ -1,11 +1,10 @@
-//! Process-level pin of `acq search` and `acq show` (the search plan's
-//! rule 3, `acquisition-search/src/lib.rs`: the crate's boundary, and the CLI's `--json`): the document
-//! `--json` prints is the search crate's answer whole, the text is a
-//! function of it (C53), a failure is structured on both paths (C11), a
-//! flag of a later step is refused by its name, and every command an answer
-//! prints is one this build runs (rule 5). Facts are seeded through the
-//! store crate; no daemon runs — `ACQ_NO_SPAWN=1` makes any contact an
-//! error.
+//! Process-level pin of `acq search` and `acq show` (the search plan's rule 3,
+//! `acquisition-search/src/lib.rs`: the crate's boundary, and the CLI's
+//! `--json`): the document `--json` prints is the search crate's answer whole,
+//! the text is a function of it (C53), a failure is structured on both paths
+//! (C11), a flag not built is refused by its name, and every command an answer
+//! prints is one this build runs (rule 5). Facts are seeded through the store
+//! crate; no daemon runs — `ACQ_NO_SPAWN=1` makes any contact an error.
 
 use std::io::Write as _;
 use std::path::Path;
@@ -152,9 +151,9 @@ fn seed_more(base: &Path) {
     );
 }
 
-/// Outside audit, 2026-09-21: under an all-realms scope a row says
-/// which realm its item is in, and a row that shows part of what a term
-/// touched says how much it left out and where the whole is.
+/// Under an all-realms scope a row says which realm its item is in, and a row
+/// that shows part of what a term touched says how much it left out and where
+/// the whole is.
 #[test]
 fn c96_c100_a_row_names_its_realm_under_all_and_says_what_it_left_out() {
     let scratch = harness::scratch("search-cli");
@@ -177,7 +176,6 @@ fn c96_c100_a_row_names_its_realm_under_all_and_says_what_it_left_out() {
     }
     // one realm in scope: the scope line has said it, and a row does not
     // repeat it; a fetch span's location names its realm on every scope
-    // (the answer-facts seat, CLI fault 4)
     let shown = text(&acq(
         &base,
         &["search", "--realm", "pc", "line(template:spirit)"],
@@ -210,8 +208,7 @@ fn run_printed(base: &Path, command: &str) -> Output {
 /// Rule 5 of the build plan, over everything and not only the routes: a
 /// command the search prints — a route, where a cut block sends its
 /// reader, what an error offers — runs as printed. With two accounts
-/// known, which a command that drops its account does not survive (outside
-/// review, 2026-09-21).
+/// known, which a command that drops its account does not survive.
 #[test]
 fn rule_5_every_command_printed_runs_with_a_second_account_known() {
     let scratch = harness::scratch("search-cli");
@@ -324,11 +321,11 @@ fn rule_5_every_command_printed_runs_with_a_second_account_known() {
     assert!(ran > 8, "{ran} commands ran");
 }
 
-/// The counts view at a terminal (step 5): `--count` spelled as its
-/// help spells it, `line:` taking the rest of the list; the
-/// JSON is the crate's view whole; and every route the text prints — a
-/// pattern that turns case back on, a name with an apostrophe, a not after
-/// `--` — runs through a shell and returns exactly the members counted.
+/// The counts view at a terminal: `--count` spelled as its help spells it,
+/// `line:` taking the rest of the list; the JSON is the crate's view whole; and
+/// every route the text prints — a pattern that turns case back on, a name with
+/// an apostrophe, a not after `--` — runs through a shell and returns exactly
+/// the members counted.
 #[test]
 fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counted() {
     let scratch = harness::scratch("search-cli");
@@ -425,11 +422,10 @@ fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counte
     );
 }
 
-/// Outside audit, 2026-09-22, at the terminal: a quoted key is the
-/// text as written and a quote that never closes is an error; the count
-/// that lists what a selector resolved to past the listed is printed as a
-/// command and lists them; a count with no route says why, in a crossed
-/// cell and beneath a vocabulary row.
+/// At the terminal: a quoted key is the text as written and a quote that never
+/// closes is an error; the count that lists what a selector resolved to past
+/// the listed is printed as a command and lists them; a count with no route
+/// says why, in a crossed cell and beneath a vocabulary row.
 #[test]
 fn keys_are_parsed_strictly_and_text_says_why_a_count_has_no_route() {
     let scratch = harness::scratch("search-cli");
@@ -514,9 +510,9 @@ fn keys_are_parsed_strictly_and_text_says_why_a_count_has_no_route() {
     );
 }
 
-/// Outside review, 2026-09-22: a continuation whose key holds a comma,
-/// a quote or a backslash is printed in the count list's own grammar and
-/// runs; a quoted text keeps its trailing space through the binder.
+/// A continuation whose key holds a comma, a quote or a backslash is printed in
+/// the count list's own grammar and runs; a quoted text keeps its trailing
+/// space through the binder.
 #[test]
 fn step_5_review_a_continuations_key_is_encoded_and_a_quoted_text_is_kept_whole() {
     let scratch = harness::scratch("search-cli");
@@ -588,11 +584,10 @@ fn step_5_review_a_continuations_key_is_encoded_and_a_quoted_text_is_kept_whole(
 
 const LIFE: &str = r##""+# to maximum Life">=90"##;
 
-/// Values on rows at a terminal (4-full part 1, step 6.1): the values a
-/// query compares are on each row, and the rows stand in the store's
-/// order, said so; `--value` names the values, in order, a sort outside
-/// them joining them; `--sort none` names the store's order, and `--desc`
-/// beside it is refused.
+/// Values on rows at a terminal: the values a query compares are on each row,
+/// and the rows stand in the store's order, said so; `--value` names the
+/// values, in order, a sort outside them joining them; `--sort none` names the
+/// store's order, and `--desc` beside it is refused.
 #[test]
 fn values_on_rows_at_a_terminal() {
     let scratch = harness::scratch("search-values");
@@ -612,7 +607,7 @@ fn values_on_rows_at_a_terminal() {
         &["search", "--realm", "pc", LIFE, "--limit", "1"],
         &["in the store's order (no sort asked)"],
     );
-    // every row shown: the order said still (the cold review at 1ab468eb)
+    // every row shown: the order said still
     t.run(
         &["search", "--realm", "pc", &format!("{LIFE} ilvl>=1")],
         &["order   rows 1–2 of 2 shown, in the store's order (no sort asked)"],
@@ -778,11 +773,10 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
     );
 }
 
-/// The first seat's words (2026-09-26; `tests/seat_faults.rs` holds the
-/// JSON): a row says what it sorts by (F6), a partial id is said to find
-/// nothing because an id is whole (F7), the terms header under every
-/// realm says so (F8), and a closed set's refusal is near names and not
-/// the list (F5).
+/// The text at a terminal (`tests/seat_faults.rs` holds the JSON): a row
+/// says what it sorts by, a partial id is said to find nothing because an
+/// id is whole, the terms header under every realm says so, and a closed
+/// set's refusal is near names and not the list.
 #[test]
 fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
     let scratch = harness::scratch("search-cli");
@@ -815,7 +809,7 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
         &["sorts by line(\"# to maximum Life\").arg1 95 · +95 to maximum Life (explicit)"],
     );
     // a line the sort and a term both show is printed once, with another
-    // term's evidence between them (the seat's ask 56 replayed)
+    // term's evidence between them
     let shown = text(&acq(
         &base,
         &[
@@ -836,8 +830,8 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
         1,
         "{shown}"
     );
-    // the review of 9b, 1: two identical lines are two, whatever an
-    // earlier part of the row showed — a sum of 40 shows 10, 20 and 10
+    // two identical lines are two, whatever an earlier part of the row showed —
+    // a sum of 40 shows 10, 20 and 10
     let shown = text(&acq(
         &base,
         &[
@@ -863,9 +857,8 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
         1,
         "{shown}"
     );
-    // the validation of the review: a sort that shows one of the two
-    // identical lines hides neither from a later total, and the terms'
-    // order changes no count (rule 9)
+    // a sort that shows one of the two identical lines hides neither from a
+    // later total, and the terms' order changes no count (rule 9)
     let counts = |query: &str, sort: &str| -> (usize, usize) {
         let shown = text(&acq(
             &base,
@@ -896,9 +889,8 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
         ),
         (2, 1)
     );
-    // the review of 9b, a presentation gap: a row that sorts last names
-    // what it was sorted by — r3's implicit array is unread, so its 40 is
-    // no largest, and `plain` has no life line at all
+    // a row that sorts last names what it was sorted by — r3's implicit array
+    // is unread, so its 40 is no largest, and `plain` has no life line at all
     t.run(
         &[
             "search",
@@ -940,8 +932,7 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
             " more of term 0: acq show --account 'Alice#1234' many",
         ],
     );
-    // carrying the item, the row prints it whole and says no "more" (the
-    // cold review of step 5's build, finding 6)
+    // carrying the item, the row prints it whole and says no "more"
     let whole = text(&t.run(
         &[
             "search",
@@ -985,7 +976,7 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
         (vec!["search", "--realm", "ps4"], "realm_unknown"),
         (vec!["search", "--sort", "name"], "operator_mismatch"),
         (vec!["search", "--describe", "clas"], "unknown_name"),
-        // built at step 10: a query the binder refuses is that error
+        // a query the binder refuses is that error
         (vec!["show", "r1", "--against", "rare"], "bare_word"),
         (vec!["show", "r1", "--basis", "x"], "not_built"),
         (vec!["show", "t1"], "not_an_item"),
@@ -1001,7 +992,7 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
             vec!["search", "rarity=rare", "--explain", "1"],
             "no_such_path",
         ),
-        // built at step 10: a continuation is whole, and a token is one
+        // a continuation is whole, and a token is one
         (vec!["search", "--explain", "0", "--next", "x"], "view"),
         (vec!["search", "rarity=rare", "--next", "x"], "view"),
         (vec!["search", "--next", "x"], "token"),
@@ -1039,10 +1030,9 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
     );
 }
 
-/// Step 10's first piece at a terminal, one `--json` smoke for each of
-/// the three flags, and the text a function of it (C53): `--explain`,
-/// `--context corpus`, `show --against`, and a zero answer's offers
-/// printed as the commands they are.
+/// At a terminal, one `--json` smoke for each of the three flags, and the text
+/// a function of it (C53): `--explain`, `--context corpus`, `show --against`,
+/// and a zero answer's offers printed as the commands they are.
 #[test]
 fn step_10_explain_context_and_against_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
@@ -1290,9 +1280,9 @@ fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
     assert_eq!(sole_json(&out)["rows"][0]["id"], "kaom", "{out:?}");
 }
 
-/// Step 9 at a terminal: a price set through `acq price set` is what
-/// `acq search 'has:priced'` finds and `acq show` prints, the basis names
-/// the intent revision, and the text is a function of the JSON (C53).
+/// At a terminal: a price set through `acq price set` is what `acq search
+/// 'has:priced'` finds and `acq show` prints, the basis names the intent
+/// revision, and the text is a function of the JSON (C53).
 #[test]
 fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     let scratch = harness::scratch("search-cli");
@@ -1318,7 +1308,7 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     t.run(
         &["show", "r1"],
         // the why line names the account as the person does, never by
-        // the basis's uuid (the page seat's fault 13)
+        // the basis's uuid
         &["price   12.5 chaos · manual · why: acq price show --account 'Alice#1234' --realm pc item/r1"],
     );
     t.run(&["show", "r2"], &["price   none (nothing applies)"]);
@@ -1373,13 +1363,12 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     golden(file!(), "a_price_set_by_hand", &t);
 }
 
-/// C53 as amended: bare `--describe` at a terminal is the index, and its
-/// last lines say how to go on — in the document's words, then this
-/// terminal's spelling of them. #154: a pattern's slice opens with what
-/// it matched, whole at ten or fewer and at one line past them, and ends
-/// on how to go on; one that matches nothing is refused with the index
-/// offered as the command it is, which runs as printed. The describe
-/// words' one golden.
+/// C53: bare `--describe` at a terminal is the index, and its last lines say
+/// how to go on — in the document's words, then this terminal's spelling of
+/// them. A pattern's slice opens with what it matched, whole at ten or fewer
+/// and at one line past them, and ends on how to go on; one that matches
+/// nothing is refused with the index offered as the command it is, which runs
+/// as printed. The describe words' one golden.
 #[test]
 fn describe_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
@@ -1394,8 +1383,8 @@ fn describe_at_a_terminal() {
             "`--describe all` everything",
             "pseudo.total_life",
             "accessory.ring",
-            // the set the key names, exactly (the answer-facts seat, CLI
-            // fault 5: never-fetched characters sat in four other leagues)
+            // the set the key names, exactly: never-fetched characters
+            // may sit in other leagues
             "the leagues holding a never-fetched tab, the most first; characters never fetched are counted by type under `never_fetched_by_type`",
         ],
     );
@@ -1583,7 +1572,7 @@ fn describe_and_show_print_json_whole_and_text_from_it() {
         !shown.contains("sockets"),
         "a ring has no sockets line:\n{shown}"
     );
-    // the sockets as the game shows them, and the largest link group (step 8)
+    // the sockets as the game shows them, and the largest link group
     t.run(&["show", "kaom"], &["sockets R-R-G B · links 3"]);
     t.run(
         &["search", "--realm", "pc", "linked(red>=2)"],
@@ -1606,10 +1595,10 @@ fn describe_and_show_print_json_whole_and_text_from_it() {
     golden(file!(), "an_items_detail", &t);
 }
 
-/// Step 9c3, met at the first smoke of the build: a row sorted by a
-/// reading of other totals says so by the reading's own name — it printed
-/// `sorts by pseudo.total_fire_res 17`, the first total it had read, the
-/// text taking the first named value a sort shows as the sort's own.
+/// A row sorted by a reading of other totals says so by the reading's own
+/// name, never by the first total it read (`sorts by
+/// pseudo.total_fire_res 17`): the text must not take the first named
+/// value a sort shows as the sort's own.
 #[test]
 fn step_9c3_a_row_sorted_by_a_reading_says_so_by_its_own_name() {
     let scratch = harness::scratch("search-cli");
@@ -1701,10 +1690,10 @@ fn step_9c3_a_row_sorted_by_a_reading_says_so_by_its_own_name() {
     );
 }
 
-/// Step 9c4 (C90): a mod displayed over several rows is found by a row of
-/// it at a terminal, shown whole, and `show` prints each row as a name
-/// with its own numbers — Thread of Hope's resistance, the second of
-/// three rows, and its counts as the trade site shows them.
+/// C90: a mod displayed over several rows is found by a row of it at a
+/// terminal, shown whole, and `show` prints each row as a name with its own
+/// numbers — Thread of Hope's resistance, the second of three rows, and its
+/// counts as the trade site shows them.
 #[test]
 fn step_9c4_a_mod_is_found_by_a_row_and_show_prints_its_rows() {
     let scratch = harness::scratch("search-cli");
@@ -1793,10 +1782,10 @@ fn step_9c4_a_mod_is_found_by_a_row_and_show_prints_its_rows() {
     );
 }
 
-/// The seed, and in tab `t3` what step 9d-B's tests ask by category: a
-/// pair of boots, a gem with a damage line, a captured Dune Hellion
-/// (yellow by the colour table), a captured Bleached Crustacean (unknown
-/// there) and a breachstone with no frame.
+/// The seed, and in tab `t3` what the category tests ask for: a pair of
+/// boots, a gem with a damage line, a captured Dune Hellion (yellow by the
+/// colour table), a captured Bleached Crustacean (unknown there) and a
+/// breachstone with no frame.
 fn seed_categories(base: &Path) {
     seed(base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
@@ -1834,12 +1823,12 @@ fn seed_categories(base: &Path) {
         .unwrap();
 }
 
-/// Step 9d-B at a terminal (C106, category): OQ5 spelled by category, a
-/// beast found by its category and shown, the count by category with
-/// every route it prints returning what it counted, and `--describe
-/// category`. Tab `t3` gains a pair of boots, a gem with a damage line, a
-/// captured Dune Hellion (yellow by the colour table), a captured
-/// Bleached Crustacean (unknown there) and a breachstone with no frame.
+/// At a terminal (C106, category): OQ5 spelled by category, a beast found by
+/// its category and shown, the count by category with every route it prints
+/// returning what it counted, and `--describe category`. Tab `t3` gains a pair
+/// of boots, a gem with a damage line, a captured Dune Hellion (yellow by the
+/// colour table), a captured Bleached Crustacean (unknown there) and a
+/// breachstone with no frame.
 #[test]
 fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
     let scratch = harness::scratch("search-cli");
@@ -1915,13 +1904,12 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
     assert_eq!(sole_json(&out)["kind"], "unknown_value");
 }
 
-/// A block cut with no route to the rest (invariant 5 of the surface; the
-/// brief of 9d-B: every pick of a category term is printed). The text cut
-/// what a selector resolved to at five, and a category term has no count
-/// that lists the rest: `category:one` on the owner's copy hid
-/// `map.breachstone` behind "· 1 more". Here the pattern picks every id
-/// and the store's items carry ten of them: each is printed, with its
-/// count, and nothing is left behind a "more".
+/// A block cut with no route to the rest (invariant 5 of the surface: every
+/// pick of a category term is printed). Cut at five, as the text cuts what a
+/// selector resolved to, a category term, which has no count that lists the
+/// rest, hides a pick (`map.breachstone` behind "· 1 more"). Here the pattern
+/// picks every id and the store's items carry ten of them: each is printed,
+/// with its count, and nothing is left behind a "more".
 #[test]
 fn every_pick_of_a_category_term_is_printed_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
@@ -1958,11 +1946,10 @@ fn every_pick_of_a_category_term_is_printed_at_a_terminal() {
     assert!(bases.contains("more"), "{bases}");
 }
 
-/// Step 9d-C at a terminal (C94, J7, J29): the plan's closing row — `Adds
-/// # to # Fire Damage` on a weapon counted toward the attacks' total
-/// alone — a flask's own line counted by no total, and `--describe` of a
-/// ranged total. Tab `t3` gains `wand`, a Driftwood Wand, and `ruby`, a
-/// Ruby Ring, each with `Adds 10 to 21 Fire Damage` (15.5 by hand);
+/// At a terminal (C94, J7, J29): `Adds # to # Fire Damage` on a weapon counted
+/// toward the attacks' total alone, a flask's own line counted by no total, and
+/// `--describe` of a ranged total. Tab `t3` gains `wand`, a Driftwood Wand, and
+/// `ruby`, a Ruby Ring, each with `Adds 10 to 21 Fire Damage` (15.5 by hand);
 /// `flask`, a Quicksilver Flask whose own line is `40% increased Movement
 /// Speed`; and `greaves`, with that line as an explicit.
 #[test]
@@ -2031,16 +2018,15 @@ fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
     );
 }
 
-/// Step 9d-A at a terminal (C101, V5): the base defence percentile of a
-/// captured hybrid — the table's `e002[3]`, Ambush Mitts as the trade
-/// site listed them, which the site showed at 90 — of an item that lacks
-/// the field, and `--describe` of it. Tab `t3` gains `mitts`: quality 6,
-/// Evasion Rating 212 and Energy Shield 45 under `125% increased Evasion
-/// and Energy Shield`, on a base ranging evasion 81–91 and energy shield
-/// 17–19. By hand: the display is the roll × 2.25 × 1.06 = roll × 2.385;
-/// evasion 89 gives 212.265, shown 212, and 88 and 90 give 209.88 and
-/// 214.65; energy shield 19 gives 45.315, shown 45, and 18 gives 42.93.
-/// 100 × 8 / 10 = 80 and 100 × 2 / 2 = 100: their average 90. And
+/// At a terminal (C101, V5): the base defence percentile of a captured hybrid —
+/// the table's `e002[3]`, Ambush Mitts as the trade site listed them, which the
+/// site showed at 90 — of an item that lacks the field, and `--describe` of it.
+/// Tab `t3` gains `mitts`: quality 6, Evasion Rating 212 and Energy Shield 45
+/// under `125% increased Evasion and Energy Shield`, on a base ranging evasion
+/// 81–91 and energy shield 17–19. By hand: the display is the roll × 2.25 ×
+/// 1.06 = roll × 2.385; evasion 89 gives 212.265, shown 212, and 88 and 90 give
+/// 209.88 and 214.65; energy shield 19 gives 45.315, shown 45, and 18 gives
+/// 42.93. 100 × 8 / 10 = 80 and 100 × 2 / 2 = 100: their average 90. And
 /// `ruby`, a Ruby Ring, which displays no defence.
 #[test]
 fn step_9d_a_the_percentile_of_a_captured_hybrid_at_a_terminal() {
@@ -2111,11 +2097,10 @@ fn show_against_takes_a_query_that_starts_with_a_not() {
     assert_eq!(sole_json(&out)["against"]["query"]["text"], "-rarity=magic");
 }
 
-/// Step 10's second piece at a terminal: an answer cut at its limit
-/// prints the command that goes on, and the pages are the whole;
-/// `--print-request` prints what `--request` reads, the one answering as
-/// the search typed does; a count's route read back from an answer's
-/// `--json` runs.
+/// At a terminal: an answer cut at its limit prints the command that goes on,
+/// and the pages are the whole; `--print-request` prints what `--request`
+/// reads, the one answering as the search typed does; a count's route read back
+/// from an answer's `--json` runs.
 #[test]
 fn step_10_next_request_and_print_request_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
@@ -2268,10 +2253,9 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
     assert_eq!(rows(&next), rows(&whole)[2..4].to_vec());
 }
 
-/// Step 10's third piece at a terminal: `--membership all` adds the
-/// removed, each row marked, the scope block counting the two apart; an
-/// id that left says so and prints the command that finds it, which
-/// runs; `acq show` shows a removed item, marked.
+/// At a terminal: `--membership all` adds the removed, each row marked, the
+/// scope block counting the two apart; an id that left says so and prints the
+/// command that finds it, which runs; `acq show` shows a removed item, marked.
 #[test]
 fn step_10_membership_all_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
@@ -2324,7 +2308,7 @@ fn step_10_membership_all_at_a_terminal() {
         &[
             " · all · 4 items live · 1 removed · ",
             // the matches' oldest and newest fetch on the total line, each
-            // with its place (#11, #155)
+            // with its place
             "each term counted alone over all live and removed pc items",
         ],
     ));
@@ -2355,7 +2339,7 @@ fn step_10_membership_all_at_a_terminal() {
         &["search", "--realm", "pc", "id:r2"],
         &[
             "id:r2 — it left the scope, as its term says",
-            // nothing matched, so no fetch is the matches' (#155)
+            // nothing matched, so no fetch is the matches'
             "total   0 matches\n",
         ],
     ));
@@ -2505,9 +2489,9 @@ fn membership_removed_at_a_terminal() {
 /// (rule 5, and more than that it runs): a request may name a field
 /// after a narrowed vocabulary, which one `--count` list cannot say —
 /// after `line:` the rest of a list are texts — so the printer opens a
-/// second list. Outside audit, 2026-10-10: `["line:life", "rarity"]`
-/// was printed as `--count 'line:life,rarity'`, which reads as the
-/// vocabulary narrowed twice, and both commands ran.
+/// second list. Printed as `--count 'line:life,rarity'`, `["line:life",
+/// "rarity"]` would read as the vocabulary narrowed twice, and both
+/// commands run.
 #[test]
 fn a_printed_count_command_names_the_keys_it_was_printed_for() {
     let scratch = harness::scratch("search-cli");
@@ -2520,8 +2504,7 @@ fn a_printed_count_command_names_the_keys_it_was_printed_for() {
         json!(["line:life", "line", "tab", "line~^adds", "league", "rarity"]),
         json!(["tab", "line:life", "league"]),
         json!(["line:life, or more", "rarity", "line:~odd"]),
-        // the audit's second round: a prefix in another case, and a text
-        // that reads as a key of its own
+        // a prefix in another case, and a text that reads as a key of its own
         json!(["LINE:life", "rarity"]),
         json!(["line:life", "line:line:foo"]),
         json!(["Line~^adds", "TAB", "line:LINE~x", "line"]),
@@ -2583,7 +2566,7 @@ fn a_printed_count_command_names_the_keys_it_was_printed_for() {
 }
 
 /// A refusal's way on that is a search is a request too, under `offers`
-/// saying what it is (`search/LEDGER.md`, H5; #97): over two realms a
+/// saying what it is (`search/LEDGER.md`, H5): over two realms a
 /// search naming none offers itself in each, typed or read from a file,
 /// and each offer runs as `--request` reads it.
 #[test]
@@ -2607,7 +2590,7 @@ fn a_refusal_offers_requests_each_saying_its_realm() {
         let refused = sole_json(&out);
         assert_eq!(refused["kind"], "realm_needed", "{refused}");
         // the request's words, this terminal's flag after them (C143),
-        // said by each offer: a scope refusal has no readings (#97)
+        // said by each offer: a scope refusal has no readings
         assert!(refused.get("readings").is_none(), "{refused}");
         let says: Vec<&Value> = refused["offers"]
             .as_array()
@@ -2657,9 +2640,7 @@ fn a_refusal_offers_requests_each_saying_its_realm() {
 /// query object gzipped and base64url-encoded (S56) — over the fixture:
 /// `{"status":{"option":"online"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_3299347043","value":{"min":70}}]},{"type":"crucible","filters":[{"id":"explicit.stat_3299347043"}]}]}`:
 /// the status listing-only, the life line with its bound exact, and a
-/// crucible tree path, unsupported — so the translation is partial. (A
-/// `count` with no bound stood there until step 7f made it the site's
-/// no-op.)
+/// crucible tree path, unsupported — so the translation is partial.
 pub(crate) const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
 pub(crate) fn trade_url() -> String {
@@ -2667,14 +2648,13 @@ pub(crate) fn trade_url() -> String {
 }
 
 /// What TRADE_ID translates to under its URL, worked by hand from the
-/// catalogue: the league a term, the status reported, the life lines of
-/// the explicit id summed against its bound (step 7e), the count in the
-/// remainder whole.
+/// catalogue: the league a term, the status reported, the life lines of the
+/// explicit id summed against its bound, the count in the remainder whole.
 pub(crate) const TRADE_TEXT: &str =
     r##"league=Standard sum(line("# to maximum Life" source=explicit).arg1)>=70"##;
 
 /// The line under every translation's first: the items are the store's,
-/// whatever the fidelity (the trade seat; `seat_faults.rs`).
+/// whatever the fidelity (`seat_faults.rs`).
 const TRADE_OVER: &str = "        over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours";
 
 /// Each clause's place and status, as the report gives them.
@@ -2692,15 +2672,15 @@ fn statuses(trade: &Value) -> Vec<(String, String)> {
         .collect()
 }
 
-/// C113, step 5 of the trade brief: a site search URL in place of a
-/// query is run over the store and labelled — the answer's query carries
-/// the report, the text opens with the fidelity and every clause that did
-/// not run — and the request `--print-request` prints, the site search
-/// beside the text it translates to, reads back as the same answer.
-/// Over the fixture, worked by hand: `league=Standard` holds of all five
-/// items; the explicit life lines' sum at 70 or more holds of r1 (95), r2
-/// (75 explicit, the 20 implicit not of the explicit id), kaom (500),
-/// fails r3 (40) and plain (a sum of nothing, zero) — 3 matches.
+/// C113: a site search URL in place of a query is run over the store and
+/// labelled — the answer's query carries the report, the text opens with the
+/// fidelity and every clause that did not run — and the request
+/// `--print-request` prints, the site search beside the text it translates to,
+/// reads back as the same answer. Over the fixture, worked by hand:
+/// `league=Standard` holds of all five items; the explicit life lines' sum at
+/// 70 or more holds of r1 (95), r2 (75 explicit, the 20 implicit not of the
+/// explicit id), kaom (500), fails r3 (40) and plain (a sum of nothing, zero) —
+/// 3 matches.
 #[test]
 fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
     let scratch = harness::scratch("search-cli");
@@ -2822,7 +2802,6 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
     // is the request's, in the words a request read whole gets below and
     // the MCP's search gets (C143, the request's words); a realm's
     // spelling is the parsed realm's, so capitals are no way around either
-    // (the review of #91, its second finding)
     for (realm, said) in [
         ("pc", "says its realm again: the URL's realm, `pc`"),
         ("PC", "says its realm again: the URL's realm, `pc`"),
@@ -3143,8 +3122,7 @@ fn describe_trade_is_the_catalogue() {
     let all = text(&acq(&base, &["search", "--describe", "all"]));
     assert!(all.len() > 150_000, "{}", all.len());
     // `--json` pretty-prints, about a fifth larger than the compact JSON
-    // the MCP's describe states its sizes in (#101: 182,823 bytes against
-    // 153,353 at the words step)
+    // the MCP's describe states its sizes in
     let pretty = acq(&base, &["--json", "search", "--describe", "all"]).stdout;
     let compact = sole_json(&acq(&base, &["--json", "search", "--describe", "all"]))
         .to_string()

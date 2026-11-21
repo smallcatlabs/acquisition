@@ -1,4 +1,4 @@
-//! `acq diagnose` (#79): what the CLI adds to the layer's diagnosis, its
+//! `acq diagnose`: what the CLI adds to the layer's diagnosis, its
 //! text — every section in the words its own verb prints, the two tails
 //! last, the whole redacted before it is printed — and its exit status,
 //! 0 whatever it found. The document and the redaction are pinned in the
@@ -21,11 +21,11 @@ use harness::{Transcript, acq, golden, no_daemon_appeared, sole_json};
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-diagnose-cli";
 const TOKEN: &str = "sentinel-code-7f3a";
-/// The review's two token shapes (r4, finding 1): a quoted value after
-/// `=`, and a JSON body's spacing.
+/// Two more token shapes: a quoted value after `=`, and a JSON body's
+/// spacing.
 const QUOTED: &str = "sentinel-refresh-q1";
 const SPACED: &str = "sentinel-code-q2";
-/// Their twins with tabs (the fix-round review, finding 1).
+/// Their twins with tabs.
 const TABBED: &str = "sentinel-code-t1";
 const TABBED_BEARER: &str = "sentinel-bearer-t2";
 
@@ -85,7 +85,7 @@ fn seed(base: &Path) {
     .unwrap();
 }
 
-/// #79: with no daemon, every section prints — the ledger's picture with
+/// With no daemon, every section prints — the ledger's picture with
 /// the last log, the store's counts, the world's rails file, the journal
 /// with its torn line reported, the log — and nothing planted is in the
 /// text; `--json` is the whole document; both exit 0 and start nothing.
@@ -215,7 +215,7 @@ fn c152_a_journal_the_daemon_could_not_open_is_redacted_in_the_text() {
     }
 }
 
-/// #79: a world nothing has written yet is no failure: each section that
+/// A world nothing has written yet is no failure: each section that
 /// has nothing to read says why, and the command exits 0.
 #[test]
 fn a_diagnosis_of_an_empty_world_says_why_each_part_is_unread_and_exits_0() {

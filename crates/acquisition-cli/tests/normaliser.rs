@@ -102,7 +102,7 @@ fn the_progress_rule_keeps_each_jobs_last_stderr_line() {
     let answer = "--- stdout\njob 2: running\njob 2: done\n";
     assert_eq!(n(answer), "--- stdout\njob <j1>: running\njob <j1>: done\n");
     // a failed job's report on stderr is no progress line: it stands
-    // after the job's last progress line (#101)
+    // after the job's last progress line
     let failed = "--- stderr\njob 2 (alice): 0/1 done, 1 waiting\njob 2 (alice): 0/1 done, 1 failed\njob 2 failed: 1 of 1 child jobs failed, 0 done\n";
     assert_eq!(
         n(failed),
@@ -264,7 +264,7 @@ fn the_build_rule_names_the_version_the_contract_and_the_platform() {
     );
 }
 
-/// Issue #127: the tabs table pads its `fetched` cell to twelve, so an age
+/// The tabs table pads its `fetched` cell to twelve, so an age
 /// that crosses from one digit to two moves the spaces after it. The rule
 /// keeps the cell's width, and two runs a second apart read one text;
 /// in prose an age keeps its one space, however wide the age.
@@ -343,8 +343,7 @@ fn normalising_a_committed_golden_changes_nothing() {
 
 /// A world fetched in real time writes the total's and the facts line's
 /// fetch clause `(<fetches>)`, since which location is the newest, and
-/// whether the oldest is the same one, hangs on a second's boundary (#11;
-/// the journey's flipped between runs, and launch morning's form); the
+/// whether the oldest is the same one, hangs on a second's boundary; the
 /// rest of the line, every other line and a fact stand.
 #[test]
 fn the_fetch_place_rule_writes_the_totals_fetch_clause_and_nothing_else() {
@@ -375,7 +374,7 @@ fn the_fetch_place_rule_writes_the_totals_fetch_clause_and_nothing_else() {
         "total   2 matches (fetched <age> ago, Standard / Dump)\n",
         "total   2 matches (<fetches>)\n",
     );
-    // a facts line's clause, the same way (#156); its listings stand
+    // a facts line's clause, the same way; its listings stand
     rule(
         "facts: 4 locations, 2 fetched (the oldest fetch <age> ago, Standard / Dump; the newest <age> ago, Standard / Exile (character)); stash listing <age> ago, characters listed <age> ago\n",
         "facts: 4 locations, 2 fetched (<fetches>); stash listing <age> ago, characters listed <age> ago\n",

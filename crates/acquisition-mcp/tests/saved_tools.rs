@@ -1,4 +1,4 @@
-//! The saved search over MCP (4-full part 1, step 2): `saved_searches`,
+//! The saved search over MCP: `saved_searches`,
 //! `saved_search_set` and `saved_search_clear` are adapters of the verbs'
 //! `saved` functions, as `acq saved` is, and `search` takes `saved` as
 //! `acq search --saved` does (C46), so what a tool returns is the

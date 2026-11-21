@@ -102,7 +102,7 @@ fn a_first_session_through_the_tools_holds_the_journeys_facts() {
         "{life}"
     );
     // asked with no sort, the rows stand in the store's order, and the
-    // query's value is a column (#293 cut 3)
+    // query's value is a column
     let unsorted = mcp.expect_ok("search", json!({ "query": { "text": LIFE_QUERY } }));
     let rows = &unsorted["view"]["rows"];
     assert!(rows.get("sort").is_none(), "{rows}");

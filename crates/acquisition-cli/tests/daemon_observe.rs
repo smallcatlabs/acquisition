@@ -1,17 +1,15 @@
-//! C10's observation tier through the real binary: an observer never
-//! spawns or replaces a daemon, and reports absence, contract mismatch,
-//! artifact mismatch and provider mismatch distinctly (C84). The trap the
-//! first test pins is the ledger row of 2026-09-08: `acq daemon status`
-//! typed in a shell wanting the mock while a real-mode daemon ran
-//! replaced it with a mock one. Provider mismatch is staged by a mock
-//! daemon observed from a client that wants ggg. The artifact dimension
-//! is staged with one build's binaries (the second test): a copy of `acq`
-//! whose sibling `acqd` is another file sees the running daemon as another
-//! artifact, a copy whose sibling is a copy of `acqd` sees the same one by
-//! hash, and a copy with no sibling at all matches nothing. The contract
-//! dimension takes the same path (`DaemonId::verdict`) and is pinned at
-//! the unit level and in the client's contract tests, where a scripted
-//! peer can claim any contract.
+//! C10's observation tier through the real binary: an observer never spawns or
+//! replaces a daemon, and reports absence, contract mismatch, artifact mismatch
+//! and provider mismatch distinctly (C84). The trap the first test pins: `acq
+//! daemon status` typed in a shell wanting the mock while a real-mode daemon
+//! runs must not replace it with a mock one. Provider mismatch is staged by a
+//! mock daemon observed from a client that wants ggg. The artifact dimension is
+//! staged with one build's binaries (the second test): a copy of `acq` whose
+//! sibling `acqd` is another file sees the running daemon as another artifact,
+//! a copy whose sibling is a copy of `acqd` sees the same one by hash, and a
+//! copy with no sibling at all matches nothing. The contract dimension takes
+//! the same path (`DaemonId::verdict`) and is pinned at the unit level and in
+//! the client's contract tests, where a scripted peer can claim any contract.
 //!
 //! `ACQ_PROVIDER=ggg` appears here only on observing and stopping commands,
 //! which cannot spawn by construction: no daemon in real mode ever exists
@@ -178,7 +176,7 @@ fn stage(dir: &Path, sibling: Option<&Path>) -> PathBuf {
     acq
 }
 
-/// C10 with #116: a partial install, a frontend whose sibling `acqd` is
+/// C10: a partial install, a frontend whose sibling `acqd` is
 /// not the artifact that runs (staged without a rebuild: a script that
 /// `exec`s the built daemon, so the client hashes the script and the
 /// daemon its own file). A use verb spawns, judges it another build,
@@ -272,9 +270,9 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
         sha.len() == 64 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
         "{status}"
     );
-    // The compatible report says how the daemon's file relates to this
-    // client's sibling, and names the sibling (review 2026-09-10); the
-    // three dimensions are there in both shapes.
+    // The compatible report says how the daemon's file relates to this client's
+    // sibling, and names the sibling; the three dimensions are there in both
+    // shapes.
     assert_eq!(status["artifact_relation"], "same_file", "{status}");
     for key in [
         "contract_matches",

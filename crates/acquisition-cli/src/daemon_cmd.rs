@@ -23,7 +23,7 @@ pub(crate) fn mismatch_remedy(found: &acquisition_client::client::DaemonId) -> &
 
 /// The log the running daemon opened, as it reports it (`daemon_status`,
 /// C83) — never recomputed from this shell's environment, which may
-/// differ from the daemon's (review 2026-09-11).
+/// differ from the daemon's.
 pub(crate) async fn daemon_log_path(client: &mut Client) -> Option<String> {
     match client.request(&Request::DaemonStatus {}).await {
         Ok(Response::DaemonStatus { log, .. }) => log,
@@ -222,7 +222,7 @@ const CAP_SECS: u64 = 3600;
 
 /// C190: one closed route in words, at the answer's `now`: the one
 /// renderer `daemon status` and a progress line share; the web jobs page
-/// says it in its own words (step 6.5d).
+/// says it in its own words.
 pub(crate) fn closed_route_words(
     route: &acquisition_protocol::status::ClosedRoute,
     now: i64,
@@ -276,7 +276,7 @@ mod tests {
             "{due}"
         );
         assert!(!text.contains("at the cap"), "{text}");
-        // #291: at the cap, the words say what a route that keeps failing
+        // At the cap, the words say what a route that keeps failing
         // may mean, from the status's fields alone, and no verb is owed.
         let mut capped = rails.clone();
         capped.closed_routes[0].cooldown_secs = 3600;
@@ -290,8 +290,8 @@ mod tests {
 
     /// C146 (a count says what it counts): the sends and the policies
     /// learned are this daemon's lifetime's, never persisted, said beside
-    /// a journal path that spans lifetimes (the league seat read `sends
-    /// 17` as the day's count).
+    /// a journal path that spans lifetimes (unsaid, `sends 17` reads as the
+    /// day's count).
     #[test]
     fn c146_daemon_status_says_its_counts_are_this_daemons_lifetimes() {
         use acquisition_client::client::{DaemonId, Endpoint, Reported};

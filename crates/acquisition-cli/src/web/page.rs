@@ -3,21 +3,20 @@
 //! for an answer opened from a saved search, which renders the answer and
 //! the saved row it was opened from, and a conflict's refusal, which
 //! renders the row as it stands — so the page states nothing the terminal
-//! does not. The answer and item pages render their documents themselves
-//! (4-full part 1, step 4): each fact in the words the CLI's text says it
-//! in, made once in `search_cmd.rs`, the layout the page's, and every way
-//! on the page's own ([`answer`]), so they print no command line. An item
-//! is one card ([`card`], step 5) on both: a row that carries the item on
-//! the answer page, `show`'s document on the item page. The place pages
-//! render the places document ([`places`], step 6.5a), no `pre` and no
-//! command line. The plan, apply and jobs pages render the plan, the
-//! apply's and the jobs documents ([`plan`], [`applied`], [`jobs`], step
-//! 6.5d), in a player's words and with no command line; a refusal's
-//! words, the CLI's, are the one `pre` a page holds (#182). A page sorts,
-//! filters, groups and composes
-//! nothing; where it wants what no document carries, the search crate or
-//! the verb grows first. Every version a page renders is copied into its
-//! head's basis line, never composed ([`Head::basis`]).
+//! does not. The answer and item pages render their documents themselves:
+//! each fact in the words the CLI's text says it in, made once in
+//! `search_cmd.rs`, the layout the page's, and every way on the page's own
+//! ([`answer`]), so they print no command line. An item is one card
+//! ([`card`]) on both: a row that carries the item on the answer page,
+//! `show`'s document on the item page. The place pages render the places
+//! document ([`places`]), no `pre` and no command line. The plan, apply and
+//! jobs pages render the plan, the apply's and the jobs documents
+//! ([`plan`], [`applied`], [`jobs`]), in a player's words and with no
+//! command line; a refusal's words, the CLI's, are the one `pre` a page
+//! holds (#182). A page sorts, filters, groups and composes nothing; where
+//! it wants what no document carries, the search crate or the verb grows
+//! first. Every version a page renders is copied into its head's basis
+//! line, never composed ([`Head::basis`]).
 
 use std::collections::HashMap;
 
@@ -106,10 +105,9 @@ impl Head {
     }
 }
 
-/// The account a page serves, as its nav bar names it on every page
-/// (the page seat of 2026-11-08, its fault 11: a runner learned the
-/// account from an error): its name, or none yet, where the server waits
-/// for a login.
+/// The account a page serves, as its nav bar names it on every page (else
+/// the account is learned from an error): its name, or none yet, where the
+/// server waits for a login.
 pub(crate) fn account_words(account: Option<&str>) -> String {
     match account {
         Some(name) => format!("account {name}"),
@@ -179,7 +177,7 @@ pub(crate) fn refusal(words: &str) -> String {
     format!("<div class=\"refusal\">{}</div>\n", pre(words))
 }
 
-/// A refusal's document as a page renders it (#97): its words and each
+/// A refusal's document as a page renders it: its words and each
 /// reading on a line of its own, as a terminal prints them; where it
 /// carries a saved search as it stands (a conflict's `current`), that row
 /// as the list renders it, so the page shows what the offered write would
@@ -328,12 +326,11 @@ pub(crate) struct SavedLinks {
     pub clear: String,
 }
 
-/// The saved searches (4-full part 1, step 3, Do 4): the list's head
-/// line, then a row per search in the document's order, each with a link
-/// that opens it, its rename form naming the revision listed and its
-/// Clear, a link to the page that asks first ([`saved_ask`]); a row this
-/// build cannot read, its Clear alone; the rows left out counted, with
-/// the link that lists every one.
+/// The saved searches: the list's head line, then a row per search in the
+/// document's order, each with a link that opens it, its rename form naming
+/// the revision listed and its Clear, a link to the page that asks first
+/// ([`saved_ask`]); a row this build cannot read, its Clear alone; the rows
+/// left out counted, with the link that lists every one.
 pub(crate) fn saved_list(
     listed: &SavedSearches,
     links: &SavedLinks,
@@ -392,12 +389,11 @@ pub(crate) fn saved_list(
     out
 }
 
-/// A clear asked first (the owner, 2026-11-07, "Clear should ask
-/// first"): the row as the list shows it, unlinked, and the clear's form
-/// at the revision shown, beside a link back to the list. The page
-/// writes nothing; its form's POST is the clear. A row this build cannot
-/// read is asked about the same way, since a clear is the one thing a
-/// page can do with it.
+/// A clear asked first (the owner: "Clear should ask first"): the row as
+/// the list shows it, unlinked, and the clear's form at the revision shown,
+/// beside a link back to the list. The page writes nothing; its form's POST
+/// is the clear. A row this build cannot read is asked about the same way,
+/// since a clear is the one thing a page can do with it.
 pub(crate) fn saved_ask(row: &Value, links: &SavedLinks) -> String {
     let said = |v: &Value| v.as_str().unwrap_or_default().to_string();
     let named = match row.get("name").and_then(Value::as_str) {
@@ -425,9 +421,9 @@ pub(crate) fn saved_ask(row: &Value, links: &SavedLinks) -> String {
     )
 }
 
-/// The saved search an answer was opened from (4-full part 1, step 3,
-/// Do 7): the id and revision its URL names, and the row as it stands
-/// now at that id — readable, gone, or one this build cannot read.
+/// The saved search an answer was opened from: the id and revision its URL
+/// names, and the row as it stands now at that id — readable, gone, or one
+/// this build cannot read.
 pub(crate) struct Opened {
     pub id: String,
     pub at: i64,
@@ -515,7 +511,6 @@ fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks, boxed: &B
     let mut out = String::from("<div class=\"save\">\n");
     // a saved search holds the translated text alone (#188's first half),
     // so a translation that is not the site's search says what is saved
-    // (the page seat of 2026-11-08, its fault 1)
     if let Some(trade) = &a.query.trade {
         let kept = match trade.fidelity {
             Fidelity::Partial => Some("the clauses not run are not saved"),
@@ -532,7 +527,7 @@ fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks, boxed: &B
         }
     }
     // what the query box carries of the view and a save leaves behind
-    // (#186): a saved search is its query and its scope (C167)
+    // a saved search is its query and its scope (C167)
     let left = boxed.left_by_a_save();
     if !left.is_empty() {
         let listed = match left.as_slice() {
@@ -596,19 +591,17 @@ fn fate_span(fate: Option<&Fate>) -> String {
     }
 }
 
-/// The search form (Do 6), in the trade site's organization (the 4b
-/// sitting round, Do 4; the owner's page save read for its order alone,
-/// nothing of GGG's copied): the search bar across the top — the item
-/// search on the left; the realm, the league and the status on the right
-/// — then two panes, the filter groups as panels in the dump's order on
-/// the left and the stat filters with the picker on the right, then the
-/// controls with Search at the centre. A panel is a `details` group, open
-/// where the site shows the group open.
+/// The search form, in the trade site's organization (the owner's page save
+/// read for its order alone, nothing of GGG's copied): the search bar
+/// across the top — the item search on the left; the realm, the league and
+/// the status on the right — then two panes, the filter groups as panels in
+/// the dump's order on the left and the stat filters with the picker on the
+/// right, then the controls with Search at the centre. A panel is a
+/// `details` group, open where the site shows the group open.
 ///
 /// The form is one realm's render: its league list is that realm's, so
-/// the realm is chosen by a form of its own that renders the page again
-/// (the review of 4b, its fourth finding), and the search carries the
-/// realm shown.
+/// the realm is chosen by a form of its own that renders the page again,
+/// and the search carries the realm shown.
 pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, bool)]>) -> String {
     let mut out = String::from(
         "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search\" data-count>\n<div class=\"search-bar\">\n<div class=\"search-left\">",
@@ -694,34 +687,31 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
     out
 }
 
-/// The count beside each search's button (4-full part 1, step 6.2,
-/// #245), on every form that submits to `search`, which carries
-/// `data-count`: the words are these, the server's; `count.js` writes
-/// the numbers alone, a dash until a change is answered, and shows the
-/// undecided part only where it is not zero.
+/// The count beside each search's button, on every form that submits to
+/// `search`, which carries `data-count`: the words are these, the server's;
+/// `count.js` writes the numbers alone, a dash until a change is answered,
+/// and shows the undecided part only where it is not zero.
 const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched\">\u{2013}</output><span hidden> \u{b7} <output data-count=\"undecided\">\u{2013}</output> undecided</span></span>";
 
-/// The query box (the 4b sitting round, Do 6): a query in the language,
-/// run as the user's own — the one place every field the language has is
-/// reachable from a page, so what the site's form cannot say is typed
-/// here. On an answer it holds the text the answer ran, the translation's
-/// where the search was the site's form, to edit; an edited text drops the
-/// trade input, as the request's own rule has it. On an answer it carries
-/// the answer's membership, and the saved search the page was opened from
-/// with the revision its URL names, so the loop survives an edit. Its
-/// rows' number is the big form's "Show" (the page seat's fault 6), set
-/// on an answer to the rows view it showed; "Show" offers the search's
-/// own default first, sent empty, so a box left as it is asks no limit.
-/// Nothing is typed to sort (4-full part 1, step 6.4c): on an answer it
-/// carries, hidden as it carries the realm, the sort, its direction and
-/// the values the URL named, so an edited query keeps the order and the
-/// columns its reader chose by a head or a card; the values the query
-/// gave unasked are never carried, so the edited query gives its own. Its
-/// "Results as" is the big form's (the page seat of 2026-11-08, its T2):
-/// cards, sent empty, or the table, set on an answer to the way it
-/// showed, so an edited query keeps it. What it carries of the view is
-/// one [`BoxView`], an answer's or, on a refused search, the URL's as
-/// sent (step 6.5c, #190), and the save note reads the same.
+/// The query box: a query in the language, run as the user's own — the one
+/// place every field the language has is reachable from a page, so what the
+/// site's form cannot say is typed here. On an answer it holds the text the
+/// answer ran, the translation's where the search was the site's form, to
+/// edit; an edited text drops the trade input, as the request's own rule
+/// has it. On an answer it carries the answer's membership, and the saved
+/// search the page was opened from with the revision its URL names, so the
+/// loop survives an edit. Its rows' number is the big form's "Show", set on
+/// an answer to the rows view it showed; "Show" offers the search's own
+/// default first, sent empty, so a box left as it is asks no limit. Nothing
+/// is typed to sort: on an answer it carries, hidden as it carries the
+/// realm, the sort, its direction and the values the URL named, so an
+/// edited query keeps the order and the columns its reader chose by a head
+/// or a card; the values the query gave unasked are never carried, so the
+/// edited query gives its own. Its "Results as" is the big form's: cards,
+/// sent empty, or the table, set on an answer to the way it showed, so an
+/// edited query keeps it. What it carries of the view is one [`BoxView`],
+/// an answer's or, on a refused search, the URL's as sent (#190), and the
+/// save note reads the same.
 pub(crate) fn query_box(
     realm: &str,
     membership: Option<&str>,
@@ -786,11 +776,11 @@ pub(crate) fn query_box(
     )
 }
 
-/// What the query box carries of the view (step 6.4c; step 6.5c,
-/// Decisions 8 and 9): the sort and the values the URL named, never the
-/// values the query gave unasked, the table where the rows were one, and the
-/// rows' number. Made from an answer's rows, or from a refused search's
-/// fields as sent; the save note says what of it a save leaves behind.
+/// What the query box carries of the view: the sort and the values the URL
+/// named, never the values the query gave unasked, the table where the rows
+/// were one, and the rows' number. Made from an answer's rows, or from a
+/// refused search's fields as sent; the save note says what of it a save
+/// leaves behind.
 #[derive(Default)]
 pub(crate) struct BoxView {
     pub sort: Option<String>,
@@ -980,7 +970,7 @@ fn fact_row(label: &str, cell: &str) -> String {
     format!("<tr><th>{}</th><td>{cell}</td></tr>\n", esc(label))
 }
 
-/// The answer page (4-full part 1, step 4): the answer document rendered
+/// The answer page: the answer document rendered
 /// as HTML in C115's order — the count and the badges, a site search's
 /// translation, the opening (the query, the scope, the total), the rows
 /// with their continuation or a count's tables, what a zero answer
@@ -1057,7 +1047,7 @@ pub(crate) fn answer(
             if !rows.fields.contains(&RowField::Item) {
                 // in a GET form holding the page's fields, so a row's
                 // toggle and a card's "Close" ask the page again with
-                // the opened rows the URL names (step 6.5c, Decision 4)
+                // the opened rows the URL names
                 if let Some(window) = window {
                     let hidden: String = table_fields
                         .iter()
@@ -1155,7 +1145,7 @@ pub(crate) fn answer(
 /// How an answer page shows its rows, which the handler makes: the
 /// table's window, where the rows are a table; each card's place as a
 /// link; and the fields the table's form carries hidden, the page's own
-/// with the opened rows it keeps (step 6.5c).
+/// with the opened rows it keeps.
 #[derive(Clone, Copy)]
 pub(crate) struct Shows<'a> {
     pub window: Option<&'a Window>,
@@ -1249,7 +1239,7 @@ fn opening(a: &Answer, now: i64, spell: Spell) -> String {
         };
         scope.push_str(&format!(
             " · {}",
-            // the list that page shows: the never fetched (step 6.5b)
+            // the list that page shows: the never fetched
             way_on(
                 spell,
                 "tabs",
@@ -1295,17 +1285,17 @@ fn opening(a: &Answer, now: i64, spell: Spell) -> String {
     out
 }
 
-/// The link to the same answer in the other presentation (the step's
-/// design): the page's own URL, its fields as sent, with `view.fields=icon`
-/// added or removed, and its words. It carries no request of the
-/// document, so it is no way: a plain link of its own class.
+/// The link to the same answer in the other presentation: the page's own
+/// URL, its fields as sent, with `view.fields=icon` added or removed, and
+/// its words. It carries no request of the document, so it is no way: a
+/// plain link of its own class.
 pub(crate) struct Presentation {
     pub href: String,
     pub words: &'static str,
 }
 
 /// A change to the view, made by the handler's one maker (`mod.rs`,
-/// `view_link`; 4-full part 1, step 6.4c): the same page ordered by one
+/// `view_link`): the same page ordered by one
 /// value, largest first or, where the rows are ordered by it, the other
 /// way, the value added to the list where the view lacks it. `held` says
 /// the view's values hold it; `ordered` says the rows are ordered by it,
@@ -1345,7 +1335,7 @@ fn ordered(text: &str, order: Option<bool>) -> String {
 pub(crate) struct RowsLinks {
     pub other: Option<Presentation>,
     pub first: Option<String>,
-    /// The same query by stash tab and by character (step 6.5b).
+    /// The same query by stash tab and by character.
     pub places: Vec<Presentation>,
 }
 
@@ -1399,7 +1389,7 @@ fn cards(a: &Answer, view: ViewLinks, placed: Placed, now: i64) -> String {
     out
 }
 
-/// One item as a card (4-full part 1, step 5), from what `show`'s one
+/// One item as a card, from what `show`'s one
 /// maker makes of it and where it lies, in the trade site's order: the
 /// art where it was asked, the badges, the name (a link to the item page
 /// where `link`), the base, the properties with the item level and the
@@ -1409,7 +1399,7 @@ fn cards(a: &Answer, view: ViewLinks, placed: Placed, now: i64) -> String {
 /// where the item left. Every fact in the words the CLI's text says it
 /// in, made once in `search_cmd.rs`; the layout and the labels are the
 /// page's. The answer page renders a card per row, the item page one.
-/// With `view` (the answer page's, step 6.4c), each number that a value
+/// With `view` (the answer page's), each number that a value
 /// reads is that value's [`ViewLink`]: a line whole by its `value`, a
 /// displayed row's piece by the number field it shows; one the view holds
 /// is marked `valued`, the sort's as its head is. The item page has no
@@ -1518,10 +1508,9 @@ pub(crate) fn card(
         "<p class=\"price\">price {}</p>\n",
         esc(&search_cmd::price_words(&it.facts.id, parts.price))
     ));
-    // the place, a link to its page with it open where a page lists it
-    // (step 6.5c, Decision 6), its words otherwise; the link lands at this
-    // item's row (`at`, one load's), so a long tab is not searched again
-    // for it (the page seat after GUI step 6, its fault 7), and a removed
+    // the place, a link to its page with it open where a page lists it, its
+    // words otherwise; the link lands at this item's row (`at`, one
+    // load's), so a long tab is not searched again for it, and a removed
     // item, which the place's live rows lack, at the place's head
     let words = esc(&search_cmd::shown_place_words(place, now));
     let mut placed = match placed {
@@ -1559,7 +1548,7 @@ pub(crate) const BLOCK_ROWS: usize = 50;
 
 /// A table's window (the module doc, "The table"): its route, to which
 /// the script adds an offset and a count, and its segments, the order cut
-/// after each opened row (step 6.5c, Decision 3), each with the blocks the
+/// after each opened row, each with the blocks the
 /// server rendered over the page's corpus.
 pub(crate) struct Window {
     pub route: String,
@@ -1600,30 +1589,30 @@ impl Window {
     }
 }
 
-/// A card's place as a link (step 6.5c, Decision 6): the place page with
+/// A card's place as a link: the place page with
 /// the place and each holding it open, a URL with fields and no fragment,
 /// to which the card adds its landing; none where no page lists the
 /// place, which then stands as words.
 pub(crate) type Placed<'a> = &'a dyn Fn(&acquisition_search::corpus::Place) -> Option<String>;
 
-/// What an opened row's card links (step 6.5c, Decisions 5 to 7): the
+/// What an opened row's card links: the
 /// view's changes, made from a block's rows, its place, and the page's
 /// query against it.
 pub(crate) struct CardWays<'a> {
     pub view: &'a dyn Fn(&RowsOut, &str) -> Option<ViewLink>,
     pub placed: Placed<'a>,
     /// The page's query, canonical, where it has one: the card links the
-    /// item page against it (Decision 7).
+    /// item page against it.
     pub against: Option<&'a str>,
 }
 
-/// A row's anchor (step 6.5c): where a row's toggle lands, made beside
+/// A row's anchor: where a row's toggle lands, made beside
 /// [`place_anchor`].
 pub(crate) fn row_anchor(id: &str) -> String {
     format!("i-{}", enc(id))
 }
 
-/// A window's segments (step 6.5c, Decision 3), the one renderer of the
+/// A window's segments, the one renderer of the
 /// flat table and of each open place: each segment of one height, its
 /// route the window's, its base and count, the blocks the server
 /// rendered; after a segment that ends at an opened row, that row's card
@@ -1684,7 +1673,7 @@ fn segments(window: &Window, ways: &CardWays, now: i64) -> String {
     out
 }
 
-/// An opened row's card (step 6.5c, Decision 5): [`card`] of the row's
+/// An opened row's card: [`card`] of the row's
 /// item, which the window asks, its numbers the view's changes made from
 /// the block's rows, its place a link; then its "Close", the row's own
 /// toggle.
@@ -1730,11 +1719,11 @@ fn opened_card(
     )
 }
 
-/// The table (4-full part 1, step 6.4b): every row of the answer in one
+/// The table: every row of the answer in one
 /// scrolling page, at one row height. Its heads are the item, its base,
 /// its price, its location and when that was fetched, as text, then each
 /// value the answer carries by its own text, a link that orders the rows
-/// by it and flips where they are (step 6.4c, [`ViewLink`]), the ordered
+/// by it and flips where they are ([`ViewLink`]), the ordered
 /// one marked ([`ordered`]); its rows are one segment of the
 /// answer's whole count, of which the server renders the first block and
 /// the window script asks the rest by the segment's route. Its line says
@@ -1791,12 +1780,11 @@ enum Presented {
     Places,
 }
 
-/// Where rows stand in the store's order because no sort was asked, how
-/// a page orders them: a number on an item's card orders the rows by its
+/// Where rows stand in the store's order because no sort was asked, how a
+/// page orders them: a number on an item's card orders the rows by its
 /// value, and a table's or a place's item opens to its card by its name.
-/// Without it a reader met no control that sorts until a query compared
-/// a value (the page seat after GUI step 6, its fault 2). None where a
-/// sort orders the rows, whose head flips it.
+/// Without it a reader meets no control that sorts until a query compares a
+/// value. None where a sort orders the rows, whose head flips it.
 fn order_way(rows: &RowsOut, shape: Presented) -> Option<&'static str> {
     rows.sort.is_none().then_some(match shape {
         Presented::Cards => "press a number on a card to order the rows by it",
@@ -1809,7 +1797,7 @@ fn order_way(rows: &RowsOut, shape: Presented) -> Option<&'static str> {
 /// and when that was fetched, as text, none a value the sort takes; then
 /// each value the rows carry by its own text, the link that orders the
 /// rows by it, the ordered one marked ([`ordered`]). The flat table's
-/// and a place page's (step 6.5b), which stands once above its places.
+/// and a place page's, which stands once above its places.
 fn item_heads(rows: &RowsOut, view: ViewLinks) -> String {
     let fixed = ["Item", "Base", "Price", "Location", "Fetched"]
         .iter()
@@ -2262,7 +2250,7 @@ fn terms(a: &Answer, now: i64, spell: Spell) -> String {
     out
 }
 
-/// One item (4-full part 1, steps 4 and 5): `show`'s document rendered
+/// One item: `show`'s document rendered
 /// as HTML — the item as a card ([`card`], the one the answer page
 /// renders a row's item through, its name no link), then a fact table of
 /// what the card leaves out — the id, the class, the category with what
@@ -2374,7 +2362,7 @@ fn badge(words: &str) -> String {
     format!("<span class=\"badge\">{}</span>", esc(words))
 }
 
-/// The moved-world review's badges on an answer (Do 9): a site search
+/// The badges on an answer: a site search
 /// that is not the site's, and what is undecided with its reasons — each
 /// a state the answer carries, which its text says below.
 fn answer_badges(a: &Answer) -> String {
@@ -2410,7 +2398,7 @@ fn answer_badges(a: &Answer) -> String {
     format!("<p>{}</p>\n", out.join(" "))
 }
 
-/// The moved-world review's badges on one item (Do 9): a class the table
+/// The badges on one item: a class the table
 /// could not decide, each part unread, each line whose flags are unknown
 /// — each a state `show`'s document carries, which its text says below.
 pub(crate) fn item_badges(parts: ItemParts<'_>) -> String {
@@ -2449,7 +2437,7 @@ pub(crate) fn item_badges(parts: ItemParts<'_>) -> String {
     format!("<p>{}</p>\n", out.join(" "))
 }
 
-/// The league control both pages carry (the 4b sitting round, Do 3): a
+/// The league control both pages carry: a
 /// select over the store's league list, each league marked with whether
 /// tabs of it are on disk in the realm shown; with no list on disk, the
 /// leagues the store holds places in. A page's own league the control
@@ -2464,8 +2452,8 @@ pub(crate) fn league_select(
     any: bool,
 ) -> String {
     // no league to offer: the page's own alone, so the selects' form sends
-    // it back across a realm that holds none (the cold review of
-    // dd10c229); none where the page names none either
+    // it back across a realm that holds none; none where the page names
+    // none either
     let leagues = match (leagues, selected) {
         (Some(leagues), _) => leagues,
         (None, Some(_)) => &[],
@@ -2477,8 +2465,7 @@ pub(crate) fn league_select(
     }
     // the page's own league, where the control does not list it, stands
     // first and selected, unmarked: a select showing another league than
-    // the page would send that one with its next form (the cold review of
-    // 079b0200)
+    // the page would send that one with its next form
     if let Some(own) = selected.filter(|own| !leagues.iter().any(|(l, _)| l == own)) {
         out.push_str(&format!(
             "<option value=\"{}\" selected>{}</option>",
@@ -2513,7 +2500,7 @@ pub(crate) fn fetch_leagues() -> String {
     "<form method=\"post\" action=\"leagues\"><button type=\"submit\">Fetch the league list</button></form>\n".to_string()
 }
 
-// ---- the place pages (steps 6.5a and 6.5b) -----------------------------------------------------
+// ---- the place pages ---------------------------------------------------------------------------
 
 /// What a place page renders: the places document, and what its URL
 /// asks, opens and ticks.
@@ -2535,7 +2522,7 @@ pub(crate) struct PlacesPage<'a> {
     pub ticked: &'a [String],
     /// The substashes box, ticked.
     pub deep: bool,
-    /// The filter the URL names (step 6.5b).
+    /// The filter the URL names.
     pub filter: &'a PlaceFilter,
     /// The query's text the URL names, for its box.
     pub text: Option<&'a str>,
@@ -2554,7 +2541,7 @@ pub(crate) struct PlacesPage<'a> {
     pub windows: &'a HashMap<String, Window>,
     /// A value's head: the page ordered by it, from a segment's rows.
     pub view_links: &'a dyn Fn(&RowsOut, &str) -> Option<ViewLink>,
-    /// The opened rows the page keeps (step 6.5c), which its list's form
+    /// The opened rows the page keeps, which its list's form
     /// carries hidden, as it carries the open places.
     pub items: &'a [String],
     /// An opened row's card's place as a link.
@@ -2570,23 +2557,22 @@ pub(crate) struct PlacesPage<'a> {
     pub now: i64,
 }
 
-/// A place's head's anchor: where a toggle's answer lands (#270).
+/// A place's head's anchor: where a toggle's answer lands.
 pub(crate) fn place_anchor(id: &str) -> String {
     format!("p-{}", enc(id))
 }
 
-/// A place page (steps 6.5a and 6.5b): the realm and league selects, a
-/// form of their own carrying every field but the ticks and the opens
-/// (one id can stand in two leagues); the league list's fetch and the
-/// listing beside it; the league's counts in one line; then one GET form
-/// holding the list and its buttons, "Show" first. The list is the
-/// page's one `.window`, inside the form: each place's head in flow, its
-/// tick, its name a link to its items as a table, its opener; an open
-/// place's places under it, or its items as one segment of the window,
-/// the item columns' heads standing once above the places where one
-/// does; each level's fold line after its rows. A league with nothing
-/// listed says so where the list would be, with the listing. No `pre`
-/// and no command line (#182, #189).
+/// A place page: the realm and league selects, a form of their own carrying
+/// every field but the ticks and the opens (one id can stand in two
+/// leagues); the league list's fetch and the listing beside it; the
+/// league's counts in one line; then one GET form holding the list and its
+/// buttons, "Show" first. The list is the page's one `.window`, inside the
+/// form: each place's head in flow, its tick, its name a link to its items
+/// as a table, its opener; an open place's places under it, or its items as
+/// one segment of the window, the item columns' heads standing once above
+/// the places where one does; each level's fold line after its rows. A
+/// league with nothing listed says so where the list would be, with the
+/// listing. No `pre` and no command line (#182).
 pub(crate) fn places(view: &PlacesPage) -> String {
     let realms = ["pc", "xbox", "sony", "poe2"]
         .iter()
@@ -2632,7 +2618,7 @@ pub(crate) fn places(view: &PlacesPage) -> String {
             None => format!("No stash tabs of {} are on record.", view.league),
         };
         // a league with none of this kind still says where the query's
-        // matches stand (the cold review of 079b0200)
+        // matches stand
         body.push_str(&format!(
             "<p class=\"none\">{}</p>\n{}{listing}",
             esc(&said),
@@ -2663,7 +2649,7 @@ pub(crate) fn places(view: &PlacesPage) -> String {
     }
     body.push('\n');
     // the query's box and the buttons above the list, so a long list
-    // never hides them (the page seat's probe); "Show" the form's first
+    // never hides them; "Show" the form's first
     // button, its default, so Enter in a box sends the page again with
     // every tick and open, never the plan
     body.push_str(&format!(
@@ -2723,7 +2709,7 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         "<details class=\"list\" open><summary>{}</summary>\n{}<div class=\"p head\"><span></span>{}</div>\n{}<div class=\"window\" data-row-height=\"{ROW_HEIGHT}\" data-block-rows=\"{BLOCK_ROWS}\">\n{heads}{rows}</div>\n</details>\n</form>\n",
         // the list named, its counts the counts line's alone: a count of
         // the rows at the top would stand beside the league's, saying
-        // another thing (the build's review, its first finding)
+        // another thing
         view.title,
         matched_line(view),
         columns
@@ -2737,7 +2723,7 @@ pub(crate) fn places(view: &PlacesPage) -> String {
 
 /// Under a query, the matches the league's places hold beside the
 /// query's own, the query's own request a link to every match as a
-/// table (Decision 7).
+/// table.
 fn matched_line(view: &PlacesPage) -> String {
     let Some(query) = &view.places.query else {
         return String::new();
@@ -2751,7 +2737,6 @@ fn matched_line(view: &PlacesPage) -> String {
         _ => "on these characters",
     };
     // where the query's other matches stand, each a link to its page
-    // (the page seat after GUI step 6, its fault 1)
     let elsewhere: Vec<String> = query
         .elsewhere
         .iter()
@@ -2804,7 +2789,7 @@ fn hidden_fields(fields: &[(&'static str, String)]) -> String {
         .collect()
 }
 
-/// A level's fold (step 6.5b, Decision 3): one line after its rows, the
+/// A level's fold: one line after its rows, the
 /// places it does not list counted, of them those never fetched a link to
 /// the page under `fetched=never`, and the ticks among them, which travel
 /// hidden. None where the level folds nothing.
@@ -2884,7 +2869,7 @@ fn has_items(view: &PlacesPage, place: &Place) -> bool {
 /// The heads of the listed `places` at `depth`, in flow: each open
 /// parent's places after its head in a group of their own (`.holds`),
 /// a tab's own matches and its fold line after them; each open place
-/// that holds items its segment (Decision 5). A tick under a closed
+/// that holds items its segment. A tick under a closed
 /// parent is a hidden field in `hidden`, counted in words on the
 /// parent's head, and a tick on a place not listed one there too,
 /// counted on its level's fold line.
@@ -2915,7 +2900,7 @@ fn place_rows(
             name => name,
         };
         // a tick is named by its place, as the row reads, never by the id
-        // it sends (the page seat after GUI step 6, its fault 4)
+        // it sends
         let tick = match place.place {
             Kind::Tab | Kind::Character => format!(
                 "<input type=\"checkbox\" aria-label=\"{}\" name=\"{}\" value=\"{}\"{}>",
@@ -2974,7 +2959,7 @@ fn place_rows(
                     toggle(open)
                 )
             }
-            // a place that holds items opens to them (Decision 4)
+            // a place that holds items opens to them
             None if has_items(view, place) => format!(" {}", toggle(open)),
             None => String::new(),
         };
@@ -3055,8 +3040,8 @@ fn place_rows(
             ));
             rows.push_str("</div>\n");
         } else if let Some(window) = view.windows.get(id) {
-            // an open place's items, segments of the page's one window
-            // (Decision 5), cut after each opened row (6.5c)
+            // an open place's items, segments of the page's one window,
+            // cut after each opened row
             let ways = CardWays {
                 view: view.view_links,
                 placed: view.placed,
@@ -3101,7 +3086,7 @@ fn ticked_under(view: &PlacesPage, place: &Place, hidden: &mut String) -> usize 
     n
 }
 
-/// The filter's controls (step 6.5b, Decision 3): the second head of the
+/// The filter's controls: the second head of the
 /// list, each under the column it filters — words the name holds, a
 /// tab's type, never fetched — sent with the list's form, so the URL
 /// names them (C16) and "Show" or Enter asks the page again.
@@ -3153,7 +3138,7 @@ fn filter_row(view: &PlacesPage) -> String {
     format!("<div class=\"p filters\"><span></span>{name}{typed}<span></span>{never}</div>\n")
 }
 
-// ---- the plan and apply pages (step 6.5d) -------------------------------------------------------
+// ---- the plan and apply pages -------------------------------------------------------------------
 
 /// A span in the store's one vocabulary (`3m`, `2d`).
 fn span(seconds: i64) -> String {
@@ -3174,7 +3159,7 @@ fn named(name: &str) -> &str {
     if name.is_empty() { "(unnamed)" } else { name }
 }
 
-/// The plan page (step 6.5d, Decision 3): the plan document in a
+/// The plan page: the plan document in a
 /// player's words — what is refreshed, how old its facts are, what the
 /// compile noticed, each request as a row with why, what is left out,
 /// and when the daemon says the requests could go — and no command line.
@@ -3399,8 +3384,7 @@ fn fetch_words(reason: &acquisition_plan::FetchReason) -> String {
             "the list says it holds {}, and {held} are on record",
             plural(usize::try_from(*listed).unwrap_or(0), "item", "items")
         ),
-        // the planner says unequal, in either direction (the review of
-        // d572f30a, its fourth finding)
+        // the planner says unequal, in either direction
         FetchReason::ListedExperienceDisagrees { .. } => {
             "its experience on the list differs from its last fetch's".to_string()
         }
@@ -3522,15 +3506,14 @@ fn left_out(planned: &acquisition_verbs::Planned) -> Vec<String> {
     out
 }
 
-/// When the daemon says the plan's requests could go (Decision 3), or why
-/// it says nothing. A scope's estimate is when its *last* request could
-/// go, so the largest known one is the time for every request whose
-/// timing is known; a scope with none is counted as not yet known while
-/// its route's policy is unlearned, and as paused while its route is
-/// closed (a failed probe, or a run of invalid answers, C190). Only a
-/// quote the daemon refused for want of a session says "not signed in"
-/// (#189, fault 12): no daemon, a timeout or another miss observed no
-/// session and says nothing of one.
+/// When the daemon says the plan's requests could go, or why it says
+/// nothing. A scope's estimate is when its *last* request could go, so the
+/// largest known one is the time for every request whose timing is known; a
+/// scope with none is counted as not yet known while its route's policy is
+/// unlearned, and as paused while its route is closed (a failed probe, or a
+/// run of invalid answers, C190). Only a quote the daemon refused for want
+/// of a session says "not signed in": no daemon, a timeout or another miss
+/// observed no session and says nothing of one.
 fn quote_words(planned: &acquisition_verbs::Planned, now: i64) -> String {
     use acquisition_verbs::QuoteNote;
     let Some(quote) = &planned.plan.quote else {
@@ -3631,7 +3614,7 @@ fn quote_words(planned: &acquisition_verbs::Planned, now: i64) -> String {
     words
 }
 
-/// The apply page (Decision 5): an apply that sent nothing, said from its
+/// The apply page: an apply that sent nothing, said from its
 /// fields — a plan with nothing to fetch, or one whose every request is
 /// spent — with a link to the plan compiled again. A submitted apply
 /// lands at its job and has no page.
@@ -3692,11 +3675,11 @@ pub(crate) fn applied(applied: &acquisition_verbs::Apply, again: &str, now: i64)
     )
 }
 
-// ---- the jobs page (step 6.5d) ------------------------------------------------------------------
+// ---- the jobs page ------------------------------------------------------------------------------
 
 /// What the jobs page renders: the jobs document, the daemon's halts
 /// where one answers, the job the URL opens, and the league the URL
-/// names (Decision 8).
+/// names.
 pub(crate) struct JobsPage<'a> {
     pub jobs: &'a acquisition_verbs::Jobs,
     /// The daemon's rails, where a daemon answers.
@@ -3740,8 +3723,8 @@ struct JobRow<'a> {
     parent: Option<u64>,
     kind: &'a str,
     params: &'a Value,
-    /// The job's account where it is not the page's (the review of
-    /// d572f30a, its first finding): the list spans accounts.
+    /// The job's account where it is not the page's: the list spans
+    /// accounts.
     whose: Option<&'a str>,
     state: String,
     when: String,
@@ -3867,7 +3850,7 @@ fn child_what(kind: &str, target: &str, id: u64) -> String {
     format!("{noun} {target}").trim_end().to_string()
 }
 
-/// A failure's kind in the page's own words (C165, Decision 7): never
+/// A failure's kind in the page's own words (C165): never
 /// the daemon's `error` nor the way on's words, which can name a
 /// command; a failure with no kind says only that it failed.
 fn failure_words(kind: Option<acquisition_protocol::job::FailureKind>) -> &'static str {
@@ -3905,12 +3888,11 @@ fn failure_words(kind: Option<acquisition_protocol::job::FailureKind>) -> &'stat
     }
 }
 
-/// A failed or cancelled job's result under its row (Decision 7): its
+/// A failed or cancelled job's result under its row: its
 /// failure by kind, its children's tally, the first failed children
 /// each a link to its own result, and the offers its page takes.
 fn result_words(result: &acquisition_verbs::jobs::JobResult, spell: Spell) -> String {
-    // an offer of this result is the page it stands on (the review of
-    // d572f30a, its second finding)
+    // an offer of this result is the page it stands on
     let shown = spell(&Way::Result { id: result.job_id });
     use acquisition_protocol::job::{FailureKind, Outcome};
     let mut out = String::new();
@@ -3969,7 +3951,7 @@ fn result_words(result: &acquisition_verbs::jobs::JobResult, spell: Spell) -> St
     out
 }
 
-/// The jobs page (Decision 6): the daemon's halts in prose, the job the
+/// The jobs page: the daemon's halts in prose, the job the
 /// URL opens where the list leaves it out, the counts, and the listed
 /// jobs as a table, a child under its listed parent; with no daemon, the
 /// ledger's rows, how old, and that the next job resumes them. No `pre`,
@@ -4186,7 +4168,7 @@ fn live_counts(listed: &acquisition_verbs::jobs::Listed) -> String {
     out
 }
 
-/// The daemon's halts in prose (Decision 6): a halt, each closed route,
+/// The daemon's halts in prose: a halt, each closed route,
 /// and a session it cannot renew; nothing of its tripwire, its sends or
 /// its journal.
 fn rails_words(rails: &acquisition_protocol::status::RailsStatus, now: i64) -> String {
@@ -4244,9 +4226,9 @@ fn rails_words(rails: &acquisition_protocol::status::RailsStatus, now: i64) -> S
 mod tests {
     use super::*;
 
-    /// The review of d572f30a, its fourth finding: the planner says a
-    /// character's listed experience differs from its last fetch's in
-    /// either direction, so the page says it differs, never that it grew.
+    /// The planner says a character's listed experience differs from its
+    /// last fetch's in either direction, so the page says it differs, never
+    /// that it grew.
     #[test]
     fn an_experience_that_differs_is_said_to_differ() {
         let reason = acquisition_plan::FetchReason::ListedExperienceDisagrees {

@@ -58,7 +58,7 @@ pub(crate) async fn connect(cx: &Ctx) -> Result<Client> {
     Ok(client)
 }
 
-/// A job verb's connect (C51, the owner's ruling on #246): the account
+/// A job verb's connect (C51): the account
 /// the job names, chosen through the frontend's door before any daemon is
 /// reached — so several accounts known and none named is refused as
 /// `ambiguous_account` with no daemon spawned for it — then [`connect`].

@@ -1,14 +1,13 @@
-//! Plan step 7, item 3 (`PRICING-SLICE.md` at `b6197a82`): the pricing surface as one
-//! story through the spawned binary — set, show, render, clear — and the
-//! races the story invites, each pinned as a property that holds under
-//! every interleaving: two blind writers on one row never clobber and
-//! their receipts chain (C35, C78); a stale `--if-revision` conflicts
-//! naming the current revision and changes nothing (C35); a clear landing
-//! under a render never yields a torn page — the render is a function of
-//! one read (C74), and the writer is never blocked by the reader (C64:
-//! no daemon, no lock a refresh could fight). Facts are seeded through
-//! the store crate as `price_json.rs` does; `ACQ_NO_SPAWN=1` makes any
-//! daemon contact an error.
+//! The pricing surface as one story through the spawned binary — set, show,
+//! render, clear — and the races the story invites, each pinned as a property
+//! that holds under every interleaving: two blind writers on one row never
+//! clobber and their receipts chain (C35, C78); a stale `--if-revision`
+//! conflicts naming the current revision and changes nothing (C35); a clear
+//! landing under a render never yields a torn page — the render is a function
+//! of one read (C74), and the writer is never blocked by the reader (C64: no
+//! daemon, no lock a refresh could fight). Facts are seeded through the store
+//! crate as `price_json.rs` does; `ACQ_NO_SPAWN=1` makes any daemon contact an
+//! error.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Output, Stdio};
@@ -192,8 +191,8 @@ fn c74_set_show_render_clear_is_one_story() {
 /// to the row `show` reads after it — and a loser conflicts naming the
 /// revision it lost to, landing nothing. The seed leaves no intent file,
 /// so the first round also races its creation: two first-ever writers
-/// met `database is locked` there until the store's WAL switch learned
-/// to retry (`acquisition-store`, `ensure_wal`).
+/// meet no `database is locked` there, since the store's WAL switch
+/// retries (`acquisition-store`, `ensure_wal`).
 #[test]
 fn c35_two_blind_writers_on_one_row_never_clobber_and_the_receipts_chain() {
     let scratch = harness::scratch("story-writers");

@@ -153,8 +153,7 @@ pub(crate) fn realm_prefix(realm: Realm) -> String {
 /// and the web UI's tabs page with it.
 /// No tabs on record for a league, and the two jobs that would list
 /// them, each as `account` in the realm and league asked, so each runs
-/// as printed (fault 1's rule, the review of the league seat's fix
-/// round).
+/// as printed.
 pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store, account: &str) -> String {
     let scope = [
         crate::terminal::option_words("--account", account),
@@ -179,7 +178,7 @@ pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store, account: &
 /// items are the tabs' alone and it says so, with `characters` the
 /// command that counts the rest where the surface prints one: a league's
 /// count elsewhere holds its characters' items too (C146, a count says
-/// what it counts; answer-facts seat run 2, cli fault 2).
+/// what it counts).
 pub(crate) fn tabs_head(
     counts: &acquisition_search::tabs::TabCounts,
     realm: Realm,
@@ -209,7 +208,7 @@ pub(crate) fn tabs_head(
     )
 }
 
-/// `tabs`' facts line (#172): the league's tabs, how many were fetched
+/// `tabs`' facts line: the league's tabs, how many were fetched
 /// and their extremes, and when its stash listing was seen, in the words
 /// the other facts lines print ([`crate::price_cmd::fetched_words`]).
 pub(crate) fn tabs_facts_line(counts: &acquisition_search::tabs::TabCounts, now: i64) -> String {
@@ -226,7 +225,7 @@ pub(crate) fn tabs_facts_line(counts: &acquisition_search::tabs::TabCounts, now:
         None => "stash never listed".to_string(),
     };
     // an empty league says when its listing was seen, or that it never
-    // was (the review of round C, finding 3)
+    // was
     if counts.tabs == 0 {
         return format!("facts: no tabs; {listing}\n");
     }
@@ -268,7 +267,7 @@ pub(crate) fn clip(s: &str, max: usize) -> String {
 
 /// The items column: `-` when never fetched (nothing is known), the live
 /// count otherwise — a fetched-empty body reads `0`, never the same as
-/// unfetched (legibility ruling, 2026-09-02).
+/// unfetched (C53).
 pub(crate) fn items_cell(fetched_at: Option<i64>, item_count: i64) -> String {
     match fetched_at {
         None => "-".into(),
@@ -379,8 +378,8 @@ pub fn tabs(
     print!("{}", tabs_facts_line(&listed.counts, now));
     print!("{leagues}");
     // a selection is the answer under the league's counts: its rows,
-    // whole or the ten, and the command that lists the rest (the re-sit:
-    // every run asked which never-fetched tabs of a type to refresh)
+    // whole or the ten, and the command that lists the rest (else a
+    // reader asks which never-fetched tabs of a type to refresh)
     if let (Some(selected), Some(selection)) = (listed.selected, &listed.selection) {
         println!("{selected} {}", selection.words());
         if !listed.rows.is_empty() {
@@ -427,7 +426,7 @@ pub fn tabs(
         );
     }
     // none listed (`--limit 0`): the counts stand alone, no header over
-    // an empty table (answer-facts seat run 2, cli fault 14)
+    // an empty table
     if !listed.rows.is_empty() {
         println!("the {} with the most items:", listed.rows.len());
         print!("{}", render_tabs_table(&listed.rows, now));
@@ -442,8 +441,8 @@ pub fn tabs(
 }
 
 /// What GGG's ` (Remove-only)` mark on a name is, said once under the
-/// rows where a listed tab carries it (C117; the trade seat: cli-sonnet-2
-/// never found out what it means, debrief 6).
+/// rows where a listed tab carries it (C117; unsaid, a reader never
+/// finds out what it means).
 fn remove_only_said(rows: &[acquisition_store::TabRow]) -> &'static str {
     if rows
         .iter()
@@ -460,7 +459,7 @@ fn remove_only_said(rows: &[acquisition_store::TabRow]) -> &'static str {
 /// (the account, realm and league named) with `--expand`, and the search,
 /// whose scope is the account and a realm, takes the league as a term —
 /// printed as every route is, so each runs as printed with a second
-/// account known (the league seat, cli calls 43, 44).
+/// account known.
 fn tabs_next(account: &str, realm: Realm, league: &str) -> (String, String) {
     use acquisition_search::answer::{Counts, QueryInput, Request, Scope, Shape};
     use acquisition_search::tree::{Node, Op, Value as Term};
@@ -538,14 +537,13 @@ pub fn characters(
     Ok(())
 }
 
-/// The line for a selection that holds no character: the league or
-/// realm asked about, as a line about a league names it, or the file when
-/// the whole store holds none. Where a league holds none and its realm
-/// holds some, it says how many are known and in which leagues, so a
-/// listing that ran is not read as one that never did (the page seat's
-/// fault 11). Its cause is the characters page's sentence too
-/// ([`no_characters_cause`]); the command in parentheses is the
-/// terminal's alone.
+/// The line for a selection that holds no character: the league or realm
+/// asked about, as a line about a league names it, or the file when the
+/// whole store holds none. Where a league holds none and its realm holds
+/// some, it says how many are known and in which leagues, so a listing that
+/// ran is not read as one that never did. Its cause is the characters
+/// page's sentence too ([`no_characters_cause`]); the command in
+/// parentheses is the terminal's alone.
 pub(crate) fn no_characters_text(
     realm: Option<Realm>,
     league: Option<&str>,
@@ -719,8 +717,8 @@ pub fn status(cx: &Ctx, json: bool) -> Result<()> {
     Ok(())
 }
 
-/// What a granted-skill count counts: entries, not skills (the h2
-/// review: one skill shown twice counted two, under the word "skills").
+/// What a granted-skill count counts: entries, not skills (one skill
+/// shown twice counts two, which the word "skills" would misname).
 const SKILL_ENTRIES: &str = "GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries";
 
 fn counted(n: i64, one: &str, many: &str) -> String {
@@ -729,18 +727,15 @@ fn counted(n: i64, one: &str, many: &str) -> String {
 
 /// `store status`'s text. Each count beyond the first line says what it
 /// counted, where it came from and what the reader can do next (C146, a
-/// count says what it counts): `withheld`, `unlifted` and `granted` named
-/// mechanisms that four seats never resolved (the release seat's
-/// debriefs, answer 8: cli-opus calls 3 and 78, cli-opus-2 call 75,
-/// mcp-opus and mcp-opus-2 call 3).
+/// count says what it counts): a bare `withheld`, `unlifted` or `granted`
+/// names a mechanism a reader cannot resolve.
 pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
     let mut out = format!("{}  ({:.1} MB)\n", st.path, st.bytes as f64 / 1e6);
     // the counts say what they count: `leagues 0` beside tabs in seven
     // leagues, and 3,444 tabs beside `tabs`'s 3,347 in one, read as a
-    // contradiction (the trade seat: cli-opus calls 3, 5, its fault 7;
-    // mcp-opus call 5)
+    // contradiction
     // the kept count names its set, a union across every fetch, beside
-    // the latest list's count and age (C146; the answer-facts map, Root 2)
+    // the latest list's count and age (C146)
     let latest = &st.league_list_latest;
     out.push_str(&format!(
         "responses {}  league ids seen across every league fetch: {} ({})  characters {}  tabs {} (every realm and league)  items {} (+{} removed)  events {}\n",
@@ -776,7 +771,7 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
         ));
     }
     if st.next_fetch_items > 0 {
-        // Stored as unread before this build lifted their key (#279):
+        // Stored as unread before this build lifted their key:
         // not drift, and the way on is the character's fetch, not a
         // newer acq.
         out.push_str(&format!(
@@ -804,12 +799,12 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
 }
 
 /// The way on for the counts stored before this build read their kind
-/// of item list (#279): the command with its argument shown, the ids
+/// of item list: the command with its argument shown, the ids
 /// the sentence says where to find. Its test parses it with an id in
 /// place of `<ids>`, so the printed step runs once filled in.
 const NEXT_FETCH: &str = "acq refresh --characters <ids>";
 
-/// `store status`'s facts line (#172): every realm and league's
+/// `store status`'s facts line: every realm and league's
 /// locations, how many were fetched and their extremes, and when the
 /// oldest of the location lists was seen, in the words the other facts
 /// lines print ([`crate::price_cmd::fetched_words`]) and a search's scope
@@ -1088,8 +1083,8 @@ pub(crate) fn event_summary_text(
         ));
     }
     // a printed command carries the request's values exactly, never
-    // their display rounding (round 3's review, P2: `--hours 0.04`
-    // printed as `--hours 0.0` read an empty window): the hours as the
+    // their display rounding (`--hours 0.04` printed as `--hours 0.0`
+    // reads an empty window): the hours as the
     // request held them, shortest round-trip
     let every = format!(
         "`acq store events {} --hours {} --limit {} --summary --expand`",
@@ -1148,8 +1143,8 @@ fn leagues_text_at(payload: &Value, now: i64) -> String {
         }
         v.as_str().unwrap_or("-").to_string()
     };
-    // when each started, in the one vocabulary of ages (the answer-facts
-    // seat, CLI fault 6: nothing marked the new league)
+    // when each started, in the one vocabulary of ages (without it
+    // nothing marks the new league)
     let started = |l: &Value| match l["startAt"]
         .as_str()
         .and_then(acquisition_store::age::parse_utc)
@@ -1274,7 +1269,7 @@ mod tests {
         ] {
             assert!(text.contains(line), "{text}");
         }
-        // Only the stored counts this build reads (#279): the new
+        // Only the stored counts this build reads: the new
         // sentence alone, no drift line.
         let only_next = status_text(&acquisition_store::Status {
             unlifted_items: 0,
@@ -1286,8 +1281,8 @@ mod tests {
             "{only_next}"
         );
         assert!(!only_next.contains("drift:"), "{only_next}");
-        // The printed step parses once an id fills `<ids>` (the cold
-        // review of #279: the bare flag was a usage error).
+        // The printed step parses once an id fills `<ids>` (the bare flag
+        // is a usage error).
         let filled = NEXT_FETCH.replace("<ids>", "c1");
         assert!(
             <crate::cli::Cli as clap::Parser>::try_parse_from(filled.split(' ')).is_ok(),

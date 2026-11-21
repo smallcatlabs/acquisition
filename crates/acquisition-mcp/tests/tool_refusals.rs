@@ -1,11 +1,9 @@
 //! A tool's refusal, on every tool: the request was wrong, or the store
 //! or policy cannot serve it, and the answer is a result marked
 //! `isError` holding `error` and a `kind` — the instructions' promise,
-//! which the search and pricing tools kept and the store, intent and
-//! plan tools did not (the release seat's rerun, mcp-opus-2 calls 50 and
-//! 46: an unknown account on `tabs`, an uncovered league on
-//! `refresh_plan`, both JSON-RPC `-32603`). A call the server could not
-//! serve stays a JSON-RPC error: a daemon's own refusal carries its
+//! an unknown account on `tabs` and an uncovered league on
+//! `refresh_plan` among them, never a JSON-RPC `-32603`. A call the server
+//! could not serve stays a JSON-RPC error: a daemon's own refusal carries its
 //! closed kind in `data` (C85).
 
 use crate::harness;
@@ -126,7 +124,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     );
 
     // An account no login made, on every tool that selects one: the
-    // protocol's word for it (C121 as amended; #168, MCP call 56), the
+    // protocol's word for it (C121), the
     // known names as accounts.
     for (tool, mut args) in [
         ("tabs", json!({})),
@@ -147,9 +145,8 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     }
 
     // A league the policy does not cover: refused in the planner's words,
-    // which name the leagues it covers, and the plan of each offered (the
-    // league seat, mcp call 9's sibling of cli call 26), sent back as
-    // printed to the same tool.
+    // which name the leagues it covers, and the plan of each offered, sent
+    // back as printed to the same tool.
     let doc = refusal(
         &mut mcp,
         "refresh_plan",
@@ -172,7 +169,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     );
     let planned = mcp.expect_ok("refresh_plan", doc["offers"][0]["request"].clone());
     assert_eq!(planned["plan"]["league"], json!("Standard"), "{planned}");
-    // eleven covered (the review of the fix round, finding 2): ten named
+    // eleven covered: ten named
     // and offered, the rest counted, and the tool that lists them all
     let leagues: serde_json::Map<String, Value> = (1..=11)
         .map(|n| {
@@ -212,8 +209,8 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         "arguments",
     );
 
-    // The schema advertises `null` for every optional argument (the trim
-    // of #104 was declined), so an explicit `null` is an absent one: the
+    // The schema advertises `null` for every optional argument, so an
+    // explicit `null` is an absent one: the
     // same answer, a store tool's refusal included, never `arguments`.
     assert_eq!(
         mcp.expect_ok("list_jobs", json!({ "expand": null })),
@@ -238,7 +235,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     let error = mcp.expect_rpc_error("job_status", json!({ "id": 999 }));
     assert_eq!(error["data"]["kind"], "unknown_job", "{error}");
     assert_eq!(error["message"], "no job 999", "{error}");
-    // the daemon tells the account kinds apart alike (C121 as amended): a
+    // the daemon tells the account kinds apart alike (C121): a
     // name no login made, and an account the index holds with no session
     for (account, kind) in [("GERWARIK", "unknown_account"), (USER, "not_logged_in")] {
         let error = mcp.expect_rpc_error(
@@ -248,7 +245,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         assert_eq!(error["data"]["kind"], kind, "{account}: {error}");
     }
     // the daemon's sentence in the request's words, then this server's
-    // way on by the kind, as for the verbs' own refusal (#178)
+    // way on by the kind, as for the verbs' own refusal
     let error = mcp.expect_rpc_error(
         "submit_job",
         json!({ "kind": "profile", "account": "GERWARIK" }),
@@ -264,12 +261,11 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
 /// C127 (one list of the kinds a client may submit): `submit_job`'s
 /// `kind` names the kinds the daemon's own refusal of an unknown kind
 /// lists, word for word, so the description cannot name a kind the door
-/// refuses (`refresh`, retired) or leave out one it admits (`apply`), as
-/// it once did both.
+/// refuses (`refresh`, retired) or leave out one it admits (`apply`).
 /// Every tool refuses an argument it does not take, as `arguments`, the
 /// key named: walked over `tools/list`, so a tool added without it fails
-/// here and not in a seat (the review of #18's build at c1af7364, P2:
-/// `store_refused` read `{"acount": …}` as no account named).
+/// here and not in a seat (without it, `store_refused` would read
+/// `{"acount": …}` as no account named).
 #[test]
 fn every_tool_refuses_an_argument_it_does_not_take() {
     let scratch = harness::scratch("mcp-unknown-arg");
@@ -327,9 +323,8 @@ fn submit_jobs_kind_names_the_kinds_the_daemons_refusal_lists() {
     assert!(!described.contains("refresh"), "{described}");
 }
 
-/// C164 (#166; the answer-facts seat, MCP run 1 calls 57 to 60: a stash
-/// job for `rh-nope`, a tab the stored listing never named, was admitted
-/// and its 404 spent a request): with the mock's pc Standard listing
+/// C164 (else a stash job for a tab the stored listing never named is
+/// admitted and its 404 spends a request): with the mock's pc Standard listing
 /// stored, `submit_job` of a stash for a tab it does not name is refused
 /// at submit, kind `refused` in the daemon's data with a message (its
 /// words are the CLI's golden `unlisted_tab`'s), and no job is admitted;
@@ -342,7 +337,7 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_at_sub
     harness::login_as_mock(&base);
     let mut mcp = Mcp::start(&base, &[]);
 
-    // C165 (#165, MCP run 1 calls 59 and 60): with no listing stored the
+    // C165: with no listing stored the
     // stash job is admitted and GGG's 404 fails it; its result says the
     // kind, `not_found`, and offers the league's listing as submit_job's
     // own arguments, sent back as printed
@@ -375,8 +370,8 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_at_sub
         json!({ "kind": "stash", "params": { "league": "Standard", "id": "nope" } }),
     );
     assert_eq!(error["data"]["kind"], "refused", "{error}");
-    // the words are held once, by the CLI's golden (C153; the review of
-    // round D, finding 4): here, that the refusal says something
+    // the words are held once, by the CLI's golden (C153): here, that the
+    // refusal says something
     assert!(
         error["message"].as_str().is_some_and(|m| !m.is_empty()),
         "{error}"
@@ -423,8 +418,8 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_at_sub
 
 /// A request the server cannot read gets its own reply, and the server
 /// answers the next call: a query tree of 123 nots or 62 groups, or any
-/// message past 127 JSON levels, was dropped before any tool saw it,
-/// the caller waiting on it (the frontends park, now built). A tool call
+/// message past 127 JSON levels, would be dropped before any tool saw
+/// it, the caller waiting on it. A tool call
 /// nested past the limit is a refusal like any other, `arguments`, its
 /// words naming the limit; a line that is not JSON is a parse error with
 /// a null id.
@@ -470,7 +465,7 @@ fn a_request_the_server_cannot_read_gets_a_reply_and_the_next_call_one_too() {
 /// A line `serde_json` refuses never reaches `rmcp`, which would drop it:
 /// a deep line cut short is a parse error with a null id, even with its
 /// id and method read first, and a line behind a UTF-8 byte order mark
-/// is read as `rmcp` reads it (the 0c review's inputs).
+/// is read as `rmcp` reads it.
 #[test]
 fn a_deep_line_cut_short_and_a_line_behind_a_byte_order_mark_each_get_their_reply() {
     let scratch = harness::scratch("mcp-cut-short");
@@ -566,8 +561,7 @@ fn seed_two(base: &std::path::Path) {
         .unwrap();
 }
 
-/// Round 4 of the 2g build (the refusal shape; the cold reviews' findings
-/// 8 and 6): a refusal's offers are requests an agent sends back as
+/// The refusal shape: a refusal's offers are requests an agent sends back as
 /// printed, and each is answered. An account typed wrong offers the same
 /// call as each name known, on a store tool and on `search` (whose
 /// account is `scope.account`); a target the facts do not hold offers the
@@ -575,7 +569,7 @@ fn seed_two(base: &std::path::Path) {
 /// in, whether the request named the non-default realm and league or the
 /// verb took them from the address and the facts. A tab's id shown offers
 /// the search of what is in it, said in the request's words and never a
-/// terminal's command (#97).
+/// terminal's command.
 #[test]
 fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
     let scratch = harness::scratch("mcp-offers");
@@ -654,8 +648,7 @@ fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
     // an item looked for in the realm and league the request named, and
     // in the realm the verb took when it named the league alone (pc): its
     // show where the facts hold it, which answers; named neither, the
-    // verb reads where the facts hold it (the review of round B's fix
-    // round)
+    // verb reads where the facts hold it
     let bare = answered(
         &mut mcp,
         "price_show",
@@ -684,9 +677,9 @@ fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
     }
 }
 
-/// Round 4's review (P2): the account offer on `search` re-made the
-/// request alone, so a route sent with its `count` came back without it
-/// and the retry lost the comparison a route reports. The offer is the
+/// An account offer on `search` that re-made the request alone would
+/// bring a route sent with its `count` back without it, and the retry
+/// would lose the comparison a route reports. The offer is the
 /// arguments as sent, the account inside the request alone changed: a
 /// route of `count` 12 over one item, retried, still says what it was.
 #[test]
@@ -753,14 +746,13 @@ fn two_items(base: &std::path::Path, account: &str, prefix: &str) {
         .unwrap();
 }
 
-/// Round 4's second fix round (its fix round's review, finding 2): an
-/// account offer for a continuation kept its place, another store's
-/// basis, so Bob's was refused as `basis_changed`. A repeat as another
+/// An account offer for a continuation that kept its place, another
+/// store's basis, would be refused as `basis_changed`. A repeat as another
 /// account drops the place and says it is the request from its start;
 /// with both stores holding items, every offer is answered. And the same
 /// continuation across its own store's change is `basis_changed`,
 /// offering the request from its start in the request's words, never a
-/// terminal's command (#97).
+/// terminal's command.
 #[test]
 fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
     let scratch = harness::scratch("mcp-offer-next");
@@ -809,11 +801,10 @@ fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
     assert_eq!(answer["view"]["rows"]["returned"], 1, "{answer}");
 }
 
-/// The review of #97's Part A, its finding P2: the rule every refusal is
-/// held to (C143, the harness's `c143_a_text_speaks_no_frontend`)
-/// reads an offer's `says` and a refusal's `next`, which are words,
-/// while each offer's `request` stays payload, sent back as printed; a
-/// person's act is a command wherever it stands.
+/// The rule every refusal is held to (C143, the harness's
+/// `c143_a_text_speaks_no_frontend`) reads an offer's `says` and a refusal's
+/// `next`, which are words, while each offer's `request` stays payload, sent
+/// back as printed; a person's act is a command wherever it stands.
 #[test]
 fn the_refusal_rule_reads_an_offers_says_and_the_next_step() {
     let found = |doc: Value| harness::frontend_speech(&doc);
@@ -850,8 +841,7 @@ fn the_refusal_rule_reads_an_offers_says_and_the_next_step() {
     );
 }
 
-/// The review of #97's fix round and Part B, its finding P2: an
-/// answer's generated prose is read wherever it stands — a receipt's
+/// An answer's generated prose is read wherever it stands — a receipt's
 /// `note`, `no_undo` and `clear.says`, an unavailable count's
 /// `reads[].says` — since the rule reads every string but named payload
 /// and stored data, so a field added later is read by default.

@@ -4,9 +4,7 @@
 //! picks no account and compiles no plan itself: it calls the verbs
 //! (C46; `tools/arch-check.sh`'s door grep reads this module). It writes
 //! one kind, the saved search (C167), and that only through the verbs
-//! that write it for every frontend (C168). The briefs are
-//! `roadmap/briefs/4b-build.md` and, for the saved pages,
-//! `roadmap/briefs/4-full-1-pages.md`.
+//! that write it for every frontend (C168).
 //!
 //! # As built
 //!
@@ -30,13 +28,13 @@
 //!   (C140) carries no referrer, so the token never reaches the image
 //!   host, while a form posted to the server itself carries its real
 //!   Origin — under `no-referrer` the Fetch standard serialises a POST's
-//!   Origin as `null`, which the guard refuses (the owner's sitting, its
-//!   first stop). A content policy admits images from that host alone
-//!   and scripts and styles from the server alone.
-//! - **The lifecycle is Ctrl-C** (the brief, Do 4): no lock, no reopen,
-//!   no idle exit — a server launched from a terminal is a dev server.
-//!   The URL is the first line on stdout (`--json`: `{"url": …}`, as
-//!   `auth` prints its URL); `--no-browser` prints it alone.
+//!   Origin as `null`, which the guard refuses. A content policy admits
+//!   images from that host alone and scripts and styles from the server
+//!   alone.
+//! - **The lifecycle is Ctrl-C**: no lock, no reopen, no idle exit — a
+//!   server launched from a terminal is a dev server. The URL is the first
+//!   line on stdout (`--json`: `{"url": …}`, as `auth` prints its URL);
+//!   `--no-browser` prints it alone.
 //! - **The door is the human's** (`Frontend::human("web")`, C88): a
 //!   submit from a page reaches the daemon as every CLI verb does, and
 //!   its jobs say `web` as their channel (C65).
@@ -44,19 +42,16 @@
 //!   account it serves once (C121), and every read and every submit
 //!   names it — a selection's jobs, an apply's — so a login that comes
 //!   or goes while the server runs never moves a page's submit to
-//!   another account than the one the page shows (the review of 4b, its
-//!   first finding). Once is at its start, or, where no account is on
-//!   disk then, at the first request that finds one
-//!   (`roadmap/briefs/99-web-leftovers.md`, Do 1): until then every
-//!   page is the `not_logged_in` refusal with its remedy, so a person
-//!   who ran `acq web` to look at the tool meets the page and signs in;
-//!   from then on the account found is held for the server's life. Only
-//!   a server started with no account named waits so: one named
-//!   (`--account`) is the command's choice, refused
-//!   before the bind whatever the refusal — `not_logged_in` over an
-//!   empty index too, since a login later could make another account
-//!   than the one named (the review at 49a74010, its first finding) —
-//!   as is any refusal with none named but none (several accounts).
+//!   another account than the one the page shows. Once is at its start, or,
+//!   where no account is on disk then, at the first request that finds one:
+//!   until then every page is the `not_logged_in` refusal with its remedy,
+//!   so a person who ran `acq web` to look at the tool meets the page and
+//!   signs in; from then on the account found is held for the server's
+//!   life. Only a server started with no account named waits so: one named
+//!   (`--account`) is the command's choice, refused before the bind
+//!   whatever the refusal — `not_logged_in` over an empty index too, since
+//!   a login later could make another account than the one named — as is
+//!   any refusal with none named but none (several accounts).
 //! - **One corpus, held** (C98, the consumer holds the corpus and checks
 //!   currency before every answer): the server holds the last corpus it
 //!   loaded for the account it serves in the search crate's `Holder`,
@@ -67,270 +62,252 @@
 //!   `application/json` is answered with the document the page renders —
 //!   the answer, the item, the plan, the jobs — which is how the tests
 //!   compare a page with the CLI's `--json` (C11).
-//! - **A refusal's ways on are the pages' own** (#97,
-//!   `roadmap/briefs/97-own-terms.md`): a refusal is the one refusal
-//!   shape spelled by [`Paged`], the page's `Surface`, and the page renders
-//!   that document — its words, its readings, then each offer saying what
-//!   it is: a read as a link to the route that takes it, a write as a
-//!   form posting the fields its route takes with one button in the
-//!   offer's words. A search is a link where the form's own fields fold
+//! - **A refusal's ways on are the pages' own**: a refusal is the one
+//!   refusal shape spelled by [`Paged`], the page's `Surface`, and the page
+//!   renders that document — its words, its readings, then each offer
+//!   saying what it is: a read as a link to the route that takes it, a
+//!   write as a form posting the fields its route takes with one button in
+//!   the offer's words. A search is a link where the form's own fields fold
 //!   back to the request offered; a league's plan, or its tabs, a link to
 //!   that page; the saved ways — the list, an opening, a write, a clear —
-//!   as the C168 section below spells them; any other way on is no
-//!   page's, and nothing on a page stands for it. The plan page prints no
-//!   command to type next: its Apply button is that way on. An answer's
-//!   ways on are spelled the same way (4-full part 1, step 4): every
-//!   request the answer carries — a count's route, a removed id's, a
-//!   value list's rest, a zero answer's offers — and the scope's
-//!   never-fetched tabs go through [`Paged`], a link where a page takes
-//!   one and the count or the words where none does; a continuation, a
-//!   request with its place, is `search?next=` and its token, on an
-//!   answer or a refusal alike. A refusal's words are still the CLI's
-//!   (`failure_words`), in the one `pre` a page holds; every page's own
-//!   text is its document in a player's words (#182).
-//! - **The plan and jobs pages** (`roadmap/briefs/4-full-1-step6-plan-jobs.md`,
-//!   step 6.5d): `GET plan` renders the `Planned` document, `POST apply`
-//!   an apply that sent nothing, and `GET jobs` the `jobs` document, each
-//!   in [`page`] and none through the CLI's text; their JSON is the
-//!   document unchanged. A submit lands at its job: `POST apply`, the
-//!   listings and the league list's fetch answer `303` to `jobs?job=<id>`
-//!   at the row's anchor, with the realm and league the plan or the form
-//!   named, and a jobs URL naming a league links its two place pages.
-//!   `job` names one job as `open` names a parent: read by id, listed or
-//!   not, its row marked, one the list leaves out above the list, and a
-//!   failed or cancelled one's result under it, its failure said by its
-//!   kind and its offers spelled by [`Paged`], which spells a job's result
-//!   as that job opened. The daemon's `error` and the way on's words can
-//!   name a command and stand in the JSON alone. Only a quote the daemon
-//!   refused for want of a session says "not signed in".
-//! - **The place pages** (`roadmap/briefs/4-full-1-step6-places.md`,
-//!   step 6.5a; #248): "Stash tabs" (`GET tabs`) and "Characters" (`GET
+//!   as the C168 section below spells them; any other way on is no page's,
+//!   and nothing on a page stands for it. The plan page prints no command
+//!   to type next: its Apply button is that way on. An answer's ways on are
+//!   spelled the same way: every request the answer carries — a count's
+//!   route, a removed id's, a value list's rest, a zero answer's offers —
+//!   and the scope's never-fetched tabs go through [`Paged`], a link where
+//!   a page takes one and the count or the words where none does; a
+//!   continuation, a request with its place, is `search?next=` and its
+//!   token, on an answer or a refusal alike. A refusal's words are still
+//!   the CLI's (`failure_words`), in the one `pre` a page holds; every
+//!   page's own text is its document in a player's words (#182).
+//! - **The plan and jobs pages**: `GET plan` renders the `Planned`
+//!   document, `POST apply` an apply that sent nothing, and `GET jobs` the
+//!   `jobs` document, each in [`page`] and none through the CLI's text;
+//!   their JSON is the document unchanged. A submit lands at its job: `POST
+//!   apply`, the listings and the league list's fetch answer `303` to
+//!   `jobs?job=<id>` at the row's anchor, with the realm and league the
+//!   plan or the form named, and a jobs URL naming a league links its two
+//!   place pages. `job` names one job as `open` names a parent: read by id,
+//!   listed or not, its row marked, one the list leaves out above the list,
+//!   and a failed or cancelled one's result under it, its failure said by
+//!   its kind and its offers spelled by [`Paged`], which spells a job's
+//!   result as that job opened. The daemon's `error` and the way on's words
+//!   can name a command and stand in the JSON alone. Only a quote the
+//!   daemon refused for want of a session says "not signed in".
+//! - **The place pages**: "Stash tabs" (`GET tabs`) and "Characters" (`GET
 //!   characters`) render the search crate's places document of the URL's
-//!   realm and league, and "Refresh" is gone. The realm and league selects
-//!   are a form of their own and carry no tick: one id can stand in two
-//!   leagues. The list and its buttons are one GET form: `open` names
-//!   each open place, `tab` or `character` each ticked place, and the
-//!   server renders both from the URL (C16). A place's opener sends
-//!   `toggle`, answered `303` to the page with `open` changed, every tick
-//!   kept and no `toggle`, at the parent's head's anchor, so the reader
-//!   stays where they were (#270, #269). A tick under a closed parent
-//!   travels as a hidden field, counted in words on its head. An `open`
-//!   or a tick that names no place of the league is dropped, in the page
-//!   and in every URL it writes. Heads are never windowed. A
+//!   realm and league. The realm and league selects are a form of their own
+//!   and carry no tick: one id can stand in two leagues. The list and its
+//!   buttons are one GET form: `open` names each open place, `tab` or
+//!   `character` each ticked place, and the server renders both from the
+//!   URL (C16). A place's opener sends `toggle`, answered `303` to the page
+//!   with `open` changed, every tick kept and no `toggle`, at the parent's
+//!   head's anchor, so the reader stays where they were. A tick under a
+//!   closed parent travels as a hidden field, counted in words on its head.
+//!   An `open` or a tick that names no place of the league is dropped, in
+//!   the page and in every URL it writes. Heads are never windowed. A
 //!   place's name is its request as a table, spelled by [`Paged`]; a
 //!   folder's is words. "Refresh ticked" sends the form to `plan` as a
 //!   selection, and "Plan under the policy" shows only where the policy
-//!   names the league (C168: no page writes a policy). "List this
-//!   league's stash tabs" (`POST tabs`) and "List characters" (`POST
-//!   characters`) submit the `stashes` and `characters` jobs as `POST
-//!   leagues` submits `leagues` (#189). A league with nothing listed says
-//!   so in words where the table would be, beside the listing (#189).
-//! - **The filter** (`roadmap/briefs/4-full-1-step6-grouped.md`, step
-//!   6.5b): `name` (words the name holds), `type` (a tab's type) and
-//!   `fetched` (`never`) are the places document's filter, read by it and
-//!   refused in its words. Its controls stand under the column heads in
+//!   names the league (C168: no page writes a policy). "List this league's
+//!   stash tabs" (`POST tabs`) and "List characters" (`POST characters`)
+//!   submit the `stashes` and `characters` jobs as `POST leagues` submits
+//!   `leagues`. A league with nothing listed says so in words where the
+//!   table would be, beside the listing.
+//! - **The filter**: `name` (words the name holds), `type` (a tab's type)
+//!   and `fetched` (`never`) are the places document's filter, read by it
+//!   and refused in its words. Its controls stand under the column heads in
 //!   the table's form, whose first button, "Show", sends the form to the
 //!   page again, so Enter in a box keeps every tick and open and never
 //!   plans; the selects' form carries every field but the ticks and the
 //!   opens, hidden. A place's fields stand in one order in every link and
 //!   redirect ([`place_fields`]), a toggle's 303 among them. A place the
-//!   document does not list is not drawn: its ticks travel hidden, and
-//!   its level's one fold line after its rows counts it, those never
-//!   fetched a link to the page under `fetched=never` alone, every open
-//!   and tick kept.
-//! - **The grouped table** (the same brief): `text` is the places
-//!   document's query, `view.value`, `view.sort` and `view.desc` the view
-//!   every place's request takes, with a query or without, carried hidden
-//!   in the list's form; its box stands before "Show". The list is the
-//!   page's one `.window`, inside the form: each place's head, fold line
-//!   and own-matches line in the flow, and each open place that holds no
-//!   places one segment of its items — its route the token of its
-//!   request's first window, its count that window's own
-//!   `total.matched`, its base 0, its first block the server's — and none
-//!   where it holds none. Where the URL opens a place, the document and
-//!   every segment are read inside one `places::steady`, which reads both
-//!   again where the store moved, so the page stands at one basis (the
-//!   review of f36033f5, its first finding). The item columns'
-//!   heads stand once above the places where a segment does, a value's
-//!   head the page ordered by it through the one maker of a change to the
-//!   view, so a sort orders the rows inside each place and the places
-//!   keep their order. `window.js` is the table's, unchanged: it sizes
-//!   the segments while the page is parsed, before the browser scrolls to
-//!   a toggle's anchor, so the head lands in view
+//!   document does not list is not drawn: its ticks travel hidden, and its
+//!   level's one fold line after its rows counts it, those never fetched a
+//!   link to the page under `fetched=never` alone, every open and tick
+//!   kept.
+//! - **The grouped table**: `text` is the places document's query,
+//!   `view.value`, `view.sort` and `view.desc` the view every place's
+//!   request takes, with a query or without, carried hidden in the list's
+//!   form; its box stands before "Show". The list is the page's one
+//!   `.window`, inside the form: each place's head, fold line and
+//!   own-matches line in the flow, and each open place that holds no places
+//!   one segment of its items — its route the token of its request's first
+//!   window, its count that window's own `total.matched`, its base 0, its
+//!   first block the server's — and none where it holds none. Where the URL
+//!   opens a place, the document and every segment are read inside one
+//!   `places::steady`, which reads both again where the store moved, so the
+//!   page stands at one basis. The item columns' heads stand once above the
+//!   places where a segment does, a value's head the page ordered by it
+//!   through the one maker of a change to the view, so a sort orders the
+//!   rows inside each place and the places keep their order. `window.js` is
+//!   the table's, unchanged: it sizes the segments while the page is
+//!   parsed, before the browser scrolls to a toggle's anchor, so the head
+//!   lands in view
 //!   (`a_grouped_page_shows_each_open_places_rows_and_keeps_its_place`).
 //!   Under a query each head says its matches beside its items, and the
 //!   page the league's matches beside the query's own, linking every match
-//!   as a table, and where the rest stand (the document's `elsewhere`,
-//!   each kind and league a link to its place page under the same query
-//!   and view; the page seat after GUI step 6, its fault 1). A rows answer links "by stash tab" and "by character",
-//!   the place page of the league its query fixes or the default's, with
-//!   its canonical text and view ([`by_place`]), none under all realms,
-//!   another membership than live, or a request the form cannot ask; the
-//!   scope's tabs link names `fetched=never`.
+//!   as a table, and where the rest stand (the document's `elsewhere`, each
+//!   kind and league a link to its place page under the same query and
+//!   view). A rows answer links "by stash tab" and "by character", the
+//!   place page of the league its query fixes or the default's, with its
+//!   canonical text and view ([`by_place`]), none under all realms, another
+//!   membership than live, or a request the form cannot ask; the scope's
+//!   tabs link names `fetched=never`.
 //! - **C16, what a page holds** (the owner's reading of the ruling's word
-//!   "state", 2026-11-06): document state is what a page shows, rebuilt
-//!   from its URL; transient state — input not yet sent, the picker's
-//!   asks in flight, the count beside a search's button and its ask in
-//!   flight — is discarded by a reload and labels nothing. A page
-//!   holds no browser storage, no cookie, no history entry of its own and
-//!   no value computed from a document. Every document a page renders
-//!   that carries a version — the answer's and the item's `basis`, the
-//!   plan's `basis`, the saved list's `revision`, the file's, and the
-//!   saved row's `revision`, an answer's opened row or a conflict's
-//!   `current` — is copied into one `<meta name="basis">` line in the
-//!   head, a JSON object keyed by the document, its values the documents'
-//!   own fields ([`page::Head`]): a place page's under a query its
-//!   places document's `basis` (`places`), and where a place is open its
-//!   segment's window's (`rows`), one basis; a page whose documents carry
-//!   none (the form's league list, a place page with no query and nothing
-//!   open, the jobs, a refusal without `current`) carries no line. The scan holds
-//!   a list of words at the tests' recording seam: every page a golden
-//!   records sets no cookie and names only scripts on the harness's one
-//!   list (`SCRIPTS`, `tests/harness/mod.rs`), and
+//!   "state"): document state is what a page shows, rebuilt from its URL;
+//!   transient state — input not yet sent, the picker's asks in flight, the
+//!   count beside a search's button and its ask in flight — is discarded by
+//!   a reload and labels nothing. A page holds no browser storage, no
+//!   cookie, no history entry of its own and no value computed from a
+//!   document. Every document a page renders that carries a version — the
+//!   answer's and the item's `basis`, the plan's `basis`, the saved list's
+//!   `revision`, the file's, and the saved row's `revision`, an answer's
+//!   opened row or a conflict's `current` — is copied into one `<meta
+//!   name="basis">` line in the head, a JSON object keyed by the document,
+//!   its values the documents' own fields ([`page::Head`]): a place page's
+//!   under a query its places document's `basis` (`places`), and where a
+//!   place is open its segment's window's (`rows`), one basis; a page whose
+//!   documents carry none (the form's league list, a place page with no
+//!   query and nothing open, the jobs, a refusal without `current`) carries
+//!   no line. The scan holds a list of words at the tests' recording seam:
+//!   every page a golden records sets no cookie and names only scripts on
+//!   the harness's one list (`SCRIPTS`, `tests/harness/mod.rs`), and
 //!   `c16_no_served_script_names_a_storage_cookie_or_history_api`
 //!   (`tests/web.rs`) fetches each script on it and refuses one that
 //!   contains `localStorage`, `sessionStorage`, `indexedDB`, `caches`,
-//!   `cookie`, `history`, `serviceWorker` or `.storage`. The property is that list, lexical: an API reached by
-//!   another spelling, a cache held in a closure or the DOM, state the
-//!   URL omits, a generation a script keeps for itself is the review's
-//!   (`REVIEW-CHECKLIST.md`, the frontends' rows), until a browser-driven
-//!   check exists.
-//! - **C168, the saved pages** (`roadmap/briefs/4-full-1-pages.md`, Do 4
-//!   to Do 8): `GET saved` is [`saved::list`]'s document, ten rows and the
-//!   whole under `expand=true`, each row with a link that opens it and
-//!   its rename form naming the revision listed and a Clear link. A
-//!   clear asks first (the owner, 2026-11-07, "Clear should ask first"):
-//!   `GET saved/clear?id=` takes an id alone, writes nothing, and shows
-//!   the row with the clear's form at the revision shown and a link back
-//!   to the list, its basis keyed `saved_search`; an id no row has is
-//!   refused, offering the list, and a row this build cannot read is
-//!   asked about like any other, a clear being all a page can do with
-//!   it. `GET
+//!   `cookie`, `history`, `serviceWorker` or `.storage`. The property is
+//!   that list, lexical: an API reached by another spelling, a cache held
+//!   in a closure or the DOM, state the URL omits, a generation a script
+//!   keeps for itself is the review's (`REVIEW-CHECKLIST.md`, the
+//!   frontends' rows), until a browser-driven check exists.
+//! - **C168, the saved pages**: `GET saved` is [`saved::list`]'s document,
+//!   ten rows and the whole under `expand=true`, each row with a link that
+//!   opens it and its rename form naming the revision listed and a Clear
+//!   link. A clear asks first (the owner: "Clear should ask first"): `GET
+//!   saved/clear?id=` takes an id alone, writes nothing, and shows the row
+//!   with the clear's form at the revision shown and a link back to the
+//!   list, its basis keyed `saved_search`; an id no row has is refused,
+//!   offering the list, and a row this build cannot read is asked about
+//!   like any other, a clear being all a page can do with it. `GET
 //!   saved/open?id=` takes an id alone and writes nothing: the row
 //!   [`saved::show`] finds is used only where its id is the URL's (a name
 //!   may have an id's shape; one rule with the answer page's), and the
 //!   answer is `303` to the search its request folds to, carrying `saved`
-//!   and `saved_revision`, the row's revision as opened. `POST saved`
-//!   takes `id`, `if_revision`, `name`, `text`, `realm` and `membership`
-//!   into the verbs' one `Set` under `Expect::or(if_revision,
-//!   Expect::Create)`, and `POST saved/clear` `id` and `if_revision`,
-//!   both required, under `Expect::Exactly`: a field is present where the
-//!   body names it, empty or not, and no page writes at `Expect::Current`
-//!   (a browser is where a stale view could clobber). A write answers the
-//!   browser `303` to the list, so a reload asks the list again and never
-//!   posts again (the owner, 2026-11-07, "Redirect to the list"); its
-//!   receipt is the JSON answer, the undo spelled as the page's form, and
-//!   no page renders a receipt. A write way is spelled `{"post", "fields"}`
-//!   and rendered as a button; a read way as a link. An answer opened
-//!   from a saved search says so above it, and saves over that row at the
-//!   revision its URL names, so a write between is refused as stale and
-//!   offered again over the row as it stands.
-//! - **The count** (4-full part 1, step 6.2, #245, the design's §4): every
-//!   form that submits to `search` carries `data-count` and, beside its
-//!   button, the words "Matches:" and an `<output>`, then a hidden
-//!   undecided part with its own. `count.js` asks `GET count` with the
-//!   fields the form would send, 300 ms after the last change, a new ask
-//!   aborting the one in flight, and writes the answer's two numbers
-//!   alone, a dash before and between; a refusal's words are the output's
-//!   title. `count` folds as `search` does and answers the answer
-//!   document with no row and no order ([`count`]), so its number is the
-//!   one Search would give now. The picker announces its write with a
+//!   and `saved_revision`, the row's revision as opened. `POST saved` takes
+//!   `id`, `if_revision`, `name`, `text`, `realm` and `membership` into the
+//!   verbs' one `Set` under `Expect::or(if_revision, Expect::Create)`, and
+//!   `POST saved/clear` `id` and `if_revision`, both required, under
+//!   `Expect::Exactly`: a field is present where the body names it, empty
+//!   or not, and no page writes at `Expect::Current` (a browser is where a
+//!   stale view could clobber). A write answers the browser `303` to the
+//!   list, so a reload asks the list again and never posts again (the
+//!   owner: "Redirect to the list"); its receipt is the JSON answer, the
+//!   undo spelled as the page's form, and no page renders a receipt. A
+//!   write way is spelled `{"post", "fields"}` and rendered as a button; a
+//!   read way as a link. An answer opened from a saved search says so above
+//!   it, and saves over that row at the revision its URL names, so a write
+//!   between is refused as stale and offered again over the row as it
+//!   stands.
+//! - **The count**: every form that submits to `search` carries
+//!   `data-count` and, beside its button, the words "Matches:" and an
+//!   `<output>`, then a hidden undecided part with its own. `count.js` asks
+//!   `GET count` with the fields the form would send, 300 ms after the last
+//!   change, a new ask aborting the one in flight, and writes the answer's
+//!   two numbers alone, a dash before and between; a refusal's words are
+//!   the output's title. `count` folds as `search` does and answers the
+//!   answer document with no row and no order ([`count`]), so its number is
+//!   the one Search would give now. The picker announces its write with a
 //!   bubbling `input`; neither script names the other.
-//! - **The table** (4-full part 1, step 6.4b,
-//!   `roadmap/briefs/4-full-1-step6-table.md`, from the window spike,
-//!   `audits/web-2026-11/spike/`): an answer asked as a table
-//!   (`view.fields=icon`) is every matching row in one scrolling page at
-//!   one row height, the height and the block's rows written on the table
-//!   ([`page::ROW_HEIGHT`], [`page::BLOCK_ROWS`]). Its line says how many
-//!   items it holds and in what order; `view.limit` is the cards' and is
-//!   not read for it. One maker gives a window's rows ([`Web::window`],
-//!   [`window_request`]): the page's request at its answer's basis, its
-//!   place the window's offset into the whole order and its limit the
-//!   window's count, `item` among its fields for the price. The page
-//!   answers its request and its first block over one corpus, so both
-//!   stand at one basis, and renders that block, which `window.js` takes
-//!   as one it holds; the script asks the rest as they near the viewport.
-//!   `GET rows?next=<token>&offset=<n>&count=<n>` answers a window, the
-//!   token the first window's request: the rows alone as HTML, the
-//!   window request's answer document as JSON ([`rows`]). It refuses with
-//!   400, in the one refusal shape, a token no answer printed, an offset
-//!   or a count that is no whole number, a count of none or past the item
-//!   rows' bound, and a window that runs past the rows; a basis moved
-//!   since the page is the search's refusal with 409, and the script
-//!   loads the page again. A table reached by a continuation and loaded
-//!   again after its basis moved meets the continuation's own refusal of
-//!   a moved basis, as a cards page does.
-//! - **The view's links** (4-full part 1, step 6.4c,
-//!   `roadmap/briefs/4-full-1-step6-sort.md`): nothing is typed to sort.
-//!   The URL names the rows' values by `view.value`, one each in order as
-//!   the CLI's `--value`, beside `view.sort` and `view.desc`; no control
-//!   of a form writes the three ([`form::UNTYPED`]), and the query box
-//!   carries what the URL named of them, hidden, so an edited query keeps
-//!   them. One maker gives a change to the view ([`view_link`]): the same
-//!   page ordered by one value, largest first or the other way where the
-//!   rows are ordered by it, the value joining the answer's list where the
-//!   list lacks it and no link where the list is full. Each value's head
-//!   of the table is that link, the ordered one marked by an arrow and by
-//!   words a screen reader gets. So is each number of an answer's card
-//!   that a value reads (`page::card`): a line whole by its `value`, the
-//!   value a trade filter on its stat compares, so a stat the form
-//!   filtered lands on its own column; a displayed row's number by the
-//!   field it shows, the row in the search crate's pieces
-//!   (`acquisition_search::show::Displays`), never read again from its
-//!   text. A number whose value the view holds is marked `valued`, the
-//!   sort's as its head is; the item page has no view, and its numbers are
-//!   words.
-//! - **An item under its row** (4-full part 1, step 6.5c,
-//!   `roadmap/briefs/4-full-1-step6-row.md`; #270): `item` names an
-//!   opened row by its item's id, each once, as `open` names a place.
-//!   `search`, `tabs` and `characters` take it off before the fold
-//!   ([`opening`]), with `at` and `toggle_item`. The rows a page keeps are
-//!   those the search crate places in its order (`acquisition_search::indices`,
-//!   the one maker of the order): the table's request on `search`, each
-//!   drawn open place's on a place page; one no order holds is dropped,
-//!   in the page and every URL it writes, and a page of cards keeps none
-//!   (cards cut nothing). A change to the view keeps each kept row; "as
-//!   cards", the query box, the save form, the selects' form and the ways
-//!   to the place pages carry none. **The cut** ([`cut`], one maker, and
-//!   `page::segments`, one renderer, for the flat table and each open
-//!   place): a segment ends at an opened row, the row's card stands in
-//!   the page's flow after it, and a segment of the same route goes on
-//!   from the next row, its base that row's index; the server renders
-//!   each segment's first block, the block holding its opened row and the
-//!   block holding `at`, every one over the page's one corpus, so one
-//!   basis. No row is marked open: its card is the mark, with its "Close".
-//!   **The opener** is a toggle, as a place's is: a row's name is a button
-//!   sending `toggle_item` with its id inside the page's one GET form —
-//!   the place pages' list form, which carries the kept rows hidden, and
-//!   on `search` a form around the table holding the page's fields hidden
-//!   — answered `303` to the page with the id added, or taken out where
-//!   open, and `at`, at the row's anchor (`page::row_anchor`). `at` is one
-//!   load's landing, never state: no form writes it and no link carries
-//!   a page's own on, and one no order holds is ignored. `window.js` seeks the URL's anchor inside the
-//!   table once its segments are sized and before its first fill, so the
-//!   fill keeps the block the server rendered for it; a row's anchor
-//!   stands below the sticky heads by its scroll margin. **The card** is
-//!   `page::card` of the row's `item`, which every window asks, with the
-//!   page's view links, so its numbers add columns. **Its place**, on
-//!   every card and on the item page, is a link ([`Web::place_links`]):
-//!   the place page of its realm and league with the place and each
-//!   holding it open (`Places::holders`), no query, landing at the
-//!   card's own row (`at`, the one link that writes one, for another
-//!   page's one load; the page seat after GUI step 6, its fault 7), or at
-//!   the place's head for a removed item, which its live rows lack; a
-//!   place no places document lists stands as words. **Its query**: an
-//!   opened row's card links `item/<id>?against=` the page's canonical
-//!   text, where it has one; [`item`] takes `against` as `acq show
-//!   --against` does, through `show::against`, and its JSON is that
-//!   document. The way back is the row the card stands under.
-//! - **What a page keeps of its input** (the same brief, #186 and #190):
-//!   the query box carries one `page::BoxView` — the order and values the
-//!   URL named, the table, the rows' number — made from an answer's rows,
-//!   and a line by the save form names each part of it a save leaves
-//!   behind, a saved search being its query and its scope (C167). A
-//!   refused `GET search` whose URL names `text` renders the refusal, then
-//!   the box holding that text and the view as sent; its status and its
-//!   JSON are the refusal's.
+//! - **The table**: an answer asked as a table (`view.fields=icon`) is
+//!   every matching row in one scrolling page at one row height, the height
+//!   and the block's rows written on the table ([`page::ROW_HEIGHT`],
+//!   [`page::BLOCK_ROWS`]). Its line says how many items it holds and in
+//!   what order; `view.limit` is the cards' and is not read for it. One
+//!   maker gives a window's rows ([`Web::window`], [`window_request`]): the
+//!   page's request at its answer's basis, its place the window's offset
+//!   into the whole order and its limit the window's count, `item` among
+//!   its fields for the price. The page answers its request and its first
+//!   block over one corpus, so both stand at one basis, and renders that
+//!   block, which `window.js` takes as one it holds; the script asks the
+//!   rest as they near the viewport. `GET
+//!   rows?next=<token>&offset=<n>&count=<n>` answers a window, the token
+//!   the first window's request: the rows alone as HTML, the window
+//!   request's answer document as JSON ([`rows`]). It refuses with 400, in
+//!   the one refusal shape, a token no answer printed, an offset or a count
+//!   that is no whole number, a count of none or past the item rows' bound,
+//!   and a window that runs past the rows; a basis moved since the page is
+//!   the search's refusal with 409, and the script loads the page again. A
+//!   table reached by a continuation and loaded again after its basis moved
+//!   meets the continuation's own refusal of a moved basis, as a cards page
+//!   does.
+//! - **The view's links**: nothing is typed to sort. The URL names the
+//!   rows' values by `view.value`, one each in order as the CLI's
+//!   `--value`, beside `view.sort` and `view.desc`; no control of a form
+//!   writes the three ([`form::UNTYPED`]), and the query box carries what
+//!   the URL named of them, hidden, so an edited query keeps them. One
+//!   maker gives a change to the view ([`view_link`]): the same page
+//!   ordered by one value, largest first or the other way where the rows
+//!   are ordered by it, the value joining the answer's list where the list
+//!   lacks it and no link where the list is full. Each value's head of the
+//!   table is that link, the ordered one marked by an arrow and by words a
+//!   screen reader gets. So is each number of an answer's card that a value
+//!   reads (`page::card`): a line whole by its `value`, the value a trade
+//!   filter on its stat compares, so a stat the form filtered lands on its
+//!   own column; a displayed row's number by the field it shows, the row in
+//!   the search crate's pieces (`acquisition_search::show::Displays`),
+//!   never read again from its text. A number whose value the view holds is
+//!   marked `valued`, the sort's as its head is; the item page has no view,
+//!   and its numbers are words.
+//! - **An item under its row**: `item` names an opened row by its item's
+//!   id, each once, as `open` names a place. `search`, `tabs` and
+//!   `characters` take it off before the fold ([`opening`]), with `at` and
+//!   `toggle_item`. The rows a page keeps are those the search crate places
+//!   in its order (`acquisition_search::indices`, the one maker of the
+//!   order): the table's request on `search`, each drawn open place's on a
+//!   place page; one no order holds is dropped, in the page and every URL
+//!   it writes, and a page of cards keeps none (cards cut nothing). A
+//!   change to the view keeps each kept row; "as cards", the query box, the
+//!   save form, the selects' form and the ways to the place pages carry
+//!   none. **The cut** ([`cut`], one maker, and `page::segments`, one
+//!   renderer, for the flat table and each open place): a segment ends at
+//!   an opened row, the row's card stands in the page's flow after it, and
+//!   a segment of the same route goes on from the next row, its base that
+//!   row's index; the server renders each segment's first block, the block
+//!   holding its opened row and the block holding `at`, every one over the
+//!   page's one corpus, so one basis. No row is marked open: its card is
+//!   the mark, with its "Close". **The opener** is a toggle, as a place's
+//!   is: a row's name is a button sending `toggle_item` with its id inside
+//!   the page's one GET form — the place pages' list form, which carries
+//!   the kept rows hidden, and on `search` a form around the table holding
+//!   the page's fields hidden — answered `303` to the page with the id
+//!   added, or taken out where open, and `at`, at the row's anchor
+//!   (`page::row_anchor`). `at` is one load's landing, never state: no form
+//!   writes it and no link carries a page's own on, and one no order holds
+//!   is ignored. `window.js` seeks the URL's anchor inside the table once
+//!   its segments are sized and before its first fill, so the fill keeps
+//!   the block the server rendered for it; a row's anchor stands below the
+//!   sticky heads by its scroll margin. **The card** is `page::card` of the
+//!   row's `item`, which every window asks, with the page's view links, so
+//!   its numbers add columns. **Its place**, on every card and on the item
+//!   page, is a link ([`Web::place_links`]): the place page of its realm
+//!   and league with the place and each holding it open
+//!   (`Places::holders`), no query, landing at the card's own row (`at`,
+//!   the one link that writes one, for another page's one load), or at the
+//!   place's head for a removed item, which its live rows lack; a place no
+//!   places document lists stands as words. **Its query**: an opened row's
+//!   card links `item/<id>?against=` the page's canonical text, where it
+//!   has one; [`item`] takes `against` as `acq show --against` does,
+//!   through `show::against`, and its JSON is that document. The way back
+//!   is the row the card stands under.
+//! - **What a page keeps of its input** (#190): the query box carries one
+//!   `page::BoxView` — the order and values the URL named, the table, the
+//!   rows' number — made from an answer's rows, and a line by the save form
+//!   names each part of it a save leaves behind, a saved search being its
+//!   query and its scope (C167). A refused `GET search` whose URL names
+//!   `text` renders the refusal, then the box holding that text and the
+//!   view as sent; its status and its JSON are the refusal's.
 
 mod form;
 mod page;
@@ -655,8 +632,8 @@ impl Web {
         )
     }
 
-    /// A refusal's document, in the one refusal shape (round 4 of the 2g
-    /// build) as a page spells it ([`Paged`]).
+    /// A refusal's document, in the one refusal shape as a page spells it
+    /// ([`Paged`]).
     fn refusal(&self, failure: &Failure) -> Value {
         match failure {
             Failure::Usage(words) => json!({ "error": words, "kind": "usage" }),
@@ -673,7 +650,7 @@ impl Web {
 
     /// [`Web::failed`], the page's own `after` rendered under the refusal:
     /// a refused search's query box (#190), whose count its script writes,
-    /// so the page loads it (the review of 306e0abd, its first finding).
+    /// so the page loads it.
     /// JSON and status are the refusal's.
     fn failed_then(
         &self,
@@ -751,7 +728,7 @@ impl Web {
     /// none where no row stands at that id: `show` reads an id or a name,
     /// and a name may have an id's shape, so a row found by its name under
     /// another id — or several rows of that name — is no row at `id`
-    /// (Do 5, one rule for every page that resolves a URL's id). Any other
+    /// (one rule for every page that resolves a URL's id). Any other
     /// failure is the page's refusal.
     fn saved_at(&self, id: &str) -> Result<Option<SavedRow>, Failure> {
         match saved::show(&self.cx.frontend, id) {
@@ -779,8 +756,7 @@ impl Web {
     /// the form's default, so every link made before the form carried one
     /// stands as it was. None for any other (a site search, a tree, another
     /// account or view: a crossed table, a sum, an explained node): no page
-    /// takes it (the review of #97's build, its second finding: a count
-    /// was dropped).
+    /// takes it (else a count is dropped).
     fn asked_by_the_form(&self, request: &Request) -> Option<Vec<(&'static str, String)>> {
         if !request
             .scope
@@ -828,7 +804,7 @@ impl Web {
             // `--count` takes it, joined, since the field's list reads a
             // narrowing's own `line:` after another's; an order it cannot
             // read (a field after a narrowing) folds back to another count
-            // and is offered nowhere (the review at 3ce22d81)
+            // and is offered nowhere
             acquisition_search::answer::Shape::Counts(counts) => {
                 fields.push(("view.count", counts.lists().join(",")));
                 if let Some(limit) = counts.limit {
@@ -893,7 +869,7 @@ impl Web {
         )?)
     }
 
-    /// Each place's link as a card shows it (step 6.5c, Decision 6): the
+    /// Each place's link as a card shows it: the
     /// place page of its realm and league, its kind's, with the place and
     /// each place holding it open ([`Places::holders`]), no query, and no
     /// landing, which the card adds for its own item ([`page::card`]);
@@ -1000,8 +976,8 @@ impl Web {
         };
         // the league list never fetched (a store with no session cannot
         // fetch one): the leagues the store holds places in, so a page
-        // over a copied store still moves between its leagues (the page
-        // seat after GUI step 6, its fault 1); none where it holds none
+        // over a copied store still moves between its leagues; none where
+        // it holds none
         if list.fetched_at.is_none() {
             let leagues: Vec<(String, bool)> = held
                 .into_iter()
@@ -1023,8 +999,8 @@ impl Web {
     }
 }
 
-/// A page's side of the one refusal shape (#97, each surface spells its
-/// own ways on): its words the CLI's, and a way on a link to the page
+/// A page's side of the one refusal shape (each surface spells its own
+/// ways on): its words the CLI's, and a way on a link to the page
 /// that takes it — a search the form can ask, its own fields; a league's
 /// plan or its tabs and characters; the saved list, whole where asked
 /// and for one row's show (no page shows one row alone); a saved search
@@ -1042,7 +1018,7 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
     /// The CLI's words, but where the refusal's offers are its remedy and
     /// a page takes each (a plan whose policy moved, a league the policy
     /// does not cover among ten or fewer): the cause alone, its ways on the
-    /// links beside it (the review of #97's build, its first finding).
+    /// links beside it.
     fn words(&self, e: &anyhow::Error) -> String {
         crate::terminal::failure_words_by(e, |fault| match fault {
             Fault::Replan { .. } => fault.to_string(),
@@ -1093,7 +1069,7 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
                 realm,
                 league: named,
             } if self.web.serves(account) => self.web.link("tabs", &league(realm, named)),
-            // a job's result, under its row on the jobs page (step 6.5d)
+            // a job's result, under its row on the jobs page
             Way::Result { id } => format!(
                 "{}#{}",
                 self.web.link("jobs", &[("job", id.to_string())]),
@@ -1246,7 +1222,7 @@ fn realm_of(fields: &[(String, String)]) -> Result<Realm, Failure> {
 
 // ---- the search pages ---------------------------------------------------------------------------
 
-/// The form (Do 6), its league list the counts by league over the corpus.
+/// The form, its league list the counts by league over the corpus.
 async fn home(
     State(web): State<Arc<Web>>,
     Query(fields): Query<Vec<(String, String)>>,
@@ -1273,12 +1249,12 @@ async fn home(
     )
 }
 
-/// The answer (Do 6): a form submission folded into the trade JSON, the
+/// The answer: a form submission folded into the trade JSON, the
 /// query box's text or the trade box's site search (#188), or a
 /// continuation's `next`, answered over the held corpus. A site search
 /// whose URL names another realm than the one the page carried runs in
 /// the URL's, and the page says so above the answer. With `saved` and
-/// `saved_revision` (4-full part 1, step 3, Do 7), read apart from the
+/// `saved_revision`, read apart from the
 /// fold, the page says which saved search it was opened from and saves
 /// over it at that revision; the JSON is the answer alone.
 async fn search(
@@ -1287,8 +1263,8 @@ async fn search(
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
     let json = wants_json(&headers);
-    // the opened rows, the landing and a row's toggle (step 6.5c), taken
-    // off before the fold as `saved` is
+    // the opened rows, the landing and a row's toggle, taken off before
+    // the fold as `saved` is
     let (fields, opening) = opening(fields);
     if let Some((items, id)) = opening.toggled() {
         let mut to: Vec<(&str, String)> = fields
@@ -1389,7 +1365,7 @@ async fn search(
             _ => None,
         };
         // the realm's leagues on disk, where a rows answer of one realm's
-        // live items links its place pages (Decision 7)
+        // live items links its place pages
         let held = match (&answer.view, &answer.scope.realm) {
             (
                 acquisition_search::answer::ViewOut::Rows(_),
@@ -1409,7 +1385,7 @@ async fn search(
         Ok((answer, ..)) if json => document(&answer),
         Ok((answer, window, opened, carried, continued, request, held, kept, placed)) => {
             // the fields every link of the page writes: as sent, the
-            // opened rows the table holds (step 6.5c), no landing
+            // opened rows the table holds, no landing
             let sent: Fields = sent
                 .into_iter()
                 .chain(kept.into_iter().map(|id| ("item".to_string(), id)))
@@ -1496,8 +1472,7 @@ async fn search(
 /// A request's fields as a page sends them, in order.
 type Fields = Vec<(String, String)>;
 
-/// The plain links beside a rows answer that has a row (4-full part 1,
-/// step 5, and the page seat of 2026-11-08, its fault 6): the same answer
+/// The plain links beside a rows answer that has a row: the same answer
 /// the other way — cards or the table — and, on a continuation's page,
 /// the same search from its first rows. Reached by the form's fields, the
 /// other way is the page's own URL, its fields as sent, with
@@ -1529,7 +1504,7 @@ fn rows_links(
         _ => return none,
     };
     let Some(continued) = continued else {
-        // cards cut nothing: the other way names no opened row (6.5c)
+        // cards cut nothing: the other way names no opened row
         let mut fields: Vec<(&str, &str)> = sent
             .iter()
             .filter(|(k, _)| k != "view.fields" && k != "item")
@@ -1576,13 +1551,12 @@ fn rows_links(
     }
 }
 
-/// The ways from a rows answer to the place pages (step 6.5b, Decision
-/// 7): "by stash tab" and "by character", each the place page of the one
-/// league the query fixes, else the default's, with the canonical text
-/// and the view. None where the form cannot ask the request, under all
-/// realms, or under a membership other than live: a place page is one
-/// realm's live items. A league is named as the store holds it (`held`,
-/// the realm's leagues on disk).
+/// The ways from a rows answer to the place pages: "by stash tab" and "by
+/// character", each the place page of the one league the query fixes, else
+/// the default's, with the canonical text and the view. None where the form
+/// cannot ask the request, under all realms, or under a membership other
+/// than live: a place page is one realm's live items. A league is named as
+/// the store holds it (`held`, the realm's leagues on disk).
 fn by_place(
     web: &Web,
     request: &Request,
@@ -1634,18 +1608,18 @@ fn by_place(
     .collect()
 }
 
-/// The one maker of a change to the view (4-full part 1, step 6.4c,
-/// Decision 2): the same page ordered by `value`, largest first, or the
-/// other way where its rows are already ordered by it. A value among the
-/// answer's values leaves the list as the page's URL names it; another
-/// names the answer's list with it added at its end, which the sort then
-/// orders by. A value outside a full list ([`VALUES`]) gets no link, since
-/// the search refuses a list past it. Spelt as [`rows_links`] spells the
-/// other presentation: reached by the form's fields, the page's own URL,
-/// its fields as sent with the view's order and list replaced; reached by
-/// a continuation, the continued search from its start as the form would
-/// ask it, the saved search the page was opened from carried; none where
-/// the form cannot ask it. Heads and a card's numbers both call it.
+/// The one maker of a change to the view: the same page ordered by `value`,
+/// largest first, or the other way where its rows are already ordered by
+/// it. A value among the answer's values leaves the list as the page's URL
+/// names it; another names the answer's list with it added at its end,
+/// which the sort then orders by. A value outside a full list ([`VALUES`])
+/// gets no link, since the search refuses a list past it. Spelt as
+/// [`rows_links`] spells the other presentation: reached by the form's
+/// fields, the page's own URL, its fields as sent with the view's order and
+/// list replaced; reached by a continuation, the continued search from its
+/// start as the form would ask it, the saved search the page was opened
+/// from carried; none where the form cannot ask it. Heads and a card's
+/// numbers both call it.
 ///
 /// [`VALUES`]: acquisition_search::answer::VALUES
 fn view_link(
@@ -1700,7 +1674,7 @@ fn view_link(
             view.sort = Some(value.to_string());
             view.desc = desc;
             listed(&mut view.values);
-            // a change to the view keeps each opened row (step 6.5c)
+            // a change to the view keeps each opened row
             let saved = carried_on(sent, true);
             format!(
                 "{}{saved}",
@@ -1715,12 +1689,12 @@ fn view_link(
     })
 }
 
-/// A change to the view by one value (step 6.4c, Decision 2): the rows
+/// A change to the view by one value: the rows
 /// ordered by it, largest first or the other way where they are ordered
 /// by it so, and the list of values to name where the view lacks it —
 /// the answer's with it added at the end. None where the list is full
 /// ([`VALUES`]). [`view_link`] spells it for an answer, a place page
-/// for its own fields (step 6.5b).
+/// for its own fields.
 ///
 /// [`VALUES`]: acquisition_search::answer::VALUES
 struct ViewChange {
@@ -1753,8 +1727,7 @@ fn view_change(rows: &acquisition_search::answer::RowsOut, value: &str) -> Optio
 
 /// What a link spelt from a continuation carries of the page beside its
 /// request, as query fields to append: the saved search it was opened
-/// from, and, where `rows`, the opened rows the page keeps (step 6.5c,
-/// Decision 1; the review of 306e0abd, its second finding). One list for
+/// from, and, where `rows`, the opened rows the page keeps. One list for
 /// every such link, so no link of the page drops what another keeps.
 fn carried_on(sent: &Fields, rows: bool) -> String {
     sent.iter()
@@ -1806,7 +1779,7 @@ fn opened_from(fields: Vec<(String, String)>) -> Result<(Fields, Option<(String,
     Ok((fields, from))
 }
 
-/// What a page's URL opens of its rows (4-full part 1, step 6.5c): each
+/// What a page's URL opens of its rows: each
 /// opened row by its item's id (`item`, each once, in the URL's order),
 /// the row one load lands at (`at`, never carried on), and a row's toggle
 /// (`toggle_item`). `search`, `tabs` and `characters` take them off their
@@ -1858,7 +1831,7 @@ impl Opening {
 
     /// The opened rows the order of `table` holds, each with its index,
     /// in the URL's order, and the landing row's index where the order
-    /// holds it (Decision 2): one order, the search crate's.
+    /// holds it: one order, the search crate's.
     fn held(
         &self,
         corpus: &acquisition_search::Corpus,
@@ -1885,7 +1858,7 @@ impl Opening {
 /// row's index.
 type Held = (Vec<(String, usize)>, Option<usize>);
 
-/// A window's segments over `corpus` (step 6.5c, Decision 3): the order of
+/// A window's segments over `corpus`: the order of
 /// `table`'s `count` rows cut after each opened row, and in each segment
 /// the blocks the server renders — its first, the block holding its
 /// opened row, and the block holding the landing row `at` — each the
@@ -1955,8 +1928,8 @@ fn place_key(place: &acquisition_search::corpus::Place) -> PlaceKey {
     )
 }
 
-/// One item (Do 6): `show`'s document, with its art and its badges. With
-/// `against`, a query's text (step 6.5c, Decision 7), the document is
+/// One item: `show`'s document, with its art and its badges. With
+/// `against`, a query's text, the document is
 /// `show --against`'s, through `show::against`: the item, and beside it
 /// the query's outcome on it, term by term.
 async fn item(
@@ -2077,7 +2050,7 @@ async fn rows(
     }
 }
 
-/// The count beside a search's button (4-full part 1, step 6.2, #245):
+/// The count beside a search's button:
 /// a form's fields folded as [`search`] folds them, the saved search an
 /// answer was opened from set aside, and answered with no row and no
 /// order ([`form::fold_count`]): the answer document, JSON whatever
@@ -2098,7 +2071,7 @@ async fn count(State(web): State<Arc<Web>>, Query(fields): Query<Fields>) -> Res
     }
 }
 
-/// The picker's listing (Do 3): the stat vocabulary for the words asked.
+/// The picker's listing: the stat vocabulary for the words asked.
 async fn stats(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -2117,7 +2090,7 @@ async fn stats(
 
 // ---- the place pages ----------------------------------------------------------------------------
 
-/// Which places a place page lists (step 6.5a): a league's stash tabs or
+/// Which places a place page lists: a league's stash tabs or
 /// its characters, each page its own route, ticks and listing job.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Listed {
@@ -2165,7 +2138,7 @@ async fn characters(
     places(web, headers, fields, Listed::Characters).await
 }
 
-/// A place page (steps 6.5a and 6.5b; the design's §3): the places
+/// A place page: the places
 /// document of the URL's realm and league, asked its query and filter,
 /// the places the URL opens open and the places it ticks ticked. A
 /// `toggle` is the opener of one place: answered 303 to the page with
@@ -2181,7 +2154,7 @@ async fn places(
     listed: Listed,
 ) -> Response {
     let title = listed.title();
-    // the opened rows, the landing and a row's toggle (step 6.5c)
+    // the opened rows, the landing and a row's toggle
     let (fields, opening) = opening(fields);
     let toggled = opening.toggled().map(|(items, id)| (items, id.to_string()));
     let sent_items = opening.items.clone();
@@ -2225,7 +2198,7 @@ async fn places(
                 let openable = openable(&places);
                 // a toggle that names a place answers with a redirect and
                 // draws no segment; one that names none is dropped, as the
-                // redirect drops it (the review of fc0f2f63)
+                // redirect drops it
                 if pick(&sent, "toggle").is_some_and(|t| openable.contains(&t))
                     || opening.toggle.is_some()
                 {
@@ -2406,7 +2379,7 @@ async fn places(
     };
     let hidden_view: Vec<(&'static str, String)> = shown.view_fields();
     // an opened row's place: this page with it and its holders open, no
-    // query, the card adding its landing (Decision 6)
+    // query, the card adding its landing
     let placed = |place: &acquisition_search::corpus::Place| {
         let kind = match listed {
             Listed::Tabs => "stash",
@@ -2437,9 +2410,9 @@ async fn places(
             ),
         ))
     };
-    // where the query's other matches stand (the page seat after GUI step
-    // 6, its fault 1): each kind and league a link to its place page under
-    // the same query and view, the characters with no league words alone
+    // where the query's other matches stand: each kind and league a link to
+    // its place page under the same query and view, the characters with no
+    // league words alone
     let elsewhere: Vec<Option<String>> = places
         .query
         .iter()
@@ -2538,10 +2511,9 @@ fn named_places(fields: &[(String, String)], name: &str, among: &[&str]) -> Vec<
 }
 
 /// Each open place the page draws that shows items, as segments of the
-/// page's one window over `corpus` (Decision 5): the token of its
-/// request's first window, its count that window's own `total.matched`
-/// (the designer's read of the plan, its second change), cut after each
-/// row `opening` opens there (6.5c), the blocks the server's; none where
+/// page's one window over `corpus`: the token of its request's first
+/// window, its count that window's own `total.matched`, cut after each
+/// row `opening` opens there, the blocks the server's; none where
 /// it holds none. Beside them, the opened rows some drawn place's order
 /// holds, in the URL's order: the rest are dropped.
 #[allow(clippy::type_complexity)]
@@ -2611,7 +2583,7 @@ fn drawn_items<'a>(
 }
 
 /// What a place page's URL asks of its places beside the opens and the
-/// ticks (step 6.5b): the query's text, the filter, read as the places
+/// ticks: the query's text, the filter, read as the places
 /// document reads it, and the view every place's request takes.
 #[derive(Clone, Default)]
 struct Shown {
@@ -2670,7 +2642,7 @@ impl Shown {
 }
 
 /// What a place page's URL marks beside what it asks: the substashes
-/// box, the open places, the opened rows (step 6.5c) and the ticks.
+/// box, the open places, the opened rows and the ticks.
 #[derive(Clone, Copy, Default)]
 struct Marked<'a> {
     deep: bool,
@@ -2681,8 +2653,8 @@ struct Marked<'a> {
 
 /// A place page's URL fields, in the one order every link and redirect
 /// writes them: realm, league, the query's text, the filter's fields, the
-/// view's, the substashes box, each open place, each opened row (step
-/// 6.5c), each tick.
+/// view's, the substashes box, each open place, each opened row, each
+/// tick.
 fn place_fields(
     listed: Listed,
     realm: Realm,
@@ -2733,7 +2705,7 @@ async fn list_characters(
     list(web, headers, fields, Listed::Characters).await
 }
 
-/// "List this league's stash tabs" and "List characters" (#189, #284):
+/// "List this league's stash tabs" and "List characters" (#284):
 /// the `stashes` job for the form's realm and league, or the `characters`
 /// job for its realm, as `acq stashes` and `acq characters` submit them,
 /// through the human door as the served account, landing on the jobs
@@ -2778,7 +2750,7 @@ async fn list(
     }
 }
 
-/// "Fetch the league list" (the 4b sitting round, Do 3): the `leagues`
+/// "Fetch the league list": the `leagues`
 /// job, as `acq leagues` submits it — one request, no probe — through the
 /// human door and as the served account, landing on the jobs page.
 async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
@@ -2802,7 +2774,7 @@ async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Respo
     }
 }
 
-/// A submit lands at its job (Decision 8 of step 6.5d): `303` to the
+/// A submit lands at its job: `303` to the
 /// jobs page naming the job, at its row, with the realm and league the
 /// form or the plan named, so the page links that league's place pages.
 /// The way back is made here, from what the reader asked, never read
@@ -2820,8 +2792,8 @@ fn to_job(web: &Web, id: u64, league: Option<(Realm, &str)>) -> Response {
     ))
 }
 
-/// The plan page (Do 7): a selection's plan or the stored policy's,
-/// rendered from its document ([`page::plan`], step 6.5d), the envelope
+/// The plan page: a selection's plan or the stored policy's,
+/// rendered from its document ([`page::plan`]), the envelope
 /// whole in a hidden field beside "Apply".
 async fn plan(
     State(web): State<Arc<Web>>,
@@ -2835,7 +2807,7 @@ async fn plan(
     let league = pick(&fields, "league")
         .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
         .to_string();
-    // "Refresh selected" (C44 as amended): the ticked tabs and characters
+    // "Refresh selected" (C44): the ticked tabs and characters
     // compiled into a selection plan; "Plan under the policy": the stored
     // policy's. Either lands here, and apply is the one apply route.
     let selection = pick(&fields, "selected").map(|_| {
@@ -2881,7 +2853,7 @@ async fn plan(
     if wants_json(&headers) {
         return document(&planned);
     }
-    // the instant the plan's ages were said at (#211)
+    // the instant the plan's ages were said at
     let now = planned.ages.at.unwrap_or_else(acquisition_store::now);
     let mut body = page::plan(&planned, now);
     if !planned.plan.actions.is_empty() {
@@ -2900,7 +2872,7 @@ async fn plan(
     )
 }
 
-/// "Apply" (Do 7): the envelope posted back whole to `Opened::apply`, as
+/// "Apply": the envelope posted back whole to `Opened::apply`, as
 /// `--apply=FILE` reads one. A moved policy is refused in the words C44
 /// gives it, a spent plan sends nothing and says so (C111), and a
 /// submitted one goes to the jobs page.
@@ -2965,7 +2937,7 @@ fn plan_again(web: &Web, plan: &RefreshPlan) -> String {
     web.link("plan", &fields)
 }
 
-/// The jobs (Do 7; step 6.5d): the `jobs` document rendered in words
+/// The jobs: the `jobs` document rendered in words
 /// ([`page::jobs`]), reloading itself while a job is not done; `job`
 /// names one job, read by id whether the list holds it or not, its
 /// result shown where it failed or was cancelled; `realm` and `league`
@@ -3069,7 +3041,7 @@ async fn jobs(
     )
 }
 
-/// The job `id` as the jobs page opens it (Decision 7): read by id where
+/// The job `id` as the jobs page opens it: read by id where
 /// the list leaves it out, and its result where it failed or was
 /// cancelled, its offers spelled by [`Paged`].
 async fn opened_job(web: &Web, listed: &Jobs, id: u64) -> Result<page::OpenedJob, Fault> {
@@ -3116,7 +3088,7 @@ async fn opened_job(web: &Web, listed: &Jobs, id: u64) -> Result<page::OpenedJob
 // ---- the saved pages (C168) --------------------------------------------------------------------
 
 /// A field a saved route was sent, present where the body or the query
-/// names it, empty or not (Do 6: the text `""` is a query).
+/// names it, empty or not (the text `""` is a query).
 fn sent<'a>(fields: &'a [(String, String)], name: &str) -> Option<&'a str> {
     fields
         .iter()
@@ -3154,7 +3126,7 @@ fn revision_sent(fields: &[(String, String)]) -> Result<Option<i64>, Failure> {
         .transpose()
 }
 
-/// The saved searches (Do 4): ten, or every one under `expand=true`.
+/// The saved searches: ten, or every one under `expand=true`.
 async fn saved_list(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -3188,7 +3160,7 @@ async fn saved_list(
     }
 }
 
-/// A saved search opened (Do 5): `303` to the search its request folds
+/// A saved search opened: `303` to the search its request folds
 /// to, carrying its id and the revision it was opened at. It writes
 /// nothing.
 async fn saved_open(
@@ -3261,7 +3233,7 @@ fn listed(kind: &'static str, message: String) -> Failure {
     )
 }
 
-/// A saved search written (Do 6): the verbs' one `Set`, its revision
+/// A saved search written: the verbs' one `Set`, its revision
 /// under `Expect::or(if_revision, Expect::Create)`.
 async fn saved_set(
     State(web): State<Arc<Web>>,
@@ -3295,11 +3267,11 @@ async fn saved_set(
     web.written(written, &headers)
 }
 
-/// A clear asked first (the owner, 2026-11-07, "Clear should ask
-/// first"): the row at the URL's id, shown with the clear's form at its
-/// revision, its basis keyed `saved_search`. It writes nothing, so a
-/// reload of it writes nothing. An id no row has is refused from the row
-/// in hand, offering the list, as an opening is.
+/// A clear asked first (the owner: "Clear should ask first"): the row at
+/// the URL's id, shown with the clear's form at its revision, its basis
+/// keyed `saved_search`. It writes nothing, so a reload of it writes
+/// nothing. An id no row has is refused from the row in hand, offering the
+/// list, as an opening is.
 async fn saved_ask(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -3337,7 +3309,7 @@ async fn saved_ask(
     }
 }
 
-/// A saved search cleared (Do 6) at exactly the revision named.
+/// A saved search cleared at exactly the revision named.
 async fn saved_clear(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -3361,7 +3333,7 @@ async fn saved_clear(
 }
 
 impl Web {
-    /// A write's answer (Do 1, the owner's "Redirect to the list"): the
+    /// A write's answer (the owner: "Redirect to the list"): the
     /// receipt where JSON is asked, its undo spelled as a page's form;
     /// else `303` to the list. A refusal as every refusal is.
     fn written(

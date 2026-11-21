@@ -728,7 +728,7 @@ mod tests {
     /// C53 and C149: `jobs`' text is a function of its document — the
     /// counts line read from it over every job, and what it left out,
     /// open and finished apart, each with the flag that lists every one
-    /// (the brief's second review, finding 2: the open jobs are cut too);
+    /// (the open jobs are cut too);
     /// C166: the counts are the daemon's, over jobs the rows leave out.
     /// C190: a progress line carries each closed route of its job's
     /// account in the status's words (`daemon_cmd::closed_route_words`,
@@ -903,9 +903,9 @@ mod tests {
         );
     }
 
-    /// The review's case: a restart's deferred failure (the sentence the
-    /// daemon installs mid fan-out) with a failed child keeps its warning
-    /// and its remedy, and the child's row follows it.
+    /// A restart's deferred failure (the sentence the daemon installs mid
+    /// fan-out) with a failed child keeps its warning and its remedy, and
+    /// the child's row follows it.
     #[test]
     fn a_deferred_parent_failure_keeps_its_words_beside_a_failed_childs_row() {
         let error = "interrupted by a daemon restart mid fan-out: the children submitted \

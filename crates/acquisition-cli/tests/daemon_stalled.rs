@@ -1,4 +1,4 @@
-//! #103, the adapter's part (C122): `acq daemon status` against a daemon
+//! The adapter's part (C122): `acq daemon status` against a daemon
 //! that answers the handshake and then never its status. Its own binary:
 //! the test sets the process environment (`session`), which the one
 //! binary of modules must not (`tools/arch-check.sh`, the layout rule).

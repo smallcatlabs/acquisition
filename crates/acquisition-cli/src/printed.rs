@@ -1,5 +1,5 @@
 //! The search's ways on as this terminal prints them (C143: a shared
-//! value, spelled by the surface that prints it; #97). A request, a
+//! value, spelled by the surface that prints it). A request, a
 //! continuation, a route, the tabs an answer never fetched and an item
 //! to show are values the search crate makes; the command lines here are
 //! the CLI's alone, as the MCP's tools and a page's links are theirs.
@@ -199,11 +199,11 @@ mod tests {
         serde_json::from_value(value).unwrap()
     }
 
-    /// The lines the search crate's tests held before the spelling moved
-    /// here (#97, Part B): a membership other than live is spelled after
-    /// the query and live left unsaid; a request from its start is its
-    /// scope, its empty query and its limit; the tabs an answer never
-    /// fetched are `tabs` over the league with the never-fetched filter.
+    /// The lines each search value prints as: a membership other than live
+    /// is spelled after the query and live left unsaid; a request from its
+    /// start is its scope, its empty query and its limit; the tabs an
+    /// answer never fetched are `tabs` over the league with the
+    /// never-fetched filter.
     #[test]
     fn c143_a_search_value_is_the_command_this_terminal_prints() {
         let scope = |membership: &str| {

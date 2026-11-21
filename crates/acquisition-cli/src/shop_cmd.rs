@@ -20,7 +20,7 @@
 //! count, and every item left off with its cell; `--page N` prints one
 //! page's text alone on stdout, for the clipboard, and the render's lines
 //! before it on stderr, its `--json` the page beside the render's context
-//! (`pricing::ShopPage`, #169); `--json` is the [`ShopRender`], of
+//! (`pricing::ShopPage`); `--json` is the [`ShopRender`], of
 //! which every line here is a function (`tests/shop_json.rs` pins it
 //! from the spawned binary).
 
@@ -77,7 +77,7 @@ pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -
     )?;
 
     if let Some(n) = args.page {
-        // the page and the render's context beside it (#169): the page's
+        // the page and the render's context beside it: the page's
         // text alone on stdout, for the clipboard, and the render's lines
         // on stderr
         let held = acquisition_verbs::Held::read(
@@ -107,8 +107,7 @@ pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -
         }
         return Ok(());
     }
-    // what the store holds beyond this league, beside it (the CLI-2
-    // seat's fault 6)
+    // what the store holds beyond this league, beside it
     let held = acquisition_verbs::Held::read(
         rendered,
         &opened.facts,
@@ -180,7 +179,7 @@ fn freshness_lines(r: &ShopRender, now: i64, account: &str, leagues: &str) -> St
         return leagues.to_string();
     }
     // how old the posted items' facts are, under every policy state
-    // (#156: no policy said nothing while the ranks were fifty days old)
+    // (else, under no policy, nothing says the ranks are fifty days old)
     if let Some(facts) = &f.facts {
         out.push_str(&crate::price_cmd::facts_line(
             &format!(
@@ -241,7 +240,7 @@ fn freshness_lines(r: &ShopRender, now: i64, account: &str, leagues: &str) -> St
             }
             if f.stale_total > 0 {
                 // the plan of the render's league, as the account it
-                // ran as, so it runs as printed (the league seat's rule)
+                // ran as, so it runs as printed
                 let plan = crate::terminal::printed_line(&crate::terminal::way_words(
                     &acquisition_verbs::refusal::Way::RefreshPlan {
                         account: account.to_string(),
@@ -632,11 +631,11 @@ mod tests {
             lines[0],
             "13 items in Standard: 3 items to post on 2 pages; 5 omitted (4 the game lists, 1 skipped by hand); 2 blocked (1 unresolved, 1 in a substash); 3 nothing applies"
         );
-        // C162, #156: how old the posted items' facts are, first, under
+        // C162: how old the posted items' facts are, first, under
         // every policy state; the stale line's oldest is another set's
         let facts = "facts: 3 posted items at 2 locations, 2 fetched (the oldest fetch 63m ago, pc · Standard / Dump; the newest 58m ago, pc · Standard / ~price 1 chaos); stash listing 66m ago";
         assert_eq!(lines[1], facts);
-        // what else the realm holds, after the facts (round 5)
+        // what else the realm holds, after the facts
         assert_eq!(lines[2], leagues.trim_end());
         assert_eq!(
             lines[3],
@@ -763,15 +762,13 @@ mod tests {
         );
     }
 
-    /// The step-6 review's fourth finding: `--expand` searched the whole
-    /// left-out list per line, quadratic over the 26k items it was read
-    /// at. The audit view over the real-scale fixture tiled to 63k items
-    /// (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`), measured 2026-09-07 in
-    /// a debug build: 45 ms as built; with the search put back, 3.9 s at
-    /// half this scale and four-fold per doubling. The time is printed,
-    /// never asserted (C137: no test asserts a wall-clock bound a slow
-    /// machine can miss), and the view still says everything: the table,
-    /// a line per item left off, every page.
+    /// `--expand` searching the whole left-out list per line is quadratic,
+    /// and slow over 26k items. The audit view over the real-scale fixture
+    /// tiled to 63k items, in a debug build: 45 ms as built; with that
+    /// search put back, 3.9 s at half this scale and four-fold per
+    /// doubling. The time is printed, never asserted (C137: no test asserts
+    /// a wall-clock bound a slow machine can miss), and the view still says
+    /// everything: the table, a line per item left off, every page.
     #[test]
     fn c53_the_expanded_render_says_everything_over_the_owners_league_tiled() {
         let s = real_scale_fixture::tiled(32);

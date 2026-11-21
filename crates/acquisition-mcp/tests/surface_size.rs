@@ -1,11 +1,10 @@
-//! The first turn's cost, held (#83): an agent pays for the
+//! The first turn's cost, held: an agent pays for the
 //! `initialize` instructions and every tool of `tools/list` before its
 //! first call, so each text is held to a length and the surface cannot
 //! grow back. A tool's description says what it answers, what it costs
 //! and where the rest is — `describe` by name, read once — and a
 //! parameter's doc says what the argument is. A count's gloss stands in
-//! the `describe` entry the description names in one line (C146,
-//! amended 2026-10-27).
+//! the `describe` entry the description names in one line (C146).
 
 use crate::harness;
 
@@ -18,18 +17,13 @@ const DESCRIPTION: usize = 600;
 const PARAMETER: usize = 300;
 /// The instructions, in bytes.
 const INSTRUCTIONS: usize = 1_000;
-/// The whole first turn, in bytes (#104): `serde_json::to_string` of the
+/// The whole first turn, in bytes: `serde_json::to_string` of the
 /// `initialize` result plus that of the `tools/list` result, as the
-/// harness receives them. Measured at 37,824 (1,127 and 36,697) and held
-/// at the next 1,000 above. A schema trim (no `$schema`, no `title`, no
-/// `null` on an optional argument) was measured at 35,628 and declined:
-/// 5.8% of the turn, under the 10% the step set. Raised by the owner's
-/// ruling of 2026-11-07 ("Raise the bound", 4-full part 1, step 2): the
-/// three saved-search tools (`saved_searches`, `saved_search_set`,
-/// `saved_search_clear`), `search`'s `saved` and the shared `account`
-/// sentence's rewording took the turn from 37,945 (1,127 and 36,818) to
-/// 42,089 (1,121 and 40,968), held at the next 1,000 above; no other
-/// tool's text was cut for room.
+/// harness receives them, held at the next 1,000 above its measure
+/// (42,089: 1,121 and 40,968). A schema trim that saves under 10% of the
+/// turn is declined (no `$schema`, no `title`, no `null` on an optional
+/// argument saves 5.8%), and a new tool raises the bound rather than
+/// cutting another tool's text for room (the owner's word).
 const FIRST_TURN: usize = 43_000;
 
 fn surface() -> (String, Vec<Value>) {
@@ -72,8 +66,8 @@ fn every_text_of_the_first_turn_is_held_to_its_bound() {
     assert!(over.is_empty(), "past the bound: {over:#?}");
 }
 
-/// The release seat counted `account` undescribed on seven tools: every
-/// tool that takes it says what it is, in one sentence shared by all.
+/// Every tool that takes `account` says what it is, in one sentence
+/// shared by all.
 #[test]
 fn account_is_one_sentence_on_every_tool_that_takes_it() {
     let (_, tools) = surface();
@@ -93,11 +87,10 @@ fn account_is_one_sentence_on_every_tool_that_takes_it() {
     assert!(said.iter().all(|(_, s)| *s == first), "{said:#?}");
 }
 
-/// C146, amended 2026-10-27: on the MCP a count's gloss stands in the
-/// `describe` entry the tool's description names. The six tools whose
-/// descriptions carried their counts' glosses until then each name the
-/// section, and the section says what each count counts, in the words
-/// the description said (a word of each count, sampled).
+/// C146: on the MCP a count's gloss stands in the `describe` entry the
+/// tool's description names. Each tool below names its section, and the
+/// section says what each of the tool's counts counts (a word of each
+/// count, sampled).
 #[test]
 fn every_count_a_description_left_is_glossed_where_it_points() {
     let scratch = harness::scratch("mcp-surface-glosses");
@@ -123,7 +116,7 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
             &[
                 "`counts.residue` the items carrying price text the trade site cannot see",
                 "`counts.invalid_notes` the notes that start like a price",
-                // #170: the tab names, their items, their list
+                // the tab names, their items, their list
                 "`counts.invalid_tab_names` the tabs whose name starts like a price",
                 "price_list with `game_text` `residue`, `invalid_note`, `invalid_tab_name` or `skip` lists each count's items",
                 "`rows` accounts for every hand-written row",
@@ -133,7 +126,7 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
             "price_set",
             "pricing",
             &[
-                // #171 and #167: the receipt's counts and its clear
+                // the receipt's counts and its clear
                 "`items_here_counts` and `items_covered_below_counts` count what its items resolve to after the write",
                 "`clear`, the clear of the row at the written revision",
             ][..],
@@ -153,9 +146,8 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
                 "`left_out_total` counts them all",
                 "with how many `items` link to it",
                 "`position_before_listing` the posted items fetched before the stash listing",
-                // a span measured to the render, not a time (the
-                // answer-facts seat, run 1, MCP fault 5: read as a
-                // duration's age)
+                // a span measured to the render, not a time (else read as
+                // a duration's age)
                 "the oldest covered stale item's age, now minus its sighting, `oldest_stale_seconds_age` that age's words",
             ][..],
         ),
@@ -197,13 +189,13 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
     let _ = mcp.child.kill();
 }
 
-/// The build review's P2: a sentence over a group stated one tool's
-/// behaviour for all — "the job tools observe only" where `submit_job`
-/// starts a mock daemon, "the pricing tools … write" where five of them
-/// read. A group sentence names only the tools it is true of: the
-/// daemon section's observing sentence names the four observers and no
-/// submitter, the instructions' writing line names the writers, and
-/// their daemon line names the tools that need one.
+/// A sentence over a group can state one tool's behaviour for all — "the
+/// job tools observe only" where `submit_job` starts a mock daemon, "the
+/// pricing tools … write" where five of them read. A group sentence
+/// names only the tools it is true of: the daemon section's observing
+/// sentence names the four observers and no submitter, the instructions'
+/// writing line names the writers, and their daemon line names the tools
+/// that need one.
 #[test]
 fn a_group_sentence_names_only_the_tools_it_is_true_of() {
     let scratch = harness::scratch("mcp-surface-groups");
@@ -224,7 +216,7 @@ fn a_group_sentence_names_only_the_tools_it_is_true_of() {
     for tool in ["submit_job", "apply_plan", "cancel_job"] {
         assert!(!observers.contains(tool), "{observing}");
     }
-    // the fix round's review, P2: `running: false` is promised only by
+    // `running: false` is promised only by
     // the three tools whose answer carries it, never by job_result
     let (_, after) = observing.split_once("observe only").unwrap();
     let (says_running, _) = after
@@ -245,10 +237,9 @@ fn a_group_sentence_names_only_the_tools_it_is_true_of() {
         "{writes}"
     );
     assert!(!writes.contains("pricing tools"), "{writes}");
-    // the readiness seat (`audits/readiness-2026-10/seat/`, call 1
-    // against calls 40, 42, 45): the instructions' daemon line named the
-    // four observers, which answered with no daemon running. It names
-    // the tools that need one, and the observers' line says they do not.
+    // the instructions' daemon line names the tools that need one, never
+    // the four observers, which answer with no daemon running, and the
+    // observers' line says they do not need one.
     let talks = mcp
         .instructions
         .lines()
@@ -272,7 +263,7 @@ fn a_group_sentence_names_only_the_tools_it_is_true_of() {
     let _ = mcp.child.kill();
 }
 
-/// #104: an agent pays for `initialize` and all of `tools/list` before
+/// An agent pays for `initialize` and all of `tools/list` before
 /// its first call, so the two together are held to a bound, and the
 /// per-text bounds cannot be met one at a time while the whole grows
 /// back in the schemas around them.

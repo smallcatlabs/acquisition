@@ -1,4 +1,4 @@
-//! `acq diagnose` (#79): the layer's diagnosis as text, each section the
+//! `acq diagnose`: the layer's diagnosis as text, each section the
 //! words its own verb prints (`daemon status`, `store status`, the
 //! rails), the two tails last, the whole redacted by the layer's one
 //! function before it is printed. JSON is the document whole (C53: text
@@ -172,7 +172,7 @@ fn unread(out: &mut String, why: &str) {
 /// A tail's heading: how many lines it carries from where, and whether
 /// the file holds earlier ones (C146: the count says what it counts).
 fn heading<T>(out: &mut String, tail: &Tail<T>, empty: &str) {
-    // Whose file it is (r4's review, finding 4): a stopped daemon's
+    // Whose file it is: a stopped daemon's
     // journal is the one this shell's ACQ_JOURNAL names, or the world's.
     let whose = match tail.from {
         "daemon" => "the running daemon's",

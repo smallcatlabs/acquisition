@@ -56,7 +56,7 @@ fn ggg_mode_never_spawns_a_daemon_for_the_spending_tools() {
     // submit_job: no daemon is running and none may be started here, so
     // the call fails on the absent daemon — not on the mode — and the
     // message names this server's own policy and the human's remedy,
-    // never a spawn "on demand" (review, 2026-09-10).
+    // never a spawn "on demand".
     let msg = mcp.expect_err("submit_job", json!({ "kind": "stashes" }));
     assert!(
         !msg.contains("deferred"),

@@ -134,10 +134,9 @@ fn c88_a_real_mode_daemon_is_started_from_a_terminal_and_the_mock_from_anywhere(
 
 /// A command that lazily starts a daemon hands it none of its own pipes:
 /// a caller reading the command's output sees end-of-file when the
-/// command exits, not when the daemon does. On Windows the daemon
-/// inherited every inheritable handle of `acq`, the captured stdout among
-/// them, so this read waited out the daemon's idle shutdown (found on the
-/// first Windows run, 2026-10-14; `PLATFORMS-SLICE.md` at `b6197a82`, step 1).
+/// command exits, not when the daemon does. On Windows a daemon that
+/// inherits every inheritable handle of `acq` holds the captured stdout
+/// among them, and this read waits out the daemon's idle shutdown.
 #[test]
 fn a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it() {
     let scratch = scratch("no-pipe");
@@ -226,8 +225,8 @@ fn a_lazily_started_daemon_survives_a_ctrl_c_at_the_prompt_that_started_it() {
 /// `daemon stop` returns once the daemon is gone, not while it exits: its
 /// endpoint is already removed, so the next command finds no daemon. The
 /// daemon answers `stopping`, then checkpoints and removes its endpoint;
-/// a command in that window reached a dying daemon and read "daemon
-/// closed the connection" (first seen on CI's Windows runner, 2026-10-14).
+/// a command in that window would reach a dying daemon and read "daemon
+/// closed the connection".
 #[test]
 fn a_stopped_daemon_is_gone_when_the_stop_returns() {
     let scratch = scratch("stop-gone");

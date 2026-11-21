@@ -5,10 +5,10 @@
 //! Rulings: `decisions/frontends.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 /// What the job tools answer, read once by name (`describe` with names
-/// `["daemon"]`, #83): the words their texts carried, cut. The document is
-/// the verbs crate's; the words are this adapter's, since what this
-/// server does about a daemon (never spawning one in real mode, never
-/// replacing one) is its own (C13).
+/// `["daemon"]`): words the tools' own texts would otherwise carry. The
+/// document is the verbs crate's; the words are this adapter's, since
+/// what this server does about a daemon (never spawning one in real mode,
+/// never replacing one) is its own (C13).
 const DAEMON: [(&str, &str); 8] = [
     (
         "real mode",
@@ -47,7 +47,7 @@ const DAEMON: [(&str, &str); 8] = [
 /// What `store_status`, `tabs`, `characters` and `item_events` count, and
 /// what an age's words beside a time say on every tool that carries them,
 /// read once by name (`describe` with names `["store"]`, or `["ages"]`
-/// alone, the store's own words): C146, amended 2026-10-27 — on the
+/// alone, the store's own words): C146 — on the
 /// MCP a count's gloss stands in the `describe` entry the tool's
 /// description names. The words are the ones those descriptions carried,
 /// whole, and the CLI footers' (C149: the counts a text prints stand in

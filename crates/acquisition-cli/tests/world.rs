@@ -2,13 +2,12 @@
 //! real-mode lock, each staged with a second daemon that refuses to start
 //! and names the holder; a client on another world refusing the daemon
 //! and never replacing it (C83, C10); the rails state moving into the
-//! world once so a persisted trip survives (the tripwire's file used to
-//! sit in a directory macOS clears at reboot); and the diagnostics under
-//! the log directory, bounded by rotation.
+//! world once so a persisted trip survives (a directory macOS clears at
+//! reboot would lose it); and the diagnostics under the log directory,
+//! bounded by rotation.
 //!
 //! `ACQ_PROVIDER=ggg` appears here on two daemons the real-mode lock test
-//! starts directly — the owner asked for that lock's process test
-//! (2026-09-11) — and on the commands that observe and stop them. Nothing
+//! starts directly, and on the commands that observe and stop them. Nothing
 //! reaches GGG: the daemons start with no session (`ACQ_NO_KEYRING=1`,
 //! an empty scratch store, so nothing to restore), nothing is submitted
 //! to them, and belt and braces, `ACQ_TRIPWIRE=1 ACQ_MAX_SENDS=0` halts
@@ -156,8 +155,8 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
     assert!(lock.is_file(), "the world lock file exists");
 
     // The incumbent's log, grown past the cap while it runs: a contender
-    // must not rotate it from under the incumbent (review 2026-09-11 —
-    // the locks come before the log is touched).
+    // must not rotate it from under the incumbent (the locks come before
+    // the log is touched).
     let log_path = daemon_log(base, "store", "mock");
     // A write handle: Windows lets an append-only one change no length.
     std::fs::OpenOptions::new()
@@ -185,13 +184,12 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
             && stderr.contains(&format!("pid {pid}"))
             && stderr.contains("daemon.lock")
             && stderr.contains("one daemon per world")
-            // a way on, in no frontend's words (#178's review, P2)
+            // a way on, in no frontend's words
             && stderr.contains("use the one running, or stop it first"),
         "{stderr}"
     );
     // The refusal is at the end of a file that is mostly a hole: read
-    // the tail only (review 2026-09-11 — a gate must not read a gibibyte
-    // into memory).
+    // the tail only (a gate must not read a gibibyte into memory).
     let log = {
         use std::io::{Read as _, Seek as _, SeekFrom};
         let mut file = std::fs::File::open(&log_path).unwrap();
@@ -210,7 +208,7 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
     );
     // A contender under another log directory whose world/provider
     // directory exists but holds no log: refused the same way, and it
-    // creates no file there (round 21).
+    // creates no file there.
     let other_logs = base.join("other-logs");
     let other_log = other_logs
         .join(
@@ -329,9 +327,9 @@ fn c83_c31_a_second_real_mode_daemon_for_this_user_refuses_naming_the_holder() {
     let status = sole_json(&out);
     assert_eq!(status["pid"], pid, "{status}");
     assert_eq!(status["rails"]["sends"], 0, "{status}");
-    // The refused contender held no lock, so it made nothing in its
-    // world's log directory (review 2026-09-11): its refusal is on stderr
-    // alone — there was no log to append to yet.
+    // The refused contender held no lock, so it made nothing in its world's log
+    // directory: its refusal is on stderr alone — there was no log to append to
+    // yet.
     assert!(
         !daemon_log(base, "two", "ggg").exists(),
         "a refused contender created its world's log"
@@ -506,7 +504,7 @@ fn c83_the_rails_state_lives_in_the_world_and_reset_tripwire_clears_it() {
     let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &env);
     assert_eq!(sole_json(&out)["cleared"], false);
 
-    // A directory in the state file's place (round 21): the daemon
+    // A directory in the state file's place: the daemon
     // refuses to start over it, naming this verb; the verb clears an
     // empty one and names a non-empty one for the hand.
     std::fs::create_dir(&current).unwrap();
@@ -695,8 +693,7 @@ fn the_offline_reset_names_a_lock_it_could_not_open() {
 /// The halt's advice follows its kind: a tripwire's persists in the world
 /// and waits out the post-violation time before `reset-tripwire`; a
 /// ceiling is the lifetime's alone, so `daemon status` sends the reader to
-/// the next daemon, never to the reset (seen 2026-10-15 on a first
-/// contact that met its ceiling exactly); a trip beside a ceiling met is
+/// the next daemon, never to the reset; a trip beside a ceiling met is
 /// advised as both, for the reset lifts the trip alone.
 #[test]
 fn a_ceiling_halt_is_advised_as_the_lifetimes_and_a_trip_as_a_reset() {
@@ -814,8 +811,7 @@ fn c83_diagnostics_live_under_the_log_directory_and_are_bounded() {
         "{status}"
     );
     // The path is the daemon's own report: a shell with another log
-    // directory, or none, still learns the file the daemon opened
-    // (review 2026-09-11).
+    // directory, or none, still learns the file the daemon opened.
     for other in [Some(base.join("elsewhere-logs")), None] {
         let mut cmd = command(base, "store", &["daemon", "status", "--json"]);
         match &other {
@@ -880,8 +876,7 @@ fn c83_diagnostics_live_under_the_log_directory_and_are_bounded() {
     assert!(out.status.success(), "{out:?}");
 
     // A log directory that is not valid UTF-8 refuses the start, before
-    // anything is made: the path crosses the wire exactly or not at all
-    // (round 21's pin).
+    // anything is made: the path crosses the wire exactly or not at all.
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
@@ -940,7 +935,7 @@ fn c83_a_socket_path_over_the_cap_is_refused_by_name() {
 /// cannot name a socket in a report, so the daemon refuses to start
 /// naming the variable, and every JSON surface that would carry the
 /// socket — `daemon status`, `daemon stop` — answers C11's total
-/// `{"error": …}` with exit 1, never a panic (review 2026-09-11).
+/// `{"error": …}` with exit 1, never a panic.
 #[cfg(unix)]
 #[test]
 fn c83_a_runtime_directory_that_is_not_utf8_is_refused_by_name_and_never_panics_a_report() {

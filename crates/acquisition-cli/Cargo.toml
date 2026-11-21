@@ -36,26 +36,26 @@ axum = { version = "0.8", default-features = false, features = ["http1", "tokio"
 # pin compiles that feature in always, and the workspace build unifies it
 # into every binary of the build, wherever the pin stands; the pins stand
 # here, the one home, and `tools/gate.sh --only features` checks that the
-# two graphs agree on every release target (#88, #125, #124; the owner,
-# 2026-10-29: the pins kept, cleaned up, over cargo-hakari).
+# two graphs agree on every release target (the pins over cargo-hakari,
+# the owner's choice).
 #
 # num-traits `std`: proptest's, a dev-dependency of the plan and the search;
-# acq-mcp links it through rmcp's chrono (#88).
+# acq-mcp links it through rmcp's chrono.
 num-traits = { version = "0.2", features = ["std"] }
 # getrandom `std`, `sys_rng`: proptest 1.12's rand 0.10; acq-mcp links it
-# through rmcp's uuid, and acq draws its web token from it (#125).
+# through rmcp's uuid, and acq draws its web token from it.
 getrandom = { version = "0.4", features = ["std", "sys_rng"] }
 
 [target.'cfg(unix)'.dependencies]
 # rustix `default`, `fs`: tempfile's, a dev-dependency of six crates; acq
 # links it through this pin alone, and acqd on Linux through keyring's zbus,
-# which leans on it by the workspace's unification (#124, #91); without it
+# which leans on it by the workspace's unification; without it
 # the test build also differs on bitflags `std` on macOS.
 rustix = { version = "1", features = ["fs"] }
 # ---- end of the feature pins ---------------------------------------------
 
 [dev-dependencies]
-# #234: a test holds an annotation file's write lock, as another writer
+# A test holds an annotation file's write lock, as another writer
 # would, to read what a user meets when it is busy; the store's own
 # rusqlite, its features already unified (C84)
 rusqlite = "0.41"

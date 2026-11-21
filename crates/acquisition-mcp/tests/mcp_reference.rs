@@ -94,11 +94,9 @@ fn the_reference_matches_the_server() {
     );
 }
 
-/// The answer-facts seat (run 1, MCP fault 8; call 1): the README said
-/// the server's 25 tools where it had 26, `leagues` missing from the
-/// list. The README's tool count is the server's, and its list names
-/// each tool once: read from the README's sentence ("its N tools do what
-/// the CLI does: …", to the paragraph's end) and compared to `tools/list`.
+/// The README's tool count is the server's, and its list names each tool
+/// once: read from the README's sentence ("its N tools do what the CLI
+/// does: …", to the paragraph's end) and compared to `tools/list`.
 #[test]
 fn mcp8_the_readmes_tool_count_and_list_are_the_servers() {
     let readme =
@@ -127,13 +125,11 @@ fn mcp8_the_readmes_tool_count_and_list_are_the_servers() {
     assert_eq!(named, served, "the README's list");
 }
 
-/// The h2 review's fifth finding: "Intent only" stood in `price_set` and
-/// `price_clear` after the server's instructions had dropped the word. The
-/// word names a mechanism a reader cannot parse (C146, a count says what
-/// it counts); it stands in what the server sends only as a JSON name,
-/// in backticks, found case-insensitively. What is read on demand is
-/// sent too (#83): `describe` whole under `all`, every section the tools
-/// point to.
+/// The word "intent" names a mechanism a reader cannot parse (C146, a
+/// count says what it counts); it stands in what the server sends only
+/// as a JSON name, in backticks, found case-insensitively. What is read
+/// on demand is sent too: `describe` whole under `all`, every section
+/// the tools point to.
 #[test]
 fn the_old_word_intent_stands_only_as_a_json_name() {
     let scratch = harness::scratch("mref-intent");

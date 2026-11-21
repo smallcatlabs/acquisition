@@ -243,7 +243,7 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
         )),
         "{text}"
     );
-    // a page asked: its text on stdout, the render's lines on stderr (#169)
+    // a page asked: its text on stdout, the render's lines on stderr
     t.run(
         &["shop", "render", "--page", "1"],
         &[
@@ -255,10 +255,9 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
 
     // --page N is the page's text and nothing else on stdout, for the
     // clipboard; the render's lines stand on stderr: the head, the facts
-    // and coverage lines, the page's label (#169; the answer-facts seat,
-    // MCP run 1 call 50 against 51). --json is the page's own fields and
-    // beside them every key of the render but `pages`, the text once
-    // (the review of round B, finding 4).
+    // and coverage lines, the page's label. --json is the page's own
+    // fields and beside them every key of the render but `pages`, the
+    // text once.
     let out = acq(&base, &["shop", "render", "--page", "1"]);
     assert!(out.status.success(), "{}", stderr(&out));
     assert_eq!(String::from_utf8_lossy(&out.stdout), page_text);
@@ -276,7 +275,7 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
     let page: Page = serde_json::from_value(doc.clone()).unwrap();
     assert_eq!(page.text, page_text);
     // the render's context beside the page, no `pages`: the text stands
-    // once (the review of round B, finding 4)
+    // once
     let whole = serde_json::to_value(&r).unwrap();
     for key in ["counts", "left_out", "policy", "freshness"] {
         assert_eq!(doc[key], whole[key], "{key}: {doc}");
@@ -345,15 +344,13 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
     );
 }
 
-/// C53, the read economy (step 2g, round 2; the second cold review of the
-/// brief, finding 3): every list of the shop document holds ten beside a
-/// count made from the whole, and the text counts from the document,
-/// never from a list's length — staged past ten of each before any
-/// golden: in the league Wide, twelve covered tabs whose hand-priced
-/// items are past the policy's window (stale), twelve tabs outside the
-/// policy (uncovered), a substash of twelve hand-priced items (blocked),
-/// and the stash listing read again after every fetch, so all
-/// twenty-four posted items' positions predate it.
+/// C53, the read economy: every list of the shop document holds ten beside a
+/// count made from the whole, and the text counts from the document, never from
+/// a list's length — staged past ten of each before any golden: in the league
+/// Wide, twelve covered tabs whose hand-priced items are past the policy's
+/// window (stale), twelve tabs outside the policy (uncovered), a substash of
+/// twelve hand-priced items (blocked), and the stash listing read again after
+/// every fetch, so all twenty-four posted items' positions predate it.
 #[test]
 fn the_shop_lists_hold_ten_and_the_text_counts_the_whole_past_ten_of_each() {
     use acquisition_store::bound::LISTED;

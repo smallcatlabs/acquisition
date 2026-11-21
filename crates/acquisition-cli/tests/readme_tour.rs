@@ -143,9 +143,8 @@ fn every_tour_line_resolves_under_clap() {
         }
         let alternatives = parse(&line);
         // `acq auth status | check` is `acq auth check`, so a reader takes
-        // `acq jobs | result <id>` for `acq jobs result` (the page seat
-        // after GUI step 6, its fault 13): two top-level verbs stand on
-        // two lines, never as one line's alternatives.
+        // `acq jobs | result <id>` for `acq jobs result`: two top-level
+        // verbs stand on two lines, never as one line's alternatives.
         if alternatives[0].0.len() == 1
             && alternatives
                 .iter()
@@ -375,12 +374,11 @@ fn the_agent_recipe_starts_a_daemon_that_idles_out_after_the_hour() {
     assert_eq!(stopped["stopped"], serde_json::json!(true), "{stopped}");
 }
 
-/// The recipe's daemon lives an hour, so a test that fails between the
-/// login that starts it and its own stop would leave it alive past the
-/// run, holding its world's lock (#88's runs found four). The guard stops
-/// it whichever way the test ends: here the failure is forced once the
-/// daemon is up, and the harness's own accounting, the endpoints under
-/// the scratch, finds none left.
+/// The recipe's daemon lives an hour, so a test that fails between the login
+/// that starts it and its own stop would leave it alive past the run, holding
+/// its world's lock. The guard stops it whichever way the test ends: here the
+/// failure is forced once the daemon is up, and the harness's own accounting,
+/// the endpoints under the scratch, finds none left.
 #[test]
 fn a_daemon_the_recipe_starts_is_stopped_when_its_test_fails() {
     let dir = scratch("recipe");

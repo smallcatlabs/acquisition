@@ -1,4 +1,4 @@
-//! Tracer step 8 at process level: the MCP server is the plan slice's
+//! The refresh plan at process level: the MCP server is the plan's
 //! second consumer. Against a real daemon over the mock provider (the
 //! `acqd` beside `acq-mcp`, the one it would lazily spawn, started by
 //! the harness so the test owns the pid — two processes across the
@@ -8,7 +8,7 @@
 //! spend it, replan — and every gate must fire through it: the
 //! create-only CAS on a blind policy write (C52), the per-realm merge
 //! of a policy write (C36), the daemon's admission
-//! budget (C42), and the step-7 staleness refusal (C44). The offline
+//! budget (C42), and the staleness refusal (C44). The offline
 //! claims are proven offline (C41 — reads and plans never initiate
 //! traffic): the daemon is stopped before the staleness and empty-plan
 //! assertions, and the socket is checked afterwards so a regression that
@@ -32,7 +32,7 @@ const POLICY: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tab
 /// A valid policy whose one id the facts lack (reported as unknown, never
 /// fetched): the replan against it is an empty plan, which is how the
 /// no-op branch gets exercised with no daemon. (An empty id list is not a
-/// policy — it names no work and is refused since policy v3.)
+/// policy — it names no work and is refused at policy version 3.)
 const EMPTY_POLICY: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["no-such-tab"],"max_age_seconds":3600}}}}}"#;
 
 /// Extract and re-validate the envelope a `refresh_plan` call returned:
@@ -76,10 +76,9 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     assert_eq!(row["written_via"], json!("mcp"), "{row}");
     let msg = mcp.expect_err("set_sync_policy", json!({ "value": policy }));
     assert!(msg.contains("revision 1"), "{msg}");
-    // the create-only refusal, an omitted revision or 0 alike (the league
-    // seat's rerun, cli-opus-2 call 24): the conflict's fields, the row
-    // that stands; its words are the CLI's golden
-    // (seat_faults/a_policy_write_refused_for_its_revision)
+    // the create-only refusal, an omitted revision or 0 alike: the
+    // conflict's fields, the row that stands; its words are the CLI's
+    // golden (seat_faults/a_policy_write_refused_for_its_revision)
     for create in [
         json!({ "value": policy }),
         json!({ "value": policy, "if_revision": 0 }),
@@ -271,7 +270,7 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     assert_eq!(applied["requests"], json!(0), "{applied}");
     assert!(applied["skipped"].is_object(), "{applied}");
 
-    // …and the step-7 staleness gate refuses the revision-1 plan with the
+    // …and the staleness gate refuses the revision-1 plan with the
     // remedy named, before any daemon contact.
     let msg = mcp.expect_err("apply_plan", json!({ "plan": planned["plan"] }));
     assert!(
@@ -279,7 +278,7 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
         "{msg}"
     );
 
-    // C36, amended 2026-10-19: a poe2 policy written alone leaves the pc
+    // C36: a poe2 policy written alone leaves the pc
     // one standing; a realm named with no leagues is removed; `replace`
     // writes the whole — and every write over a live policy still names
     // its revision (C52), `replace` or not, so nothing lands blind.

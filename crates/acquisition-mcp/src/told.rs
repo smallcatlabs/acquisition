@@ -43,9 +43,9 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         | Fault::Other(_)
         | Fault::Spend(_)
         | Fault::Replan { .. } => fault.to_string(),
-        // No login for the caller to run (the agent's seat, F10: a
-        // server pointed at the wrong root answered every call with
-        // `acq auth`, the one act an agent cannot perform).
+        // No login for the caller to run (without it a server pointed at
+        // the wrong root answered every call with `acq auth`, the one act
+        // an agent cannot perform).
         Fault::NoAccounts { .. } => format!(
             "{fault}; ACQ_STORE_DIR sets the root this server looks under, and a store is made \
              by a login, which is a human's, from a terminal"
@@ -58,7 +58,7 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         Fault::NoSyncPolicy { .. } => {
             format!("{fault} — declare one with set_sync_policy first")
         }
-        // a read-back names the account it was refused for (#97)
+        // a read-back names the account it was refused for
         Fault::NotCovered {
             covered, username, ..
         } => match covered.len() {
@@ -114,7 +114,7 @@ fn fault_words(fault: &Fault, named: &str) -> String {
 /// words (`named`, the argument that selects an account): one place for
 /// the verbs' fault and the daemon's refusal of the same kind, so the
 /// two cannot drift (C143: the daemon's sentence names no frontend's
-/// flag, and each frontend adds its own way on; #178).
+/// flag, and each frontend adds its own way on).
 fn account_way(kind: &str, named: &str) -> String {
     match kind {
         "unknown_account" => {
@@ -147,9 +147,8 @@ fn failure_words(e: &anyhow::Error, named: &str) -> String {
 /// conversation with the daemon failing. Everything else is a refusal —
 /// the request was wrong, or the store or policy cannot serve it, or no
 /// daemon runs — a result marked isError holding the document
-/// [`refusal()`] words. The release seat's rerun met an unknown account
-/// and an uncovered league as JSON-RPC errors where the instructions
-/// promise results (mcp-opus-2 calls 50, 46).
+/// [`refusal()`] words: an unknown account and an uncovered league are
+/// results, as the instructions promise, never JSON-RPC errors.
 pub(crate) fn failed(e: anyhow::Error) -> Told {
     let words = failure_words(&e, "account");
     match e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
@@ -162,11 +161,10 @@ pub(crate) fn failed(e: anyhow::Error) -> Told {
     }
 }
 
-/// A refusal's document (C11, C121; round 4 of the 2g build, the one
-/// refusal shape): the verbs' one sorter
-/// (`acquisition_verbs::refusal::document`), its words this server's,
-/// `named` the argument that selects an account, and its offers said
-/// as this server's requests ([`Spoken`]).
+/// A refusal's document (C11, C121; the one refusal shape): the verbs'
+/// one sorter (`acquisition_verbs::refusal::document`), its words this
+/// server's, `named` the argument that selects an account, and its offers
+/// said as this server's requests ([`Spoken`]).
 pub(crate) fn refusal(e: &anyhow::Error, named: &str) -> Value {
     refusal::document(e, &Spoken { named })
 }
@@ -457,11 +455,11 @@ pub(crate) type Told = Result<CallToolResult, ErrorData>;
 /// document itself, so its keys come in the order the document declares
 /// them (C115), and no structured content.
 ///
-/// The text block alone, by measurement (step 2g's round 7): in the
-/// stream `claude` 2.1.312 logged for two successes of one tool, the
-/// result it passed on was the structured copy alone, its keys sorted,
-/// when one was sent, and the text block when none was (that the model
-/// reads what the stream logs is inferred; a refusal was not measured).
+/// The text block alone, by measurement: in the stream `claude` 2.1.312
+/// logged for two successes of one tool, the result it passed on was the
+/// structured copy alone, its keys sorted, when one was sent, and the
+/// text block when none was (that the model reads what the stream logs is
+/// inferred; a refusal was not measured).
 /// So the text block alone carries the declared order to the model: the
 /// answer leads with what bears on the question (C115), and on the MCP
 /// the JSON is the text, with no second rendering (C53).
@@ -516,8 +514,8 @@ pub(crate) fn price_realm(realm: Option<&str>) -> std::result::Result<Option<Rea
 
 /// A refusal a tool's helper hands back for the tool to return as its
 /// result ([`refusing`]), boxed: `CallToolResult` carries JSON values,
-/// which `preserve_order` makes the size of an insertion-ordered map
-/// (#200), too large to pass by value in every helper's `Err`.
+/// which `preserve_order` makes the size of an insertion-ordered map,
+/// too large to pass by value in every helper's `Err`.
 pub(crate) type Refused = Box<CallToolResult>;
 
 #[cfg(test)]
@@ -526,7 +524,7 @@ mod tests {
 
     /// The unreadable policy's remedy names both arguments the retry
     /// needs: the merge would read the row it cannot; and its read-back
-    /// names the account it was refused for (#97).
+    /// names the account it was refused for.
     #[test]
     fn the_unreadable_policy_remedy_names_a_whole_write_at_its_revision() {
         let words = fault_words(

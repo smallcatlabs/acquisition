@@ -3,11 +3,11 @@
 //!
 //! `rmcp`'s own stdio reader drops a line `serde_json` refuses as syntax
 //! with no reply, and a message nested past `serde_json`'s 127 levels is
-//! refused as syntax too, so a deep query tree or a deep value was lost
-//! there and the caller waited (a frontends park until this, measured at
-//! 123 nots or 62 groups in a search tree). This reader sits between stdin and `rmcp`: a line that
-//! parses is handed on unchanged; one that does not is answered here, in
-//! the order it came, and never reaches `rmcp`. A leading UTF-8 byte
+//! refused as syntax too, so a deep query tree or a deep value would be
+//! lost there and the caller would wait (a search tree reaches that depth
+//! at 123 nots or 62 groups). This reader sits between stdin and `rmcp`:
+//! a line that parses is handed on unchanged; one that does not is answered
+//! here, in the order it came, and never reaches `rmcp`. A leading UTF-8 byte
 //! order mark is stripped before the parse, as `rmcp`'s reader strips it.
 //!
 //! - Not JSON, at any depth: a JSON-RPC parse error (`-32700`), id null,

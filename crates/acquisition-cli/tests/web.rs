@@ -1,5 +1,5 @@
-//! `acq web` at process level (C138, C139; `roadmap/briefs/4b-build.md`):
-//! the listener answers only its own pages, at its own address, with the
+//! `acq web` at process level (C138, C139): the listener answers only
+//! its own pages, at its own address, with the
 //! token, mutating by POST alone and sending no CORS header; a form
 //! submission's answer is `acq search --trade`'s for the same envelope; a
 //! ticked selection submits what `refresh --tabs` submits; the plan loop
@@ -146,10 +146,10 @@ pub(crate) fn offline_web(tag: &str) -> (harness::Scratch, WebUi) {
 }
 
 /// A store that holds tabs in two leagues and never fetched the league
-/// list, as a copy of another store does where no session can fetch one
-/// (the page seat after GUI step 6, its fault 1): the place pages offer
-/// the leagues it holds, and under a query say where the matches this
-/// league's places do not hold stand, each a link to its page.
+/// list, as a copy of another store does where no session can fetch one:
+/// the place pages offer the leagues it holds, and under a query say where
+/// the matches this league's places do not hold stand, each a link to its
+/// page.
 #[test]
 fn a_store_with_no_league_list_moves_between_the_leagues_it_holds() {
     let scratch = harness::scratch("webheldleagues");
@@ -240,7 +240,7 @@ fn a_store_with_no_league_list_moves_between_the_leagues_it_holds() {
     );
     // a league the store holds nothing of, and a kind it holds none of:
     // the control still names the page's own league, and the line still
-    // says where every match stands (the cold review of 079b0200)
+    // says where every match stands
     let empty = web.get("tabs?realm=pc&league=Hardcore&text=class%3Arings");
     assert!(
         empty
@@ -259,7 +259,7 @@ fn a_store_with_no_league_list_moves_between_the_leagues_it_holds() {
         empty.body
     );
     // a realm holding no league keeps the page's own in its control, so
-    // its realm form sends the league back (the cold review of dd10c229)
+    // its realm form sends the league back
     let console = web.get("tabs?realm=xbox&league=Settlers");
     assert!(
         console.body.contains("</select></label> <label class=\"control\">League <select name=\"league\"><option value=\"Settlers\" selected>Settlers</option></select></label>"),
@@ -516,12 +516,12 @@ fn the_fold_answers_as_acq_search_trade_does() {
     assert_eq!(page, cli);
 }
 
-/// The count beside a search's button (4-full part 1, step 6.2, #245),
-/// pinned by equality: a form's `count` is `acq search` of the same
-/// request at `--limit 0` and `--sort none`, JSON whatever was asked, no
-/// row in it. The view the form names, a sort or a count's keys, is not
-/// read, nor refused where its values are no view's; the query box's count, the saved search it carries set aside, is
-/// its search's total.
+/// The count beside a search's button, pinned by equality: a form's
+/// `count` is `acq search` of the same request at `--limit 0` and `--sort
+/// none`, JSON whatever was asked, no row in it. The view the form names,
+/// a sort or a count's keys, is not read, nor refused where its values
+/// are no view's; the query box's count, the saved search it carries set
+/// aside, is its search's total.
 #[test]
 fn the_count_answers_as_acq_search_at_limit_zero_does() {
     let (scratch, web) = offline_web("webcount");
@@ -773,11 +773,11 @@ fn a_save_from_a_trade_answer_stores_its_translated_text() {
     assert!(!row.to_string().contains(TRADE_ID), "{row}");
 }
 
-/// The query box sorts and pages as the big form does (the page seat's
-/// fault 6): its "Show" is on the form page, a typed query with a sort
-/// answers as `acq search --sort --desc` does, and the answer's box comes
-/// back set to the rows view it showed, the sort and its direction carried
-/// hidden (step 6.4c: nothing is typed to sort).
+/// The query box sorts and pages as the big form does: its "Show" is on
+/// the form page, a typed query with a sort answers as `acq search --sort
+/// --desc` does, and the answer's box comes back set to the rows view it
+/// showed, the sort and its direction carried hidden (nothing is typed to
+/// sort).
 #[test]
 fn the_query_box_sorts_and_pages_a_typed_query() {
     let (scratch, web) = offline_web("webquerysort");
@@ -888,7 +888,7 @@ fn box_fields(body: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// 4-full part 1, step 6.4c (Decisions 1 to 4): the values the URL names
+/// The values the URL names
 /// fold into the rows view and are written back as fields that fold to
 /// the same request; a value's head is a link that orders the rows by it,
 /// largest first, and followed again the other way, the list unchanged,
@@ -1005,7 +1005,7 @@ fn a_head_orders_by_its_value_and_flips_and_the_box_keeps_what_was_named() {
     }
 }
 
-/// Step 6.4c (Decisions 5 and 6): a card's number for a value the view
+/// A card's number for a value the view
 /// lacks is a link to the same answer with that value added to its list
 /// and ordered by it, largest first, as cards; where the view's list is
 /// full, a number outside it is words, and one inside it a link.
@@ -1217,8 +1217,7 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "not the site&#39;s search: 2 clauses not run",
             "from a URL: PARTIAL",
-            // what a save of it keeps (the page seat of 2026-11-08, its
-            // fault 1)
+            // what a save of it keeps
             "<p class=\"save-note\">Saved, this is the query as translated above, not the site&#39;s search: the clauses not run are not saved.</p>",
             "<td>NOT RUN</td><td>stats.1</td>",
             "<td>reported</td><td>status</td>",
@@ -1325,8 +1324,7 @@ fn every_search_page_is_a_wording_golden() {
         "GET search?<every ring, one row shown>",
         &first,
         &[
-            // where no sort was asked, the way to one (the page seat after
-            // GUI step 6, its fault 2)
+            // where no sort was asked, the way to one
             "rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/",
             "search?next=acq1.",
             "\">more</a>",
@@ -1335,8 +1333,7 @@ fn every_search_page_is_a_wording_golden() {
     );
     every_request_an_answer_carries_is_a_way_on_its_page(&web, first_path, &first);
     // the page "more" reaches keeps the other way and has the way back to
-    // the first rows, each answering (the page seat of 2026-11-08, its
-    // fault 6)
+    // the first rows, each answering
     let href = |body: &str, before: &str| {
         let at = body[..body.find(before).unwrap()].rfind("href=\"").unwrap() + 6;
         body[at..at + body[at..].find('"').unwrap()]
@@ -1435,8 +1432,8 @@ fn every_search_page_is_a_wording_golden() {
     assert_eq!(refused.status, 400);
     pages.page("GET search?view.sort=no such value", &refused, &["refusal"]);
     // an opened row's card links the item against the answer's query,
-    // its canonical text (step 6.5c, Decision 7): the item page under
-    // `against`, whose JSON is `acq show <id> --against`'s
+    // its canonical text: the item page under `against`, whose JSON is
+    // `acq show <id> --against`'s
     let opened_path =
         "search?realm=pc&text=class%3Arings%20%20ilvl%3E%3D1&view.fields=icon&item=r1";
     let canonical = web.get_json(opened_path)["query"]["text"]
@@ -1502,8 +1499,8 @@ fn every_search_page_is_a_wording_golden() {
         400,
     );
     assert!(refused_doc["error"].is_string(), "{refused_doc}");
-    // what a save leaves behind (#186), said by the save form: a sorted
-    // table's order and table, a table's table alone
+    // what a save leaves behind, said by the save form: a sorted table's
+    // order and table, a table's table alone
     for (path, said, line) in [
         (
             "search?realm=pc&text=class%3Arings&view.fields=icon&view.sort=ilvl&view.desc=true",
@@ -1513,8 +1510,7 @@ fn every_search_page_is_a_wording_golden() {
         (
             "search?realm=pc&text=class%3Arings&view.fields=icon",
             "Saved without the table: a saved search is its query and its scope.",
-            // where no sort was asked, the way to one (the page seat after
-            // GUI step 6, its fault 2)
+            // where no sort was asked, the way to one
             "3 matching items in the table, in the store&#39;s order (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>",
         ),
     ] {
@@ -1528,10 +1524,9 @@ fn every_search_page_is_a_wording_golden() {
     let cards = web.get("search?realm=pc&text=class%3Arings");
     assert!(!cards.body.contains("Saved without"), "{}", cards.body);
     // a count asked of no realm over a store of two: each realm offered
-    // keeps the count, and each link answers it (the review of #97's
-    // build, its second finding) — a key in another case and a narrowing
-    // of two texts among them, which fold back through the form's one
-    // count field (the review at 3ce22d81)
+    // keeps the count, and each link answers it — a key in another case
+    // and a narrowing of two texts among them, which fold back through the
+    // form's one count field
     for (asked, spelled, said) in [
         ("rarity", "rarity", "Count rarity"),
         ("Rarity", "rarity", "Count rarity"),
@@ -1559,8 +1554,7 @@ fn every_search_page_is_a_wording_golden() {
         }
     }
     // a tab's id: the refusal's way on is the page's own, a link to the
-    // search the form asks, never a command line (#97); followed, it
-    // answers
+    // search the form asks, never a command line; followed, it answers
     let tab = web.get("item/t1");
     assert_eq!(tab.status, 400, "{}", tab.body);
     assert!(!tab.body.contains("acq "), "{}", tab.body);
@@ -1587,8 +1581,7 @@ fn every_search_page_is_a_wording_golden() {
     assert!(listed.body.contains("Doom Loop"), "{}", listed.body);
     every_request_an_answer_carries_is_a_way_on_its_page(&web, link, &listed);
     // a site search whose ranges run backwards matches nothing, and the
-    // page says which clause and why, the term under `if` included (#150,
-    // the cold review of 23f225c1)
+    // page says which clause and why, the term under `if` included
     let inverted = format!(
         "search?{}",
         query_string(&[
@@ -1613,16 +1606,14 @@ fn every_search_page_is_a_wording_golden() {
     page_golden(file!(), "search_pages", &pages);
 }
 
-/// The form is one realm's render (the review of 4b, its fourth
-/// finding): asked for the console realm, it lists that realm's league
-/// alone and its search carries that realm. A server started with no
-/// account on disk serves (`roadmap/briefs/99-web-leftovers.md`, Do 1):
-/// every page is the `not_logged_in` refusal with its remedy, a page
-/// asked as JSON its document, the stylesheet still served; once an
-/// account is on disk, a reload serves its form. A server asked for an
-/// account by name over the same empty world does not start: it refuses
-/// as `not_logged_in` before the bind (the review at 49a74010, its first
-/// finding).
+/// The form is one realm's render: asked for the console realm, it lists
+/// that realm's league alone and its search carries that realm. A server
+/// started with no account on disk serves: every page is the
+/// `not_logged_in` refusal with its remedy, a page asked as JSON its
+/// document, the stylesheet still served; once an account is on disk, a
+/// reload serves its form. A server asked for an account by name over the
+/// same empty world does not start: it refuses as `not_logged_in` before
+/// the bind.
 #[test]
 fn the_form_renders_the_realm_it_is_asked_for() {
     let scratch = harness::scratch("webrealm");
@@ -1641,8 +1632,7 @@ fn the_form_renders_the_realm_it_is_asked_for() {
         &none,
         &["no account&#39;s store in", "log in with `acq auth`"],
     );
-    // the nav bar says no account is served yet (the page seat of
-    // 2026-11-08, its fault 11)
+    // the nav bar says no account is served yet
     assert!(
         none.body
             .contains("<span class=\"account\">no account yet</span>"),
@@ -1686,8 +1676,8 @@ fn the_form_renders_the_realm_it_is_asked_for() {
         ],
     );
     // a league with no tabs: the stash tabs page's facts line, an empty
-    // listing apart from one never seen (the review of round C, finding
-    // 3), and the listing where the table would be (#189)
+    // listing apart from one never seen, and the listing where the table
+    // would be
     let mock = scratch.0.join("mock");
     Store::open(&account_path(&mock, USER))
         .unwrap()
@@ -1721,7 +1711,7 @@ fn the_form_renders_the_realm_it_is_asked_for() {
     page_golden(file!(), "console_realm", &pages);
 }
 
-/// The moved-world review (Do 9): what a new league brings first renders
+/// What a new league brings first renders
 /// with a badge, never a refusal or an empty page — a base the class
 /// table lacks, undecided with its reason; a mechanic's line whose flag
 /// is no yes or no; and a site search naming a stat the table lacks,
@@ -1782,8 +1772,8 @@ fn the_moved_world_renders_with_a_badge() {
     page_golden(file!(), "moved_world", &pages);
 }
 
-/// A way on as a page marks it (4-full part 1, step 4): the pointer its
-/// `data-way` names, and its link where it is one.
+/// A way on as a page marks it: the pointer its `data-way` names, and its
+/// link where it is one.
 #[derive(Debug)]
 struct PageWay {
     at: String,
@@ -1877,8 +1867,8 @@ fn tabs_pointed(answer: &Value) -> bool {
 /// a count the form asks.
 const RESTS_NO_FORM_READS: [&str; 0] = [];
 
-/// Every request an answer carries is a way on its page (4-full part 1,
-/// step 4, Do 8): for each object of the page's document holding a
+/// Every request an answer carries is a way on its page: for each object
+/// of the page's document holding a
 /// `request`, exactly one element marked `class="way"` names its pointer,
 /// and none names another; the scope's never-fetched tabs a way exactly
 /// where the answer points at them. Each link answers `200`: the tabs'
@@ -1982,16 +1972,16 @@ fn every_request_an_answer_carries_is_a_way_on_its_page(
     }
 }
 
-/// C143 on the answer and item pages (4-full part 1, step 4): every page
-/// headed `GET search` or `GET item/` that answered in a golden under
-/// `tests/goldens/web/` holds no `acq ` and no ` --` before a letter —
-/// the ways on are the page's own. Read from the files, as `no_ids.rs`
-/// reads them: the pages served are the goldens'. A place page (`GET
-/// tabs`, `GET characters`, step 6.5a) is read too, and holds no `pre`
-/// either (#182); so is every answered plan, apply and jobs page (`GET
-/// plan`, `POST apply`, `GET jobs`, step 6.5d), which outside attribute
-/// values also names none of the daemon's words: `rails`, `tripwire`,
-/// `prio` and `eta` as words, `web:`, `cli:` and `-limit` anywhere.
+/// C143 on the answer and item pages: every page headed `GET search` or
+/// `GET item/` that answered in a golden under `tests/goldens/web/` holds
+/// no `acq ` and no ` --` before a letter — the ways on are the page's
+/// own. Read from the files, as `no_ids.rs` reads them: the pages served
+/// are the goldens'. A place page (`GET tabs`, `GET characters`) is read
+/// too, and holds no `pre` either (#182); so is every answered plan,
+/// apply and jobs page (`GET plan`, `POST apply`, `GET jobs`), which
+/// outside attribute values also names none of the daemon's words:
+/// `rails`, `tripwire`, `prio` and `eta` as words, `web:`, `cli:` and
+/// `-limit` anywhere.
 #[test]
 fn an_answer_item_or_place_page_prints_no_command_line_and_no_flag() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goldens/web");
@@ -2098,8 +2088,8 @@ fn outside_attribute_values(line: &str) -> String {
     out
 }
 
-/// The ways no seeded page reaches are a wording golden (4-full part 1,
-/// step 4, Do 7): a world staged apart from `seed`'s pages, each page
+/// The ways no seeded page reaches are a wording golden: a world staged
+/// apart from `seed`'s pages, each page
 /// recorded after the staging it needs and checked as every answer page
 /// is ([`every_request_an_answer_carries_is_a_way_on_its_page`]) — tabs
 /// never fetched in two pc leagues, the scope pointing at the league
@@ -2195,7 +2185,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         ],
     );
     // its card's place lands at the place's head, not at its row, which
-    // the place's live rows lack (the page seat after GUI step 6, fault 7)
+    // the place's live rows lack
     let gone = web.get("item/r2");
     let card = &gone.body[gone.body.find("<p class=\"place\">").unwrap()..];
     let href = attribute(card, "href").unwrap();
@@ -2317,7 +2307,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         ],
     );
     // as a card the item stands whole beside what the row shows, so the
-    // row says no "more" (the cold review of step 5's build, finding 6)
+    // row says no "more"
     let carded = web.get(&format!(
         "search?{}",
         query_string(&[
@@ -2386,8 +2376,8 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         ],
     );
 
-    // a card's numbers, each a link that adds its value and orders by it
-    // (step 6.4c): a line whole by its value, `avg` on a ranged pair; a
+    // a card's numbers, each a link that adds its value and orders by it:
+    // a line whole by its value, `avg` on a ranged pair; a
     // property's number and each requirement's by the field it displays;
     // the value the rows are ordered by marked as its head is
     tabs.push(tab("k9", "Kit"));
@@ -2594,7 +2584,7 @@ fn the_rows_route_answers_a_window_and_refuses_each_wrong_one() {
     let doc = refused_json(&web, &window, 409);
     assert_eq!(doc["kind"], "basis_changed", "{doc}");
 
-    // two opened rows (step 6.5c, Decision 3), over the three rows the
+    // two opened rows, over the three rows the
     // moved world holds: the order cut after each, three segments of one
     // route, each card in the flow with its Close
     let order = in_table_order(&web, "search?realm=pc&text=&view.fields=icon");
@@ -2643,9 +2633,8 @@ fn in_table_order(web: &WebUi, path: &str) -> Vec<String> {
 /// as written: what a test reads to say no URL carries a field.
 fn written(body: &str, name: &str) -> Vec<String> {
     let mut out = Vec::new();
-    // a card's place is the one link that lands elsewhere at its own row
-    // (the page seat after GUI step 6, its fault 7), never a page's `at`
-    // carried on, so this helper reads past it
+    // a card's place is the one link that lands elsewhere at its own row,
+    // never a page's `at` carried on, so this helper reads past it
     let mut kept = String::new();
     let mut rest = body;
     while let Some(start) = rest.find("<a class=\"placed\" href=\"") {
@@ -2671,14 +2660,13 @@ fn written(body: &str, name: &str) -> Vec<String> {
     out
 }
 
-/// An item opened under its row (step 6.5c, Decisions 1 to 4, and the
-/// designer's "Where a toggle lands"): a row's name is a toggle in the
-/// table's form, answered 303 to the page with the id added and `at`,
-/// at the row's anchor; the page renders the row's block and its card
-/// after it, and no URL it writes carries `at`. A head's link keeps the
-/// row open at its new index; toggled again, it closes, its block still
-/// rendered for the anchor. An id no order holds is dropped; "as cards"
-/// and the query box carry no opened row.
+/// An item opened under its row: a row's name is a toggle in the table's
+/// form, answered 303 to the page with the id added and `at`, at the
+/// row's anchor; the page renders the row's block and its card after it,
+/// and no URL it writes carries `at`. A head's link keeps the row open at
+/// its new index; toggled again, it closes, its block still rendered for
+/// the anchor. An id no order holds is dropped; "as cards" and the query
+/// box carry no opened row.
 #[test]
 fn a_row_opens_under_itself_and_stays_open_as_the_view_changes() {
     let (_scratch, web) = offline_web("webopened");
@@ -2782,7 +2770,7 @@ fn a_row_opens_under_itself_and_stays_open_as_the_view_changes() {
     assert!(written(&landed.body, "at").is_empty(), "{}", landed.body);
 
     // a table reached by a continuation keeps it through a head's link
-    // too (the review of 306e0abd, its second finding)
+    // too
     let first = web.get_json(&format!("{table}&view.limit=1"));
     let next: acquisition_search::answer::Request =
         serde_json::from_value(first["view"]["rows"]["next"]["request"].clone()).unwrap();
@@ -2852,8 +2840,8 @@ fn offered_links(body: &str) -> Vec<String> {
         .collect()
 }
 
-/// The refresh loop through the place pages alone, over the mock (step
-/// 6.5a, #189, #248): from a world with nothing listed and no policy, the
+/// The refresh loop through the place pages alone, over the mock: from a
+/// world with nothing listed and no policy, the
 /// stash tabs and characters pages list the league, each through its own
 /// listing, with no command line and no "Plan under the policy"; a ticked
 /// selection is planned and applied; `refresh --all` (a selection over
@@ -2914,8 +2902,8 @@ fn the_refresh_loop_runs_through_the_pages() {
         let mut form = form_on(&page.body, button, None);
         form.action = format!("/{}/{}", web.token, form.action);
         let listed = send(&web, &form, false);
-        // a listing lands at its job, naming the form's league (Decision
-        // 8): its row marked, the league's place pages linked
+        // a listing lands at its job, naming the form's league: its row
+        // marked, the league's place pages linked
         let (id, landed) = landed_at_a_job(&web, &listed, Some("Standard"));
         assert!(
             landed
@@ -2960,17 +2948,16 @@ fn the_refresh_loop_runs_through_the_pages() {
         &tabs,
         &[
             "tabs in Standard",
-            // a tick box is named by its place, not its id (the page seat
-            // after GUI step 6, its fault 4)
+            // a tick box is named by its place, not its id
             "aria-label=\"Dump\" name=\"tab\" value=\"dump\"",
-            // never fetched reads apart from fetched and empty (#191)
+            // never fetched reads apart from fetched and empty
             ">Dump</a></span><span>PremiumStash</span><span>-</span><span>never</span>",
             "<span>Old leagues <span class=\"holds-said\">2 tabs, 2 never fetched</span>",
             "<span>Folder</span><span></span><span></span></div>",
             "2 tabs, 2 never fetched",
             "name=\"toggle\" value=\"fold\">Open</button>",
             "Refresh ticked",
-            // the filter's controls, sent with the form (step 6.5b)
+            // the filter's controls, sent with the form
             "<input type=\"text\" name=\"name\" value=\"\"",
             "<select name=\"type\"",
             "name=\"fetched\" value=\"never\"",
@@ -2986,14 +2973,14 @@ fn the_refresh_loop_runs_through_the_pages() {
         "{}",
         tabs.body
     );
-    // the buttons and the substashes box above the list (the page seat's
-    // probe), "Show" the form's first, so Enter sends the page again
+    // the buttons and the substashes box above the list, "Show" the
+    // form's first, so Enter sends the page again
     let at = |body: &str, words: &str| {
         body.find(words)
             .unwrap_or_else(|| panic!("{words}: {body}"))
     };
     // the list's summary names it, and the league's counts stand once, in
-    // the counts line (the build's review, its first finding)
+    // the counts line
     assert!(
         tabs.body.contains("<summary>Stash tabs</summary>"),
         "{}",
@@ -3030,7 +3017,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         ],
     );
     // C16: the basis line is the envelope's own, read unmasked (the
-    // golden masks its listings' response ids, #192)
+    // golden masks its listings' response ids)
     let held: Value = serde_json::from_str(&hidden_plan(&selected.body)).unwrap();
     assert_eq!(
         basis_line(&selected.body).expect("the plan page's basis line")["plan"],
@@ -3046,7 +3033,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         landed.body
     );
     until_done(&web);
-    // `refresh --tabs` compiles and applies the same jobs (C44 as amended)
+    // `refresh --tabs` compiles and applies the same jobs (C44)
     let out = harness::acq(&base, &["refresh", "--tabs", "dump,cur1"]);
     assert!(out.status.success(), "{out:?}");
     let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
@@ -3101,8 +3088,8 @@ fn the_refresh_loop_runs_through_the_pages() {
     assert!(!planned.body.contains("<td>Tab "), "{}", planned.body);
 
     // a league with no character beside a realm with two: the page says
-    // the terminal's own cause, which names where they are (the page
-    // seat's fault 11), with the listing and no command
+    // the terminal's own cause, which names where they are, with the
+    // listing and no command
     let elsewhere = web.get("characters?realm=pc&league=Hardcore");
     assert_eq!(elsewhere.status, 200, "{}", elsewhere.body);
     let said = harness::acq(&base, &["store", "characters", "--league", "Hardcore"]);
@@ -3243,7 +3230,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         "{planned}"
     );
 
-    // the filter (step 6.5b, Decisions 2 and 3): the places whose name
+    // the filter: the places whose name
     // holds "maps", a tick on a tab it does not list travelling hidden and
     // counted on its level's fold line, the map tab's pages folded with
     // their never-fetched count a link to the page under `fetched=never`
@@ -3399,10 +3386,10 @@ fn the_refresh_loop_runs_through_the_pages() {
         ],
     );
     // the page's way on is its Apply button, never the command a terminal
-    // prints beside the plan (#97)
+    // prints beside the plan
     assert!(!plan.body.contains("next: acq"), "{}", plan.body);
     // a league the policy does not cover: its way on is the plan of the
-    // one it does, a link to that page (#97)
+    // one it does, a link to that page
     let uncovered = web.get("plan?realm=pc&league=Hardcore");
     assert_eq!(uncovered.status, 400, "{}", uncovered.body);
     pages.page(
@@ -3435,7 +3422,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         ],
     );
     // the characters fetched: a character's name opens a table of the
-    // items it holds (the build's review, its second finding)
+    // items it holds
     let fetched = web.get("characters?realm=pc&league=Standard");
     let row = &fetched.body[at(&fetched.body, "name=\"character\" value=\"")..];
     let href = attribute(&row[row.find("<a class=\"way\"").unwrap()..], "href").unwrap();
@@ -3497,8 +3484,8 @@ fn the_refresh_loop_runs_through_the_pages() {
     let refused = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(refused.status, 400, "{}", refused.body);
     // its way on is the plan page, a link, never the command a terminal
-    // types (the review of #97's build, its first finding); followed, the
-    // plan compiled again from the policy as it stands
+    // types; followed, the plan compiled again from the policy as it
+    // stands
     assert!(!refused.body.contains("acq "), "{}", refused.body);
     pages.page(
         "POST apply <a plan whose policy moved>",
@@ -3520,7 +3507,7 @@ fn the_refresh_loop_runs_through_the_pages() {
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
 }
 
-/// The place pages (step 6.5a): each navigation entry is a page, the
+/// The place pages: each navigation entry is a page, the
 /// stash tabs and characters among them where "Refresh" stood, and
 /// `refresh` answers none. A tick is one league's: with one id listed in
 /// two leagues and ticked in one, the realm and league selects are a form
@@ -3612,12 +3599,11 @@ fn first_value(body: &str, key: &str) -> String {
     unescaped(&body[at..at + body[at..].find('"').unwrap()])
 }
 
-/// A place page's table form, or an answer's table's (step 6.5c), as a
-/// browser sends it, with the boxes
-/// `ticked` ticked besides those it holds ticked, and the button saying
-/// `button` pressed (its `name` and `value` where it carries them): the
-/// path it asks, under the button's `formaction` or the form's action,
-/// its fields in the form's order.
+/// A place page's table form, or an answer's table's, as a browser sends
+/// it, with the boxes `ticked` ticked besides those it holds ticked, and
+/// the button saying `button` pressed (its `name` and `value` where it
+/// carries them): the path it asks, under the button's `formaction` or
+/// the form's action, its fields in the form's order.
 fn place_form(
     web: &WebUi,
     body: &str,
@@ -3679,10 +3665,10 @@ fn place_form(
 /// The jobs page under a halt: a trip and a closed route at the cap staged
 /// in the mock world's rails, as the rails tests stage them, and the
 /// daemon started with the tripwire on. The page opens with the halt and
-/// the closed route in its own words (step 6.5d, Decision 6), then a job
-/// that waits under it, its start said; `daemon status` says the same
-/// halt in the terminal's words, which it alone now prints. No deadline
-/// but the hang ceiling (C137).
+/// the closed route in its own words, then a job that waits under it, its
+/// start said; `daemon status` says the same halt in the terminal's
+/// words, which it alone now prints. No deadline but the hang ceiling
+/// (C137).
 #[test]
 fn the_jobs_page_opens_with_the_halt() {
     let scratch = harness::scratch("webhalt");
@@ -3768,7 +3754,7 @@ fn hidden_plan(body: &str) -> String {
 
 /// The jobs page read until it no longer reloads itself: every job done.
 /// No deadline but the hang ceiling (C137).
-/// A submit's `303` to the jobs page (Decision 8 of step 6.5d): the
+/// A submit's `303` to the jobs page: the
 /// location names the job, at its row's anchor, and the league where
 /// `league` is one, whose two place pages the page it lands on links; a
 /// location naming no league links none. The job's id and that page.
@@ -3853,8 +3839,8 @@ fn probes_in_order(mut jobs: harness::Reply) -> harness::Reply {
     jobs
 }
 
-/// The jobs page with no daemon, and a job opened by its URL (step 6.5d,
-/// Decisions 6 and 7): the ledger's open rows with how old they are, a
+/// The jobs page with no daemon, and a job opened by its URL: the
+/// ledger's open rows with how old they are, a
 /// child under its parent, and that the next job resumes them; a failed
 /// parent the list leaves out, opened by `job`, above the list, its
 /// failure by kind and its failed child a link to that child's own
@@ -3967,8 +3953,8 @@ fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
             "4 jobs, 3 waiting, 1 running when the daemon stopped",
             "The next job submitted starts a daemon, which resumes them",
             "<td>\u{21b3} Tab uniq in Standard</td><td>waiting</td>",
-            // the review of d572f30a, its first finding: a job of an
-            // account the page does not serve says whose it is
+            // a job of an account the page does not serve says whose it
+            // is
             "<td>Tab gems in Standard, for Bob</td><td>waiting</td>",
         ],
     );
@@ -3996,7 +3982,7 @@ fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
             "Standard: <a href=",
         ],
     );
-    // its second: a result's offer of itself is the page shown, and none
+    // a result's offer of itself is the page shown, and none
     let kept = web.get("jobs?job=30");
     pages.page(
         "GET jobs?job=30 <what was fetched, not recorded>",
@@ -4004,7 +3990,7 @@ fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
         &["could not be saved"],
     );
     assert!(!kept.body.contains("jobs?job=30#j-30\""), "{}", kept.body);
-    // its third: a page's 404 is answered by its parent tab's fetch, so
+    // a page's 404 is answered by its parent tab's fetch, so
     // the words name what lists it, not the league's list
     let gone = web.get("jobs?job=31");
     pages.page(
@@ -4028,10 +4014,9 @@ fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
     page_golden(file!(), "jobs_opened", &pages);
 }
 
-/// The served account, named on every submit (the review of 4b, its
-/// first finding): a server started with no account on disk refuses
-/// every page as `not_logged_in` until Alice logs in, then serves Alice,
-/// the account it found (the review at 49a74010, its second finding),
+/// The served account, named on every submit: a server started with no
+/// account on disk refuses every page as `not_logged_in` until Alice logs
+/// in, then serves Alice, the account it found,
 /// and keeps applying as Alice after Alice logs out and Bob logs in — the
 /// daemon's sole live session, and a second account in the index — so
 /// the plan page still renders for Alice, the apply of a selection's
@@ -4099,7 +4084,7 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
 }
 
-/// #189, fault 12: the plan page says "not signed in" only where the
+/// The plan page says "not signed in" only where the
 /// daemon refused the quote for having no session for the account — not
 /// where no daemon runs, which observed no session — and the plan's JSON
 /// and the CLI's text say what they said before the cause was typed: the
@@ -4215,7 +4200,7 @@ fn a_plan_says_not_signed_in_only_where_the_daemon_refused_the_session() {
     page_golden(file!(), "plan_session", &pages);
 }
 
-// ---- the saved pages (C16, C168; `roadmap/briefs/4-full-1-pages.md`) -----
+// ---- the saved pages (C16, C168) -------------------------------------
 
 /// A form a page prints, as a browser sends it: its action, its button's
 /// words, and every field it carries, hidden or shown, unescaped.
@@ -4370,7 +4355,7 @@ fn landed_on_the_list(web: &WebUi, reply: &harness::Reply) {
     assert!(reply.body.is_empty(), "{}", reply.body);
 }
 
-/// A clear as a page makes it (the owner, "Clear should ask first"):
+/// A clear as a page makes it, asking first:
 /// the list's Clear link for `id`, never a form, followed to the asking
 /// page, which writes nothing (the file's revision unchanged across it),
 /// and the clear's one form on that page.
@@ -4469,7 +4454,7 @@ fn main_of(body: &str) -> &str {
     &body[open..close]
 }
 
-/// The words of the scan (C16, Do 9): a script that names any of them
+/// The words of the scan (C16): a script that names any of them
 /// reaches a storage, a cookie or the history.
 const NO_STATE: [&str; 8] = [
     "localStorage",
@@ -4648,10 +4633,9 @@ fn c16_every_page_s_basis_line_is_its_documents_own() {
         asked,
         saved_json(&world, &["show", "0000000000a1"])["revision"]
     );
-    // a place page under a query with a place open (step 6.5b): the
-    // places document's basis and its segment's window's, one basis; a
-    // place open with no query, the window's alone; nothing open and no
-    // query, no line
+    // a place page under a query with a place open: the places document's
+    // basis and its segment's window's, one basis; a place open with no
+    // query, the window's alone; nothing open and no query, no line
     let path = "tabs?realm=pc&league=Standard&text=class%3Arings&open=t1";
     let page = web.get(path);
     let line = basis_line(&page.body).unwrap_or_else(|| panic!("no basis line:\n{}", page.body));
@@ -4953,8 +4937,8 @@ fn c168_a_search_over_every_item_saves_opens_and_clears_through_the_forms() {
     assert_eq!(back["written"]["name"], "all of it");
 }
 
-/// Do 6's and Do 7's failing inputs, and a clear asked first with no
-/// row to ask about: each refused, nothing written.
+/// A write's and an opening's malformed inputs, and a clear asked first
+/// with no row to ask about: each refused, nothing written.
 #[test]
 fn c168_each_malformed_write_or_opening_is_refused_and_writes_nothing() {
     let (scratch, web) = offline_web("webmalformed");
@@ -5122,7 +5106,7 @@ fn c168_each_malformed_write_or_opening_is_refused_and_writes_nothing() {
     assert_eq!(file_revision(&world), before);
 }
 
-/// The routes (Do 5): `saved/open` writes nothing and answers `303` to
+/// The routes: `saved/open` writes nothing and answers `303` to
 /// the search the row's request folds to, which answers as `acq search
 /// --saved` does — for a row over the live items and one over all of
 /// them, whose membership the query box and the continuation carry; an
@@ -5238,9 +5222,9 @@ fn saved_open_runs_the_rows_search_and_writes_nothing() {
     );
 }
 
-/// Morning 1's handoff on the owner's side: a row the terminal saves is on
-/// the list page, and a row the page saves is in `acq saved list`, its
-/// channel `web`.
+/// The handoff between the terminal and the page: a row the terminal
+/// saves is on the list page, and a row the page saves is in `acq saved
+/// list`, its channel `web`.
 #[test]
 fn the_handoff_a_row_saved_elsewhere_is_on_the_page_and_the_pages_is_listed() {
     let (scratch, web) = offline_web("webhandoff");
@@ -5314,7 +5298,7 @@ fn c53_the_saved_list_shows_ten_and_links_every_one() {
     assert_eq!(other["kind"], "usage", "{other}");
 }
 
-/// The saved pages, a golden naming what a reader must find (Do 10): the
+/// The saved pages, a golden naming what a reader must find: the
 /// list empty and with rows, one this build cannot read among them; a
 /// create from an answer, a rename and a clear, each a redirect to the
 /// list it lands on; an answer opened from a row, then after the row
@@ -5674,21 +5658,19 @@ fn the_saved_pages_are_a_wording_golden() {
     page_golden(file!(), "saved_pages", &pages);
 }
 
-/// The grouped table (step 6.5b, `roadmap/briefs/4-full-1-step6-grouped.md`):
-/// the seeded world with a folder holding a tab of rings, a map tab with
-/// a ring of its own beside a page's, and a tab never fetched, and a
-/// character carrying a ring. Under a query, the stash tabs page lists
-/// the places that hold a match, each head its matches beside its
-/// items, a parent's its places' sum, a map tab's own said apart, the
-/// rest folded into one counted line; each open place's items one
-/// segment of the page's window under the item columns' heads, a
-/// value's head ordering them. Golden: that page, the page under
-/// `fetched=never`, and the characters page under the query. Then each
-/// way names the URL its decision does: an answer's "by stash tab" and
-/// "by character", the league its query fixes or the default's, none
-/// over all realms or removed items; the fold's; a value's head; a
-/// toggle; and a place opened with no query and a sort named orders its
-/// rows by it.
+/// The grouped table: the seeded world with a folder holding a tab of
+/// rings, a map tab with a ring of its own beside a page's, and a tab
+/// never fetched, and a character carrying a ring. Under a query, the
+/// stash tabs page lists the places that hold a match, each head its
+/// matches beside its items, a parent's its places' sum, a map tab's own
+/// said apart, the rest folded into one counted line; each open place's
+/// items one segment of the page's window under the item columns' heads,
+/// a value's head ordering them. Golden: that page, the page under
+/// `fetched=never`, and the characters page under the query. Then the
+/// URL each way names: an answer's "by stash tab" and "by character", the
+/// league its query fixes or the default's, none over all realms or
+/// removed items; the fold's; a value's head; a toggle; and a place
+/// opened with no query and a sort named orders its rows by it.
 #[test]
 fn the_grouped_table_is_a_wording_golden() {
     let (scratch, web) = offline_web("webgrouped");
@@ -5821,7 +5803,7 @@ fn the_grouped_table_is_a_wording_golden() {
         &characters,
         &[
             "1 matching item on these characters, of 8 matches",
-            // where the rest stand (the page seat after GUI step 6, fault 1)
+            // where the rest stand
             "elsewhere: <a href=\"/",
             ">7 in the stash tabs of Standard</a></p>",
             "<span>90</span><span>1 of 1</span>",
@@ -5829,7 +5811,7 @@ fn the_grouped_table_is_a_wording_golden() {
             "data-id=\"c-ring\"",
         ],
     );
-    // an open place's opened row under the query (step 6.5c): the place's
+    // an open place's opened row under the query: the place's
     // order cut after it, its card in the flow, its place a link
     let opened = web.get(&format!(
         "tabs?realm=pc&league=Standard&{query}&open=f1&open=o1&item=o-high"
@@ -5847,7 +5829,7 @@ fn the_grouped_table_is_a_wording_golden() {
         ],
     );
     // a place open with no query: its items in the store's order, and the
-    // way to order them said (the page seat after GUI step 6, its fault 2)
+    // way to order them said
     let plain = web.get("tabs?realm=pc&league=Standard&open=t1");
     pages.page(
         "GET tabs?<a place open, no query>",
@@ -5858,11 +5840,10 @@ fn the_grouped_table_is_a_wording_golden() {
     );
     page_golden(file!(), "grouped", &pages);
 
-    // a card's place, followed (Decision 6): its page with the place and
-    // each holding it open, no query, its items listed, landing at the
-    // card's own row, so a long tab is not searched again for it (the page
-    // seat after GUI step 6, its fault 7) — a tab in a folder, a map tab's
-    // page, a character
+    // a card's place, followed: its page with the place and each holding
+    // it open, no query, its items listed, landing at the card's own row,
+    // so a long tab is not searched again for it — a tab in a folder, a
+    // map tab's page, a character
     for (item, open, route) in [
         ("o-low", "open=f1&open=o1", "tabs"),
         ("m-page", "open=m1&open=p1", "tabs"),
@@ -5936,7 +5917,7 @@ fn the_grouped_table_is_a_wording_golden() {
     );
     // a toggle naming no place of the league (one a refresh took away,
     // sent from a page loaded before it) is dropped, and the open places
-    // still list their items (the review of fc0f2f63)
+    // still list their items
     for (path, row) in [
         (
             "tabs?realm=pc&league=Standard&open=t1&toggle=gone",
@@ -6008,7 +5989,6 @@ fn the_grouped_table_is_a_wording_golden() {
         "{fixed:?}"
     );
     // a league the query names in another case is the store's spelling
-    // (the review of f36033f5, its second finding)
     let cased = by("search?realm=pc&text=class%3Arings%20league%3Dstandard");
     assert!(
         cased[0].contains("tabs?realm=pc&league=Standard&text="),

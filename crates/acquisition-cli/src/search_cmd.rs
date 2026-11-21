@@ -325,8 +325,8 @@ pub(crate) fn search_error_text(e: &SearchError) -> String {
 /// A way on as a terminal reads it (C143): the shared reading, in the
 /// request's words, and after a realm's the flag this terminal spells it
 /// with; a whole search, the command it is ([`Printed::command`]), which
-/// this terminal prints in its place (#97: the shared words are the
-/// MCP's and the page's).
+/// this terminal prints in its place (the shared words are the MCP's
+/// and the page's).
 ///
 /// [`Printed::command`]: crate::printed::Printed::command
 pub(crate) fn terminal_reading(o: &acquisition_search::error::Offered) -> String {
@@ -518,7 +518,6 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
     if let (Some(word), Some(trade)) = (&args.realm, &trade)
         && let Some(url) = trade_realm(trade)
         // the realm as parsed, as the request will read it: `PC` is `pc`
-        // (the review of #91, its second finding)
         && Realm::parse(word).is_ok_and(|asked| asked.as_str() == url)
     {
         return Err(fail(
@@ -699,14 +698,13 @@ fn open_store_and_intent(cx: &Ctx) -> Result<(Store, acquisition_store::Annotati
 }
 
 /// [`open_store_and_intent`] for a request read whole (`--request`,
-/// `--next`): with no `--account`, the account its
-/// scope names selects the store, as the MCP's `scope.account` does —
-/// a request is whole, its scope its own, so one an answer or a refusal
-/// holds runs as printed with a second account known (round 4 of the 2g
-/// build). An `--account` given still selects, and a request bound to
-/// another is refused by the search as it was. Refused, the request is
-/// what it offers again as each account known (`Terminal::asking`), the
-/// envelope it was read in, `sent`, kept.
+/// `--next`): with no `--account`, the account its scope names selects the
+/// store, as the MCP's `scope.account` does — a request is whole, its scope
+/// its own, so one an answer or a refusal holds runs as printed with a
+/// second account known. An `--account` given still selects, and a request
+/// bound to another is refused by the search as it was. Refused, the
+/// request is what it offers again as each account known
+/// (`Terminal::asking`), the envelope it was read in, `sent`, kept.
 fn open_as_asked(
     cx: &Ctx,
     request: &Request,
@@ -731,8 +729,7 @@ fn open_as_asked(
             } else {
                 eprintln!("Error: {}", crate::terminal::failure_words(&e));
                 // the ready commands: the request the JSON offers, rebound
-                // to each account (the review of round C's fix round,
-                // finding 1)
+                // to each account
                 eprint!(
                     "{}",
                     crate::terminal::ready_accounts(
@@ -751,8 +748,7 @@ fn open_as_asked(
 /// The basis line every answer and every `show` prints (C98). The intent
 /// file's revision is said as what it holds, the hand-written prices and
 /// the sync policy (C146, a count says what it counts), where `intent 33`
-/// read as a count nobody could name (the release seat: cli-opus-2 calls
-/// 34 and 96, mcp-opus call 19).
+/// reads as a count nobody can name.
 pub(crate) fn basis_text(b: &acquisition_search::Basis) -> String {
     format!(
         "basis   store {} · build {} · snapshot {} · facts v{} · prices and policy revision {} · derivation {} · classes v{} · categories v{} · beast colours v{} · totals v{} · defences v{} · currency v{} · notes v{}",
@@ -819,7 +815,7 @@ fn never_fetched_text(by_type: &[acquisition_search::tabs::TabType]) -> String {
         ));
     }
     // why a ring query lists map tabs: the count ignores the query, and
-    // the line says so as the MCP description does (C146; the h2 review)
+    // the line says so as the MCP description does (C146)
     format!(
         " never fetched: {} ({NEVER_FETCHED_SPAN})",
         named.join(", ")
@@ -832,7 +828,7 @@ const NEVER_FETCHED_SPAN: &str = "counted over every location in the realm, in e
 
 pub(crate) fn place_text(place: &acquisition_search::corpus::Place, now: i64) -> String {
     // how old the place is, as `tabs` says a tab's age (C118: "where do I
-    // pick it up" asked it of the trade seat, cli-opus-2 call 46)
+    // pick it up" asks it)
     let age = match place.fetched_at {
         Some(at) => format!("fetched {}", ago(now, Some(at))),
         None => "never fetched".to_string(),
@@ -855,7 +851,6 @@ pub(crate) fn place_words(place: &acquisition_search::corpus::Place) -> String {
         ));
     }
     // a tab's page with no name of its own is the tab's page, by its id
-    // (the trade seat: cli-opus-2 calls 29, 30, mcp-opus-2 call 29)
     out.push_str(&match (&place.name, &place.parent) {
         (Some(name), _) => format!(" / {name}"),
         (None, Some(_)) => format!(" / page {}", place.id),
@@ -920,8 +915,7 @@ fn evidence_text(evidence: &acquisition_search::answer::Evidence) -> String {
 /// A site search's translation as an answer opens with it: one line,
 /// how far the text is the site's search; one line saying the items are
 /// the store's, never the site's listings, since a reader took `exact`
-/// for "the site would show the same" (the trade seat: mcp-opus calls 1,
-/// 11; cli-sonnet's debrief, answer 4); then each clause that did not
+/// for "the site would show the same"; then each clause that did not
 /// run, each that runs as the site may not read it and each with no
 /// stash meaning, with its note — ten of each listed and the rest
 /// counted (C53) — and, beside an ambiguous clause whose other reading
@@ -1000,7 +994,7 @@ pub(crate) const TRADE_OVER: &str = "the items the store has fetched, priced or 
 /// The clauses a translation lists, by status in the text's order — not
 /// run, ambiguous, reported — each with its index among the report's
 /// clauses: every one the document holds; and, last, each exact clause
-/// that matches nothing, a range that runs backwards (#150), whose term
+/// that matches nothing, a range that runs backwards, whose term
 /// never says why — known by its row, whatever the term's spelling.
 pub(crate) fn clauses_listed(t: &TradeOut) -> [(&'static str, Vec<(usize, &ClauseOut)>); 4] {
     let of = |keep: &dyn Fn(Status) -> bool| -> Vec<(usize, &ClauseOut)> {
@@ -1055,9 +1049,8 @@ fn answer_text(a: &Answer) -> String {
 
 /// The answer's text, saying — where `--limit` was typed beside a count —
 /// that it is each table's length and that a count shows no rows: the
-/// one flag means both, and a reader who asked for thirty rows beside a
-/// count got a table and no word why (the trade seat: cli-sonnet, both
-/// rounds; cli-sonnet-2 call 7, its fault 5).
+/// one flag means both, and a reader who asks for thirty rows beside a
+/// count otherwise gets a table and no word why.
 fn answer_text_of(a: &Answer, limit_beside_count: Option<usize>) -> String {
     let now = acquisition_store::now();
     let mut out = answer_head(a);
@@ -1097,7 +1090,7 @@ fn answer_head(a: &Answer) -> String {
     line(format!("scope   {}", scope_words(&a.scope)));
     let mut never = format!("        {}", never_fetched_words(&a.scope, now));
     // the list that exists: `tabs` over a league the query names, or the
-    // one holding the most never fetched, the others counted (C118, #36)
+    // one holding the most never fetched, the others counted (C118)
     if let Some(pointer) = a.tabs_pointer() {
         never.push_str(&format!(
             " · each tab: {}",
@@ -1172,8 +1165,8 @@ pub(crate) fn scope_words(scope: &acquisition_search::answer::ScopeOut) -> Strin
 
 /// The scope's never-fetched locations by type and the lists' age. An
 /// age over several lists names the set it is the oldest of
-/// (answer-facts seat run 2, cli fault 8: `location list seen 57d ago`
-/// read as the stash list's, 53 days old; it was a character list's).
+/// (else `location list seen 57d ago` reads as the stash list's, 53 days
+/// old, when it is a character list's).
 pub(crate) fn never_fetched_words(
     scope: &acquisition_search::answer::ScopeOut,
     now: i64,
@@ -1221,14 +1214,12 @@ pub(crate) fn total_words(a: &Answer, now: i64) -> String {
     if let Some(span) = &a.total.span
         && let (Some(oldest), Some(newest)) = (span.oldest_fetch, span.newest_fetch)
     {
-        // the matches' ages, not the scope's: a seat quoted the scope's
-        // oldest fetch for 187 matches (#155). Each age is one location's
-        // last fetch (C146: "newest 4d ago" named no location, the release
-        // seat: cli-opus call 35, cli-sonnet call 25, cli-opus-2 call 34);
-        // a row's place carries its own age, which the line need not say
-        // again (the h2 fix round: a line carries its counts, not an
-        // instruction); each names its location as a row's place does,
-        // league first (#11), and one location is named once
+        // the matches' ages, not the scope's: the scope's oldest fetch
+        // reads as the matches'. Each age is one location's last fetch
+        // (C146: "newest 4d ago" names no location); a row's place carries
+        // its own age, which the line need not say again (a line carries
+        // its counts, not an instruction); each names its location as a
+        // row's place does, league first, and one location is named once
         total.push_str(&format!(
             " ({})",
             span_words(span, ago(now, Some(oldest)), ago(now, Some(newest)))
@@ -1243,10 +1234,8 @@ pub(crate) fn undecided_words(n: usize) -> String {
 }
 
 /// Under every total, not a zero's alone: a count of N is as blind to
-/// the never-fetched as a count of none (the trade seat: cli-sonnet call
-/// 6, its fault 4; mcp-sonnet's debrief, answer 5). The number agrees
-/// through the sentence: "it holds" for one (the page seat's probe, stop
-/// 10).
+/// the never-fetched as a count of none. The number agrees through the
+/// sentence: "it holds" for one.
 pub(crate) fn never_fetched_sentence(n: usize) -> Option<String> {
     match n {
         0 => None,
@@ -1274,9 +1263,8 @@ pub(crate) fn before_words(a: &Answer) -> Option<String> {
 }
 
 /// A fetch span's extremes as a line says them, each with its own age:
-/// two locations named apart, one named once (round 2's form, #155),
-/// each named as a row's place is, realm and league first (#11; the
-/// answer-facts seat, CLI fault 4: a poe2 character read as pc's).
+/// two locations named apart, one named once, each named as a row's place
+/// is, realm and league first (else a poe2 character reads as pc's).
 pub(crate) fn span_words(
     span: &acquisition_store::coverage::FetchSpan,
     oldest: String,
@@ -1430,8 +1418,8 @@ pub(crate) fn row_shows(
     // item's occurrences, so a line printed twice by one part is two
     // occurrences: the row prints each line as many times as the part
     // that shows it most, in the order the parts show it, whichever
-    // order the terms were written in (the review of 9b, 2026-09-26,
-    // twice: a total of 40 showed contributors of 10 and 20 alone)
+    // order the terms were written in (else a total of 40 shows
+    // contributors of 10 and 20 alone)
     let mut parts: Vec<Vec<RowPiece>> = Vec::new();
     // each value as it is said bare, `name number`: a term's own
     // evidence of the same number is said once, by the value
@@ -1441,13 +1429,12 @@ pub(crate) fn row_shows(
         ViewOut::Counts(_) | ViewOut::Cross(_) | ViewOut::Explain(_) => (&[][..], None),
     };
     for (valued, key) in row.values.iter().zip(texts) {
-        // what each value is (F6): a field's name before its number, a
+        // what each value is: a field's name before its number, a
         // line or a sum's contributors after — and the value's own text
         // before its number where no field names it, since `sorts by 78`
-        // beside a term's sum of 70 was read as the filter's number (the
-        // trade seat: cli-opus call 21, cli-sonnet call 15); the sort's
-        // says it sorts, and a row that sorts last says by what (the
-        // review of 9b: `sorts last: incomplete` named no field)
+        // beside a term's sum of 70 reads as the filter's number; the
+        // sort's says it sorts, and a row that sorts last says by what
+        // (`sorts last: incomplete` names no field)
         let sorts = sort == Some(key.as_str());
         // a column the item has nothing in is an empty cell, unsaid; the
         // sort's says the row is last, and why
@@ -1535,9 +1522,8 @@ pub(crate) fn row_shows(
     (shows, more)
 }
 
-/// The counts a page shows with no link, and why, plainly (the page seat
-/// of 2026-11-08, its T3: "carries those routes only where every route
-/// is asked" was not understood).
+/// The counts a page shows with no link, and why, plainly ("carries those
+/// routes only where every route is asked" is not understood).
 pub(crate) fn unrouted_words(n: usize) -> String {
     format!(
         "{} no link: a count's route is listed only when every route is asked for, which a page never does",
@@ -1566,8 +1552,8 @@ pub(crate) fn more_of_term_words(n: usize, path: &str) -> String {
 
 /// The rows' continuation as the text says it, where rows are left out;
 /// where none are, the rows shown and their order as the page says them,
-/// where there is an order to say or a value left out (the cold review
-/// at 1ab468eb: a complete answer said none of it).
+/// where there is an order to say or a value left out (a complete answer
+/// says them too).
 fn answer_more(a: &Answer) -> Option<String> {
     match &a.view {
         ViewOut::Rows(rows)
@@ -1614,10 +1600,9 @@ pub(crate) fn rows_shown_words(a: &Answer, rows: &acquisition_search::answer::Ro
     )
 }
 
-/// The order rows stand in where no value orders them: the store's
-/// stable order (`answer.rs`, "Rows"), said so a reader does not look for
-/// one (the page seat of 2026-11-08, its fault 13). None where a sort was
-/// named, which each row says it sorts by.
+/// The order rows stand in where no value orders them: the store's stable
+/// order (`answer.rs`, "Rows"), said so a reader does not look for one.
+/// None where a sort was named, which each row says it sorts by.
 pub(crate) fn order_words(rows: &acquisition_search::answer::RowsOut) -> Option<String> {
     match rows.sort.as_deref() {
         Some(sort) if sort == acquisition_search::answer::STORE_ORDER => {
@@ -1629,8 +1614,7 @@ pub(crate) fn order_words(rows: &acquisition_search::answer::RowsOut) -> Option<
 }
 
 /// The values the query compares past the most a row carries, where
-/// there are any: counted, never dropped unsaid (the cold review at
-/// 1ab468eb).
+/// there are any: counted, never dropped unsaid.
 pub(crate) fn values_left_out_words(rows: &acquisition_search::answer::RowsOut) -> Option<String> {
     let n = rows.values_left_out;
     (n > 0).then(|| {
@@ -1768,8 +1752,8 @@ fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> String {
             .max()
             .unwrap_or(0)
             .min(60);
-        // a path as long as its column ran into its term, `0.3.0pseudo.…`
-        // (the trade seat: cli-opus call 13)
+        // a path as long as its column would run into its term,
+        // `0.3.0pseudo.…`
         let path_width = path_column(a.terms.iter().map(|t| t.path.as_str()));
         for term in &a.terms {
             let mut counts: Vec<String> = [
@@ -2280,8 +2264,8 @@ pub(crate) fn table_head_words(table: &Table, rest: &str) -> String {
         ("value", "values")
     };
     // the heading counts the lines it prints, every special bucket among
-    // them: a `none` and an `undecided` line are values (C146; the
-    // answer-facts seat, CLI fault 13: `4 values` over five lines);
+    // them: a `none` and an `undecided` line are values (C146; else
+    // `4 values` heads five lines);
     // `values` keeps its count of the values the items carry
     let special = table
         .buckets
@@ -2315,7 +2299,7 @@ pub(crate) fn table_head_words(table: &Table, rest: &str) -> String {
 }
 
 /// The scope's leagues no match is in, after a table keyed by `league`:
-/// a bucket is a value an item holds, so they have none (#173).
+/// a bucket is a value an item holds, so they have none.
 fn unmatched_text(leagues: &[String]) -> Option<String> {
     unmatched_words(leagues).map(|words| format!("           {words}"))
 }
@@ -2437,7 +2421,7 @@ fn describe_text(d: &Describe, totals: bool) -> String {
         ));
     }
     // a view's entry is named by the request's word, and this terminal
-    // spells it as its flag after it (C143; #97)
+    // spells it as its flag after it (C143)
     let mut block = |head: &str, entries: &[acquisition_search::describe::Named], flags: bool| {
         if entries.is_empty() {
             return;
@@ -2609,7 +2593,7 @@ pub(crate) struct ItemParts<'a> {
     pub price: &'a Priced,
     pub lines: &'a [ShownLine],
     /// Its displayed rows in their pieces, each number field's with its
-    /// text (4-full part 1, step 6.4c): what a card links.
+    /// text: what a card links.
     pub displays: acquisition_search::show::Displays<'a>,
 }
 
@@ -2654,12 +2638,12 @@ pub(crate) fn item_text(parts: ItemParts<'_>, realm: &str, account: &str) -> Str
     }
     // what the listing state prices it at (C81): the price, or why none —
     // and the command that says why, with the target form `price show`
-    // takes, ready to paste (the trade seat: cli-sonnet-2 call 24, its
-    // fault 6, found `item/<id>` only in a refusal); a removed item has no
-    // listing state for `price show` to read; the command opens as every
-    // printed command does, with the account the item was shown for, by
-    // its name, and its realm, since the defaults are another account's
-    // or another realm's where the store holds several
+    // takes, ready to paste (else `item/<id>` is found only in a refusal);
+    // a removed item has no listing state for `price show` to read; the
+    // command opens as every printed command does, with the account the
+    // item was shown for, by its name, and its realm, since the defaults
+    // are another account's or another realm's where the store holds
+    // several
     let why = match parts.price {
         Priced::None { kind, .. } if kind == "removed" => String::new(),
         _ => format!(
@@ -2730,11 +2714,10 @@ pub(crate) fn item_text(parts: ItemParts<'_>, realm: &str, account: &str) -> Str
 }
 
 /// `show`'s text. `account` is the name of the account the item was shown
-/// for, which the price's why line opens with: the basis names the
-/// account by its uuid, a fingerprint, where every printed command names
-/// it as the person does (the page seat's fault 13). The item page says
-/// the same facts in the same words, each made by the functions this
-/// calls, with no why line.
+/// for, which the price's why line opens with: the basis names the account
+/// by its uuid, a fingerprint, where every printed command names it as the
+/// person does. The item page says the same facts in the same words, each
+/// made by the functions this calls, with no why line.
 pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
     let item = &s.item;
     let mut out = String::new();
@@ -2855,10 +2838,9 @@ pub(crate) fn shown_place_words(place: &acquisition_search::corpus::Place, now: 
 }
 
 /// What the listing state prices the item at (C81): the price, its side,
-/// and the row it is priced from where that is not the item's own; or
-/// none with the reason, in the words the JSON carries (`none (none)`
-/// read as two empty fields: the re-sit, cli-opus call 41, its fault 7);
-/// or undecided with the problem.
+/// and the row it is priced from where that is not the item's own; or none
+/// with the reason, in the words the JSON carries (`none (none)` reads as
+/// two empty fields); or undecided with the problem.
 pub(crate) fn price_words(id: &str, price: &Priced) -> String {
     let target = format!("item/{id}");
     match price {
@@ -2981,7 +2963,7 @@ pub(crate) fn node_left_out_words(n: usize) -> String {
 /// A view's or a construct's name, the request's word, as this terminal
 /// prints it: the word, and the flag that spells it here after it
 /// (`count (--count)`, `show against (show --against)`); a name that is
-/// no flag here as it stands (C143; #97).
+/// no flag here as it stands (C143).
 fn flagged(name: &str) -> String {
     let flag = match name.split_once(' ') {
         Some(("show", word)) => format!("show --{word}"),

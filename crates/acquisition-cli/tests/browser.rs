@@ -11,7 +11,7 @@
 //! block without asking it again, and loads the page again when the
 //! basis moves (`window.js`); and a place page's opener, on a page
 //! several viewports long, leaves the reader at the opened head with
-//! every tick kept (#270). The tests type, click and scroll as a
+//! every tick kept. The tests type, click and scroll as a
 //! user's keys and pointer would, and compare what the page shows with
 //! what the server answers for the same form or window.
 //!
@@ -620,8 +620,7 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
         }
         // three viewports of rows, and the row a part-shown row adds at
         // each edge, touch at most this many blocks with the one their
-        // first row's place in its block adds (the review at 3675cc7b,
-        // its third finding: one more block passed)
+        // first row's place in its block adds
         let span = (3.0 * vh / h).ceil() as usize + 1;
         let bound = (span.div_ceil(block) + 1) * block;
         assert!(
@@ -701,9 +700,9 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
     whole(&mut page, "0", "the start again");
 
     // a window whose fetch fails is dropped and asked again at the next
-    // scroll, never left pending (the review at 3675cc7b, its first
-    // finding): the next block's fetch is failed as a reset connection
-    // would fail it, and a scroll of a pixel asks it again
+    // scroll, never left pending: the next block's fetch is failed as a
+    // reset connection would fail it, and a scroll of a pixel asks it
+    // again
     let failed = format!("*offset={block}&*");
     page.cdp.call(
         "Fetch.enable",
@@ -718,9 +717,9 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
     );
     page.cdp.call("Fetch.disable", json!({}));
     // the failure seen before the scroll that retries it: the failed
-    // block's element gone, its place empty (the review at 57713465: a
-    // scroll read while the block still waited would ask nothing, and the
-    // failure, coming after it, would queue no fill of its own)
+    // block's element gone, its place empty (a scroll read while the
+    // block still waited would ask nothing, and the failure, coming after
+    // it, would queue no fill of its own)
     let failed_top = format!("{}px", block as f64 * start["h"].as_f64().unwrap());
     page.cdp.until(&format!(
         "!Array.from(document.querySelectorAll('.window .seg .block')).some((b) => b.style.top === {})",
@@ -771,13 +770,12 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
     whole(&mut page, "0", "the start, at the new basis");
 }
 
-/// The place pages' opener keeps the reader's place (#270, step 6.5a): on
-/// a stash tabs page several viewports long, a box ticked near the top,
-/// then a far map tab's opener clicked, the page that loads stands at
-/// that tab's head, in the viewport, its pages listed under it, and the
-/// box ticked before is still ticked: the tick travelled through the
-/// open in the URL, and the answer's anchor placed the reader with no
-/// script.
+/// The place pages' opener keeps the reader's place: on a stash tabs page
+/// several viewports long, a box ticked near the top, then a far map tab's
+/// opener clicked, the page that loads stands at that tab's head, in the
+/// viewport, its pages listed under it, and the box ticked before is still
+/// ticked: the tick travelled through the open in the URL, and the answer's
+/// anchor placed the reader with no script.
 #[test]
 fn opening_a_far_parent_keeps_its_head_in_view_and_every_tick() {
     let (scratch, web) = offline_web("browserplaces");
@@ -871,7 +869,7 @@ fn opening_a_far_parent_keeps_its_head_in_view_and_every_tick() {
     assert_eq!(look["ticked"], json!(true), "the tick was lost: {look}");
 }
 
-/// What one segment of a place page's window shows now (step 6.5b), as
+/// What one segment of a place page's window shows now, as
 /// [`LOOK`] reads the table's one: the segment by its place's id.
 fn look_at(place: &str) -> String {
     format!(
@@ -895,15 +893,14 @@ fn look_at(place: &str) -> String {
     )
 }
 
-/// The grouped table's window (step 6.5b, Decision 5): on a stash tabs
-/// page, a query typed in its box and sent by Enter lands on the place
-/// page, a tick and an open kept, never the plan. Then, with a tab of
-/// several blocks open and a second tab's opener clicked, the page that
-/// loads stands at the second's head, in view, though the first's
-/// segment above it was sized after the anchor landed; and wherever
-/// either segment is scrolled into view, the rows the viewport covers
-/// under its head are, id for id, its route's JSON at those offsets,
-/// each drawn at its index times the row height.
+/// The grouped table's window: on a stash tabs page, a query typed in its box
+/// and sent by Enter lands on the place page, a tick and an open kept, never
+/// the plan. Then, with a tab of several blocks open and a second tab's opener
+/// clicked, the page that loads stands at the second's head, in view, though
+/// the first's segment above it was sized after the anchor landed; and wherever
+/// either segment is scrolled into view, the rows the viewport covers under its
+/// head are, id for id, its route's JSON at those offsets, each drawn at its
+/// index times the row height.
 #[test]
 fn a_grouped_page_shows_each_open_places_rows_and_keeps_its_place() {
     let (scratch, web) = offline_web("browsergrouped");
@@ -1070,13 +1067,12 @@ fn a_grouped_page_shows_each_open_places_rows_and_keeps_its_place() {
     }
 }
 
-/// An item opened under its row keeps the reader's place (#270, step
-/// 6.5c): on a stash tabs page whose open tab is several blocks long, a
-/// box ticked near the top, then a far row the script fetched opened by
-/// its name, the page that loads stands at that row, in view, its card
-/// under it, the tick kept, and the rows under the card are, id for id,
-/// the segment's route's JSON at those offsets. Closed by the card's
-/// Close, the row is in view again, no card under it, the tick kept.
+/// An item opened under its row keeps the reader's place: on a stash tabs page
+/// whose open tab is several blocks long, a box ticked near the top, then a far
+/// row the script fetched opened by its name, the page that loads stands at
+/// that row, in view, its card under it, the tick kept, and the rows under the
+/// card are, id for id, the segment's route's JSON at those offsets. Closed by
+/// the card's Close, the row is in view again, no card under it, the tick kept.
 #[test]
 fn opening_a_far_row_shows_its_card_under_it_and_keeps_every_tick() {
     let (scratch, web) = offline_web("browserrow");

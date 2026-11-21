@@ -202,9 +202,9 @@ fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_eve
         .max()
         .unwrap();
 
-    // A watch with no `--all` prints the same document bounded (C53, the
-    // brief's second review, finding 11): the 800 counted done beside the
-    // ten most recent, the rest counted as left out.
+    // A watch with no `--all` prints the same document bounded (C53): the
+    // 800 counted done beside the ten most recent, the rest counted as
+    // left out.
     let (default_watch, default_out) = watcher(&base, &[]);
     match default_out.item(Instant::now() + Duration::from_secs(120)) {
         Item::Snapshot(listed) => {

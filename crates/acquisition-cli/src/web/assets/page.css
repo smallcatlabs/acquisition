@@ -85,14 +85,14 @@ td.icon img { max-width: 47px; max-height: 94px; }
 .cards .shows { margin: -.4rem 0 0; padding: .3rem .75rem; border: 1px solid var(--rule); border-top: 0; font-size: 12.5px; }
 a.presentation { font-size: 12.5px; }
 
-/* the place pages' lists (step 6.5a): a parent's head says what it
+/* the place pages' lists: a parent's head says what it
    holds beside its opener; its places, open, are indented under it */
 .holds-said { color: var(--muted); font-size: 12.5px; }
 .actions form { display: inline; }
 details.list > summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
 details.pages > summary { cursor: pointer; color: var(--muted); }
 details.folder > summary { cursor: pointer; padding: .3rem .5rem; color: var(--muted); }
-/* a place's head (steps 6.5a and 6.5b): a line of five cells in the
+/* a place's head: a line of five cells in the
    list's one window, its places under it indented by their depth, so a
    tab after a folder reads as the list's own; a head stands clear of the
    item heads, which stick at the top, when an anchor lands at it */
@@ -102,11 +102,11 @@ details.folder > summary { cursor: pointer; padding: .3rem .5rem; color: var(--m
 .depth-1 > :nth-child(2), p.depth-1 { padding-left: 1.75rem; }
 .depth-2 > :nth-child(2), p.depth-2 { padding-left: 3.5rem; }
 /* the filter's controls under the heads, a level's fold line, a tab's
-   own matches and the matches line (step 6.5b) */
+   own matches and the matches line */
 .p.filters input[type=text], .p.filters select { width: 100%; box-sizing: border-box; }
 p.fold, p.own, p.matched { color: var(--muted); font-size: 12.5px; margin: .2rem 0 .2rem 2.5rem; }
 
-/* the table (step 6.4b): rows of one height in one segment, which the
+/* the table: rows of one height in one segment, which the
    window script sizes and fills a block at a time; the height is the
    server's, set as --row by the script from the table's own attribute.
    Before the script marks the table, its first block stands in the flow. */
@@ -118,9 +118,9 @@ p.fold, p.own, p.matched { color: var(--muted); font-size: 12.5px; margin: .2rem
 .window .r > * { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 0.4rem; }
 .window .r.head { font-weight: bold; position: sticky; top: 0; background: var(--page); z-index: 1; }
 .window .r.head a { color: inherit; }
-/* a row a toggle lands at stands below the sticky heads (step 6.5c) */
+/* a row a toggle lands at stands below the sticky heads */
 .window .r[id] { scroll-margin-top: calc(2 * var(--row, 24px)); }
-/* a row's name is its toggle (step 6.5c): a button that reads as the name */
+/* a row's name is its toggle: a button that reads as the name */
 .window .r button.name { background: none; border: 0; border-radius: 0; padding: 0 0.4rem; text-align: left; cursor: pointer; }
 /* an opened row's card, in the flow under its row */
 .window .opened { padding: .4rem 0; border-bottom: 1px solid var(--rule); }

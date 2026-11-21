@@ -1,7 +1,7 @@
 //! The intent layer's CLI surface: `acq policy` reads and writes the
 //! per-account sync-policy annotation (through the store crate, under
 //! compare-and-swap), and `acq refresh --plan` compiles it into a
-//! [`RefreshPlan`] — offline, spending nothing (tracer step 6). A running
+//! [`RefreshPlan`] — offline, spending nothing. A running
 //! daemon enriches the plan with its read-only quote; the command never
 //! spawns one just to decorate output the planner computed with the
 //! daemon down.
@@ -92,13 +92,11 @@ pub(crate) const WRITTEN_VIA: &str = "cli";
 pub(crate) const POLICY_EXAMPLE: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
 
 /// A printed first `acq policy set`: as `account`, the create-only form
-/// (`--if-revision 0`, which lands only where no policy is stored:
-/// 8ae99e86), then the JSON as one word, every word quoted for the shell
-/// it will be pasted into (C156; the pipe the build first printed on
-/// Windows corrupted every character past ASCII under Windows PowerShell
-/// 5.1, the review of step words). The league seat's rerun (cli-opus-2
-/// call 22): the line named neither, so it could replace a policy and
-/// was refused with two accounts known.
+/// (`--if-revision 0`, which lands only where no policy is stored), then
+/// the JSON as one word, every word quoted for the shell it will be
+/// pasted into (C156; a pipe on Windows corrupts every character past
+/// ASCII under Windows PowerShell 5.1). A line that names neither could
+/// replace a policy, and is refused with two accounts known.
 pub(crate) fn policy_set_line(account: &str, json: &str) -> String {
     crate::terminal::printed_line(
         &[
@@ -203,7 +201,7 @@ pub fn policy_set(
 /// The policy write's next step: the plan of each league the realms it
 /// wrote cover, as the account it ran as, so each runs as printed with a
 /// second account known and plans the league written, never Standard
-/// unasked (the league seat, cli call 24). None where the realms written
+/// unasked. None where the realms written
 /// cover no league (a realm removed).
 fn preview_line(written: &acquisition_verbs::frontend::PolicyWritten) -> String {
     let Ok(policy) = acquisition_plan::SyncPolicy::from_value(&written.row.value) else {
@@ -227,8 +225,7 @@ fn preview_line(written: &acquisition_verbs::frontend::PolicyWritten) -> String 
             })
         })
         .collect();
-    // C53: ten plans named, the rest counted, and what lists them (the
-    // review of the league seat's fix round, finding 2)
+    // C53: ten plans named, the rest counted, and what lists them
     let (lines, more) = acquisition_store::bound::bounded(lines, None, false);
     let more = match more {
         0 => String::new(),
@@ -359,7 +356,7 @@ pub async fn refresh_plan(
         }
     };
     // the answer's time: the instant the plan's ages were said at, one
-    // read for the compile, its quote and its words (#211)
+    // read for the compile, its quote and its words
     let now = ages.at.unwrap_or_else(acquisition_store::now);
     if json {
         // Stdout is the plan envelope, nothing else, so it can be piped;
@@ -389,12 +386,11 @@ pub async fn refresh_plan(
     Ok(())
 }
 
-/// The account a reviewed plan file's printed next step names, as the
-/// index spells it at this run: the entry its uuid resolves to, which an
-/// apply of that file must run as (C44), whatever name the plan was
-/// compiled under (a rename keeps the uuid: the review of the league
-/// seat's fix round, finding 1). The uuid itself where the index holds
-/// no such entry, which `--account` takes too.
+/// The account a reviewed plan file's printed next step names, as the index
+/// spells it at this run: the entry its uuid resolves to, which an apply of
+/// that file must run as (C44), whatever name the plan was compiled under
+/// (a rename keeps the uuid). The uuid itself where the index holds no such
+/// entry, which `--account` takes too.
 fn file_account(cx: &Ctx, plan: &RefreshPlan) -> String {
     cx.frontend
         .account(Some(&plan.account_uuid))
@@ -432,7 +428,7 @@ pub async fn refresh_apply(
     apply_plan(&mut opened, &plan, max_requests, json).await
 }
 
-/// `acq refresh --tabs`, `--all` and `--characters` (C44 as amended, C76):
+/// `acq refresh --tabs`, `--all` and `--characters` (C44, C76):
 /// the selection compiled into a plan — quoted by a running daemon, printed as `--plan`
 /// prints one — and applied through the one apply road `--apply` takes.
 /// `--json` prints the apply's document alone, as `--apply --json` does.
@@ -567,7 +563,7 @@ async fn apply_plan(
     }
     // The job's report on the stream `acq result` prints it on: stdout
     // for a success, stderr for a failure or a cancel, which left nothing
-    // on stdout to use (#101); a failure's way on after it, as `acq
+    // on stdout to use; a failure's way on after it, as `acq
     // result` says it. What the store took is stdout either way.
     let mut report =
         crate::jobs_cmd::job_report(id, &landed.result.outcome, &landed.result.failed_children);
@@ -718,7 +714,7 @@ fn columns(rows: &[(usize, String, String)]) -> String {
 
 /// The audit header keeps every basis handle. The decision view keeps only
 /// context that can change whether the reader applies the plan.
-/// What authorizes the plan (C44 as amended): the stored policy at a
+/// What authorizes the plan (C44): the stored policy at a
 /// revision, or the selection itself.
 fn authority(plan: &RefreshPlan) -> String {
     match (&plan.basis.policy_revision, &plan.basis.selection) {
@@ -732,7 +728,7 @@ fn authority(plan: &RefreshPlan) -> String {
 
 /// Under a deep selection, the map and unique tabs with no page to fetch
 /// on record. The plan cannot tell a tab never fetched from one fetched
-/// that has none (#191: that needs a fact the plan does not carry, a
+/// that has none (that needs a fact the plan does not carry, a
 /// ruling's), so the line says only what is true of both: its fetch lists
 /// any pages it has, and a fetch that lists none means none. It never
 /// says to apply and select again, which looped over a tab with none.
@@ -807,8 +803,8 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
     // Both bases are the facts as of the read; which facets the policy
     // covers shows in the actions and skips, not here.
     // each listing's age before the plan and the plan's own at `now`, as
-    // the facts line says them (C53; the review of the seat's third
-    // round, finding 1: `stash listing 53s old` named no clock)
+    // the facts line says them (C53; `stash listing 53s old` names no
+    // clock)
     let spans = PlanSpans::of(plan, now);
     let stash = match (&plan.basis.stash_listing, spans.stash_listing) {
         (Some(l), Some(age)) => format!(
@@ -836,11 +832,9 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
 /// The plan's facts line: how old each listing it reads was when it was
 /// planned, said before the plan, and the plan's own age at `now`, the
 /// answer's time (C53, one clock per age, named where it is not the
-/// answer's; answer-facts seat run 2, cli fault 4: two applies of one
-/// file minutes apart both said `stash listed 53s ago`). Printed on
-/// every text path of a plan, the nothing-to-do path included (the
-/// answer-facts seat, CLI fault 12: the line was dropped where nothing
-/// was to do).
+/// answer's; otherwise two applies of one file minutes apart both say
+/// `stash listed 53s ago`). Printed on every text path of a plan, the
+/// nothing-to-do path included.
 fn facts_line(plan: &RefreshPlan, now: i64) -> String {
     let has_tabs = plan.actions.iter().any(|a| {
         matches!(
@@ -863,7 +857,7 @@ fn facts_line(plan: &RefreshPlan, now: i64) -> String {
     let character_age = spans.character_listing.map(dur);
     // Each listing keeps its own age, even when the two agree: a fold
     // on equal ages printed one shape or the other by which second
-    // each listing landed in (issue #76), and the store holds no fact
+    // each listing landed in, and the store holds no fact
     // that ties the two, which are always two responses.
     let facts = match (has_tabs, has_characters, stash_age, character_age) {
         (true, true, stash, characters) => format!(
@@ -987,7 +981,7 @@ pub(crate) fn render_plan(
     // a selection compiled here is applied by the command that compiled
     // it: no command to name but a reviewed file's
     // either names the plan's account, realm and league, so it runs as
-    // printed with a second account known (the league seat, cli call 28)
+    // printed with a second account known
     let apply = |plan_file: Option<&str>| {
         crate::terminal::printed_line(&crate::terminal::way_words(&Way::RefreshApply {
             account: account.to_string(),
@@ -1004,7 +998,7 @@ pub(crate) fn render_plan(
     out
 }
 
-/// #22: the league's tabs the policy's entry does not cover, against all
+/// The league's tabs the policy's entry does not cover, against all
 /// of them, and the command that names them; nothing where every tab is
 /// covered, or where the plan carries no count (a selection plan, a plan
 /// read from a file).
@@ -1957,7 +1951,7 @@ mod tests {
         assert!(err.to_string().contains("--realm xbox"), "{err}");
     }
 
-    /// Issue #76: the facts line names each listing's age, so two
+    /// The facts line names each listing's age, so two
     /// listings in one second and two a second apart read one shape; a
     /// fold on equal ages made the line hang on the clock.
     #[test]
@@ -2025,7 +2019,7 @@ mod tests {
         }
     }
 
-    /// The 2026-09-02 shape in miniature: a listing, tabs with substashes
+    /// A real plan's shape in miniature: a listing, tabs with substashes
     /// interleaved after their parents, the character listing, and more
     /// characters than the threshold.
     fn wall() -> Vec<RefreshAction> {
@@ -2300,7 +2294,7 @@ mod tests {
         assert!(old.contains("; plan made 2h ago\n"), "{old}");
     }
 
-    /// #22: the league's tabs outside the policy, after the skipped line
+    /// The league's tabs outside the policy, after the skipped line
     /// on a plan with actions and on one with none; nothing where every
     /// tab is covered or the plan carries no count.
     #[test]

@@ -1,12 +1,11 @@
-//! `acq saved` and `acq search --saved` at a terminal (C167, user-scoped
-//! intent in the world's `user.db`; 4-full part 1, step 1): what the
-//! adapter adds to the verbs' saved search — the parse of each spelling
-//! of `set`, the text, the refusal's shape and exit, every printed
-//! command running as printed, and `--saved` beside the words it
-//! excludes. The verbs' semantics is pinned once, in
-//! `acquisition-verbs/tests/documents.rs` (C122). The world is seeded
-//! through the store crate as `price_json.rs` seeds it, so no daemon
-//! runs: `ACQ_NO_SPAWN=1` makes any contact an error.
+//! `acq saved` and `acq search --saved` at a terminal (C167, user-scoped intent
+//! in the world's `user.db`): what the adapter adds to the verbs' saved search
+//! — the parse of each spelling of `set`, the text, the refusal's shape and
+//! exit, every printed command running as printed, and `--saved` beside the
+//! words it excludes. The verbs' semantics is pinned once, in
+//! `acquisition-verbs/tests/documents.rs` (C122). The world is seeded through
+//! the store crate as `price_json.rs` seeds it, so no daemon runs:
+//! `ACQ_NO_SPAWN=1` makes any contact an error.
 
 use std::path::{Path, PathBuf};
 use std::process::Output;
@@ -193,7 +192,7 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
         &["saved", "clear", &id],
         &["cleared at revision 4", "--if-revision 0", "puts it back"],
     );
-    // #247: a second account holding xbox, and a create naming no realm
+    // a second account holding xbox, and a create naming no realm
     // and no account is refused for the realm, each held offered
     acquisition_store::Index::load(&mock)
         .unwrap()
@@ -236,10 +235,9 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
             .unwrap()
     );
 
-    // the review of fix round 1 (c0fb7673): a `user.db` holding the facts
-    // of an account named `user`, at the literal path a build before the
-    // account path's escape kept them, refused naming the deletion
-    // (the review of fix round 2, 0ca39d50)
+    // a `user.db` holding the facts of an account named `user`, at the
+    // literal path a build before the account path's escape kept them,
+    // refused naming the deletion
     std::fs::remove_file(mock.join("user.db")).unwrap();
     for left in ["user.db-wal", "user.db-shm"] {
         assert!(!mock.join(left).exists(), "{left}");
@@ -438,12 +436,11 @@ fn printed_commands(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// The review of the build (39f3b7dc), finding 4: with two accounts
-/// known, the text of `acq --account <name> saved
-/// show` and of a write prints its run as that account, and the run and
-/// the clear it prints run as printed. Finding 2 at the terminal: a
-/// conflict over a row a later build wrote, at revision 3 under
-/// `--if-revision 1`, offers the row's show, which runs as printed.
+/// With two accounts known, the text of `acq --account <name> saved show` and
+/// of a write prints its run as that account, and the run and the clear it
+/// prints run as printed. And a conflict over a row a later build wrote, at
+/// revision 3 under `--if-revision 1`, offers the row's show, which runs as
+/// printed.
 #[test]
 fn the_printed_run_carries_the_account_and_every_offer_runs_with_two_accounts() {
     let scratch = harness::scratch("savedacc");

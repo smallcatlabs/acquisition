@@ -17,9 +17,8 @@ const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 /// lower case, a token `acq1.…` and an item id lower-case hex — and a
 /// base the game names with one (`Enigmatic Assembly C5`) is in the class
 /// table, which no surface prints whole. A sitting is the same class in
-/// words (the trade seat met "for a sitting" and "no sitting has asked"
-/// in the catalogue's words): the builders' name for a session with the
-/// site, which no user can look up.
+/// words ("for a sitting", "no sitting has asked"): the builders' name
+/// for a session with the site, which no user can look up.
 fn ids(text: &str) -> Vec<String> {
     let mut found: Vec<String> = text
         .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')

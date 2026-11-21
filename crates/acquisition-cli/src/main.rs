@@ -49,8 +49,7 @@ pub(crate) fn note_spawn(client: &Client) {
 }
 
 /// Set when this command started the daemon it then talked to, so a
-/// refusal for want of a login can say a daemon was started (C3 kept
-/// after the release seat: cli-opus calls 100 to 101).
+/// refusal for want of a login can say a daemon was started (C3).
 static SPAWNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// The refusal of a job verb that started a daemon and was then refused

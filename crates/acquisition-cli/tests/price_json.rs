@@ -274,7 +274,7 @@ fn price_json_documents_are_the_views_the_text_reads() {
         &["items covered through children: 2 items"],
     );
     // No row on it or above it: the read-back names the revision the next
-    // write names, a create's (the league seat, cli-opus-2 calls 61, 62).
+    // write names, a create's.
     t.run(
         &["price", "show", "item/i-map"],
         &["by hand: nothing (no row on it or above it: a first price names revision 0)"],
@@ -350,9 +350,9 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     assert!(w.prior.is_none());
     let written = w.written.unwrap();
     // The receipt says whether the facts hold the target (`in_facts`); a
-    // target they do not is noted and lands all the same (C64; the
-    // reading-1 question, answered 2026-09-12): true on the seeded item
-    // above, false on a typo'd id, in JSON and as the text's note line.
+    // target they do not is noted and lands all the same (C64): true on
+    // the seeded item above, false on a typo'd id, in JSON and as the
+    // text's note line.
     assert_eq!(sole_json(&out)["in_facts"], json!(true));
     let out = acq(
         &base,
@@ -453,12 +453,10 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
         &["item/i-map's price was cleared (revision 3): nothing to clear"],
     );
     assert!(!out.status.success());
-    // A tab's row: the receipt says what its items resolve to after the
-    // write, as `price show` counts them, and after the clear (#171; the
-    // answer-facts seat, CLI run 1 call 79 against 84): i-plain keeps
-    // its own row, which agrees with the tab's name, and i-noted's note
-    // conflicts with the tab's row, then with the folder's once the
-    // tab's is cleared.
+    // A tab's row: the receipt says what its items resolve to after the write,
+    // as `price show` counts them, and after the clear: i-plain keeps its own
+    // row, which agrees with the tab's name, and i-noted's note conflicts with
+    // the tab's row, then with the folder's once the tab's is cleared.
     t.run(
         &["price", "set", "tab/pc/c1", "exact", "7", "chaos"],
         &["items here: 2 items — 1 agree, 1 conflict\n"],
@@ -502,11 +500,10 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     assert_eq!(w.written.map(|r| r.revision), Some(4));
 }
 
-/// The release seat: `price list` had no bound, so a run asking for a
-/// league's conflicts got 49 to 67 KB, cut by its harness after the
-/// first item. `--limit N` holds the first N in listing order, the
-/// document saying how many the selection holds (`total`) and how many
-/// it lists (`listed`), the text "N of M", and the containers are the
+/// Unbounded, `price list` of a league's conflicts reached 49 to 67 KB, cut by
+/// a harness after the first item. `--limit N` holds the first N in listing
+/// order, the document saying how many the selection holds (`total`) and how
+/// many it lists (`listed`), the text "N of M", and the containers are the
 /// listed items' alone.
 #[test]
 fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
@@ -566,17 +563,15 @@ fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
     );
 }
 
-/// The release seat: a write refused for its revision had no `kind`,
-/// the current revision only in its prose, and the store's words —
-/// `annotation item/…/buyout is at revision 4`, and on a cleared row
-/// `annotation no longer exists`, which hid the clear and the revision
-/// it still counts. Staged as met: a stale revision over a live row, and
-/// a revision named over a cleared one; each is `kind: "conflict"` with
-/// the current `revision`, in the verb's words, and over the live row
-/// its `current`, the stored row as it stands — `price show`'s `manual`
-/// less the age words an answer adds (round 4 of the 2g build, settled
-/// in round 6's fix round). A target the facts do not hold is `kind:
-/// "not_found"`.
+/// A write refused for its revision is no bare prose in the store's
+/// words — `annotation item/…/buyout is at revision 4`, and on a cleared
+/// row `annotation no longer exists`, which hides the clear and the
+/// revision it still counts. Staged twice: a stale revision over a live
+/// row, and a revision named over a cleared one; each is `kind:
+/// "conflict"` with the current `revision`, in the verb's words, and over
+/// the live row its `current`, the stored row as it stands — `price
+/// show`'s `manual` less the age words an answer adds. A target the facts
+/// do not hold is `kind: "not_found"`.
 #[test]
 fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
     let scratch = harness::scratch("price-conflict");
@@ -860,8 +855,7 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         );
     }
     // `list` refuses a container with a row of its own as `show` does,
-    // naming the read that prints the row and offering it (C146; issue
-    // #11; C143)
+    // naming the read that prints the row and offering it (C146; C143)
     let out = acq(
         &base,
         &["price", "list", "--in", "tab/xbox/orphan", "--json"],
@@ -890,12 +884,12 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
     assert!(!said.contains("price row of its own"), "{said}");
 }
 
-/// The h2 review's first finding: with two accounts known, the command
-/// a refusal names for a row of the target's own dropped the account the
-/// verb ran as, and so was itself refused as ambiguous. Both callers of
-/// the shared refusal, `show` and `list --in`, now name it, and the
-/// command runs as printed (C121, an account that cannot be picked is
-/// refused; C146, a count says what it counts).
+/// With two accounts known, the command a refusal names for a row of
+/// the target's own carries the account the verb ran as, without which
+/// it would itself be refused as ambiguous. Both callers of the shared
+/// refusal, `show` and `list --in`, name it, and the command runs as
+/// printed (C121, an account that cannot be picked is refused; C146, a
+/// count says what it counts).
 #[test]
 fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known() {
     let scratch = harness::scratch("price-two-accounts");
@@ -915,7 +909,7 @@ fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known
             &Provenance::via("test"),
         )
         .unwrap();
-    // Naming no account is ambiguous now, as the old command was.
+    // Naming no account is ambiguous, as a command that dropped it would be.
     let out = acq(&base, &["price", "status", "--expand", "--realm", "xbox"]);
     assert!(!out.status.success(), "{}", stderr(&out));
 
@@ -943,13 +937,12 @@ fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known
     }
 }
 
-/// The h2 fix round's review: a row on a target another league's facts
-/// hold was refused with `status --expand` in the league asked, which
-/// counts the row under "other league" and never displays it. Both
-/// callers of the shared refusal now name that league and print a `show`
-/// there, as the account the verb ran as, and the command displays the
-/// row as printed (C146, a count says what it counts; C121, an account
-/// that cannot be picked is refused).
+/// A row on a target another league's facts hold is never refused with `status
+/// --expand` in the league asked, which counts the row under "other league" and
+/// never displays it. Both callers of the shared refusal name that league and
+/// print a `show` there, as the account the verb ran as, and the command
+/// displays the row as printed (C146, a count says what it counts; C121, an
+/// account that cannot be picked is refused).
 #[test]
 fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
     let scratch = harness::scratch("price-other-league");
@@ -1024,11 +1017,10 @@ fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
     }
 }
 
-/// Issue #107 (C146, a count says what it counts): an item asked for in
-/// the wrong realm is refused with the realm and league the facts hold it
-/// in, and the read those flags name shows the item. h2 found the
-/// refusal naming the league alone; `bf4d2586` chose it with the item's
-/// realm, and this runs the remedy it prints.
+/// C146, a count says what it counts: an item asked for in the wrong
+/// realm is refused with the realm and league the facts hold it in, not
+/// the league alone, and the read those flags name shows the item. This
+/// runs the remedy the refusal prints.
 #[test]
 fn an_item_asked_for_in_the_wrong_realm_is_shown_where_the_refusal_says() {
     let scratch = harness::scratch("price-wrong-realm");
@@ -1074,9 +1066,9 @@ fn an_item_asked_for_in_the_wrong_realm_is_shown_where_the_refusal_says() {
     assert_eq!(view.listing.effective.to_string(), "3 chaos");
 }
 
-/// Review 8 of the release (2026-10-19): `price list --limit 0` said
-/// "none listed by hand or in game" where the JSON said `total: 3,
-/// listed: 0`. The text says none of how many, and why.
+/// `price list --limit 0` never says "none listed by hand or in game"
+/// where the JSON says `total: 3, listed: 0`. The text says none of how
+/// many, and why.
 #[test]
 fn price_list_with_a_limit_of_zero_says_none_of_the_total() {
     let scratch = harness::scratch("price-limit-zero");
@@ -1108,10 +1100,10 @@ impl IntentValue for LegacyBuyout {
     }
 }
 
-/// Review 8: a replaced prior naming a retired currency was promised
-/// back by the receipt's undo line, which the write refuses (C67). The
-/// line promises no undo and says why, as it does for a value this
-/// build cannot read.
+/// A replaced prior naming a retired currency is never promised back by
+/// the receipt's undo line, since the write refuses it (C67). The line
+/// promises no undo and says why, as it does for a value this build
+/// cannot read.
 #[test]
 fn a_prior_naming_a_retired_currency_promises_no_undo() {
     let scratch = harness::scratch("price-retired");
@@ -1143,9 +1135,8 @@ fn a_prior_naming_a_retired_currency_promises_no_undo() {
     );
 }
 
-/// The rerun of the release seat (cli-opus-2 calls 51 to 54): a named
-/// `--limit` kept twelve items and printed the group's header alone,
-/// since a group over ten is counted. A limit is the person's own bound:
+/// A named `--limit` of twelve never prints the group's header alone,
+/// though a group over ten is counted. A limit is the person's own bound:
 /// the items it keeps are listed.
 #[test]
 fn a_named_limit_lists_the_items_it_bounds() {
@@ -1238,12 +1229,11 @@ fn big_league(mock: &Path) {
     );
 }
 
-/// C53, the read economy (step 2g, round 2): `price show` of a container
-/// whose two sets are past ten lists ten of each beside the sets' whole
-/// counts, `--limit` lists that many, and `--expand`, the route the text
-/// names first, lists every item the default left out; the text counts
-/// from the document's counts, never from the rows it lists (the cold
-/// review of the brief, findings 6 and 7).
+/// C53, the read economy: `price show` of a container whose two sets are past
+/// ten lists ten of each beside the sets' whole counts, `--limit` lists that
+/// many, and `--expand`, the route the text names first, lists every item the
+/// default left out; the text counts from the document's counts, never from the
+/// rows it lists.
 #[test]
 fn price_show_lists_ten_of_each_set_beside_the_whole_counts_and_expand_lists_every_one() {
     use acquisition_store::bound::LISTED;
@@ -1319,10 +1309,9 @@ fn price_show_lists_ten_of_each_set_beside_the_whole_counts_and_expand_lists_eve
     assert_eq!(text.matches("Chaos Orb x1 ").count(), 27, "{text}");
 }
 
-/// C53, the read economy (step 2g, round 2; the second cold review of the
-/// brief, finding 10): `price list` lists ten of a selection past ten and
-/// counts the whole, and `--expand` reaches the planner, so `--json`
-/// returns every item, where it widened the text alone.
+/// C53, the read economy: `price list` lists ten of a selection past ten
+/// and counts the whole, and `--expand` reaches the planner, so `--json`
+/// returns every item, never the text alone widened.
 #[test]
 fn price_list_lists_ten_and_expand_returns_every_item_of_a_selection_past_ten() {
     use acquisition_store::bound::LISTED;
@@ -1420,19 +1409,16 @@ fn run_printed(base: &Path, command: &str) -> Value {
     sole_json(&out)
 }
 
-/// Step 2g's round-2 fix rule, refined by its review (`2g-r2-ae151de2.md`
-/// and `2g-r2-fixes-a01e748e.md`): a printed `acq price` read carries the
-/// account it ran as and the realm and league the answer resolved,
-/// always; a write carries the account alone; a read that promises each
-/// or every item adds `--expand`, since the default lists ten (C53).
-/// Staged with two accounts known, over the league Big (a map tab of 13
-/// over a substash of 14), an xbox tab of 12, a tab `tw` live in both
-/// Standard and Big with twelve game-priced items in each, the league
-/// Clash (eleven items whose hand price conflicts with the game's) and
-/// the league Murk (eleven items under a row this build cannot read).
-/// Each audit route and remedy returns its whole set, and every printed
-/// price command of these answers runs as printed, its placeholders
-/// filled with this world's values.
+/// A printed `acq price` read carries the account it ran as and the realm and
+/// league the answer resolved, always; a write carries the account alone; a
+/// read that promises each or every item adds `--expand`, since the default
+/// lists ten (C53). Staged with two accounts known, over the league Big (a map
+/// tab of 13 over a substash of 14), an xbox tab of 12, a tab `tw` live in both
+/// Standard and Big with twelve game-priced items in each, the league Clash
+/// (eleven items whose hand price conflicts with the game's) and the league
+/// Murk (eleven items under a row this build cannot read). Each audit route and
+/// remedy returns its whole set, and every printed price command of these
+/// answers runs as printed, its placeholders filled with this world's values.
 #[test]
 fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
     let scratch = harness::scratch("price-printed");
@@ -1732,9 +1718,8 @@ fn run_offered(base: &Path, command: &str) -> Value {
     sole_json(&out)
 }
 
-/// Round 4 of the 2g build (the refusal shape; the cold reviews' findings
-/// 8 and 6), at a terminal: a refusal's offers are command lines a shell
-/// runs as printed, and a search's the request `acq search --request`
+/// The refusal shape, at a terminal: a refusal's offers are command
+/// lines a shell runs as printed, and a search's the request `acq search --request`
 /// reads. With two accounts known, an account typed wrong offers the
 /// command typed again as each name; a target the facts do not hold
 /// offers the search of its realm and its league's tabs, and the commands
@@ -1862,7 +1847,7 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
 
     // an item where the facts do not hold it, the scope named whole and
     // in part (the realm taken, pc); named not at all, `show` reads where
-    // the facts hold it, and answers (the review of round B's fix round)
+    // the facts hold it, and answers
     let bare = sole_json(&acq(
         &base,
         &["--json", "price", "show", "item/ix", "--account", USER],
@@ -1894,12 +1879,12 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
     }
 }
 
-/// Round 4's review (P2, shapes 6 and 7): a folder's child addressed as
-/// a substash of the folder was found "held" in the folder's league, and
-/// the offer, its show there, was refused again, the pricing resolver
-/// reading the row only as a tab. The store classifies a stash tab's
-/// address once: the child is no substash, so the refusal offers the
-/// search of the realm and the league's tabs, each of which runs.
+/// A folder's child addressed as a substash of the folder is never found
+/// "held" in the folder's league with an offer, its show there, that the
+/// pricing resolver, reading the row only as a tab, refuses again. The
+/// store classifies a stash tab's address once: the child is no
+/// substash, so the refusal offers the search of the realm and the
+/// league's tabs, each of which runs.
 #[test]
 fn a_folders_child_asked_as_a_substash_is_offered_what_runs() {
     let scratch = harness::scratch("price-folder-child");
@@ -1974,12 +1959,11 @@ fn two_accounts_and_xbox(base: &Path) {
         .unwrap();
 }
 
-/// Round 4's review (P2, finding 1): the repeat offer was the words typed
-/// with the account swapped, so a command that read its input from stdin
-/// was offered without it and waited or failed. It is made from the
-/// command as parsed: a value read from stdin (`-`) gets no repeat offer
-/// (the names stand in `accounts`), and one given whole is repeated, an
-/// option as `--name=value`, and runs with stdin closed.
+/// A repeat offer made of the words typed with the account swapped would offer
+/// a command that read its input from stdin without it, to wait or fail. It is
+/// made from the command as parsed: a value read from stdin (`-`) gets no
+/// repeat offer (the names stand in `accounts`), and one given whole is
+/// repeated, an option as `--name=value`, and runs with stdin closed.
 #[test]
 fn a_refused_command_is_repeated_from_its_parse_and_one_that_read_stdin_is_not() {
     let scratch = harness::scratch("price-repeat");
@@ -2035,13 +2019,12 @@ fn a_refused_command_is_repeated_from_its_parse_and_one_that_read_stdin_is_not()
     assert_eq!(written["revision"], json!(1), "{written}");
 }
 
-/// Round 4's review (P2, finding 2): a request read whole was offered as
-/// the words typed, so `--request <file>` offered nothing and
-/// `--request=<file>` offered a command that selected another store and
-/// was refused as bound to the typo. A request read whole — either
-/// spelling, or a continuation's `--next` — is offered as the parsed
-/// request with `scope.account` set, which `acq search --request` reads
-/// and answers.
+/// A request read whole, offered as the words typed, would offer nothing for
+/// `--request <file>`, and for `--request=<file>` a command that selected
+/// another store and was refused as bound to the typo. A request read whole —
+/// either spelling, or a continuation's `--next` — is offered as the parsed
+/// request with `scope.account` set, which `acq search --request` reads and
+/// answers.
 #[test]
 fn a_request_read_whole_is_offered_as_itself_with_its_account_set() {
     let scratch = harness::scratch("price-repeat-request");
@@ -2149,10 +2132,8 @@ fn bob_holds_items(base: &Path) {
         .unwrap();
 }
 
-/// Round 4's second fix round, finding 1 of its fix round's review (a
-/// sibling sentence left standing: the MCP's repeat kept a route's
-/// envelope and the CLI's did not): a route read whole under a typo'd
-/// account is offered as the envelope as read, the account inside it
+/// A route read whole under a typo'd account is offered, as the MCP's
+/// repeat offers it, as the envelope as read, the account inside it
 /// alone changed, so replayed it still says the count it was printed
 /// with; every offer, Alice's and Bob's, runs.
 #[test]
@@ -2199,11 +2180,10 @@ fn a_route_offered_as_another_account_keeps_its_count_at_a_terminal() {
     }
 }
 
-/// Round 4's second fix round, finding 2 of its fix round's review: a
-/// continuation offered as another account kept Alice's basis and place,
-/// and Bob's offer was refused as `basis_changed`. The repeat drops the
-/// place and says it is the request from its start; with both stores
-/// holding items every offer runs, each answering one row as its account.
+/// A continuation offered as another account that kept Alice's basis and place
+/// would have Bob's offer refused as `basis_changed`. The repeat drops the
+/// place and says it is the request from its start; with both stores holding
+/// items every offer runs, each answering one row as its account.
 #[test]
 fn a_continuation_offered_as_another_account_restarts_at_a_terminal() {
     let scratch = harness::scratch("price-repeat-next");
@@ -2253,10 +2233,10 @@ fn a_continuation_offered_as_another_account_restarts_at_a_terminal() {
     }
 }
 
-/// Round 4's second fix round's review (P2): the repeat of `--request`
-/// kept the envelope as read and lost what the command line added to it.
-/// The same request is the request as the refused command would have run
-/// it: `--routes` stands in the offer, and the replay prints its routes.
+/// The repeat of `--request` is never the envelope as read alone, which loses
+/// what the command line added to it. The same request is the request as the
+/// refused command would have run it: `--routes` stands in the offer, and the
+/// replay prints its routes.
 #[test]
 fn a_request_offered_again_keeps_the_command_lines_routes() {
     let scratch = harness::scratch("price-repeat-routes");
@@ -2308,11 +2288,10 @@ fn a_request_offered_again_keeps_the_command_lines_routes() {
     assert_eq!(found["terms"], routed["terms"], "{found}");
 }
 
-/// The places the review of round B and of its fix round staged, added
-/// to [`seed`]'s world: `tab/pc/tw` held live in Standard and in Big,
-/// each holding one item; `character/ch2`, a poe2 character in Standard
-/// wearing one; `character/ch3`, a pc character the listing gave no
-/// league, wearing one. Recorded at the seed's time.
+/// Places held in more than one way, added to [`seed`]'s world: `tab/pc/tw`
+/// held live in Standard and in Big, each holding one item; `character/ch2`, a
+/// poe2 character in Standard wearing one; `character/ch3`, a pc character the
+/// listing gave no league, wearing one. Recorded at the seed's time.
 fn held_elsewhere(mock: &Path) {
     let at = harness::now();
     let mut store = Store::open(&account_path(mock, USER)).unwrap();
@@ -2383,18 +2362,17 @@ fn held_elsewhere(mock: &Path) {
     );
 }
 
-/// The reviews of round B and of its fix round: a receipt's counts never
-/// fail the write, and the receipt never guesses the scope its follow-up
-/// read needs. Every read it offers is the bare `price show` of the
-/// target, which reads where the facts hold it when it runs.
+/// A receipt's counts never fail the write, and the receipt never guesses the
+/// scope its follow-up read needs. Every read it offers is the bare `price
+/// show` of the target, which reads where the facts hold it when it runs.
 ///
 /// - A tab held in two leagues: the set and the clear stand whole, their
 ///   `counts_unavailable` names why and offers the bare read, which
 ///   refuses with one command per place, each running as printed; the
 ///   text's `next:` read is the same command.
 /// - A poe2 character, and a pc character the listing gave no league
-///   (finding 1), each wearing one item: their set and clear count it.
-/// - Recovery (finding 2): a clear while the facts cannot be read offers
+///   each wearing one item: their set and clear count it.
+/// - Recovery: a clear while the facts cannot be read offers
 ///   the bare read; run once the facts are back, it counts the poe2
 ///   character's item, and refuses the tab per place as above.
 #[test]
@@ -2538,14 +2516,13 @@ fn a_receipts_read_is_the_bare_price_show_and_runs_after_recovery() {
     assert_eq!(counted_through(&reads[1]), 2);
 }
 
-/// The review of round B's fix round, its rule beneath findings 1 to 3:
-/// `price show <target>` with neither `--realm` nor `--league` reads
-/// where the facts hold the target live, by the one reader the receipts
-/// count with. Held in one place it answers there: a poe2 character in
-/// poe2, a pc character the listing gave no league in Standard, the
-/// league `show` reads it in. Held in several, it refuses with one
-/// command per place, each running as printed. Named, a scope reads as
-/// before.
+/// The rule beneath the receipts' reads: `price show <target>` with neither
+/// `--realm` nor `--league` reads where the facts hold the target live, by the
+/// one reader the receipts count with. Held in one place it answers there: a
+/// poe2 character in poe2, a pc character the listing gave no league in
+/// Standard, the league `show` reads it in. Held in several, it refuses with
+/// one command per place, each running as printed. Named, a scope reads as
+/// named.
 #[test]
 fn a_bare_price_show_reads_where_the_facts_hold_its_target() {
     let scratch = harness::scratch("price-show-bare");
@@ -2597,8 +2574,7 @@ fn a_bare_price_show_reads_where_the_facts_hold_its_target() {
     golden(file!(), "price_show_several_places", &t);
 }
 
-/// Round 5 of the 2g build (the receipt shape; its design's Q6, the cold
-/// review's finding 2): every write's `--json` receipt carries `revision`,
+/// The receipt shape: every write's `--json` receipt carries `revision`,
 /// the one the next write names — a clear's its tombstone's, from the
 /// delete itself — and `undo`, the command line that puts `prior` back,
 /// which runs as printed with two accounts known: a create's the clear
@@ -2699,8 +2675,7 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
     assert_eq!(restored["prior"].clone(), replaced["written"].clone());
     assert_eq!(manual()["value"], created["written"]["value"]);
     assert_eq!(manual()["revision"], json!(at(&restored)));
-    // #167 (the answer-facts seat, CLI run 1 calls 82, 91): beside a
-    // replace's undo, the clear of the row at the revision it wrote; a
+    // beside a replace's undo, the clear of the row at the revision it wrote; a
     // create's undo is that clear, and it offers none beside it
     assert_eq!(created.get("clear"), None, "{created}");
     assert_eq!(cleared.get("clear"), None, "{cleared}");
@@ -2716,11 +2691,10 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         json!("clears it: no price by hand")
     );
 
-    // C156, the review of #146's build, its third finding: the undo's
-    // words run with no shell from the same state put back the same row
-    // as its printed line did. The same replace again, its undo by
-    // `argv`: the prior value back, at the revision the receipt named
-    // plus one, as the line's run above.
+    // C156: the undo's words run with no shell from the same state put back the
+    // same row as its printed line did. The same replace again, its undo by
+    // `argv`: the prior value back, at the revision the receipt named plus one,
+    // as the line's run above.
     let rev = at(&restored).to_string();
     let again = write(&[
         "price",
@@ -2786,7 +2760,7 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
     );
 }
 
-/// #234: another process holding the account's annotation file past the
+/// Another process holding the account's annotation file past the
 /// wait (`ACQ_ANNOTATION_WAIT=0`, the expiry forced) reaches a user of
 /// `price set` and of `policy set` in the store's one rule (C116, C143):
 /// the file named by what it keeps, never by the store's name, that
@@ -2832,7 +2806,7 @@ fn a_busy_intent_file_is_said_as_the_user_knows_it_and_says_run_again() {
     holder.execute_batch("ROLLBACK").unwrap();
     drop(holder);
     // a file that is no database at all is said the same way, by what it
-    // keeps, with the step after a retry (the cold review of 8e0baadb)
+    // keeps, with the step after a retry
     std::fs::write(
         acquisition_store::annotations_path(&mock, UUID),
         "not a database",

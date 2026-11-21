@@ -2,7 +2,7 @@
 //! journal (the GGG-side contract surface, TESTING-NOTES.md): a real daemon
 //! over the in-process mock, a scripted browserless login, and the CLI as
 //! the only interface. The unit tests pin `route_for`; this pins what the
-//! daemon actually sends and files (review request, 2026-09-02):
+//! daemon actually sends and files:
 //!
 //! - an explicit `pc` and an omitted realm are the same route and the
 //!   same result — every pc send is byte-identical to the pre-realm ones;
@@ -12,7 +12,7 @@
 //!   tabs stay pc's — the store keeps realms apart;
 //! - a tab the stored listing does not name is refused at submit, its
 //!   realm's and league's listing named with its age, and nothing is
-//!   sent for it (C164, #166);
+//!   sent for it (C164);
 //! - a realm the stash family does not take (poe2) is refused at admission,
 //!   with nothing journaled.
 
@@ -83,8 +83,8 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
 
     // xbox: its own route and the mock's empty console listing; a tab
     // that listing does not name is refused at submit, before an id
-    // exists, and nothing is sent for it (C164, #166: the 404 the stored
-    // listing predicted was a request spent for nothing). pc's listing
+    // exists, and nothing is sent for it (C164: the 404 the stored
+    // listing predicts is a request spent for nothing). pc's listing
     // names the mock's tabs, and not `nope`.
     let xbox = payload(&base, &["stashes", "--realm", "xbox", "--json"]);
     assert_eq!(xbox["stashes"], json!([]));

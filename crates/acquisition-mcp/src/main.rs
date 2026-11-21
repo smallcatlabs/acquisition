@@ -1,4 +1,4 @@
-//! `acq-mcp` — MCP server frontend (tracer bullet).
+//! `acq-mcp` — MCP server frontend.
 //!
 //! Rulings: `decisions/frontends.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
@@ -20,23 +20,22 @@
 //! - **It never spawns a daemon in real-GGG mode.** A real-mode daemon is
 //!   a human's act, via the CLI (it needs the keychain and the browser);
 //!   the MCP talks to the one that is running or reports that none is.
-//!   Agent traffic against GGG itself is allowed (C14, the owner's ruling
-//!   of 2026-09-01): humans, scripts and agents are all clients of the one
-//!   daemon, and the daemon is the single gate that enforces GGG's rules.
+//!   Agent traffic against GGG itself is allowed (C14): humans, scripts
+//!   and agents are all clients of the one daemon, and the daemon is the
+//!   single gate that enforces GGG's rules.
 //!
-//! The refresh tracer's plan slice (step 8) is exposed as tools —
-//! `sync_policy` / `set_sync_policy` (intent), `refresh_plan`
-//! (derivation), `apply_plan` (effect) — through the same shared
-//! semantics the CLI uses (C46; `acquisition-plan`: validate-then-CAS policy
-//! writes, the validating plan parse, the step-7 staleness gate).
-//! Mode rules for the slice: intent reads/writes and offline plan
-//! compilation send nothing and work in either mode (a policy write must
-//! name the revision it replaces — an agent never clobbers intent it has
-//! not read); `apply_plan` and `submit_job` spend through the running
-//! daemon in either mode; quote enrichment asks the running daemon in
-//! either mode (read-only, never spawning).
+//! The refresh plan is exposed as tools — `sync_policy` /
+//! `set_sync_policy` (intent), `refresh_plan` (derivation), `apply_plan`
+//! (effect) — through the same shared semantics the CLI uses (C46;
+//! `acquisition-plan`: validate-then-CAS policy writes, the validating
+//! plan parse, the staleness gate). Mode rules for these tools: intent
+//! reads/writes and offline plan compilation send nothing and work in either
+//! mode (a policy write must name the revision it replaces — an agent never
+//! clobbers intent it has not read); `apply_plan` and `submit_job` spend
+//! through the running daemon in either mode; quote enrichment asks the running
+//! daemon in either mode (read-only, never spawning).
 //!
-//! # As built: the item search (the build plan, step 11b)
+//! # As built: the item search
 //!
 //! `search`, `describe` and `show` are adapters of `acquisition-search`,
 //! as `acq search` and `acq show` are (C46, C89): what a tool returns is
@@ -67,17 +66,16 @@
 //!   here translates; `show`'s `against` takes it as a query too.
 //! - **A refusal is a result marked `isError`** holding the CLI's
 //!   failure document — `error`, `kind`, `readings`, `offers` — never a
-//!   JSON-RPC error, whose `data` a host need not show the model (the
-//!   owner, 2026-10-10). Every other tool's refusal is the same form,
-//!   sorted by one function (`failed`) over the shared layer's one fault
-//!   type (`acquisition_verbs::Fault`, C46): its kind and fields, the
-//!   remedy in this adapter's words, `arguments`, and `refused` for the
-//!   rest (the release seat's rerun); a JSON-RPC error is kept for a call
-//!   the server could not serve — a daemon's own refusal with its closed
-//!   kind (C85), a door that did not open, another or an unresponsive
-//!   daemon, the transport.
+//!   JSON-RPC error, whose `data` a host need not show the model. Every
+//!   other tool's refusal is the same form, sorted by one function
+//!   (`failed`) over the shared layer's one fault type
+//!   (`acquisition_verbs::Fault`, C46): its kind and fields, the remedy in
+//!   this adapter's words, `arguments`, and `refused` for the rest; a
+//!   JSON-RPC error is kept for a call the server could not serve — a
+//!   daemon's own refusal with its closed kind (C85), a door that did not
+//!   open, another or an unresponsive daemon, the transport.
 //! - **The corpus is held across calls** (C98, the consumer holds the
-//!   corpus and checks before every answer; #82): `search` opens the
+//!   corpus and checks before every answer): `search` opens the
 //!   account's store and intent per call, as before, and asks the search
 //!   crate's `Holder` — the one `acq web` holds — for the corpus, which
 //!   is reused while its scope is the request's and `is_current` says the
@@ -87,16 +85,14 @@
 //!   and holds nothing.
 //!
 //! **Every text the server serves speaks its own words** (C143, the
-//! shared words first and an adapter's way on after them; the readiness
-//! seat, `audits/readiness-2026-10/seat/`, calls 5, 6, 12, 13, 35, 47):
-//! every text the shared crates and the daemon make — a refusal,
-//! `describe`, an answer's `why` and `hint`, a daemon's refusal — speaks
-//! the request's words, and its ways on are values this server sends as
-//! its tools' arguments (C143 as amended; #97, #178; the harness's
-//! `c143_a_text_speaks_no_frontend`, which reads a protocol error's
-//! message too). A person's command (`acq auth check`) is left as the
-//! person's. A document is sent as serialized, so its key order stands
-//! (C115). Pinned by `tests/spoken.rs`.
+//! shared words first and an adapter's way on after them): every text
+//! the shared crates and the daemon make — a refusal, `describe`, an
+//! answer's `why` and `hint`, a daemon's refusal — speaks the request's
+//! words, and its ways on are values this server sends as its tools'
+//! arguments (C143; the harness's `c143_a_text_speaks_no_frontend`,
+//! which reads a protocol error's message too). A person's command (`acq auth
+//! check`) is left as the person's. A document is sent as serialized, so its
+//! key order stands (C115). Pinned by `tests/spoken.rs`.
 //!
 //! An account that cannot be picked is refused in the protocol's words
 //! (C121): `not_logged_in` when no account's store is found (naming the
@@ -110,7 +106,7 @@
 //! fixture, each answer and each of the search crate's refusals held
 //! equal to the CLI's document.
 //!
-//! # As built: pricing (the release, step 1)
+//! # As built: pricing
 //!
 //! `price_status`, `price_list`, `price_show`, `shop_render`,
 //! `reference_currency`, `price_set` and `price_clear` are adapters of
@@ -133,7 +129,7 @@
 //! CLI's default replaces whatever is stored. The shop template is the
 //! page's text here, a file there. Pinned by `tests/pricing_tools.rs`.
 //!
-//! # As built: the saved search (4-full part 1, step 2)
+//! # As built: the saved search
 //!
 //! `saved_searches`, `saved_search_set` and `saved_search_clear` are
 //! adapters of `acquisition_verbs::saved`, the functions `acq saved`

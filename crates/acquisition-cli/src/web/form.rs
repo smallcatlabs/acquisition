@@ -1,7 +1,7 @@
-//! The search form and its fold (C139; `roadmap/briefs/4b-build.md`, Do
-//! 6): the form generated from the committed filter dump, each control
-//! named by its path in the site's query JSON, and the submission folded
-//! back into that JSON by those names.
+//! The search form and its fold (C139): the form generated from the
+//! committed filter dump, each control named by its path in the site's
+//! query JSON, and the submission folded back into that JSON by those
+//! names.
 //!
 //! # As built
 //!
@@ -28,38 +28,34 @@
 //!   last one value each, in order, given again for the next as the CLI's
 //!   `--value` is, since a value's text may hold a comma; no control of
 //!   the form writes the three, which the URL names and a page's links and
-//!   the query box carry (4-full part 1, step 6.4c) — or `view.count`, a key,
-//!   to the counts view in its place (the review of 4b, its sixth
-//!   finding), whose tables the answer page prints as the CLI does; and
+//!   the query box carry — or `view.count`, a key, to the counts view in
+//!   its place, whose tables the answer page prints as the CLI does; and
 //!   `view.fields`, the row's fields as the CLI's `--fields` names them
 //!   (`icon`, or `icon,item`), read by the search's one reader, which
-//!   refuses a list naming no field: sent empty or not at all, the page's default, the item with its art, so
-//!   the answer page renders cards; `icon`, the compact table (4-full
-//!   part 1, step 5). A count asks no row's fields, and one sent beside
-//!   it is the view selection's refusal. And
-//!   `text`, the query box: a query in the language, run as the user's
-//!   own in place of the trade input (the 4b sitting round, Do 6). And
-//!   `trade`, the trade site box: a site search as the CLI's `--trade`
-//!   takes it — its URL, its bare id or its query JSON — run in place of
-//!   the form's trade input by the same rule (#188, its first half). A
-//!   URL's realm is the search's scope, so where the box names one the
+//!   refuses a list naming no field: sent empty or not at all, the page's
+//!   default, the item with its art, so the answer page renders cards;
+//!   `icon`, the compact table. A count asks no row's fields, and one sent
+//!   beside it is the view selection's refusal. And `text`, the query box:
+//!   a query in the language, run as the user's own in place of the trade
+//!   input. And `trade`, the trade site box: a site search as the CLI's
+//!   `--trade` takes it — its URL, its bare id or its query JSON — run in
+//!   place of the form's trade input by the same rule (#188, its first
+//!   half). A URL's realm is the search's scope, so where the box names one the
 //!   page's carried `realm` is not read; the two boxes together, or the
 //!   site box sent empty, are a usage error.
 //! - **A name is one the form emitted**: the fold refuses any other as
 //!   a usage error before it builds anything (C47, malformed external
 //!   input is a structured error), so no index past the form's stat rows
-//!   and no path it never wrote can shape the JSON (the review of 4b,
-//!   its fifth finding). The names are the form's own: a test holds the
-//!   rendered form to them.
+//!   and no path it never wrote can shape the JSON. The names are the
+//!   form's own: a test holds the rendered form to them.
 //! - **The fold drops what is empty**: every field submitted empty but
 //!   `text`, then an object or array left with nothing in it, then a stat
 //!   group left with no filter (its type alone says nothing). `text`
 //!   sent is the text, empty or not: the text `""` is a query, every item
-//!   in its scope (4-full part 1, step 3, Do 6), so a saved search over
-//!   every item folds back. A `min`, `max`,
-//!   `weight` or socket colour that reads as a number is one; anything
-//!   else is the text typed, which the translation reports as it reads
-//!   it. The fold decides nothing the translation decides.
+//!   in its scope, so a saved search over every item folds back. A `min`,
+//!   `max`, `weight` or socket colour that reads as a number is one;
+//!   anything else is the text typed, which the translation reports as it
+//!   reads it. The fold decides nothing the translation decides.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -214,8 +210,7 @@ pub(crate) fn filter_path(group: &str, filter: &str) -> String {
 }
 
 /// The view's names no control of a form writes: the URL names them, and a
-/// page's links and the query box carry them (4-full part 1, step 6.4c;
-/// nothing is typed to sort).
+/// page's links and the query box carry them (nothing is typed to sort).
 pub(crate) const UNTYPED: [&str; 3] = ["view.sort", "view.desc", "view.value"];
 
 /// Every name the form emits: the scope and the view's, each filter's
@@ -290,7 +285,7 @@ pub(crate) struct Folded {
     /// The row's fields where `view.fields` was sent with a value, read
     /// by the search's one reader; none where it was not, the default.
     pub fields: Option<Vec<RowField>>,
-    /// The query box's text (the 4b sitting round, Do 6): where given,
+    /// The query box's text: where given,
     /// the search is that text, the user's own query, and the trade
     /// input is dropped — the rule the request already has for an edited
     /// text.
@@ -303,14 +298,14 @@ pub(crate) struct Folded {
 impl Folded {
     /// The request the MCP's `search` reads, as the page asks it: the
     /// envelope as the trade input, each row with its icon (C140) and its
-    /// item where no other fields were sent, none under a count. The
-    /// view is built by the shared view selection, `Shape::of`, as the
-    /// CLI builds its own, so the page inherits its refusals — a sort
-    /// beside a count among them — and builds no view itself (C46; the
-    /// fix round's review, its one finding). A site search whose URL
-    /// names a realm runs there: the realm the page carried beside it is
-    /// not read (the owner's words in #188, "the URL's realm is the
-    /// search's scope"), and the answer page says so where they differ.
+    /// item where no other fields were sent, none under a count. The view
+    /// is built by the shared view selection, `Shape::of`, as the CLI
+    /// builds its own, so the page inherits its refusals — a sort beside a
+    /// count among them — and builds no view itself (C46). A site search
+    /// whose URL names a realm runs there: the realm the page carried
+    /// beside it is not read (the owner's words in #188, "the URL's realm
+    /// is the search's scope"), and the answer page says so where they
+    /// differ.
     pub(crate) fn request(&self) -> Result<Value, LanguageError> {
         let mut scope = Map::new();
         let named = self
@@ -360,13 +355,12 @@ impl Folded {
     }
 }
 
-/// A form's fields folded for their count alone (4-full part 1, step
-/// 6.2): the form's view fields set aside before the fold, so the view
-/// the form names is never read, nor refused where its values are no
-/// view's (that is the Search's to say), and a name the form never emits
-/// still refused; the view is rows at limit 0 with `sort` `none`, as
-/// `acq search --limit 0 --sort none` asks, so no row is walked for a
-/// number.
+/// A form's fields folded for their count alone: the form's view fields set
+/// aside before the fold, so the view the form names is never read, nor
+/// refused where its values are no view's (that is the Search's to say),
+/// and a name the form never emits still refused; the view is rows at limit
+/// 0 with `sort` `none`, as `acq search --limit 0 --sort none` asks, so no
+/// row is walked for a number.
 pub(crate) fn fold_count(form: &Form, fields: &[(String, String)]) -> Result<Folded, String> {
     let searched: Vec<(String, String)> = fields
         .iter()
@@ -671,7 +665,7 @@ mod tests {
         );
     }
 
-    /// Step 6.4c: `view.value` is one value each, in the order sent, into
+    /// `view.value` is one value each, in the order sent, into
     /// the rows view's `values`, as the CLI's `--value` given again; an
     /// empty one is dropped as every empty field is.
     #[test]
@@ -721,8 +715,7 @@ mod tests {
         .unwrap();
         assert_eq!(folded.envelope["defences"], "displayed");
         // a group turned off is sent as the site sends it, its values
-        // standing beside its `disabled` (the sitting round's review, its
-        // third finding)
+        // standing beside its `disabled`
         let folded = fold(
             &form,
             &fields(&[
@@ -735,8 +728,7 @@ mod tests {
             folded.envelope["query"]["filters"]["misc_filters"],
             json!({ "disabled": true, "filters": { "ilvl": { "min": 75 } } })
         );
-        // the stat group's the same: off, its rows stand (the fix round's
-        // review, its first finding)
+        // the stat group's the same: off, its rows stand
         let folded = fold(
             &form,
             &fields(&[
@@ -771,11 +763,11 @@ mod tests {
         );
     }
 
-    /// 4-full part 1, step 5: `view.fields` is the row's fields as the
-    /// CLI's `--fields` names them. Absent or empty, the page's default:
-    /// the item with its art (cards); `icon`, the table; an unknown word,
-    /// or a list naming no field, a usage error; any of them beside a count, the view selection's
-    /// refusal; a count alone asks none.
+    /// `view.fields` is the row's fields as the CLI's `--fields` names
+    /// them. Absent or empty, the page's default: the item with its art
+    /// (cards); `icon`, the table; an unknown word, or a list naming no
+    /// field, a usage error; any of them beside a count, the view
+    /// selection's refusal; a count alone asks none.
     #[test]
     fn the_fold_reads_the_rows_fields_and_a_count_asks_none() {
         let form = Form::load().unwrap();
@@ -834,7 +826,7 @@ mod tests {
 
     /// The names the fold accepts are exactly the names the rendered form
     /// carries and the view's untyped names, which no control of it writes
-    /// (step 6.4c: nothing is typed to sort): the two are written apart,
+    /// (nothing is typed to sort): the two are written apart,
     /// and this holds them together.
     #[test]
     fn the_fold_accepts_exactly_the_names_the_rendered_form_carries() {

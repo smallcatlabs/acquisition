@@ -69,8 +69,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
                 "  started".to_string(),
             ],
         ),
-        // the stored list names the new league first, by its start (the
-        // answer-facts seat, MCP fault 3 and CLI fault 6)
+        // the stored list names the new league first, by its start
         step(
             &["leagues", "--stored"],
             1,
@@ -180,8 +179,8 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
             ],
         ),
         // the apply over the typo fails naming it, on the mock's 404, and
-        // says its way on as `acq result` does (C165, the review of round
-        // E, finding 5): the failed child's own result, run below
+        // says its way on as `acq result` does (C165): the failed child's
+        // own result, run below
         Step {
             exit: 1,
             ..step(

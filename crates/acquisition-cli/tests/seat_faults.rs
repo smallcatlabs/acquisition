@@ -1,9 +1,6 @@
-//! The faults the whole-CLI seat found (2026-10-13,
-//! `audits/rehome-2026-10/seat/REPORT.md` at `7653f8b0`), the trade
-//! import's seat (2026-10-17, `audits/trade-2026-10/seat/`) and the league
-//! seat (2026-11-01, `audits/league-2026-11/seat/`), each held by the test
-//! named for it. A test here drives the real binary in a scratch
-//! world against the mock; nothing reaches GGG.
+//! The faults seats found at the CLI, each held by the test named for it.
+//! A test here drives the real binary in a scratch world against the
+//! mock; nothing reaches GGG.
 
 use std::path::{Path, PathBuf};
 
@@ -161,7 +158,6 @@ fn another_leagues_price_row_is_never_counted_as_naming_nothing() {
             "facts: 1 location, 1 fetched (fetched ",
             "Standard / Gear); stash listing ",
             // the league the rows price is named beside the one read
-            // (round 5 of the answer-facts group; the CLI-2 seat's fault 6)
             "leagues: Standard (this); also held: Allflame (1 tab, no policy)",
             "1 name nothing in this league's facts",
             "2 for other leagues",
@@ -295,11 +291,11 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         "a daemon was spawned: {status}"
     );
 
-    // #168's text half (the answer-facts seat, CLI run 1 call 11): the
-    // text named the accounts and no command to run. It prints one ready
-    // command per account, the JSON's offers' own lines, each running as
-    // printed; past the store's bound of ten, the rest counted with the
-    // command that lists them. The kind stays `ambiguous_account` (C121).
+    // the text named the accounts and no command to run: it prints one
+    // ready command per account, the JSON's offers' own lines, each
+    // running as printed; past the store's bound of ten, the rest counted
+    // with the command that lists them. The kind stays `ambiguous_account`
+    // (C121).
     drop(Store::open(&account_path(&base.join("store").join("mock"), "Bob#5678")).unwrap());
     let mut t = Transcript::new(&base);
     let out = t.run(
@@ -343,7 +339,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
             .unwrap();
     }
     // the sentence names the bound's count too, the rest counted, and
-    // the JSON's list stays whole (the review of round C, finding 5)
+    // the JSON's list stays whole
     let out = t.run(
         &["tabs"],
         &[
@@ -367,10 +363,9 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     golden(file!(), "account_to_pick", &t);
 
     // every text refusal whose JSON offers accounts prints them as ready
-    // commands, by the one renderer (the review of round C, finding 4):
-    // an account no login made, two known; and a request read whole with
-    // no account, two known, printed as the request the JSON offers,
-    // rebound to each account
+    // commands, by the one renderer: an account no login made, two known;
+    // and a request read whole with no account, two known, printed as the
+    // request the JSON offers, rebound to each account
     let scratch = harness::scratch("seat-account-unknown");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
@@ -394,8 +389,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let request = request.to_str().unwrap().to_string();
     // a request whose own scope names an account no login made: each
     // command carries the request rebound to an account known, never the
-    // file beside a scope still naming `Missing` (the review of round C's
-    // fix round, finding 1)
+    // file beside a scope still naming `Missing`
     let missing = base.join("missing.json");
     std::fs::write(
         &missing,
@@ -432,11 +426,10 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     }
     golden(file!(), "account_to_pick_every_path", &t);
 
-    // the three kinds told apart (C121 as amended; #168, CLI run 1 call
-    // 103): a name no login made is `unknown_account`, on a store verb
-    // and on a job verb with a daemon up; an account the index holds
-    // with no session is the daemon's `not_logged_in`; and so is no
-    // account known at all
+    // the three kinds told apart (C121): a name no login made is
+    // `unknown_account`, on a store verb and on a job verb with a daemon
+    // up; an account the index holds with no session is the daemon's
+    // `not_logged_in`; and so is no account known at all
     let (_daemon, _pid) = start_daemon(&base);
     for (args, kind) in [
         (
@@ -457,7 +450,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         assert_eq!(sole_json(&out)["kind"], kind, "{args:?}: {}", text(&out));
     }
     // the daemon's own refusal says the account in the request's words,
-    // and the CLI adds its way on by the kind, as for its own (#178)
+    // and the CLI adds its way on by the kind, as for its own
     let mut t = Transcript::new(&base);
     t.run(
         &["--account", "Missing", "profile"],
@@ -468,7 +461,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let out = sole_json(&acq(&none.0, &["--json", "tabs"]));
     assert_eq!(out["kind"], "not_logged_in", "{out}");
     // with none known, a name is no typo of a known one: not_logged_in,
-    // as the help says (the review of round E, finding 6)
+    // as the help says
     let out = sole_json(&acq(&none.0, &["--account", "Typo", "--json", "tabs"]));
     assert_eq!(out["kind"], "not_logged_in", "{out}");
 }
@@ -515,13 +508,12 @@ fn a_job_verb_prints_its_answer_alone_and_says_whose_job_it_was() {
     assert!(outcome["job_id"].is_u64(), "{outcome}");
 }
 
-/// C165 (#165, the answer-facts seat, CLI run 1 calls 104 and 105): a
-/// stash job for a tab no stored listing names, with none stored, is
-/// admitted and its 404 fails it, and the failure said only that GGG
-/// returned 404, nothing of what to do. It says its kind, `not_found`,
-/// and offers the fetch of the league's listing, in JSON and in one line
-/// of text; run as printed, the listing lands, and the same job is then
-/// refused at submit before anything is sent (C164).
+/// C165: a stash job for a tab no stored listing names, with none
+/// stored, is admitted and its 404 fails it, and the failure said only
+/// that GGG returned 404, nothing of what to do. It says its kind,
+/// `not_found`, and offers the fetch of the league's listing, in JSON and
+/// in one line of text; run as printed, the listing lands, and the same
+/// job is then refused at submit before anything is sent (C164).
 #[test]
 fn c165_a_failed_fetch_offers_the_listing_that_names_its_target() {
     let scratch = harness::scratch("seat-not-found");
@@ -696,8 +688,7 @@ fn a_finished_jobs_result_is_answered_from_disk_with_no_daemon() {
     );
 
     // Nothing above started a daemon — and with none running the status
-    // still says where the last one logged, which only a running daemon
-    // used to print.
+    // still says where the last one logged.
     let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], false, "{status}");
     let log = status["log"].as_str().expect("the last daemon's log");
@@ -742,13 +733,13 @@ fn auth_status_with_no_daemon_says_what_a_daemon_would_restore() {
     assert_eq!(status["running"], false, "{status}");
 }
 
-/// #191 (the blind page seat, T6 step 11, fault 3): a deep selection of a
-/// map tab with no pages on record said its pages "arrive with its
-/// fetch; apply, then select it again for them", and after a fetch that
-/// listed none said it again, word for word: followed, it loops. The
-/// plan cannot tell never fetched from fetched with none, so the line
-/// says what is true of both and asks for no second round; the mock's
-/// "Maps (empty)" lists no pages, and both runs print the one line.
+/// A deep selection of a map tab with no pages on record said its pages
+/// "arrive with its fetch; apply, then select it again for them", and
+/// after a fetch that listed none said it again, word for word: followed,
+/// it loops. The plan cannot tell never fetched from fetched with none,
+/// so the line says what is true of both and asks for no second round;
+/// the mock's "Maps (empty)" lists no pages, and both runs print the one
+/// line.
 #[test]
 fn a_deep_selection_of_a_tab_with_no_pages_on_record_promises_none() {
     let scratch = harness::scratch("seat-no-pages");
@@ -790,8 +781,8 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
         &[
             "next: `acq refresh --plan --account alice --realm pc --league Standard` — ",
             " more are planned now",
-            // every cause the count can have (the league seat, cli calls
-            // 48, 49: five had gone stale under a 60 s age)
+            // every cause the count can have (under a 60 s age, five
+            // listings had gone stale)
             "what it left undone, or what went stale since",
         ],
     );
@@ -812,8 +803,7 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
     assert_eq!(out.status.code(), Some(0), "{}", text(&out));
 
     let mut t = Transcript::new(&base);
-    // the facts line prints where nothing is to do, as on every plan (the
-    // answer-facts seat, run 1, CLI fault 12: it was dropped here)
+    // the facts line prints where nothing is to do, as on every plan
     let said = stdout(&t.run(
         &["refresh", "--plan"],
         &[
@@ -831,9 +821,9 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
 /// error for a wrong one. Nine tenths of the page is the computed values'
 /// and the categories' definitions. Bare, it is the index: every name
 /// with one line, under what a host shows whole, ending on how to read
-/// an entry; `all` is the page as it was. Under C53 as amended the
-/// index is the bare answer in JSON too, and `all` the whole; the foot's
-/// words are the golden `search_json/describe_at_a_terminal`.
+/// an entry; `all` is the page as it was. Under C53 the index is the
+/// bare answer in JSON too, and `all` the whole; the foot's words are the
+/// golden `search_json/describe_at_a_terminal`.
 #[test]
 fn describe_is_an_index_that_names_every_entry_and_says_how_to_read_one() {
     let scratch = harness::scratch("seat-describe");
@@ -983,18 +973,17 @@ fn stopping_a_daemon_says_which_logins_ended_with_it() {
 }
 
 /// `acq tabs` printed every tab of the league with its only summary on
-/// the last line: 355 KB for the owner's Standard, which two seats met —
-/// the first turned away, the second filled its context. The counts are
-/// the first line, and a league of more than ten tabs is counted by type
-/// with its ten largest (C53, the one rule: a league of thirty or fewer
-/// was once listed whole); `--limit` lists more, `--expand` every tab. `--json` is the
-/// same document (C115): its tabs are `rows`, cut the same way, every one
-/// under `--expand` — the refresh-run script reads them there (the review
-/// of note 38 at `16bba23e`, step 1, reproduced its abort on the old flat list).
-/// The head's items are the tabs' alone, and it says so with the command
-/// that counts the characters' (answer-facts seat run 2, cli fault 2: both
-/// runners took `20231 items` for the league's, where `price status` said
-/// 21311, and worked out the difference by arithmetic).
+/// the last line: 355 KB for the owner's Standard, enough to turn a
+/// reader away or fill its context. The counts are the first line, and a
+/// league of more than ten tabs is counted by type with its ten largest
+/// (C53, the one rule, a league of thirty or fewer included); `--limit`
+/// lists more, `--expand` every tab. `--json` is the same document
+/// (C115): its tabs are `rows`, cut the same way, every one under
+/// `--expand` — the refresh-run script reads them there, and aborts on a
+/// flat list. The head's items are the tabs' alone, and it says so with
+/// the command that counts the characters' (without it, `20231 items`
+/// read as the league's, where `price status` said 21311, and the
+/// difference was worked out by arithmetic).
 #[test]
 fn tabs_says_its_counts_first_and_that_its_items_are_the_tabs_alone() {
     let scratch = harness::scratch("seat-tabs");
@@ -1117,12 +1106,10 @@ fn tabs_says_its_counts_first_and_that_its_items_are_the_tabs_alone() {
     assert!(counted.status.success(), "{}", text(&counted));
 }
 
-/// Every run of the re-sit, told "0 matches" for a unique the person
-/// owns, could say that 437 of 521 unique-stash tabs were never fetched
-/// and not which — `tabs` listed a league whole or its ten largest, with
-/// no selection (cli-opus calls 36–39, mcp-opus 34–37, cli-sonnet 20–22,
-/// mcp-sonnet 18–23; the search area's park, fired). `--type` and
-/// `--never-fetched` select the rows under the league's counts, the
+/// An answer of "0 matches" for a unique the person owns could say that
+/// 437 of 521 unique-stash tabs were never fetched and not which — `tabs`
+/// listed a league whole or its ten largest, with no selection. `--type`
+/// and `--never-fetched` select the rows under the league's counts, the
 /// same cut and `--expand` listing the rest; the scope line's pointer
 /// lists the never fetched.
 #[test]
@@ -1190,8 +1177,8 @@ fn tabs_lists_the_never_fetched_of_one_type() {
 
 /// `show` printed `price   none (none)` for an unpriced item — the
 /// listing state's kind beside its status — which read as two empty
-/// fields until `price show` explained it (the re-sit, cli-opus call 41,
-/// its fault 7). The line says why none, in the words its JSON carries.
+/// fields until `price show` explained it. The line says why none, in the
+/// words its JSON carries.
 #[test]
 fn shows_price_line_says_why_none() {
     let scratch = harness::scratch("seat-price-why");
@@ -1230,9 +1217,9 @@ fn a_saved_plan(base: &Path) -> (String, Value, harness::StopOnDrop) {
 
 /// A saved plan applied later said its listings' ages as at the plan's
 /// making with `ago`, so two applies minutes apart printed one frozen
-/// `stash listed 53s ago` (answer-facts seat run 2, cli fault 4). Each
-/// age names its clock: the listing's before the plan, as the envelope's
-/// own words measure it, and the plan's at the answer's time.
+/// `stash listed 53s ago`. Each age names its clock: the listing's before
+/// the plan, as the envelope's own words measure it, and the plan's at
+/// the answer's time.
 #[test]
 fn an_applied_plan_says_its_listings_before_the_plan_and_its_own_age_now() {
     let scratch = harness::scratch("seat-plan-age");
@@ -1267,7 +1254,6 @@ fn an_applied_plan_says_its_listings_before_the_plan_and_its_own_age_now() {
         "{said}"
     );
     // the reviewed file's audit view says its basis by the same clocks
-    // (the review of the seat's third round, finding 1)
     let audit = stdout(&acq(
         &base,
         &["refresh", &format!("--plan={}", path.display()), "--expand"],
@@ -1488,11 +1474,9 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
 /// A reader took `exact` for "the site would show me the same": the
 /// translation's fidelity is how far the text is the site's search, and
 /// the items are the store's, worn and stashed, priced or not, where the
-/// site shows public listings (the trade seat: mcp-opus calls 1, 11, its
-/// worst fault; cli-sonnet's debrief, answer 4). Every translation says
-/// so under its first line, an exact one too, and each clause with no
-/// stash meaning is named with its note, not by its key alone (cli-sonnet
-/// calls 6, 8).
+/// site shows public listings. Every translation says so under its first
+/// line, an exact one too, and each clause with no stash meaning is named
+/// with its note, not by its key alone.
 #[test]
 fn a_trade_answer_says_its_items_are_the_stores_whatever_its_fidelity() {
     let scratch = harness::scratch("seat-trade-over");
@@ -1533,9 +1517,8 @@ fn a_trade_answer_says_its_items_are_the_stores_whatever_its_fidelity() {
 }
 
 /// The never-fetched were named under a zero total alone, so an answer
-/// of N said nothing of what it could not see (the trade seat: cli-sonnet
-/// call 6, its fault 4). Every total over a scope with a never-fetched
-/// location says so.
+/// of N said nothing of what it could not see. Every total over a scope
+/// with a never-fetched location says so.
 #[test]
 fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
     let scratch = harness::scratch("seat-never");
@@ -1574,14 +1557,13 @@ fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
     golden(file!(), "every_total_says_the_never_fetched", &t);
 }
 
-/// C188: on 3.30's launch day the search read a reworded line as lacked
-/// and nothing said its tables were from an older release than the
-/// items (#277). Under the total, beside the never-fetched, an answer
-/// says when the tables' release is not the one its characters were
-/// last fetched from, and what cures it: one realm a release ahead, one
-/// behind, one at the tables' (neither sentence), and every realm, each
-/// sentence opening with its realm. The releases are the tables' own,
-/// one either side.
+/// C188: tables from an older release than the items read a reworded line
+/// as lacked, and nothing said so. Under the total, beside the
+/// never-fetched, an answer says when the tables' release is not the one
+/// its characters were last fetched from, and what cures it: one realm a
+/// release ahead, one behind, one at the tables' (neither sentence), and
+/// every realm, each sentence opening with its realm. The releases are
+/// the tables' own, one either side.
 #[test]
 fn the_total_says_when_the_tables_and_the_characters_are_from_different_releases() {
     let scratch = harness::scratch("seat-releases");
@@ -1660,15 +1642,13 @@ fn the_total_says_when_the_tables_and_the_characters_are_from_different_releases
 
 /// A map search printed the flat "2940 locations never fetched" a ring
 /// search printed, beside a map tab 61 of 2,550 fetched, and pointed at
-/// `--view locations`, which is not built (the trade seat: cli-opus-2
-/// calls 4, 40, its fault 3; cli-sonnet-2 calls 3, 6, its fault 1). C118:
-/// the scope line names the types with the most never fetched, counts
-/// the rest, and points at the list that exists.
+/// `--view locations`, which is not built. C118: the scope line names the
+/// types with the most never fetched, counts the rest, and points at the
+/// list that exists.
 ///
 /// Its list age names the set it is the oldest of, as the `scope` gloss
-/// does (answer-facts seat run 2, cli fault 8: `location list seen 57d
-/// ago` read as the stash list's, 53 days old, where it was a character
-/// list's).
+/// does (without it, `location list seen 57d ago` read as the stash
+/// list's, 53 days old, where it was a character list's).
 #[test]
 fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_the_oldest_of() {
     let scratch = harness::scratch("seat-by-type");
@@ -1706,8 +1686,7 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_t
             " · location lists seen, the oldest ",
         ],
     ));
-    // a store that holds no list says so (the review of the seat's third
-    // round, finding 5)
+    // a store that holds no list says so
     let mock = base.join("store").join("mock");
     Index::load(&mock)
         .unwrap()
@@ -1762,10 +1741,10 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_t
 
 /// The scope line's `tabs` pointer named no league, so it listed
 /// Standard while the never fetched the scope counted sat in another
-/// league, and a reader who followed it found none of them (the external
-/// review of step 2). C118: the pointer names the league the query fixes,
-/// or, where it fixes none, the league holding the most never-fetched
-/// tabs, with the others counted; run as printed, it lists them.
+/// league, and a reader who followed it found none of them. C118: the
+/// pointer names the league the query fixes, or, where it fixes none, the
+/// league holding the most never-fetched tabs, with the others counted;
+/// run as printed, it lists them.
 #[test]
 fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
     let scratch = harness::scratch("seat-pointer-league");
@@ -1817,7 +1796,7 @@ fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
         " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched";
     assert_eq!(
         // a query fixed to Allflame still counts Standard's never-fetched
-        // tab, and the line says why (the h2 review's third finding)
+        // tab, and the line says why
         pointer(
             "league=Allflame",
             &[
@@ -1860,9 +1839,8 @@ fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
 
 /// A term's counts were read as the answer's: "26 matched" for the
 /// totem line where the answer held one shield, a term's 168 beside a
-/// total of 160 (the trade seat: cli-opus calls 18, 19, its fault 8;
-/// cli-sonnet call 14, its fault 5). The terms block says each term is
-/// counted alone over the scope and never over the matches.
+/// total of 160. The terms block says each term is counted alone over the
+/// scope and never over the matches.
 #[test]
 fn the_terms_block_says_it_is_never_over_the_matches() {
     let scratch = harness::scratch("seat-terms");
@@ -1877,16 +1855,13 @@ fn the_terms_block_says_it_is_never_over_the_matches() {
 }
 
 /// A row sorted by a sum said `sorts by 78` beside the term's explicit
-/// sum of 70, and both CLI runners took the order for the filter's (the
-/// trade seat: cli-opus call 21, its fault 2; cli-sonnet call 15, its
-/// fault 1). The row names the sort's own value before its number, so
-/// the sum over every source and the term's over the explicit stand
-/// apart.
+/// sum of 70, which read as the order of the filter's sum. The row names
+/// the sort's own value before its number, so the sum over every source
+/// and the term's over the explicit stand apart.
 #[test]
 fn a_row_sorted_by_a_value_no_field_names_says_which_value() {
-    // the help says what a sum spans (the re-sit: cli-opus fault 4,
-    // cli-sonnet fault 2, each sorting by `sum("T")` for the filter's
-    // explicit figure)
+    // the help says what a sum spans (without it, a sort by `sum("T")` was
+    // taken for the filter's explicit figure)
     let help = stdout(&acq(
         &harness::scratch("seat-sort-help").0,
         &["search", "--help"],
@@ -1942,8 +1917,8 @@ fn a_row_sorted_by_a_value_no_field_names_says_which_value() {
 }
 
 /// A term's path as long as its column ran into the term:
-/// `0.3.0pseudo.total_dex>=20` (the trade seat: cli-opus call 13, its
-/// fault 9). The column is as wide as the longest path and a space.
+/// `0.3.0pseudo.total_dex>=20`. The column is as wide as the longest path
+/// and a space.
 #[test]
 fn a_long_term_path_never_runs_into_its_term() {
     let scratch = harness::scratch("seat-path");
@@ -1976,9 +1951,9 @@ fn a_long_term_path_never_runs_into_its_term() {
 }
 
 /// A row and `show` said where an item sits and never how old that is,
-/// while `tabs` printed every tab's age (the trade seat: cli-opus-2 call
-/// 46, its fault 2, for "where do I pick it up"). C118: the place ends
-/// with its location's fetch age, in the words `tabs` prints an age in.
+/// while `tabs` printed every tab's age, so "where do I pick it up" had
+/// no age. C118: the place ends with its location's fetch age, in the
+/// words `tabs` prints an age in.
 #[test]
 fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
     let scratch = harness::scratch("seat-age");
@@ -2010,10 +1985,10 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
         &["Standard / Gear · x 0, y 0 · fetched 3d ago"],
     ));
     // the total line ends after the matches' age, its one location named
-    // once as a row's place names it (#11, #155): the row's place says its
-    // own age, and the line repeated that as an instruction (the h2 fix
-    // round); the scope line carries its counts alone, the scope's newest
-    // fetch, Allflame's, kept in its JSON
+    // once as a row's place names it: the row's place says its own age,
+    // and the line repeating that read as an instruction; the scope line
+    // carries its counts alone, the scope's newest fetch, Allflame's, kept
+    // in its JSON
     let line = |starts: &str| {
         shown
             .lines()
@@ -2038,11 +2013,11 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
     golden(file!(), "place_and_its_age", &t);
 }
 
-/// Round 2's close: a tab whose name is GGG's remove-only mark alone was
-/// named by its id on a row and on the total line, and by the mark on the
-/// scope's oldest fetch, the store's one rule then keeping the mark as a
-/// name: one tab, two names. C53 (every nothing says which nothing): the
-/// four places name it alike, by its id.
+/// A tab whose name is GGG's remove-only mark alone was named by its id
+/// on a row and on the total line, and by the mark on the scope's oldest
+/// fetch, the store's one rule then keeping the mark as a name: one tab,
+/// two names. C53 (every nothing says which nothing): the four places
+/// name it alike, by its id.
 #[test]
 fn a_tab_named_by_the_remove_only_mark_alone_is_named_by_its_id_everywhere() {
     let scratch = harness::scratch("seat-remove-only");
@@ -2115,9 +2090,8 @@ fn a_tab_named_by_the_remove_only_mark_alone_is_named_by_its_id_everywhere() {
     golden(file!(), "remove_only_tab_by_its_id", &t);
 }
 
-/// The answer-facts seat (run 1, CLI fault 4; calls 50, 63, 98): the
-/// span named `Standard / gerwarshot (character)` for a poe2 character
-/// under `--realm all`, and the runner read it as pc's. A location named
+/// The span named `Standard / gerwarshot (character)` for a poe2
+/// character under `--realm all`, which read as pc's. A location named
 /// on a span names its realm as a row's place does, on the scope's line
 /// and the total's, and in the JSON beside its league.
 #[test]
@@ -2185,15 +2159,13 @@ fn cli4_a_spans_location_names_its_realm() {
     }
 }
 
-/// The answer-facts seat (run 1, CLI fault 13; call 65): `--count
-/// league,rarity` headed rarity `4 values` and printed five lines,
-/// `(none)` among them. A count's heading counts the lines it prints
-/// (C146, a count says what it counts), every special bucket among them:
-/// `(none)` and `(undecided)` are lines, so values, in the heading and in
-/// a limited view's `shown` (the round's review: `(undecided)` was left
-/// out). The JSON's `values` keeps its count of the values the items
-/// carry. A table or a cross keyed by `league` closes on the scope's
-/// leagues no match is in (#173), the search crate's
+/// `--count league,rarity` headed rarity `4 values` and printed five
+/// lines, `(none)` among them. A count's heading counts the lines it
+/// prints (C146, a count says what it counts), every special bucket among
+/// them: `(none)` and `(undecided)` are lines, so values, in the heading
+/// and in a limited view's `shown`. The JSON's `values` keeps its count of
+/// the values the items carry. A table or a cross keyed by `league`
+/// closes on the scope's leagues no match is in, the search crate's
 /// `unmatched_leagues`.
 #[test]
 fn cli13_a_counts_heading_counts_every_line_it_prints() {
@@ -2263,8 +2235,8 @@ fn cli13_a_counts_heading_counts_every_line_it_prints() {
     json_args.push("--json");
     let json = sole_json(&acq(&base, &json_args));
     assert_eq!(json["view"]["counts"]["tables"][0]["values"], 2, "{json}");
-    // #173 (MCP run 2, call 38): keyed by `league`, a table and a cross
-    // name the scope's leagues no match is in, Allflame's orb no rare
+    // keyed by `league`, a table and a cross name the scope's leagues no
+    // match is in, Allflame's orb no rare
     let unmatched = "the scope's leagues no match is in have no bucket: Allflame\n";
     t.run(
         &[
@@ -2291,19 +2263,18 @@ fn cli13_a_counts_heading_counts_every_line_it_prints() {
     golden(file!(), "count_heading_counts_every_line", &t);
 }
 
-/// The answer-facts seat (run 1, CLI fault 10 and the MCP's T5 note; CLI
-/// calls 69, 73, MCP call 38): `price status` counted three game-side
-/// `~skip` statements and its route listed the invalid notes alone; the
-/// runner found the skips by a search. A count a frontend prints names
-/// what the reader can do next (C146): `price list --game-text skip`
-/// lists them, and the status prints that route beside the count, which
-/// runs as printed and lists the three.
+/// `price status` counted three game-side `~skip` statements and its
+/// route listed the invalid notes alone, so the skips were found only by
+/// a search. A count a frontend prints names what the reader can do next
+/// (C146): `price list --game-text skip` lists them, and the status
+/// prints that route beside the count, which runs as printed and lists
+/// the three.
 #[test]
 fn cli10_the_skip_count_names_the_list_that_holds_them() {
     let scratch = harness::scratch("seat-skip-route");
     let base = scratch.0.clone();
     // the refetch shares the seed's time: two seconds would print the
-    // facts line's two-time form (round A's report: a bare gate failed)
+    // facts line's two-time form
     let at = harness::now();
     let mock = crate::price_json::seed_at(&base, at);
     // the public tab refetched with three `~skip` notes beside its two
@@ -2368,13 +2339,12 @@ fn cli10_the_skip_count_names_the_list_that_holds_them() {
     golden(file!(), "skip_count_names_its_list", &t);
 }
 
-/// #170 (the answer-facts seat, CLI run 1 calls 53, 75; CLI run 2 calls
-/// 59, 60; MCP run 2 calls 31, 41): a public tab named `~b/o 5000/2
-/// chaos` reads invalid, a ratio in a tab name listing nothing, and
-/// `price status` counted it nowhere. A tab name that starts like a
-/// price and does not read as one is counted as an invalid note is, the
-/// tabs and the items in them, its route on the same line; run as
-/// printed, the route lists the tab's items under their tab.
+/// A public tab named `~b/o 5000/2 chaos` reads invalid, a ratio in a tab
+/// name listing nothing, and `price status` counted it nowhere. A tab
+/// name that starts like a price and does not read as one is counted as
+/// an invalid note is, the tabs and the items in them, its route on the
+/// same line; run as printed, the route lists the tab's items under their
+/// tab.
 #[test]
 fn an_invalid_tab_name_is_counted_with_the_list_that_holds_its_items() {
     let scratch = harness::scratch("seat-invalid-tab-name");
@@ -2451,11 +2421,10 @@ fn an_invalid_tab_name_is_counted_with_the_list_that_holds_its_items() {
     golden(file!(), "invalid_tab_name_counted", &t);
 }
 
-/// A seat quoted the scope's oldest fetch for 187 matches and named it
-/// the fault a person would quote wrong (#155; MCP-2 calls 32 and 37):
-/// the total line says the matches' own oldest and newest fetch, each
-/// with its location, and the scope line its counts alone, though the
-/// scope holds a location older than every match's.
+/// The scope's oldest fetch, quoted for 187 matches, is the age a person
+/// would quote wrong: the total line says the matches' own oldest and
+/// newest fetch, each with its location, and the scope line its counts
+/// alone, though the scope holds a location older than every match's.
 #[test]
 fn the_total_says_how_old_the_matches_are_and_the_scope_its_counts() {
     const USER: &str = "Alice#1234";
@@ -2528,9 +2497,9 @@ fn the_total_says_how_old_the_matches_are_and_the_scope_its_counts() {
 }
 
 /// `price show` refused the bare id every other verb prints, and the
-/// refusal named the grammar alone (the trade seat: cli-opus call 31,
-/// its fault 6). An item's id and a character's are alike, so neither is
-/// guessed: the refusal offers both, the id filled in.
+/// refusal named the grammar alone. An item's id and a character's are
+/// alike, so neither is guessed: the refusal offers both, the id filled
+/// in.
 #[test]
 fn a_bare_id_as_a_price_target_is_offered_as_an_item_and_as_a_character() {
     let scratch = harness::scratch("seat-price-id");
@@ -2546,23 +2515,20 @@ fn a_bare_id_as_a_price_target_is_offered_as_an_item_and_as_a_character() {
 }
 
 /// `store status` printed `leagues 0` beside tabs in seven leagues, and
-/// its tabs across every realm and league beside `tabs`'s count of one
-/// (the trade seat: cli-opus calls 3, 5, its fault 7). The line says what
-/// each counts: the account's league list, which this store never
-/// fetched, and the tabs of every realm and league.
+/// its tabs across every realm and league beside `tabs`'s count of one.
+/// The line says what each counts: the account's league list, which this
+/// store never fetched, and the tabs of every realm and league.
 /// A count of none says which none and what to do (C146): `tabs --limit
 /// 0` printed `the 0 with the most items:` over an empty table, and
 /// `store events --summary` said `0 events in the last 24 h` on a store
-/// whose newest event was 53 days old (answer-facts seat run 2, cli
-/// fault 14).
+/// whose newest event was 53 days old.
 #[test]
 fn a_count_of_none_says_which_none_and_what_to_do() {
     let scratch = harness::scratch("seat-none");
     let base = scratch.0.clone();
     seed_two_leagues_at(&base, harness::now() - 53 * 86_400);
     // a newer event outside the window, 40 days ago, so the line is the
-    // newest's and never the oldest's (the review of the seat's third
-    // round, finding 4)
+    // newest's and never the oldest's
     let newer = harness::now() - 40 * 86_400;
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
@@ -2612,7 +2578,7 @@ fn a_count_of_none_says_which_none_and_what_to_do() {
         "{doc}"
     );
     // a `limit` of 0 reads none over a window that holds some, and says
-    // nothing of an empty window (finding 3)
+    // nothing of an empty window
     let cut = sole_json(&acq(
         &base,
         &[
@@ -2646,14 +2612,13 @@ fn a_count_of_none_says_which_none_and_what_to_do() {
     golden(file!(), "counts_of_none", &t);
 }
 
-/// #172 (the answer-facts seat, CLI run 2 calls 5, 36, 37; MCP run 2
-/// calls 27, 30): `store status` printed counts and no time, and `tabs`
-/// a row's age and no league-wide oldest or newest. Each carries the
-/// facts block the other answers carry, from the store's one derivation
-/// (C162): `store status` over every realm and league, with the newest
-/// refused body's age beside their count; `tabs` over the league's tabs.
-/// Fixed times, two fetches an hour apart, so the oldest and the newest
-/// are told apart (round B's item 0: never `now()` twice).
+/// `store status` printed counts and no time, and `tabs` a row's age and
+/// no league-wide oldest or newest. Each carries the facts block the
+/// other answers carry, from the store's one derivation (C162): `store
+/// status` over every realm and league, with the newest refused body's
+/// age beside their count; `tabs` over the league's tabs. Fixed times,
+/// two fetches an hour apart, so the oldest and the newest are told apart
+/// (never `now()` twice).
 /// Pc Maps listed with map tab m1 and tab k1, m1 fetched with its
 /// substash s1, then listed again without m1: s1's row stays, its parent
 /// retired (C54).
@@ -2793,7 +2758,7 @@ fn cli172_store_status_and_tabs_say_how_old_their_facts_are() {
         "{tabs}"
     );
     // a league with no tabs prints its facts line too, an empty listing
-    // apart from one never seen (the review of round C, finding 3)
+    // apart from one never seen
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     store
         .record(
@@ -2821,8 +2786,7 @@ fn cli172_store_status_and_tabs_say_how_old_their_facts_are() {
     );
     // a map tab the listing retired leaves its substash's row, and no
     // count of the document holds it: not the rows, not the facts, not
-    // the leagues held beside them (the review of round C's fix round,
-    // finding 2)
+    // the leagues held beside them
     retired_parent(&mock, at);
     t.run(
         &["tabs", "--league", "Maps"],
@@ -2854,8 +2818,8 @@ fn store_status_says_what_its_league_and_tab_counts_count() {
             "tabs 2 (every realm and league)",
         ],
     );
-    // the kept count names its set beside the latest list (round 5 of
-    // the answer-facts group): a union of two fetches, the latest of one
+    // the kept count names its set beside the latest list: a union of two
+    // fetches, the latest of one
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     for ids in [&["Standard", "Allflame"][..], &["Standard"]] {
@@ -2941,8 +2905,8 @@ fn seed_held(base: &Path) {
         .unwrap();
 }
 
-/// Round 5 of the answer-facts group (#157, #22, #19's comment): an
-/// answer that takes one league says what else its realm holds. `price
+/// An answer that takes one league says what else its realm holds
+/// (#19). `price
 /// status`, `shop render` and `tabs` print a `leagues:` line after their
 /// facts line or their head, the policy's word on each league (no
 /// policy, named, not named, unreadable), `none other` where the realm
@@ -3118,8 +3082,7 @@ fn an_answer_about_one_league_says_what_else_the_store_holds() {
 
     // a facts file a newer build stamped (SQLite's header keeps the
     // stamp at byte 60): the policy shown, its leagues held unknown and
-    // why, never "none on disk" (the build review of round 5, its second
-    // finding)
+    // why, never "none on disk"
     let facts = account_path(&mock, "Alice#1234");
     let mut bytes = std::fs::read(&facts).unwrap();
     bytes[60..64].copy_from_slice(&99u32.to_be_bytes());
@@ -3134,9 +3097,7 @@ fn an_answer_about_one_league_says_what_else_the_store_holds() {
 }
 
 /// A unique tab's page with no name printed as its bare id after its tab,
-/// and the second round's runners could not tell the id was the tab's
-/// page (the trade seat: cli-opus-2 calls 29, 30, its fault 4; mcp-opus-2
-/// call 29, its fault 4). The text says `page`.
+/// which did not say the id was the tab's page. The text says `page`.
 #[test]
 fn a_tabs_page_with_no_name_is_said_to_be_its_page() {
     let scratch = harness::scratch("seat-page");
@@ -3181,11 +3142,10 @@ fn a_tabs_page_with_no_name_is_said_to_be_its_page() {
 }
 
 /// C115: the answer led with its basis and its terms block, and the
-/// total stood below every term (the trade seat: mcp-opus-2, "I learned
-/// to scroll for `total`"; three of four second-round runs re-read the
-/// terms block). The text says the query, the scope and the total first,
-/// then the rows and how to go on, and only then the terms, the routes and
-/// the basis; the JSON's keys come in the same order.
+/// total stood below every term, so a reader scrolled for `total` and
+/// re-read the terms block. The text says the query, the scope and the
+/// total first, then the rows and how to go on, and only then the terms,
+/// the routes and the basis; the JSON's keys come in the same order.
 #[test]
 fn the_answer_leads_with_its_total_and_ends_with_its_basis() {
     let scratch = harness::scratch("seat-order");
@@ -3234,11 +3194,10 @@ fn the_answer_leads_with_its_total_and_ends_with_its_basis() {
 }
 
 /// C115: `--routes` was the text's alone — the JSON held every count's
-/// request whatever was asked, a third of an answer's bytes (the trade
-/// seat: mcp-sonnet-1 call 8, 13,693 bytes for 17 numbers). The JSON
-/// now carries what the text prints: the routes a next step hangs on,
-/// unasked; every count's under `--routes`, which a continuation keeps
-/// and which asks the same beside `--next`.
+/// request whatever was asked, a third of an answer's bytes (13,693 bytes
+/// for 17 numbers). The JSON now carries what the text prints: the routes
+/// a next step hangs on, unasked; every count's under `--routes`, which a
+/// continuation keeps and which asks the same beside `--next`.
 #[test]
 fn a_count_holds_its_request_only_where_the_routes_are_asked() {
     let scratch = harness::scratch("seat-routes");
@@ -3283,16 +3242,14 @@ fn a_count_holds_its_request_only_where_the_routes_are_asked() {
     assert!(next["terms"][0]["failed"]["request"].is_object(), "{next}");
 }
 
-/// C119: both second-round Opus runs measured an ambiguous clause by hand
-/// at three or four calls (the trade seat: cli-opus-2 calls 36–38 for the
-/// scourge line, 42–43 for the Blight-ravaged maps). The clause's line
-/// says what its other reading adds and drops, and the routes block
-/// carries the request for each it changes, unasked: here `increased
-/// Movement Speed` at 20, read the other way without its `reduced` form
-/// (the seat asked `increased Rarity`, which 3.30 spells in one word,
-/// #276), beside a text two stats share, which has no other reading. (The
-/// maps the seat asked by carry none since round x read a Blight-ravaged
-/// map as no blighted one.)
+/// C119: an ambiguous clause took three or four calls to measure by hand.
+/// The clause's line says what its other reading adds and drops, and the
+/// routes block carries the request for each it changes, unasked: here
+/// `increased Movement Speed` at 20, read the other way without its
+/// `reduced` form (not `increased Rarity`, which 3.30 spells in one
+/// word), beside a text two stats share, which has no other reading. (A
+/// Blight-ravaged maps clause carries none: a Blight-ravaged map reads as
+/// no blighted one.)
 #[test]
 fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
     let scratch = harness::scratch("seat-trade-stake");
@@ -3384,12 +3341,10 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
     assert!(!shown.contains("read the other way, adds"), "{shown}");
 }
 
-/// `(Remove-only)` stood on tab names with nothing to say what it is
-/// (the trade seat: cli-sonnet-2 never found out, debrief 6; mcp-opus-1
-/// counted it among the jargon). C117: where tabs are listed, the mark is
-/// said once — GGG's, on a tab whose items can only be taken out — and
-/// the field a search asks it by is named; a list with no such tab says
-/// nothing of it.
+/// `(Remove-only)` stood on tab names with nothing to say what it is.
+/// C117: where tabs are listed, the mark is said once — GGG's, on a tab
+/// whose items can only be taken out — and the field a search asks it by
+/// is named; a list with no such tab says nothing of it.
 #[test]
 fn the_tabs_list_says_once_what_the_remove_only_mark_is() {
     let scratch = harness::scratch("seat-remove-only");
@@ -3428,10 +3383,8 @@ fn the_tabs_list_says_once_what_the_remove_only_mark_is() {
 }
 
 /// `--limit` beside `--count` showed a table and no rows without a word
-/// why: the one flag is a table's length there (the trade seat: cli-sonnet
-/// in both rounds; cli-sonnet-2 call 7, its fault 5, "--count should say
-/// that rows are suppressed"). Where the two meet, the answer says so; a
-/// count with no `--limit` typed says nothing of it.
+/// why: the one flag is a table's length there. Where the two meet, the
+/// answer says so; a count with no `--limit` typed says nothing of it.
 #[test]
 fn a_limit_beside_a_count_says_a_count_shows_no_rows() {
     let scratch = harness::scratch("seat-count-limit");
@@ -3466,13 +3419,12 @@ fn a_limit_beside_a_count_says_a_count_shows_no_rows() {
 }
 
 /// `show` printed an item's price, or `price none (none)`, and nothing of
-/// the target form `price show` takes: cli-sonnet-2 (call 24, its fault
-/// 6) learned `item/<id>` from the refusal of a bare id. The price line
-/// ends with the command that says why, which runs as printed — opening
-/// as every printed command does, with the account the item was shown
-/// for and its realm, since a bare `price show` would select another
-/// account where two are logged in and read `pc` for an Xbox item (the
-/// external review of note 38 at `16bba23e`, step 4).
+/// the target form `price show` takes: `item/<id>` was learned only from
+/// the refusal of a bare id. The price line ends with the command that
+/// says why, which runs as printed — opening as every printed command
+/// does, with the account the item was shown for and its realm, since a
+/// bare `price show` would select another account where two are logged
+/// in and read `pc` for an Xbox item.
 #[test]
 fn show_prints_the_price_show_command_for_its_item() {
     let scratch = harness::scratch("seat-show-target");
@@ -3526,8 +3478,7 @@ fn show_prints_the_price_show_command_for_its_item() {
             .nth(1)
             .unwrap_or_else(|| panic!("{line}"));
         // the account by its name, as every printed command names it,
-        // never the basis's uuid (the page seat's fault 13), run as a
-        // person pastes it
+        // never the basis's uuid, run as a person pastes it
         assert_eq!(
             command,
             format!("acq price show --account 'Alice#1234' --realm {realm} item/{id}"),
@@ -3544,10 +3495,10 @@ fn show_prints_the_price_show_command_for_its_item() {
 }
 
 /// The trade header said the search ran "over the items you hold, in
-/// every place", and cli-sonnet-2 read it as complete while 546 of 3,486
-/// locations were fetched (its debrief, answer 4). The words say the
-/// items the store has fetched and send the reader to the scope, which
-/// counts the never fetched by type beside them.
+/// every place", which read as complete while 546 of 3,486 locations were
+/// fetched. The words say the items the store has fetched and send the
+/// reader to the scope, which counts the never fetched by type beside
+/// them.
 #[test]
 fn the_trade_headers_over_line_never_reads_as_full_coverage() {
     let scratch = harness::scratch("seat-trade-coverage");
@@ -3570,9 +3521,9 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
         )
         .unwrap();
     drop(store);
-    // the words "public listings" name the field a buyer's view asks: no
-    // run of the re-sit found `tab.public` from them (the Sonnet runs
-    // never, the Opus runs through a refusal or a 20 KB describe)
+    // the words "public listings" name the field a buyer's view asks:
+    // without them `tab.public` was found, if at all, through a refusal or
+    // a 20 KB describe
     let mut t = Transcript::new(&base);
     let shown = stdout(&t.run(
         &[
@@ -3594,7 +3545,7 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
         .unwrap_or_else(|| panic!("{shown}"));
     assert!(!over.contains("every place"), "{over}");
     // a range that runs backwards matches nothing, as the site answers it,
-    // and the text says which clause and why (#150, its cold review)
+    // and the text says which clause and why
     t.run(
         &[
             "search",
@@ -3615,9 +3566,8 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
 }
 
 /// `--view locations` was refused by name as not built, and since the
-/// scope line points at `tabs` nothing pointed at it; two runs of the
-/// trade seat had followed it to "not built" (cli-sonnet-2 calls 3 and
-/// 6, its fault 1). The list it stood for is `tabs` (C118), and the
+/// scope line points at `tabs` nothing pointed at it; a reader who found
+/// it met "not built". The list it stood for is `tabs` (C118), and the
 /// never fetched by name is a park on `tabs`, not a search view: the
 /// flag is gone, `describe` lists it nowhere, and the help names no view.
 #[test]
@@ -3648,10 +3598,9 @@ fn the_locations_view_is_gone_since_tabs_is_the_list() {
     );
 }
 
-/// The release seat (cli-opus call 8): `acq version`'s text line named
-/// the build and its contract and not the provider, so a person could
-/// not tell from it whether the real API was in play; the JSON said it.
-/// The line names the provider.
+/// `acq version`'s text line named the build and its contract and not
+/// the provider, so a person could not tell from it whether the real API
+/// was in play; the JSON said it. The line names the provider.
 #[test]
 fn the_version_line_names_the_provider() {
     let scratch = harness::scratch("version");
@@ -3665,9 +3614,8 @@ fn the_version_line_names_the_provider() {
     );
 }
 
-/// The release seat (cli-opus calls 100 to 101, cli-sonnet 92 to 93): a
-/// job verb with no login started a daemon, was refused "not logged in"
-/// and said nothing of the daemon it left running. The spawn is the
+/// A job verb with no login started a daemon, was refused "not logged
+/// in" and said nothing of the daemon it left running. The spawn is the
 /// ruling's; the refusal says a daemon started and how to see or end it.
 #[test]
 fn a_job_verb_refused_for_want_of_a_login_says_a_daemon_started() {
@@ -3706,14 +3654,13 @@ fn run_as_printed(base: &Path, command: &str) -> std::process::Output {
     harness::printed(base, command).output().unwrap()
 }
 
-/// The release seat (cli-opus calls 61 to 73, cli-sonnet 55 to 64): the
-/// undo a price receipt printed was refused once a second account was
-/// known, since it carried no `--account`; a first write printed no undo
-/// though the help promised one; and a clear's undo said nothing of why
-/// it names no revision. With two accounts on disk, every undo line runs
-/// as printed and puts the row back: a create's is the clear naming the
-/// revision it wrote, a replace's the prior value over the revision it
-/// wrote, a clear's a create, which says so.
+/// The undo a price receipt printed was refused once a second account
+/// was known, since it carried no `--account`; a first write printed no
+/// undo though the help promised one; and a clear's undo said nothing of
+/// why it names no revision. With two accounts on disk, every undo line
+/// runs as printed and puts the row back: a create's is the clear naming
+/// the revision it wrote, a replace's the prior value over the revision
+/// it wrote, a clear's a create, which says so.
 #[test]
 fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known() {
     let scratch = harness::scratch("seat-undo");
@@ -3735,7 +3682,7 @@ fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known
             .filter(|c| !c.starts_with("acq price show"))
             .collect();
         // the undo first; after a replace the clear that stays current
-        // beside it (#167)
+        // beside it
         let (undo, beside) = match &undo[..] {
             [undo] => (undo, None),
             [undo, clear] => (undo, Some(clear)),
@@ -3799,10 +3746,9 @@ fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known
     assert_eq!(price(&base)["value"]["amount"], json!("2"));
 }
 
-/// The release seat (mcp-opus, mcp-sonnet, cli-sonnet call 79): a
-/// cleared row took a revision, and the next write's continued from it
-/// (a create at 4 after a clear at 3), said nowhere, so a run read the
-/// numbers as a fault. The two writes' help says it.
+/// A cleared row took a revision, and the next write's continued from it
+/// (a create at 4 after a clear at 3), said nowhere, so the numbers read
+/// as a fault. The two writes' help says it.
 #[test]
 fn the_price_writes_help_says_a_clear_takes_a_revision() {
     let scratch = harness::scratch("seat-clear-revision");
@@ -3818,10 +3764,10 @@ fn the_price_writes_help_says_a_clear_takes_a_revision() {
     }
 }
 
-/// The release seat (cli-opus calls 54, 56): `price list`'s item lines
-/// had no header, so `conflict game 5 chaos 999 chaos` left the reader
-/// to infer which column was the hand price and which the game's. A
-/// header line names the columns, once, above the first item line.
+/// `price list`'s item lines had no header, so `conflict game 5 chaos 999
+/// chaos` left the reader to infer which column was the hand price and
+/// which the game's. A header line names the columns, once, above the
+/// first item line.
 #[test]
 fn price_lists_columns_are_named_by_a_header_line() {
     let scratch = harness::scratch("seat-list-header");
@@ -3865,10 +3811,9 @@ fn seed_one_account(base: &Path, user: &str, uuid: &str) -> PathBuf {
     mock
 }
 
-/// Review 8 of the release (2026-10-19): an undo printed while one
-/// account was known named no account, so once a second was known the
-/// pasted undo was refused as ambiguous. The undo names the account the
-/// write ran as, whether given or implied.
+/// An undo printed while one account was known named no account, so once
+/// a second was known the pasted undo was refused as ambiguous. The undo
+/// names the account the write ran as, whether given or implied.
 #[test]
 fn an_undo_names_the_account_the_write_ran_as_even_when_implied() {
     let dir = harness::scratch("undo-implied-account");
@@ -3897,9 +3842,9 @@ fn an_undo_names_the_account_the_write_ran_as_even_when_implied() {
     );
 }
 
-/// Review 8: a target with a space wrote fine and its printed undo split
-/// at the space. Every word of a printed command is shell-quoted where
-/// a shell would split or read it.
+/// A target with a space wrote fine and its printed undo split at the
+/// space. Every word of a printed command is shell-quoted where a shell
+/// would split or read it.
 #[test]
 fn an_undo_quotes_a_target_a_shell_would_split() {
     let dir = harness::scratch("undo-quoted-target");
@@ -3920,11 +3865,10 @@ fn an_undo_quotes_a_target_a_shell_would_split() {
     );
 }
 
-/// The rerun of the release seat (cli-opus-2 call 48): `price status
-/// --league Allflame` ended with a next step that named no league, so
-/// the printed command read Standard. The next step carries the account
-/// it ran as and the league and realm where they are not the defaults,
-/// and runs as printed.
+/// `price status --league Allflame` ended with a next step that named no
+/// league, so the printed command read Standard. The next step carries
+/// the account it ran as and the league and realm where they are not the
+/// defaults, and runs as printed.
 #[test]
 fn the_status_next_step_runs_as_printed_in_its_league() {
     let scratch = harness::scratch("status-next-league");
@@ -3965,13 +3909,13 @@ fn printed_in_line(said: &str, marker: &str) -> Vec<String> {
         .collect()
 }
 
-/// The league seat (cli calls 24 to 28, 43, 44, 48, 49): with a second
-/// account known, the next steps `policy set`, `refresh --plan`, `refresh
-/// --apply` and `tabs` printed named no account, and `policy set`'s named
-/// no league, so as printed it planned Standard, which the policy did not
-/// cover, and the rest were refused as ambiguous. Each names the account
-/// the verb ran as and the scope it resolved, and runs as printed in a
-/// world of one logged-in account and one the index holds alone.
+/// With a second account known, the next steps `policy set`, `refresh
+/// --plan`, `refresh --apply` and `tabs` printed named no account, and
+/// `policy set`'s named no league, so as printed it planned Standard,
+/// which the policy did not cover, and the rest were refused as
+/// ambiguous. Each names the account the verb ran as and the scope it
+/// resolved, and runs as printed in a world of one logged-in account and
+/// one the index holds alone.
 #[test]
 fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
     let scratch = harness::scratch("seat-next-account");
@@ -3987,8 +3931,7 @@ fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
     };
 
     // a league whose name starts with `-` is spelled attached, so the
-    // parser reads it as the value it is (the review of the fix round,
-    // finding 3)
+    // parser reads it as the value it is
     let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600},"-L":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     let out = acq(
         &base,
@@ -4058,8 +4001,7 @@ fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
     }
 
     // a league with no tabs on record names the jobs that list them, as
-    // the account and in the league asked (the review of the fix round,
-    // fault 1's rule over its siblings)
+    // the account and in the league asked
     let said = stdout(&acq(
         &base,
         &["tabs", "--account", "seat", "--league", "Hardcore"],
@@ -4075,9 +4017,8 @@ fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
     }
 }
 
-/// The league seat (cli call 26; mcp's `refresh_plan` the same): a plan
-/// of a league the policy does not cover said what was wrong and not
-/// what to do. The refusal names the leagues the policy covers on the
+/// A plan of a league the policy does not cover said what was wrong and
+/// not what to do. The refusal names the leagues the policy covers on the
 /// realm, and its document offers the plan of each, which runs as
 /// printed.
 #[test]
@@ -4115,7 +4056,7 @@ fn a_plan_of_an_uncovered_league_names_and_offers_the_covered_ones() {
     assert!(run.status.success(), "`{line}`: {}", text(&run));
     assert!(stdout(&run).contains("in Allflame"), "{}", text(&run));
 
-    // Eleven leagues (the review of the fix round, finding 2): ten named
+    // Eleven leagues: ten named
     // and offered, the rest counted, and what lists them all (C53).
     let leagues: Vec<String> = (1..=11)
         .map(|n| format!("\"L{n:02}\":{{\"tabs\":\"all\",\"max_age_seconds\":3600}}"))
@@ -4155,14 +4096,13 @@ fn a_plan_of_an_uncovered_league_names_and_offers_the_covered_ones() {
     );
 }
 
-/// The league seat (cli calls 76, 78, 83, 84, 98, 99; mcp 51, 53, 59,
-/// 60, 68): a price write refused for its revision named the revision
-/// and offered nothing, and over a cleared row said "a new price names
-/// no revision" where the clear's own receipt printed the create as
-/// `--if-revision 0`. After a replace no printed command removed the row:
-/// the create's undo was stale. The refusal offers the same write at the
-/// revision a write names now: the live row's, or 0, the create, where
-/// none stands; the stale undo recovers through the offer alone.
+/// A price write refused for its revision named the revision and offered
+/// nothing, and over a cleared row said "a new price names no revision"
+/// where the clear's own receipt printed the create as `--if-revision 0`.
+/// After a replace no printed command removed the row: the create's undo
+/// was stale. The refusal offers the same write at the revision a write
+/// names now: the live row's, or 0, the create, where none stands; the
+/// stale undo recovers through the offer alone.
 #[test]
 fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
     let scratch = harness::scratch("seat-conflict-offer");
@@ -4259,12 +4199,11 @@ fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
     assert_eq!(manual(&base)["value"]["amount"], json!("4"));
 }
 
-/// The league seat (cli call 76, mcp call 51): a price set on an item in
-/// a map tab's substash landed silently, and only `shop render` said
-/// "blocked (substash)" (cli call 82). The set's receipt says so in the
-/// shop's own words, the row standing all the same (C69): a `note` in
-/// JSON, a `note:` line in text, on an item the facts hold in a substash
-/// and on a substash itself; nothing on an item in a tab.
+/// A price set on an item in a map tab's substash landed silently, and
+/// only `shop render` said "blocked (substash)". The set's receipt says
+/// so in the shop's own words, the row standing all the same (C69): a
+/// `note` in JSON, a `note:` line in text, on an item the facts hold in a
+/// substash and on a substash itself; nothing on an item in a tab.
 #[test]
 fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
     let scratch = harness::scratch("seat-substash-note");
@@ -4299,13 +4238,12 @@ fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
     assert_eq!(receipt.get("note"), None, "{receipt}");
 }
 
-/// The cold review of the league seat's fix round (finding 1): a command
-/// printed from a plan spelled the plan's `account_name`, the name it was
-/// compiled under, which a rename leaves stale while the uuid stands. A
-/// printed command names the account the verb ran as, as the index
-/// spells it at this run: a saved plan under an old name, applied by
-/// uuid, prints its next step as the index's name, and the line runs as
-/// printed; its render prints the apply the same way.
+/// A command printed from a plan spelled the plan's `account_name`, the
+/// name it was compiled under, which a rename leaves stale while the uuid
+/// stands. A printed command names the account the verb ran as, as the
+/// index spells it at this run: a saved plan under an old name, applied
+/// by uuid, prints its next step as the index's name, and the line runs
+/// as printed; its render prints the apply the same way.
 #[test]
 fn a_saved_plans_next_step_names_the_account_as_the_index_spells_it_now() {
     let scratch = harness::scratch("seat-plan-rename");
@@ -4379,13 +4317,12 @@ fn a_saved_plans_next_step_names_the_account_as_the_index_spells_it_now() {
     assert!(run.status.success(), "`{next}`: {}", text(&run));
 }
 
-/// The league seat's rerun (cli-opus-2 call 22): `policy show` with no
-/// policy stored offered `acq policy set '<json>'`, with no account and
-/// no revision: refused with two accounts known, and as typed with one a
-/// write that replaces whatever stands, the form the README's "A new
-/// league" warns against. It offers the create-only first write as the
-/// account it ran as, which runs as printed and lands as revision 1, and
-/// run again is refused, a policy now standing.
+/// `policy show` with no policy stored offered `acq policy set '<json>'`,
+/// with no account and no revision: refused with two accounts known, and
+/// as typed with one a write that replaces whatever stands, the form the
+/// README's "A new league" warns against. It offers the create-only
+/// first write as the account it ran as, which runs as printed and lands
+/// as revision 1, and run again is refused, a policy now standing.
 #[test]
 fn the_first_policy_a_show_offers_is_the_create_as_its_account() {
     let scratch = harness::scratch("seat-first-policy");
@@ -4418,8 +4355,8 @@ fn the_first_policy_a_show_offers_is_the_create_as_its_account() {
         "a create over a policy: {}",
         text(&again)
     );
-    // the create-only form doing its job (cli-opus-2 call 24: the
-    // compare-and-swap's words), the conflict's fields as they were
+    // the create-only form doing its job (the compare-and-swap's words),
+    // the conflict's fields as they were
     let refused = sole_json(&run_as_printed(&base, &format!("{offered} --json")));
     assert_eq!(
         (&refused["kind"], &refused["revision"]),

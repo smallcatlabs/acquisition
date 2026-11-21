@@ -75,9 +75,8 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
     assert_eq!(again["pid"], pid, "the daemon was replaced: {again}");
 }
 
-/// The release seat (mcp-opus calls 40 to 42, mcp-sonnet 42 to 45): a
-/// job tool with no daemon said what was wrong and not what to do. Every
-/// such refusal names the command a person runs to start one, the
+/// A job tool with no daemon says what to do, not only what is wrong:
+/// every such refusal names the command a person runs to start one, the
 /// README's line, in every mode.
 #[test]
 fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
@@ -93,7 +92,7 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
         ("cancel_job", json!({ "id": 1 })),
     ] {
         // The approved form: a result marked isError, `kind: "no_daemon"`,
-        // with what a person does — never a protocol error (review 8).
+        // with what a person does — never a protocol error.
         let result = mcp.result(tool, args);
         let doc = &harness::document(&result);
         assert!(
@@ -152,20 +151,19 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
     );
 }
 
-/// The release seat's rerun (mcp-opus-2 calls 45, 47): the remedy named
-/// `ACQ_IDLE_SHUTDOWN=3600 acq auth check` and nothing of the world the
-/// server runs in, so typed as printed beside a mock server with its
-/// store elsewhere it started a daemon for another provider and store.
-/// The printed command carries the provider when it is not the default
-/// and the store directory when the server has one set, quoted for a
-/// shell — here the harness's mock world, and a real-mode server over
-/// the same directory, which names no provider.
+/// A remedy naming `ACQ_IDLE_SHUTDOWN=3600 acq auth check` and nothing
+/// of the world the server runs in, typed as printed beside a mock server
+/// with its store elsewhere, would start a daemon for another provider
+/// and store. The printed command carries the provider when it is not the
+/// default and the store directory when the server has one set, quoted for a
+/// shell — here the harness's mock world, and a real-mode server over the same
+/// directory, which names no provider.
 #[test]
 fn the_no_daemon_remedy_names_the_provider_and_store_the_server_runs_with() {
     let scratch = harness::scratch("mcp-remedy-world");
     let base = scratch.0.clone();
     // the world the remedy names, in a POSIX shell's spelling, declared
-    // (C156; the review of #146's fix round): the other shells' syntax
+    // (C156): the other shells' syntax
     // is pinned through themselves, the CLI's `c156_` line test
     use acquisition_search::answer::Shell;
     let store = Shell::Posix.quoted(&base.join("store").display().to_string());

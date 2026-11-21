@@ -1,7 +1,7 @@
-//! What the store holds beyond the league an answer took, as text (#157,
-//! #22): the `leagues:` line `price status`, `shop render` and `tabs`
-//! print beside the league they read, the `held:` line of `policy show`,
-//! and `acq leagues --stored`, the stored league list with no daemon.
+//! What the store holds beyond the league an answer took, as text: the
+//! `leagues:` line `price status`, `shop render` and `tabs` print beside
+//! the league they read, the `held:` line of `policy show`, and
+//! `acq leagues --stored`, the stored league list with no daemon.
 //! Each line is a function of the verbs' document it renders
 //! ([`LeaguesHeld`], [`LeagueListShown`]), whose `--json` is that
 //! document (C53); the ten the document lists are named and the rest
@@ -131,8 +131,8 @@ pub(crate) fn list_text(l: &LeagueListShown) -> String {
             if let Some(realm) = &league.realm {
                 words.push(realm.clone());
             }
-            // which league started last (the answer-facts seat, MCP fault
-            // 3 and CLI fault 6: nothing marked the new league)
+            // which league started last (without it nothing marks the new
+            // league)
             words.push(match league.started_at {
                 Some(_) => format!("started {}", league.started_at_age),
                 None => "no start given".into(),

@@ -61,7 +61,7 @@ fn run_printed(base: &Path, text: &str) -> Vec<Value> {
         .collect()
 }
 
-/// The seat counted 65 characters by eye from a bare array (C149): the
+/// A reader of a bare array counts its characters by eye (C149): the
 /// text lists ten and reads its footer from the document's counts, made
 /// over all of them, and the command it prints to list every one carries
 /// the account and the selection and lists every one, as printed.
@@ -120,12 +120,11 @@ fn store_characters_lists_ten_beside_its_counts_and_prints_the_command_for_all()
     assert_eq!(two["left_out"], 11, "{two}");
 }
 
-/// The second review of the brief, finding 4: the summary's line reads
-/// its counts from the document, made over every location before the
-/// ten are cut, and the command it prints to list every location carries
-/// the account, the window and the limit exactly as asked — a fractional
-/// window too, never its rounded words (round 3's review, P2) — and lists
-/// every one as printed.
+/// The summary's line reads its counts from the document, made over
+/// every location before the ten are cut, and the command it prints to
+/// list every location carries the account, the window and the limit
+/// exactly as asked — a fractional window too, never its rounded words —
+/// and lists every one as printed.
 /// The event list is ten by default, its limit said reached.
 #[test]
 fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
@@ -180,8 +179,8 @@ fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
     assert_eq!(every[0]["by_kind"]["added"], 12);
 
     // a fractional window: the words round it, the printed command
-    // carries it exactly and reads the same twelve (the review's P2: the
-    // command printed `--hours 0.0`, an empty window)
+    // carries it exactly and reads the same twelve (a command printing
+    // `--hours 0.0` would read an empty window)
     let out = acq(
         &base,
         &["store", "events", "--hours", "0.09", "--limit", "20"],
@@ -334,10 +333,9 @@ fn a_refused_list_shorter_than_the_whole_says_so_and_how_to_list_them_all() {
     );
 }
 
-/// C149: `accounts --json` printed the inner array where the MCP's
-/// `accounts` answered the object; both print the layer's document now,
-/// ten accounts beside the count of all, and the text says what it left
-/// out with the flag that lists every one.
+/// C149: `accounts --json` and the MCP's `accounts` both print the layer's
+/// document, never its inner array alone: ten accounts beside the count of all,
+/// and the text says what it left out with the flag that lists every one.
 #[test]
 fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
     let scratch = harness::scratch("store-accounts");
@@ -381,7 +379,7 @@ fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
     );
 }
 
-/// #175, the one test clock: two runs in one test read one instant, the
+/// The one test clock: two runs in one test read one instant, the
 /// harness's, so a stored time's age is the same words in both and their
 /// documents compare whole, never with the ages set aside. The time sits
 /// 89 seconds before that instant, where one second more is `1m ago`.
@@ -400,12 +398,11 @@ fn two_runs_in_one_test_say_one_age_and_their_documents_are_equal_whole() {
     assert_eq!(first, second);
 }
 
-/// C149, the CLI's pin: every `--json` answer this step wrapped is one
-/// object, never a bare array or a bare null, read in a world where each
-/// would have been one — the store's lists empty, no policy, the job list
-/// live: `store characters`, `store events` and its `--summary`, `jobs`
-/// (and `--all`), `accounts`, `policy show` and `store refused`, each
-/// with the counts its text prints.
+/// C149, the CLI's pin: each `--json` answer listed here is one object, never a
+/// bare array or a bare null, read in a world where each would have been one —
+/// the store's lists empty, no policy, the job list live: `store characters`,
+/// `store events` and its `--summary`, `jobs` (and `--all`), `accounts`,
+/// `policy show` and `store refused`, each with the counts its text prints.
 #[test]
 fn c149_every_json_answer_the_step_wrapped_is_one_object() {
     let scratch = harness::scratch("store-c149");

@@ -427,7 +427,7 @@ impl AcqMcp {
         })
     }
 
-    // ---- the intent/plan slice (tracer step 8): policy → plan → apply ----
+    // ---- intent and plan: policy → plan → apply ----
 
     #[tool(
         description = "The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set; `leagues_held`, each realm's leagues on disk with `named` where the policy names them, ten a realm, `expand` all (`describe` [\"store\"]). Each age is in words beside its time (`describe` with names [\"ages\"])."
@@ -737,7 +737,7 @@ impl AcqMcp {
             Err(e) => return Ok(refusing(refusal(&e.into(), "account"))),
         };
         // the facts where they can be read, never made: what a container's
-        // row covered is counted from them (#171); a clear needs none
+        // row covered is counted from them; a clear needs none
         let facts = account.facts_read();
         let written = acquisition_plan::pricing::clear(
             facts.as_ref().map_err(String::as_str),
@@ -844,7 +844,7 @@ impl AcqMcp {
         };
         settled(
             async {
-                // C51 (the owner's ruling on #246): the job's account chosen
+                // C51 (#246): the job's account chosen
                 // before the daemon is reached, so several known and none
                 // named is refused with none spawned
                 let account = acquisition_verbs::jobs::job_account(

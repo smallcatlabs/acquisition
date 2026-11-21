@@ -1,14 +1,13 @@
-//! Pricing over MCP (the release brief, step 1, at `d0ab421e`): `price_status`,
-//! `price_list`, `price_show`, `shop_render`, `reference_currency`,
-//! `price_set` and `price_clear` are adapters of `acquisition-plan`'s
-//! pricing verbs, as `acq price`, `acq shop render` and `acq reference
-//! currency` are (C46), so what a tool returns is the document the CLI's
-//! `--json` prints for the same request — a refusal included, in a result
-//! marked `isError` (C11, C53). The one rule the surfaces differ on is
-//! the MCP's: a write over a row of the target's own names the revision
-//! it replaces (C52's create-only form), where the CLI's default replaces
-//! whatever is stored. Facts and intent are seeded through the store
-//! crate; no daemon runs, and none appears.
+//! Pricing over MCP: `price_status`, `price_list`, `price_show`,
+//! `shop_render`, `reference_currency`, `price_set` and `price_clear`
+//! are adapters of `acquisition-plan`'s pricing verbs, as `acq price`,
+//! `acq shop render` and `acq reference currency` are (C46), so what a tool
+//! returns is the document the CLI's `--json` prints for the same request — a
+//! refusal included, in a result marked `isError` (C11, C53). The one rule the
+//! surfaces differ on is the MCP's: a write over a row of the target's own
+//! names the revision it replaces (C52's create-only form), where the CLI's
+//! default replaces whatever is stored. Facts and intent are seeded through the
+//! store crate; no daemon runs, and none appears.
 
 use crate::harness;
 
@@ -140,7 +139,7 @@ fn seed(base: &Path) {
 /// A write's receipt with the keys `keys` taken out, at any depth: what
 /// each surface says by design, apart from what both must say alike.
 /// Its times and their ages are not among them: every process of a test
-/// reads one instant as now (the harness's `ACQ_NOW`, #175), so two
+/// reads one instant as now (the harness's `ACQ_NOW`), so two
 /// receipts made a second apart still say the same.
 pub(crate) fn steady(mut doc: Value, keys: &[&str]) -> Value {
     fn strip(v: &mut Value, keys: &[&str]) {
@@ -161,15 +160,15 @@ pub(crate) fn steady(mut doc: Value, keys: &[&str]) -> Value {
     doc
 }
 
-/// A write's channel, and `undo`, compared
-/// apart: one offer each surface spells (round 5 of the 2g build).
+/// A write's channel, and `undo`, compared apart: one offer each surface
+/// spells.
 pub(crate) const RECEIPT: &[&str] = &["written_via", "undo", "clear", "counts_unavailable"];
 
 /// Two refusals of one write offer the same ways, each spelled by its
-/// surface and saying the same (the league seat, fault 3: a conflict's
-/// offer), and say the same words, the server's spelling of the CLI they
-/// speak after them (C143): both handed back with `offers` taken out and
-/// the tool's words the CLI's, for the rest to compare whole.
+/// surface and saying the same (a conflict's offer among them), and say
+/// the same words, the server's spelling of the CLI they speak after them
+/// (C143): both handed back with `offers` taken out and the tool's words
+/// the CLI's, for the rest to compare whole.
 pub(crate) fn offers_alike(mut by_tool: Value, mut by_cli: Value) -> (Value, Value) {
     let says = |doc: &Value| -> Vec<Value> {
         doc["offers"]
@@ -195,12 +194,12 @@ pub(crate) fn offers_alike(mut by_tool: Value, mut by_cli: Value) -> (Value, Val
     (by_tool, by_cli)
 }
 
-/// Round 5 of the 2g build: two receipts for one write offer one undo,
-/// each spelled by its surface — the tool's a request naming the tool it
-/// goes to where another's, the CLI's a command line — saying the same,
-/// or both none, `no_undo` then compared with the rest; and so the
-/// clear a replace offers beside it (#167). The CLI's undo is a command
-/// line starting `prefix` (`acq price `, `acq saved `).
+/// Two receipts for one write offer one undo, each spelled by its surface
+/// — the tool's a request naming the tool it goes to where another's, the
+/// CLI's a command line — saying the same, or both none, `no_undo` then
+/// compared with the rest; and so the clear a replace offers beside it.
+/// The CLI's undo is a command line starting `prefix` (`acq price `,
+/// `acq saved `).
 pub(crate) fn undo_alike(by_tool: &Value, by_cli: &Value, prefix: &str) {
     for key in ["undo", "clear"] {
         match (by_tool.get(key), by_cli.get(key)) {
@@ -304,7 +303,7 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
             false,
         ),
         // the price text that decides nothing, in the words of the
-        // status's counts, one word on both surfaces (#11)
+        // status's counts, one word on both surfaces
         (
             "price_list",
             json!({ "game_text": "residue" }),
@@ -413,11 +412,10 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
     }
 
     // A page's answer is the page's own fields and beside them the
-    // render's context, every key the whole render carries but `pages`
-    // (#169; the answer-facts seat, MCP run 1 call 50 against 51):
+    // render's context, every key the whole render carries but `pages`:
     // freshness, left_out, counts and policy stand as for the whole
-    // render, and the page's text stands once (the review of round B,
-    // finding 4: twice, under `text` and `pages[0].text`).
+    // render, and the page's text stands once (never twice, under `text`
+    // and `pages[0].text`).
     let (_, whole) = tool(&mut mcp, "shop_render", json!({}));
     let (_, page) = tool(&mut mcp, "shop_render", json!({ "page": 1 }));
     for key in [
@@ -446,8 +444,8 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
     said.sort();
     assert_eq!(said, expected, "{page}");
 
-    // The residue the status counts is the list's total, and its items
-    // (#11): the character's noted item, which carries `game.residue`.
+    // The residue the status counts is the list's total, and its items:
+    // the character's noted item, which carries `game.residue`.
     let (_, status) = tool(&mut mcp, "price_status", json!({}));
     let (_, residue) = tool(&mut mcp, "price_list", json!({ "game_text": "residue" }));
     assert_eq!(residue["total"], status["counts"]["residue"], "{residue}");
@@ -465,9 +463,8 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
 
     // A tab name that starts like a price and does not read as one is
     // counted, the tabs and their items, and the list of `game_text`
-    // `invalid_tab_name` holds them, alike on both surfaces (#170; the
-    // answer-facts seat, MCP run 2 calls 31, 41): a public tab named
-    // `~b/o 5000/2 chaos` recorded beside the seeded ones.
+    // `invalid_tab_name` holds them, alike on both surfaces: a public tab
+    // named `~b/o 5000/2 chaos` recorded beside the seeded ones.
     {
         let mock = base.join("store").join("mock");
         let mut store = Store::open(&account_path(&mock, USER)).unwrap();
@@ -547,15 +544,15 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
     assert!(no_daemon_appeared(base), "a pricing read reached a daemon");
 }
 
-/// C46, C53 — the release seat's rerun (mcp-opus-2, calls 37, 38): the
-/// shop document listed every item left off for a reason, 160 KB on the
-/// owner's league, with no bound short of `page`, which drops the
-/// counts. With 60 items the game lists added to the seeded world, the
-/// default document, the tool's and the CLI's the same, bounds the list
+/// C46, C53 — listed whole, the items the shop document leaves off for a
+/// reason reached 160 KB on one league, and `page` drops the counts. With
+/// 60 items the game lists added to the seeded world, the default
+/// document, the tool's and the CLI's the same, bounds the list
 /// and counts them all in `left_out_total`; `expand` is `--expand`, and
 /// both then list every one. The bound is the shop's (`acquisition-plan`).
 /// With the policy cleared, both documents say how old the posted
-/// items' facts are all the same (#156: no policy said nothing of them).
+/// items' facts are all the same (a missing policy is no reason to say
+/// nothing of them).
 #[test]
 fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
     let dir = scratch("mcp-price-left-out");
@@ -728,7 +725,7 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             true,
         ),
         // a tab's row over a tab whose name prices its items: what they
-        // resolve to after the write, and after the clear (#171)
+        // resolve to after the write, and after the clear
         (
             "price_set",
             json!({ "target": "tab/pc/c1", "type": "exact", "amount": "7", "currency": "chaos" }),
@@ -760,9 +757,8 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             "{name} {args} is not what acq {verb:?} --json prints"
         );
     }
-    // #171 (the answer-facts seat, CLI run 1 call 79 against 84): a tab
-    // row's receipt counts the tab's items as `price show` does, after
-    // the write and after the clear; an item's carries no such count
+    // a tab row's receipt counts the tab's items as `price show` does,
+    // after the write and after the clear; an item's carries no such count
     let (tab_set, tab_clear) = (&told[told.len() - 2], &told[told.len() - 1]);
     assert_eq!(
         tab_set["items_here_counts"]["by_relation"],
@@ -934,8 +930,8 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
         std::fs::write(facts(base), "not a database").unwrap();
     }
     // the folder's row cleared with no facts to count its items in: the
-    // receipt says why, alike on both surfaces (the review of round B,
-    // finding 2), and names the `price show` that counts them
+    // receipt says why, alike on both surfaces, and names the `price show` that
+    // counts them
     let (by_tool, by_cli) = clear(&mut mcp, "tab/pc/f1");
     for doc in [&by_tool, &by_cli] {
         let unavailable = &doc["counts_unavailable"];
@@ -966,10 +962,9 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
     assert!(no_daemon_appeared(&by_mcp.0));
 }
 
-/// The release seat (mcp-opus, mcp-sonnet): a cleared row took a
-/// revision, and the next write's continued from it, said nowhere. The
-/// pricing model says it, read once by name (`describe` with names
-/// [`pricing`], #83), where the two write tools' texts said it before.
+/// A cleared row takes a revision, and the next write's continues from
+/// it. The pricing model says so, read once by name (`describe` with
+/// names [`pricing`]).
 #[test]
 fn the_price_write_tools_say_a_clear_takes_a_revision() {
     let dir = scratch("mcp-price-clear-revision");
@@ -984,9 +979,8 @@ fn the_price_write_tools_say_a_clear_takes_a_revision() {
     );
 }
 
-/// The readiness seat (`audits/readiness-2026-10/seat/`, calls 19 and
-/// 33): a game note on an item beat the hand row on its tab, which the
-/// item's `why` said and `describe`'s pricing model did not. The
+/// A game note on an item beats the hand row on its tab, as the item's
+/// `why` says, and `describe`'s pricing model says it too: the
 /// `effective` entry says who decides: the most specific statement, the
 /// game's on a tie (C69, C81).
 #[test]
@@ -1003,10 +997,9 @@ fn the_pricing_model_says_the_most_specific_statement_decides() {
     );
 }
 
-/// The release seat's finding 9: a pricing refusal spoke the CLI's flags,
-/// and the tool texts carried the translation ("--league is `league`, --in
-/// is `in`"). The refusal speaks the request's words (C143, as amended on
-/// 2026-11-05; #97), never a flag, so nothing is spelled after them: the
+/// A pricing refusal speaks the request's words (C143), never a CLI flag
+/// a tool text must translate ("--league is `league`, --in is `in`"), so
+/// nothing is spelled after them: the
 /// conflict over a row the target already has names `if_revision`, its
 /// read-back the `price_show` call it offers; a container argument given
 /// an item names `in`.
@@ -1047,7 +1040,7 @@ fn a_pricing_refusal_names_each_argument_in_the_requests_words() {
     );
 }
 
-/// C53, the read economy (step 2g, round 2): past ten, `price_list` and
+/// C53, the read economy: past ten, `price_list` and
 /// `price_show` list ten beside the whole counts and `expand` returns
 /// every item, each the document `acq price … --json` prints for the same
 /// request — over a league Big of one map tab with thirteen unpriced
@@ -1154,11 +1147,11 @@ fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
     assert!(no_daemon_appeared(base));
 }
 
-/// Round 4's review (P3): a conflict's `current` is the stored row,
-/// data, never this server's prose — a row whose actor names a command
-/// came back spelled. Over such a row a set at a stale revision is
+/// A conflict's `current` is the stored row, data, never this server's
+/// prose, or a row whose actor names a command would come back spelled.
+/// Over such a row a set at a stale revision is
 /// `conflict`, its `current` exactly the stored row `price_show` prints
-/// as `manual`, less the age words an answer adds (round 6's fix round).
+/// as `manual`, less the age words an answer adds.
 #[test]
 fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     let dir = scratch("mcp-price-current");
@@ -1190,10 +1183,10 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     assert_eq!(refusal["current"].clone(), manual, "{refusal}");
 }
 
-/// Round 5 of the 2g build (the receipt shape): a write's receipt on this
-/// server carries `revision`, the one the next write names, and `undo`, a
-/// request in the refusal's offer shape, naming the tool it goes to where
-/// another's; sent back as printed it puts `prior` back — price_set's
+/// The receipt shape: a write's receipt on this server carries
+/// `revision`, the one the next write names, and `undo`, a request in the
+/// refusal's offer shape, naming the tool it goes to where another's;
+/// sent back as printed it puts `prior` back — price_set's
 /// create by price_clear naming the revision written, price_clear's by
 /// price_set naming none (a create, landing past the tombstone), a
 /// replace's by price_set naming the revision written.
@@ -1261,11 +1254,10 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
         None,
         "the same tool: {replaced}"
     );
-    // #167 (the answer-facts seat, MCP run 1 calls 43, 45, 52; run 2
-    // calls 55, 57): the create's clear went stale once the replace moved
-    // the row, and the replace's undo puts the prior back, never "no
-    // price". Beside its undo a replace offers the clear of the row at
-    // the revision it wrote; a create offers none, its undo the clear.
+    // a create's clear goes stale once a replace moves the row, and the
+    // replace's undo puts the prior back, never "no price". Beside its
+    // undo a replace offers the clear of the row at the revision it
+    // wrote; a create offers none, its undo the clear.
     assert_eq!(created.get("clear"), None, "{created}");
     assert_eq!(cleared.get("clear"), None, "{cleared}");
     assert_eq!(
@@ -1290,10 +1282,10 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     assert!(no_daemon_appeared(&dir.0));
 }
 
-/// The league seat (mcp call 51; the CLI's twin is `seat_faults.rs`'s):
-/// `price_set` on an item in a map tab's substash landed silently. The
-/// receipt's `note` says the shop blocks it, in the shop's own words,
-/// and the row stands; an item in a tab has none.
+/// `price_set` on an item in a map tab's substash does not land silently
+/// (the CLI's twin is `seat_faults.rs`'s): the receipt's `note` says the shop
+/// blocks it, in the shop's own words, and the row stands; an item in a tab has
+/// none.
 #[test]
 fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
     let dir = scratch("mcp-substash-note");
@@ -1319,12 +1311,11 @@ fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
     assert_eq!(receipt.get("note"), None, "{receipt}");
 }
 
-/// The league seat (mcp calls 51, 53, 59, 60, 68; the CLI's twin is
-/// `seat_faults.rs`'s): a write refused for its revision offered
-/// nothing, so no printed request removed a row after a replace. The
-/// refusal offers the same write at the revision it names now, sent back
-/// as printed to the same tool: the live row's, or `if_revision: 0`, the
-/// create, over a cleared row.
+/// A write refused for its revision offers a way on (the CLI's twin is
+/// `seat_faults.rs`'s), so a printed request removes a row after a
+/// replace: the refusal offers the same write at the revision it names
+/// now, sent back as printed to the same tool: the live row's, or
+/// `if_revision: 0`, the create, over a cleared row.
 #[test]
 fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
     let dir = scratch("mcp-conflict-offer");
@@ -1397,11 +1388,11 @@ fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
     assert!(no_daemon_appeared(&dir.0));
 }
 
-/// Round 5 of the 2g build (the receipt shape): `set_sync_policy`
-/// answers the shape every write answers, its `undo` a request to the
-/// same tool — the prior written back whole (`replace`) over the revision
-/// this write left — which, sent back as printed, lands; a first policy
-/// has none, and `no_undo` says why.
+/// The receipt shape: `set_sync_policy` answers the shape every write
+/// answers, its `undo` a request to the same tool — the prior written
+/// back whole (`replace`) over the revision this write left — which, sent
+/// back as printed, lands; a first policy has none, and `no_undo` says
+/// why.
 #[test]
 fn a_policy_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     let dir = scratch("mcp-policy-undo");
@@ -1453,7 +1444,7 @@ fn a_policy_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     assert_eq!(back["prior"].clone(), merged["written"].clone());
 }
 
-/// #234: a price write and a policy write over an annotation file another
+/// A price write and a policy write over an annotation file another
 /// process holds past the wait (`ACQ_ANNOTATION_WAIT=0`) are refused, kind
 /// `store`, in the same sentence `acq` prints for each, held by its
 /// golden (`acquisition-cli/tests/goldens/price_json/a_busy_intent_file.txt`):

@@ -49,14 +49,12 @@ fn c85_a_refusal_carries_its_kind_in_json_and_only_its_message_in_text() {
     );
 }
 
-/// C144 (every keyring result reaches the words), issue #61, the review
-/// of h1, its second finding, and the owner's ruling on the tail round:
-/// `auth logout` says what the keyring did, text and `--json`, from the
-/// answer's `keyring` field. The mock world runs with the keyring off
-/// (`ACQ_NO_KEYRING`), where a clear tries nothing: a logout drops the
-/// session, exits 0 and says the keyring is off and nothing was cleared;
-/// a forget (a logout of a known account that is not live) says the same;
-/// a logout with no session left is the refusal's own document.
+/// C144 (every keyring result reaches the words): `auth logout` says what the
+/// keyring did, text and `--json`, from the answer's `keyring` field. The mock
+/// world runs with the keyring off (`ACQ_NO_KEYRING`), where a clear tries
+/// nothing: a logout drops the session, exits 0 and says the keyring is off and
+/// nothing was cleared; a forget (a logout of a known account that is not live)
+/// says the same; a logout with no session left is the refusal's own document.
 #[test]
 fn c144_logout_json_says_what_the_keyring_did() {
     let scratch = harness::scratch("logout");
@@ -87,12 +85,11 @@ fn c144_logout_json_says_what_the_keyring_did() {
     assert_eq!(said.trim(), "logged out (keyring off, nothing cleared)");
 }
 
-/// C144, the review of the h1 fix round, its fifth finding: `--json`
-/// reads the keyring's outcome from the answer's field, never from the
-/// daemon's sentence. The mock username `keyring entry cleared`, logged
-/// out with the keyring off, answers `keyring: "off"`; the fix round
-/// searched the sentence, found the username's words in it and said
-/// `cleared` although nothing was.
+/// C144: `--json` reads the keyring's outcome from the answer's field,
+/// never from the daemon's sentence. The mock username `keyring entry
+/// cleared`, logged out with the keyring off, answers `keyring: "off"`;
+/// a reader that searched the sentence would find the username's words
+/// in it and say `cleared` although nothing was.
 #[test]
 fn c144_logout_json_reads_the_keyring_field_not_the_sentence() {
     let scratch = harness::scratch("forged");
@@ -106,10 +103,9 @@ fn c144_logout_json_reads_the_keyring_field_not_the_sentence() {
 
 /// C156: a printed command pasted into cmd.exe keeps its single quotes and
 /// splits its quoted words, so the parser refuses it; on Windows the
-/// refusal then names the shell the commands are for (the review of
-/// words' fix round, its second finding: the hint ran only after a
-/// command parsed). Elsewhere no shell leaves such words, and nothing is
-/// said.
+/// refusal then names the shell the commands are for (a hint that ran
+/// only after a command parsed would never run for this one). Elsewhere
+/// no shell leaves such words, and nothing is said.
 #[test]
 fn c156_a_refused_cmd_paste_names_the_shell_the_commands_are_for() {
     let scratch = harness::scratch("cmd-paste");
@@ -141,16 +137,13 @@ fn c156_a_refused_cmd_paste_names_the_shell_the_commands_are_for() {
     }
 }
 
-/// C144's retry command runs as printed, the review of h1, its seventh
-/// finding (part of issue #16, printed commands quoted for the shell):
-/// the account `Alice Smith` is named by its uuid, which no shell splits
-/// or quotes (C156; the review of words' fix round, its first finding:
-/// a quoted username followed the daemon's shell, not the paster's), so
-/// the command `sh` reads back is one `--account`, which clap parses and
-/// the daemon resolves; a bare `Alice Smith` was two words and clap
-/// refused the line. The command is
-/// run by `sh` exactly as printed, with this build's `acq` first on the
-/// path, in the same mock world.
+/// C144's retry command runs as printed (part of issue #16, printed commands
+/// quoted for the shell): the account `Alice Smith` is named by its uuid, which
+/// no shell splits or quotes (C156; a quoted username would follow the daemon's
+/// shell, not the paster's), so the command `sh` reads back is one `--account`,
+/// which clap parses and the daemon resolves; a bare `Alice Smith` would be
+/// two words, and clap would refuse the line. The command is run by `sh` exactly as
+/// printed, with this build's `acq` first on the path, in the same mock world.
 #[cfg(unix)]
 #[test]
 fn c144_the_printed_logout_command_runs_as_printed() {
@@ -212,11 +205,11 @@ fn unreadable(file: &std::path::Path, shut: bool) {
     std::fs::set_permissions(file, std::fs::Permissions::from_mode(mode)).unwrap();
 }
 
-/// The login's wait is the daemon's (#68): under `ACQ_LOGIN_WITHIN=0` on
-/// the `acq auth` that starts the daemon, the browser wait expires at
-/// once and the CLI ends with the daemon's words, never with a bound of
-/// its own; a late callback can no longer be given up on by the CLI
-/// while the daemon still registers the session.
+/// The login's wait is the daemon's: under `ACQ_LOGIN_WITHIN=0` on the
+/// `acq auth` that starts the daemon, the browser wait expires at once
+/// and the CLI ends with the daemon's words, never with a bound of its
+/// own; the CLI never gives up on a late callback while the daemon
+/// still registers the session.
 #[test]
 fn the_login_ends_with_the_daemons_words_not_a_bound_of_its_own() {
     let scratch = harness::scratch("within");
@@ -293,9 +286,8 @@ fn c156_every_printed_word_reaches_the_program_whole_through_each_shell() {
     eprintln!("ran through: {shells:?}");
 }
 
-/// C156, the cold review of describe-slices (finding 1): the pattern
-/// example `--describe`'s help prints is the portable form,
-/// `--describe=~resist`, which no declared shell expands (`~` after `=`
+/// C156: the pattern example `--describe`'s help prints is the portable
+/// form, `--describe=~resist`, which no declared shell expands (`~` after `=`
 /// is no home directory) and none needs quoted. Run as the help prints
 /// it, unquoted, through every shell this machine has, the pattern
 /// reaches describe whole.
@@ -328,13 +320,11 @@ fn c156_the_describe_pattern_example_runs_as_printed_through_each_shell() {
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
 
-/// C156, the review of #146's build, its first finding: a printed
-/// command that sets variables before `acq` sets them in the declared
-/// shell's own syntax, so the no-daemon remedy's line runs as printed in
-/// each: run through every shell this machine has, with a store root
-/// holding a space, an apostrophe and `%`, `acq` reads the provider and
-/// the root the line set, and its refusal for a world with no account
-/// names that root back.
+/// C156: a printed command that sets variables before `acq` sets them in the
+/// declared shell's own syntax, so the no-daemon remedy's line runs as printed
+/// in each: run through every shell this machine has, with a store root holding
+/// a space, an apostrophe and `%`, `acq` reads the provider and the root the
+/// line set, and its refusal for a world with no account names that root back.
 #[test]
 fn c156_a_line_that_sets_variables_runs_as_printed_through_each_shell() {
     let scratch = harness::scratch("shell-env");

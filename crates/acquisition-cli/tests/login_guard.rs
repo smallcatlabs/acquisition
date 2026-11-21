@@ -1,4 +1,4 @@
-//! The guard a harness login returns (#115): it stops the daemon that
+//! The guard a harness login returns: it stops the daemon that
 //! login started, and only that one. A failing test's daemon is pinned
 //! stopped by `readme_tour.rs`'s
 //! `a_daemon_the_recipe_starts_is_stopped_when_its_test_fails`, whose

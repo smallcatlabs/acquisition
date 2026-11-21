@@ -1,6 +1,6 @@
-// The table's window (step 6.4b, from step 6.3's measured rig): a table
-// is a segment of rows of one height, with its route and its count, as
-// the server rendered it, the first block of rows among them. The
+// The table's window: a table is a segment of rows of one height, with
+// its route and its count, as the server rendered it, the first block of
+// rows among them. The
 // script sizes the segment, takes the server's block as one it holds,
 // and on each scroll asks the blocks of rows near the viewport by offset
 // and count, those in view first and the ones around them once those
@@ -107,7 +107,7 @@
   window.addEventListener('resize', queue);
   // the URL's anchor inside the table (a toggled head or row), sought once
   // the segments are sized and before the first fill, so the fill keeps
-  // the block the server rendered for it (step 6.5c)
+  // the block the server rendered for it
   // an anchor is written percent-encoded, as its fragment is
   const anchor = location.hash && document.getElementById(location.hash.slice(1));
   if (anchor && table.contains(anchor)) anchor.scrollIntoView();

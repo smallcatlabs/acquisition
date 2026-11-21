@@ -3,7 +3,7 @@
 //! the remedy named; C38: a tampered envelope never reaches the daemon;
 //! C41: plan and no-op apply run with no daemon at all — `ACQ_NO_SPAWN`
 //! makes any contact an error): the CLI is itself an API (C11),
-//! step 7's apply will consume `refresh --plan --json`, and only a spawned
+//! apply consumes `refresh --plan --json`, and only a spawned
 //! binary can prove what actually lands on stdout — the in-process tests
 //! cannot see it.
 //!
@@ -85,10 +85,9 @@ fn a_policy_written_under_revision_0_is_created_only_where_none_stands() {
         &["policy", "set", second, "--if-revision", "0", "--json"],
     );
     assert_eq!(out.status.code(), Some(1), "{out:?}");
-    // a write refused for its revision is `conflict`, the stored row
-    // beside its revision as `policy show` prints it (C11; round 4 of the
-    // 2g build); its words are seat_faults' golden
-    // a_policy_write_refused_for_its_revision
+    // a write refused for its revision is `conflict`, the stored row beside its
+    // revision as `policy show` prints it (C11); its words are seat_faults'
+    // golden a_policy_write_refused_for_its_revision
     let refused = sole_json(&out);
     assert_eq!(refused["kind"], json!("conflict"), "{refused}");
     assert_eq!(refused["revision"], json!(1), "{refused}");
@@ -111,7 +110,7 @@ fn json_stdout_is_the_contract_surface() {
     // 0 — absent intent is data, not an error, and a success is one
     // object, never a bare null (C149), the MCP's `sync_policy` shape.
     // `leagues_held` beside it: the seeded tab's league, which no policy
-    // names (round 5 of the answer-facts group)
+    // names
     let out = acq(&base, &["policy", "show", "--json"]);
     assert!(out.status.success(), "{out:?}");
     let no_policy = json!({
@@ -174,8 +173,8 @@ fn json_stdout_is_the_contract_surface() {
     // C65: the row says which channel wrote it; no actor was claimed.
     assert_eq!(row["written_via"], json!("cli"));
     assert!(row.get("actor").is_none(), "{row}");
-    // The receipt every write answers (round 5 of the 2g build) stands
-    // beside the row: a first write's prior null, its undo none and why.
+    // The receipt every write answers stands beside the row: a first
+    // write's prior null, its undo none and why.
     let receipt = row.as_object_mut().unwrap();
     let written = receipt.shift_remove("written");
     assert_eq!(receipt.shift_remove("prior"), Some(Value::Null));
@@ -225,7 +224,7 @@ fn json_stdout_is_the_contract_surface() {
     // the daemon would fail with its distinct "forbids starting" error —
     // the assertions below prove each gate fires first.)
 
-    // The step-7 staleness ruling, end to end: the reviewed envelope cites
+    // The staleness gate (C44), end to end: the reviewed envelope cites
     // revision 1; a policy write moves intent to revision 2; applying the
     // stale plan is a structured refusal naming both revisions.
     let stale_plan = base.join("stale-plan.json");
@@ -354,10 +353,9 @@ fn refresh_characters_names_characters_by_id_in_a_selection() {
     );
 }
 
-/// C36, amended 2026-10-19 — `policy set` writes the realms it names and
-/// keeps the rest: a poe2 policy set alone leaves the pc one standing
-/// (the README's first known gap until then), a realm named with no
-/// leagues is removed, and `--replace` alone writes the whole policy.
+/// C36 — `policy set` writes the realms it names and keeps the rest: a
+/// poe2 policy set alone leaves the pc one standing, a realm named with
+/// no leagues is removed, and `--replace` alone writes the whole policy.
 #[test]
 fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
     let scratch = harness::scratch("e2e-merge");
@@ -395,12 +393,11 @@ fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
     );
 }
 
-/// Round 5 of the 2g build (the receipt shape): `policy set --json`
-/// answers the shape every write answers — `target`, `written`, `prior`
-/// (null on a first write), the flattened row's `revision` the next
-/// write's — and `undo`, the command line that writes the prior back
-/// whole over the revision this write left, which runs as printed with a
-/// second account known; a first write has none and `no_undo` says why.
+/// The receipt shape: `policy set --json` answers the shape every write answers
+/// — `target`, `written`, `prior` (null on a first write), the flattened row's
+/// `revision` the next write's — and `undo`, the command line that writes the
+/// prior back whole over the revision this write left, which runs as printed
+/// with a second account known; a first write has none and `no_undo` says why.
 #[test]
 fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none() {
     let scratch = harness::scratch("e2e-policy-undo");
@@ -411,8 +408,8 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
         .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
     // a league beyond ASCII, which the undo carries whole through the
-    // platform's shell (the review of words, its first finding: a pipe
-    // under Windows PowerShell 5.1 made `Café` `Caf?`)
+    // platform's shell (a pipe under Windows PowerShell 5.1 would make
+    // `Café` `Caf?`)
     let pc = r#"{"version":3,"realms":{"pc":{"leagues":{"Café":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     let poe2 = r#"{"version":3,"realms":{"poe2":{"leagues":{"Standard":{"characters":"all","max_age_seconds":600}}}}}"#;
     let set = |args: &[&str]| {
@@ -472,8 +469,7 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
     assert_eq!(back["prior"].clone(), merged["written"].clone());
     use acquisition_search::answer::Shell;
     let mut revision = 3;
-    // Git Bash's `sh` too on Windows (the review of #146's build, its
-    // second finding): the four shells the brief names
+    // Git Bash's `sh` too on Windows: the four declared shells
     let mut shells = harness::shells_here();
     if cfg!(windows) {
         shells.push(Shell::Posix);
@@ -509,8 +505,8 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
             "{shell:?}"
         );
     }
-    // the review's third finding: from the same state, the undo's words
-    // run with no shell put the same policy back as its printed line did
+    // from the same state, the undo's words run with no shell put the
+    // same policy back as its printed line did
     let out =
         harness::offline_command(&base, &["policy", "set", "--account", USER, poe2, "--json"])
             .output()

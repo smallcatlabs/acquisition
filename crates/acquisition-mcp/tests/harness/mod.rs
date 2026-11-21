@@ -115,7 +115,7 @@ pub fn acq_with(base: &Path, args: &[&str], env: &[(&str, &str)]) -> std::proces
 
 /// How long one JSON-RPC answer may take before the test fails naming
 /// the method: a server or daemon that stops answering must fail the
-/// gate, never hang it (review 2026-09-11).
+/// gate, never hang it.
 const ANSWER_WITHIN: Duration = Duration::from_secs(30);
 
 /// Run the server over `input`, then close its stdin, and return what it
@@ -350,8 +350,7 @@ impl Mcp {
 }
 
 /// The commands that are a person's act, which a refusal names as
-/// commands (C143's exception), longest first where one begins another:
-/// the list the server's spelling table kept until #178 retired it.
+/// commands (C143's exception), longest first where one begins another.
 const PERSONS: [&str; 6] = [
     "acq daemon reset-tripwire",
     "acq daemon stop",
@@ -364,12 +363,12 @@ const PERSONS: [&str; 6] = [
 /// C143, a shared text speaks the request's own words, never a
 /// frontend's flag: every text a test meets, through [`Mcp::call`],
 /// [`Mcp::result`] or [`Mcp::expect_rpc_error`], a protocol error's
-/// message among them (#178: the daemon's refusals), is held free of a CLI command (`acq …`) and a flag
-/// (`--league`) but a person's act ([`PERSONS`]), so each test that
-/// produces an answer or a refusal holds the rule over it (#97). Every
-/// string is read but those under a key that holds data ([`DATA`]), so
-/// prose a field adds later is read by default (the review of #97's fix
-/// round and Part B, P2).
+/// message among them (the daemon's refusals), is held free of a CLI
+/// command (`acq …`) and a flag (`--league`) but a person's act
+/// ([`PERSONS`]), so each test that produces an answer or a refusal holds
+/// the rule over it. Every string is read but those under a key that
+/// holds data ([`DATA`]), so prose a field adds later is read by
+/// default.
 #[track_caller]
 pub fn c143_a_text_speaks_no_frontend(tool: &str, text: &str) {
     let doc: Value = serde_json::from_str(text).unwrap_or_else(|_| json!(text));
@@ -401,8 +400,7 @@ const DATA: [&str; 15] = [
 ];
 
 /// Every string of `doc` that is the tool's words: each one not under a
-/// [`DATA`] key, an offer's `says` and a refusal's `next` among them
-/// (the review of #97's Part A, P2).
+/// [`DATA`] key, an offer's `says` and a refusal's `next` among them.
 fn prose_of<'a>(doc: &'a Value, out: &mut Vec<&'a str>) {
     match doc {
         Value::String(s) => out.push(s),
@@ -453,9 +451,8 @@ const PAYLOAD: [&str; 11] = [
 /// refusal's `readings` among them — but a refusal's `offers`, each a
 /// request as its surface sends it (an MCP tool's arguments, naming the
 /// tool; a terminal's command line), which hold the same offers saying
-/// the same words (round 4 of the 2g build: the adapter spells the
-/// request). The first string that differs otherwise, with its path, or
-/// `None`.
+/// the same words (the adapter spells the request). The first string that
+/// differs otherwise, with its path, or `None`.
 pub fn spoken_otherwise(server: &Value, cli: &Value, path: &str) -> Option<String> {
     spoken_under(server, cli, path, false)
 }

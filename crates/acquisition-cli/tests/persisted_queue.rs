@@ -102,8 +102,8 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
 
 /// C6, retention: a job finished by a previous daemon is no longer in
 /// the queue, so it has no status, but its result is still served.
-/// `result --wait` asked for the status first and refused such a job as
-/// unknown while `result` printed it.
+/// A `result --wait` that asked for the status first would refuse such a
+/// job as unknown while `result` printed it.
 #[test]
 fn result_wait_serves_a_previous_daemons_result() {
     let scratch = harness::scratch("rwait");

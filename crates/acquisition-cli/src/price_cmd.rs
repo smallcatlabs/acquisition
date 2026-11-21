@@ -4,11 +4,11 @@
 //! C69/C70/C80) — the same functions the MCP's tools call (C46) — and
 //! render it under C53 — the default text is the decision view, `--expand`
 //! the audit view, `--json` the [`ListingReport`] itself, of which every
-//! line here is a function. `set` and `clear` (plan step 5) are the two
-//! writes: one row each through the same verbs' shared write
-//! ([`pricing::set`], [`pricing::clear`]) under compare-and-swap, printing
-//! the receipt — what the target is now, what it was (C78), and the
-//! command that puts the prior back.
+//! line here is a function. `set` and `clear` are the two writes: one row
+//! each through the same verbs' shared write ([`pricing::set`],
+//! [`pricing::clear`]) under compare-and-swap, printing the receipt — what
+//! the target is now, what it was (C78), and the command that puts the
+//! prior back.
 //!
 //! Under C53: `status` opens with the one line that answers "what is
 //! listed" (items, priced in game, by hand, agree, conflict, unlisted),
@@ -237,9 +237,9 @@ fn rows_detail(r: &ListingReport, account: &str) -> String {
                 "  {}/{} revision {}: {}",
                 p.scope, p.key, p.revision, p.why
             ));
-            // Only an address a write can name gets the command (the third
-            // review of #63): a stored address no target reads back from
-            // is named with its fault alone, since `clear` would refuse it.
+            // Only an address a write can name gets the command: a stored
+            // address no target reads back from is named with its fault
+            // alone, since `clear` would refuse it.
             if PriceTarget::from_address(&p.scope, &p.key).is_ok() {
                 let word =
                     acquisition_search::answer::shell_quoted(&format!("{}/{}", p.scope, p.key));
@@ -254,13 +254,12 @@ fn rows_detail(r: &ListingReport, account: &str) -> String {
     out
 }
 
-/// The one scope every printed `acq price` read carries (step 2g's
-/// round-2 fix rule, refined by its review): the account it ran as, and
-/// the realm and league the answer resolved, always — a default league
-/// left out reads another where the target is live in two (`league_of`
-/// refuses), so it runs as printed whatever is known. A read that
-/// promises each or every item adds `--expand` itself, since the default
-/// lists ten (C53, the read economy). A write takes [`write_flags`].
+/// The one scope every printed `acq price` read carries: the account it
+/// ran as, and the realm and league the answer resolved, always — a
+/// default league left out reads another where the target is live in two
+/// (`league_of` refuses), so it runs as printed whatever is known. A read
+/// that promises each or every item adds `--expand` itself, since the
+/// default lists ten (C53, the read economy). A write takes [`write_flags`].
 pub(crate) fn scope_flags(h: &ReportHeader, account: &str) -> String {
     crate::terminal::printed_line(
         &[
@@ -330,7 +329,7 @@ pub(crate) fn facts_line(lead: &str, facts: &Facts, h: &ReportHeader, now: i64) 
 /// the extremes of their last fetches, each with its own age, the
 /// document's own where it holds one, said at `now` otherwise (C53).
 /// The one formatter of it, for every facts line: `price status`'s, a
-/// shop render's, `store status`'s and `tabs`' (#172).
+/// shop render's, `store status`'s and `tabs`'.
 pub(crate) fn fetched_words(
     fetched: usize,
     span: &acquisition_store::coverage::FetchSpan,
@@ -370,7 +369,7 @@ fn render_status(
         // guards exclude one another — no listing and no location;
         // locations and no listing; a listing — the fetched count the
         // facts' own, so the sentence never contradicts the facts line
-        // beside it (round 4's close)
+        // beside it
         let facts = &r.facts;
         let fetched = match facts.fetched {
             0 => "none fetched".to_string(),
@@ -406,8 +405,7 @@ fn render_status(
         let next = if r.rows.unreadable_total > 0 {
             format!("`acq price status {scope} --expand` lists the rows that cannot be read")
         } else {
-            // the answer's league as the account it ran as (the release
-            // seat's rerun, call 48; the league seat's rule)
+            // the answer's league as the account it ran as
             let plan =
                 crate::terminal::printed_line(&crate::terminal::way_words(&Way::RefreshPlan {
                     account: account.to_string(),
@@ -441,10 +439,9 @@ fn render_status(
     out.push_str(leagues);
     // Each count says what it counts (C146, a count says what it counts):
     // the hand side is the sum of its three relations, written out, since
-    // "89 by hand" beside "39 decided by hand" read as a contradiction (the
-    // release seat: cli-opus-2 call 55, mcp-opus-2 call 21). Zeros are
-    // not spelled out: nothing priced says so, and a hand side of none
-    // drops its parenthesis.
+    // "89 by hand" beside "39 decided by hand" reads as a contradiction.
+    // Zeros are not spelled out: nothing priced says so, and a hand side of
+    // none drops its parenthesis.
     out.push_str(&match (by_hand, game_priced) {
         (0, 0) => "sides: nothing priced\n".to_string(),
         (0, _) => format!("sides: 0 priced by hand; {game_priced} priced in game\n"),
@@ -455,10 +452,9 @@ fn render_status(
             count_of(r, Relation::Conflict),
         ),
     });
-    // `residue` named a mechanism; the line names the places and what
-    // lets the text count (the release seat: cli-opus call 49, mcp-opus
-    // call 19, mcp-sonnet call 20), each place with its own remedy: a
-    // character has no tab to publish (the h2 review)
+    // The line names the places and what lets the text count, not a
+    // mechanism (`residue`), each place with its own remedy: a character
+    // has no tab to publish
     if c.residue > 0 {
         out.push_str(&format!(
             "{}: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list {scope} --game-text residue` lists them\n",
@@ -472,21 +468,21 @@ fn render_status(
     let skipped = reading_count(r, "skip");
     let invalid = c.invalid_notes;
     if skipped + invalid + c.invalid_tab_names > 0 {
-        // each count names what lists it, where it is not zero (C146; the
-        // answer-facts seat, CLI fault 10: the skips had no route)
+        // each count names what lists it, where it is not zero (C146;
+        // without it the skips had no route)
         let skip_route = if skipped > 0 {
             format!("; `acq price list {scope} --game-text skip` lists them")
         } else {
             String::new()
         };
-        // the invalid notes' list, where there are any to list (#11)
+        // the invalid notes' list, where there are any to list
         let listed = if invalid > 0 {
             format!("; `acq price list {scope} --game-text invalid_note` lists them")
         } else {
             String::new()
         };
         // a tab name that does not read, counted as a note is, its route
-        // on the same line (#170)
+        // on the same line
         let tab_names = if c.invalid_tab_names > 0 {
             format!(
                 ", {}, over {} (no effect: a note or a hand row applies, where either does; `acq price list {scope} --game-text invalid_tab_name` lists them)",
@@ -610,8 +606,8 @@ fn wins_cell(l: &Listing) -> &'static str {
     }
 }
 
-/// The item lines' column names, once above the first (the release
-/// seat read `conflict game 5 chaos 999 chaos` unlabelled).
+/// The item lines' column names, once above the first (unlabelled,
+/// `conflict game 5 chaos 999 chaos` does not read).
 fn item_header() -> String {
     format!(
         "  {:<12} {:<5} {:<18} {:<18} {:<40} {}\n",
@@ -831,8 +827,8 @@ fn render_list(view: &ListView, expand: bool, account: &str) -> String {
         set_breakdown(&view.counts),
     ));
     // Every item the document holds is listed under its group: the
-    // document is already bounded (ten, or the person's own --limit: the
-    // release seat asked for twelve and was shown a header alone).
+    // document is already bounded (ten, or the person's own --limit, so a
+    // limit of twelve shows twelve, never a header alone).
     out.push_str(&item_header());
     for (loc, group) in &groups {
         let label = view
@@ -939,8 +935,7 @@ fn render_show(view: &ShowView, now: i64, bound: pricing::Bound, account: &str) 
             out.push_str(&line);
         }
         (None, Some(p)) => out.push_str(&format!("by hand: unreadable — {p}\n")),
-        // the read-back names what the next write names (the league
-        // seat, cli calls 61, 62 and run 1's 74): with no row, a create
+        // the read-back names what the next write names: with no row, a create
         (None, None) => out.push_str(
             "by hand: nothing (no row on it or above it: a first price names revision 0)\n",
         ),
@@ -1199,7 +1194,7 @@ fn offered_line(way: &Way) -> String {
 /// build cannot read is shown as its JSON and promised no undo. A set's
 /// `note` (the shop's rule, where the target is or sits in a substash)
 /// is a `note:` line. A container's row says what its items resolve to
-/// after the write, in `price show`'s words (#171).
+/// after the write, in `price show`'s words.
 fn render_write(
     write: &PriceWrite,
     in_facts: Option<bool>,
@@ -1225,7 +1220,7 @@ fn render_write(
         Ok((way, says)) => format!("`{}` {says}", offered_line(&way)),
         Err(why) => why,
     };
-    // beside a replace's undo, the clear that stays current (#167)
+    // beside a replace's undo, the clear that stays current
     if let Some((way, says)) = receipt::price_clear_offer(write, account) {
         undo.push_str(&format!("; `{}` {says}", offered_line(&way)));
     }
@@ -1266,7 +1261,7 @@ type Covering<'a> = (&'a Option<pricing::Covered>, &'a Option<pricing::Uncounted
 
 /// A container's two sets after a write, one line in `price show`'s
 /// words; where they could not be counted, why, and each `price show`
-/// that counts them (the review of round B, findings 1 and 2); nothing
+/// that counts them; nothing
 /// for an item's row.
 fn covered_line(covered: Option<Covering<'_>>, write: &PriceWrite, account: &str) -> String {
     let Some((covered, uncounted)) = covered else {
@@ -1452,7 +1447,7 @@ mod tests {
         // C162: how old the facts are, over the non-folder containers
         let facts = "facts: 4 locations, 4 fetched (the oldest fetch 1h ago, pc · Standard / ~price 3 chaos (A); the newest 1h ago, pc · Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago";
         assert_eq!(lines[1], facts);
-        // what else the realm holds, after the facts (round 5)
+        // what else the realm holds, after the facts
         assert_eq!(lines[2], leagues.trim_end());
         assert_eq!(
             lines[3],
@@ -1493,7 +1488,7 @@ mod tests {
             "{text}"
         );
 
-        // The invalid notes' line (#11): what they are, that they have no
+        // The invalid notes' line: what they are, that they have no
         // effect, and the list of them.
         let mut invalid = snapshot();
         invalid.items[3].note = Some("~price  chaos".into());
@@ -1543,7 +1538,7 @@ mod tests {
         );
 
         // Zeros collapse: no hand row drops the hand side's parenthesis,
-        // and nothing priced on either side says so (the h2 fix round).
+        // and nothing priced on either side says so.
         let sides = |s: &PricingSnapshot| {
             render_status(&resolve(s).unwrap(), 8_000, false, "a", "")
                 .lines()
@@ -1573,8 +1568,8 @@ mod tests {
         // C146: the zero-item status's three branches, their guards
         // exclusive — neither listing and no location; neither listing
         // and locations; a listing — each opening sentence beside the
-        // facts line, the fetched count the facts' own (round 4's close:
-        // "nothing on record" stood beside four fetched locations)
+        // facts line, the fetched count the facts' own (else "nothing on
+        // record" stands beside four fetched locations)
         let opening = |s: &PricingSnapshot| {
             let text = render_status(&resolve(s).unwrap(), 8_000, false, "a", "");
             let lines: Vec<String> = text.lines().take(2).map(str::to_string).collect();
@@ -1668,11 +1663,11 @@ mod tests {
         );
     }
 
-    /// C146 — the h2 review's fourth finding: a character's item carrying
-    /// `~price 5 chaos` counts among the price text the trade site cannot
-    /// see, and the line told it to wait "until the tab is made public",
-    /// where a character has no tab to publish. The line gives each place
-    /// its own remedy: the character's item moves into a public stash tab.
+    /// C146 — a character's item carrying `~price 5 chaos` counts among the
+    /// price text the trade site cannot see, and "until the tab is made
+    /// public" is no remedy where a character has no tab to publish. The
+    /// line gives each place its own remedy: the character's item moves
+    /// into a public stash tab.
     #[test]
     fn c146_a_characters_priced_item_is_told_to_move_into_a_public_tab() {
         let mut s = snapshot();
@@ -1696,13 +1691,12 @@ mod tests {
     /// filter that matches nothing says so.
     /// C151 — the status's "rows that cannot be read" line carries the
     /// command that clears the row at its revision, and that command
-    /// parses as printed (the second review of #63, its second finding:
-    /// the list once printed `clear` and `set` with realm and league
+    /// parses as printed (never `clear` or `set` with realm and league
     /// flags neither takes), its target reading back through the verb's
     /// own parser; a row whose stored address no target reads back from
-    /// (the third review's finding: a `tab` keyed `pc`) is named with its
-    /// fault alone, since the command would be refused as printed. The
-    /// account is quoted for a shell as every printed command's is.
+    /// (a `tab` keyed `pc`) is named with its fault alone, since the
+    /// command would be refused as printed. The account is quoted for a
+    /// shell as every printed command's is.
     #[test]
     fn c151_the_status_names_the_clear_that_removes_an_unreadable_row_and_it_parses() {
         use clap::Parser;
@@ -1864,7 +1858,7 @@ mod tests {
         assert_eq!(lines[6], "Exile  1 item: 1 unlisted  character/ch1");
         assert!(lines[7].ends_with("i-worn"), "{}", lines[7]);
 
-        // The same three under the status's own words (#11): the price
+        // The same three under the status's own words: the price
         // text the trade site cannot see, the count the status prints.
         let view = r
             .list_view(ListFilter {
@@ -2201,10 +2195,9 @@ mod tests {
     }
 
     /// The listing state's audit views over the real-scale fixture tiled
-    /// to 32k items (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`): `list
-    /// --effective none --expand` — every item nothing applies to, each
-    /// with its texts — `show --expand` on the owner's test tab, and
-    /// `status --expand`. Measured 2026-09-07 in a debug build: 300 ms,
+    /// to 32k items: `list --effective none --expand` — every item nothing
+    /// applies to, each with its texts — `show --expand` on the owner's
+    /// test tab, and `status --expand`. Measured in a debug build: 300 ms,
     /// 7 ms and under a millisecond. The time is printed, never asserted
     /// (C137: no test asserts a wall-clock bound a slow machine can miss),
     /// and each view still says everything it has.

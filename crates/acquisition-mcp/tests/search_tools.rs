@@ -1,11 +1,10 @@
-//! The item search over MCP (`search/LEDGER.md`, step 11b; the
-//! rulings H1–H5 of `search/LEDGER.md`, "11 · the opening"): `search`,
-//! `describe` and `show` are adapters of `acquisition-search` as `acq
-//! search` and `acq show` are, so what a tool returns is the document the
-//! CLI's `--json` prints — the answer whole on success, `{"error",
-//! "kind", "readings", "offers"}` in a result marked `isError` on a
-//! refusal (the owner, 2026-10-10) — and every request an answer or a
-//! refusal holds is sent back as it was printed. The acceptance set's
+//! The item search over MCP (the rulings H1–H5 of `search/LEDGER.md`,
+//! "11 · the opening"): `search`, `describe` and `show` are adapters of
+//! `acquisition-search` as `acq search` and `acq show` are, so what a
+//! tool returns is the document the CLI's `--json` prints — the answer
+//! whole on success, `{"error", "kind", "readings", "offers"}` in a
+//! result marked `isError` on a refusal — and every request an answer or
+//! a refusal holds is sent back as it was printed. The acceptance set's
 //! agent questions, AQ1–AQ5, are asked through the tool over a fixture
 //! whose every count is worked by hand below. Facts are seeded through
 //! the store crate; no daemon runs.
@@ -240,7 +239,7 @@ impl Seat {
 
 /// What `describe` with names [`name`] sends, as an agent reads it: the
 /// result's text. The anatomy of an answer and a translation's report
-/// are read here on demand, never in the tool list (#83).
+/// are read here on demand, never in the tool list.
 fn described(seat: &mut Seat, name: &str) -> String {
     let result = seat.mcp.result("describe", json!({ "names": [name] }));
     assert!(result["isError"] != json!(true), "{name}: {result}");
@@ -290,8 +289,8 @@ fn aq4_show_with_its_body_is_the_clis() {
     assert_eq!(with_body, cli(&seat.base, &["show", "kaom", "--body"]).0);
 }
 
-/// C109, C47: four hundred nested parentheses once aborted the server, which
-/// is resident — a stack overflow, every later call unanswered. A query
+/// C109, C47: four hundred nested parentheses would abort the server,
+/// which is resident — a stack overflow, every later call unanswered. A query
 /// nested past the limit is an authoring error like any other, the tree
 /// as the text, and the server answers the next call.
 #[test]
@@ -366,7 +365,7 @@ fn a_malformed_against_is_refused_as_a_tree() {
 }
 
 /// `describe` is `acq search --describe`: the index where nothing is
-/// named, everything whole under `all` (C53 as amended), or the entries
+/// named, everything whole under `all` (C53), or the entries
 /// named, with no store read — it answers over an empty world.
 #[test]
 fn describe_is_the_clis_and_reads_no_store() {
@@ -376,7 +375,7 @@ fn describe_is_the_clis_and_reads_no_store() {
     let (whole, refused) = seat.call("describe", &json!({ "names": ["all"] }));
     assert!(!refused, "{whole}");
     // the language is the CLI's; this tool's own sections, what the
-    // pricing and job tools answer, stand beside it (#83): in the index
+    // pricing and job tools answer, stand beside it: in the index
     // each own entry at the search crate's one line, under `all` whole
     for (answer, asked, cut) in [
         (&index, vec!["search", "--describe"], true),
@@ -432,7 +431,7 @@ fn describe_is_the_clis_and_reads_no_store() {
     assert_eq!(e["readings"], printed["readings"]);
 }
 
-/// #154: a pattern is the CLI's slice, the documents one — no own
+/// A pattern is the CLI's slice, the documents one — no own
 /// section stands in a pattern's answer — whole at ten or fewer and at
 /// one line past them; the pattern is echoed as sent, never spelled;
 /// nothing matched is refused with one offer, `describe` with `{}`,
@@ -452,8 +451,8 @@ fn describe_slices_by_pattern_as_the_cli_does() {
             pattern,
         );
     }
-    // an entry the CLI spells as a flag is named by the request's word
-    // (#97), and a pattern finds it by that word
+    // an entry the CLI spells as a flag is named by the request's word,
+    // and a pattern finds it by that word
     let (flagged, _) = seat.call("describe", &json!({ "names": ["~^count$"] }));
     assert_eq!(flagged["patterns"][0]["pattern"], "~^count$", "{flagged}");
     assert_eq!(flagged["counts"][0]["name"], "count", "{flagged}");
@@ -479,7 +478,7 @@ fn describe_slices_by_pattern_as_the_cli_does() {
     assert!(index["next"].is_string(), "{index}");
 }
 
-/// #83: what the pricing tools and the job tools answer is read once, by
+/// What the pricing tools and the job tools answer is read once, by
 /// name, through the one door for reading on demand: `describe` with
 /// names [`pricing`] or [`daemon`] answers that section alone, beside a
 /// language section when one is named too, and an unknown name's refusal
@@ -521,8 +520,8 @@ fn describe_answers_the_pricing_model_and_the_daemon_by_name() {
     );
 }
 
-/// F10 of the agent's seat (R18): where no account's store is found the
-/// refusal names the directory it looked in, on `search` and on `show`.
+/// Where no account's store is found the refusal names the directory it looked
+/// in, on `search` and on `show`.
 #[test]
 fn a_missing_store_names_the_directory_it_looked_in() {
     let mut seat = Seat::over(scratch("mcp-search"));
@@ -544,8 +543,8 @@ fn a_missing_store_names_the_directory_it_looked_in() {
     }
     // the older store tools say the same of it: the refusal document,
     // decoded before the path is looked for in it — serialised, a
-    // Windows path's backslashes are doubled, and the Windows gate of
-    // 2026-10-19 missed the directory in the text it had named
+    // Windows path's backslashes are doubled, and a search of the text
+    // misses the directory it names
     let message = seat.mcp.expect_err("store_status", json!({}));
     let e: Value = serde_json::from_str(&message).unwrap_or_else(|_| panic!("{message}"));
     assert_eq!(e["kind"], "not_logged_in", "{e}");
@@ -581,7 +580,7 @@ fn the_requests_account_selects_the_store() {
     let (shown, refused) = seat.call("show", &json!({ "id": "bob1", "account": "u-bob" }));
     assert!(!refused, "{shown}");
     assert_eq!(shown["item"]["facts"]["id"], "bob1");
-    // a name no login made is its own kind (C121 as amended), on the
+    // a name no login made is its own kind (C121), on the
     // search's scope and on `show` alike
     let (typo, refused) = seat.call("search", &json!({ "scope": { "account": "carol" } }));
     assert!(refused, "{typo}");
@@ -591,7 +590,7 @@ fn the_requests_account_selects_the_store() {
     assert_eq!(typo["kind"], "unknown_account", "{typo}");
 }
 
-/// C98 through one server (#82): the corpus is held across calls and
+/// C98 through one server: the corpus is held across calls and
 /// checked before every answer, so a tab recorded while the server runs
 /// is in the next answer, at a higher snapshot, and a price written
 /// through the server moves the next answer's intent revision. The
@@ -696,60 +695,50 @@ fn describe_is_as_large_as_its_text_says() {
         assert!(!refused, "{names}: {doc}");
         doc.to_string().len()
     };
-    // the sizes are of the compact JSON the tool returns (#101), the
-    // whole 153,353 bytes of the language alone at the words step, where
-    // `acq search --describe all --json` printed 182,823 pretty; the
-    // whole is `all` since C53's amendment
+    // the sizes are of the compact JSON the tool returns, the whole past
+    // 150 KB of the language alone, which `acq search --describe all
+    // --json` prints larger, pretty; the whole is `all` (C53)
     let (whole, _) = seat.call("describe", &json!({ "names": ["all"] }));
     assert!(whole.to_string().len() > 150_000);
     // some 38 KB, the index: every entry's name and one line, this tool's
-    // own among them (C53 as amended; 38,245 bytes when it was built)
+    // own among them (C53)
     let (index, _) = seat.call("describe", &json!({}));
     let index = index.to_string().len();
     assert!((35_000..41_000).contains(&index), "{index}");
-    // some 80 KB, every computed value's definition (83,448 bytes at r5)
+    // some 80 KB, every computed value's definition
     assert!(size(&mut seat, json!(["computed"])) > 70_000);
     assert!(size(&mut seat, json!(["computed"])) < 90_000);
     // some 20 KB, the trade catalogue's rows (C113), each what the report
-    // says of it since the trade seat (21,633 bytes then, 22,439 at r5,
-    // 24,359 with the report an answer carries, #83)
+    // an answer carries says of it
     assert!(size(&mut seat, json!(["trade"])) < 25_000);
     assert!(size(&mut seat, json!(["trade"])) > 18_000);
     // some 20 KB since the property fields joined it (C114)
     assert!(size(&mut seat, json!(["fields"])) < 24_000);
     assert!(size(&mut seat, json!(["fields"])) > 16_000);
-    // some 10 KB, every category id with what makes it hold (10,734 at r5)
+    // some 10 KB, every category id with what makes it hold
     assert!(size(&mut seat, json!(["categories"])) < 13_000);
     assert!(size(&mut seat, json!(["categories"])) > 8_000);
-    // some 7 KB, every key an answer prints and what it counts (#83:
-    // 5,340 bytes when the anatomy left `search`'s text; 7,120 once
-    // `list_seen` named the lists it is the oldest of, the answer-facts
-    // seat's run 2, cli fault 8; 7,401 with round A's `unmatched_leagues`;
-    // 7,786 with a row's `values` and the order the query gives, step 6.1;
-    // 8,043 once the totals' source names the row a patch's rewording
-    // carried by its stats, #276; 9,214 with the tables' game and the
-    // store's, each sentence quoted whole, #277)
+    // some 9 KB, every key an answer prints and what it counts: the
+    // lists `list_seen` is the oldest of, `unmatched_leagues`, a row's
+    // `values` and the order the query gives, the totals' source naming
+    // the row a patch's rewording carried by its stats, and the tables'
+    // game and the store's, each sentence quoted whole
     let answer = size(&mut seat, json!(["answer"]));
     assert!(answer < 9_400, "answer: {answer} bytes");
     assert!(size(&mut seat, json!(["answer"])) > 4_000);
-    // some 8 KB since a show's counts joined it (step 2g, round 2: 4,541
-    // bytes of entries then), the shop's substash rule the receipt's
-    // `note` (the league seat, fault 4: 7,131 bytes) and the invalid tab
-    // names the status counts (#170: 8,210 bytes)
+    // some 8 KB, with a show's counts, the shop's substash rule the
+    // receipt's `note` and the invalid tab names the status counts
     let pricing = size(&mut seat, json!(["pricing"]));
     assert!(pricing < 9_000, "pricing: {pricing} bytes");
     assert!(size(&mut seat, json!(["pricing"])) > 6_000);
-    // some 6 KB since the leagues held and the stored list joined it
-    // (round 5 of the answer-facts group: 5,150 bytes, from just under
-    // the small sections' 4,000 before) and the facts blocks of `store
-    // status` and `tabs` (#172: 6,367 bytes)
+    // some 6 KB, with the leagues held, the stored list, and the facts
+    // blocks of `store status` and `tabs`
     let store = size(&mut seat, json!(["store"]));
     assert!(store < 7_000, "store: {store} bytes");
     assert!(size(&mut seat, json!(["store"])) > 4_000);
-    // some 4 KB since a stash job judged against the stored listing
-    // joined the jobs entry (C164, #166: 3,972 bytes before it); some 5
-    // KB since a job's times and a failure's kinds joined the outcome
-    // entry (C165, #165: 5,125 bytes)
+    // some 5 KB, with a stash job judged against the stored listing in
+    // the jobs entry (C164), and a job's times and a failure's kinds in
+    // the outcome entry (C165)
     let daemon = size(&mut seat, json!(["daemon"]));
     assert!(daemon < 6_000, "daemon: {daemon} bytes");
     assert!(daemon > 5_000, "daemon: {daemon} bytes");
@@ -764,7 +753,7 @@ fn describe_is_as_large_as_its_text_says() {
         "daemon",
     ];
     // the pricing model and the daemon's entries are this tool's own
-    // sections beside the language's (#83)
+    // sections beside the language's
     for section in acquisition_search::describe::SECTIONS
         .into_iter()
         .chain(["pricing", "daemon", "store"])
@@ -796,16 +785,15 @@ fn describe_is_as_large_as_its_text_says() {
 
 /// TRADE_ID of the CLI's `tests/search_json.rs`, the same search: the
 /// status listing-only, the explicit life lines' sum at 70 or more, and a
-/// crucible tree path in the remainder (a `count` with no bound until step
-/// 7f made it the site's no-op).
+/// crucible tree path in the remainder (a `count` with no bound, the
+/// site's no-op).
 const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
-/// C113, step 5 of the trade brief: `show`'s `against` takes a site search
-/// as a query, its report beside the text, and only in the item's realm
-/// (K6; the outside review of step 5: an xbox URL showed a pc item a
-/// match). The request-level rules (a continuation keeps the site search,
-/// an edited text, a realm beside a URL, a trade that is none) are the
-/// search crate's (`next.rs`).
+/// C113: `show`'s `against` takes a site search as a query, its report
+/// beside the text, and only in the item's realm (K6: else an xbox URL
+/// would show a pc item a match). The request-level rules (a continuation keeps
+/// the site search, an edited text, a realm beside a URL, a trade that is none)
+/// are the search crate's (`next.rs`).
 #[test]
 fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
     let mut seat = Seat::new();
@@ -827,12 +815,11 @@ fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
     assert_eq!(e["kind"], "trade", "{e}");
 }
 
-/// A reader took a trade answer's `fidelity: exact` for "the site would
-/// show me the same", reading "partial … the answer then not the site's"
-/// as its converse (the trade seat: mcp-opus calls 1, 11, its worst
-/// fault). The trade section's report, read by name, says what fidelity
-/// measures and that the items are the store's, never the site's
-/// listings.
+/// A reader can take a trade answer's `fidelity: exact` for "the site
+/// would show me the same", reading "partial … the answer then not the
+/// site's" as its converse. The trade section's report, read by name,
+/// says what fidelity measures and that the items are the store's, never
+/// the site's listings.
 #[test]
 fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
     let mut seat = Seat::new();
@@ -846,11 +833,9 @@ fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
     }
 }
 
-/// `scope.never_fetched` was printed beside every answer and explained
-/// nowhere: a reader could not say what it counts or that an answer is
-/// blind to it (the trade seat: mcp-opus call 3, its fault 4; mcp-sonnet
-/// call 4, its faults 3 and 5 and its debrief's answer 5). The answer
-/// section says it, read by name.
+/// `scope.never_fetched` is printed beside every answer, and a reader
+/// must be able to say what it counts and that an answer is blind to it:
+/// the answer section says it, read by name.
 #[test]
 fn the_never_fetched_count_says_what_it_counts_and_what_no_answer_sees() {
     let mut seat = Seat::new();
@@ -863,10 +848,9 @@ fn the_never_fetched_count_says_what_it_counts_and_what_no_answer_sees() {
     }
 }
 
-/// A pattern term's `resolved` values were read as the answer's tier
+/// A pattern term's `resolved` values can be read as the answer's tier
 /// breakdown, tier 13 and other leagues among them, and `scope.items` as
-/// the matches' base (the trade seat: mcp-sonnet calls 4, 19, 20, its
-/// faults 1 and 2). The answer section says each term is alone over the
+/// the matches' base. The answer section says each term is alone over the
 /// scope, never over the matches, what `resolved` is, and what `items`
 /// counts.
 #[test]
@@ -882,11 +866,10 @@ fn a_terms_counts_and_resolved_values_are_said_to_be_over_the_scope() {
     }
 }
 
-/// `against` gave `match` for a group and `matched` for each term, two
-/// words a reader took for one outcome (the trade seat: mcp-opus call 37,
-/// its fault 8). By design a term counts and a group is true or false;
-/// `against`'s entry in the language, read by name, names both
-/// vocabularies.
+/// `against` gives `match` for a group and `matched` for each term, two
+/// words a reader can take for one outcome. By design a term counts and a group
+/// is true or false; `against`'s entry in the language, read by name, names
+/// both vocabularies.
 #[test]
 fn show_names_a_terms_outcomes_and_a_groups() {
     let mut seat = Seat::new();
@@ -944,10 +927,9 @@ fn keys_in_order(text: &str) -> Vec<String> {
     keys
 }
 
-/// C115: "I learned to scroll for `total`" (the trade seat, mcp-opus-2):
-/// the result's text held the answer's keys in alphabetical order —
-/// basis, query, rows, scope, terms, total, view — so the terms block and
-/// the basis stood before the total. The text now holds them in the
+/// C115: in alphabetical order — basis, query, rows, scope, terms, total,
+/// view — the answer's keys put the terms block and the basis before the
+/// total, and a reader scrolled for `total`. The text holds them in the
 /// order a reader needs: the query, the scope, the total, the rows and
 /// the view with its way on, then the terms and the basis, the basis's
 /// time in words after it (C163); a site search's report opens the query,
@@ -1000,14 +982,12 @@ fn the_answers_text_leads_with_its_total_never_with_its_terms() {
     );
 }
 
-/// C115: `tabs` answered the owner's Standard in 745,672 bytes with no
-/// limit, cut to its head by the door in three of the trade seat's runs
-/// (mcp-opus-1 call 9, mcp-opus-2 call 10, mcp-sonnet-2 call 6). The
-/// listing rule is the search crate's (`tabs.rs`); here, the adapter's
-/// part over 41 tabs: the answer's size, the counts first in its text,
-/// `limit` and `expand` mapped, and the document `acq tabs --json`
-/// prints; and over a league of thirty or fewer, once listed whole, the
-/// same ten (C53, the one rule).
+/// C115: with no limit, `tabs` answered one Standard league in 745,672
+/// bytes, which the door cut to its head. The listing rule is the search
+/// crate's (`tabs.rs`); here, the adapter's part over 41 tabs: the answer's
+/// size, the counts first in its text, `limit` and `expand` mapped, and the
+/// document `acq tabs --json` prints; and over a league of thirty or fewer,
+/// the same ten (C53, the one rule).
 #[test]
 fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     let mut seat = Seat::new();
@@ -1027,7 +1007,7 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     let (printed, ok) = cli(&seat.base, &["tabs"]);
     assert!(ok);
     assert_eq!(printed, tabs.clone());
-    // #172: the league's facts block over its tabs, and the store's over
+    // the league's facts block over its tabs, and the store's over
     // every realm and league, alike on both surfaces
     for key in ["oldest_fetch", "newest_fetch_location", "list_seen"] {
         assert!(!tabs[key].is_null(), "{key}: {tabs}");
@@ -1083,8 +1063,7 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(printed, small);
 
     // a map tab the listing retired leaves its substash's row (C54), and
-    // the leagues held beside the rows count it out as the rows do (the
-    // review of round C's fix round, finding 2)
+    // the leagues held beside the rows count it out as the rows do
     let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
     let maps = Endpoint::Stashes {
         realm: "pc".into(),
@@ -1180,8 +1159,7 @@ fn the_search_tools_words_name_tab_public_every_fidelity_and_a_sums_sources() {
     );
 }
 
-/// The never fetched by name (the re-sit, every run's first or second
-/// ask: mcp-opus calls 34-37, mcp-sonnet 18-23): `type` and
+/// The never fetched by name (an agent's first or second ask): `type` and
 /// `never_fetched` map to the selection, held equal to `acq tabs --type …
 /// --never-fetched --json`, and `expand` lists the selection whole; what
 /// the selection holds is the search crate's (`tabs.rs`).
@@ -1233,11 +1211,9 @@ fn tabs_lists_the_never_fetched_of_one_type() {
     assert_eq!(printed, more);
 }
 
-/// A row's place carried no age (the trade seat: mcp-sonnet-2 calls 3, 14,
-/// 24, its fault 4). C118: the place carries its location's `fetched_at`,
-/// and the answer section names it; C53 (ages amended, step 2g round 6):
-/// beside it the age in words, as the CLI's row prints it, so no agent
-/// subtracts an epoch from a clock it has to ask for.
+/// C118: a row's place carries its location's `fetched_at`, and the
+/// answer section names it; C53: beside it the age in words, as the CLI's row
+/// prints it, so no agent subtracts an epoch from a clock it has to ask for.
 #[test]
 fn a_rows_place_carries_when_its_location_was_fetched() {
     let mut seat = Seat::new();
@@ -1261,9 +1237,8 @@ fn a_rows_place_carries_when_its_location_was_fetched() {
     );
 }
 
-/// `scope.never_fetched` stood unsized and which tabs it counted could not
-/// be learned (the trade seat: mcp-opus-2 calls 3, 10, its fault 2;
-/// mcp-sonnet-2 reading 2,940 as items). C118: the answer section says
+/// C118: which tabs `scope.never_fetched` counts can be learned, so a
+/// count of tabs is never read as one of items: the answer section says
 /// the scope counts the never fetched by tab type as `tabs` counts a type,
 /// and names `tabs` as the list.
 #[test]
@@ -1272,8 +1247,7 @@ fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
     let text = described(&mut seat, "answer");
     for said in [
         "`never_fetched_by_type` is the same by tab type",
-        // what each type row counts, `never` among them (round 6's
-        // build review: the corrected extent was printed and unpinned)
+        // what each type row counts, `never` among them
         "`fetched` how many of them were and `never` how many were not",
         "`items` the live items at every location of the type, fetched or not",
         "`tabs` lists a league's tabs",
@@ -1309,7 +1283,7 @@ fn the_search_tool_is_acq_search_request() {
     assert_eq!(offered["total"]["matched"], 5, "{offered}");
 }
 
-/// The matches' fetch span (#155) survives the tool's serialization whole:
+/// The matches' fetch span survives the tool's serialization whole:
 /// on a match every key of `total`'s span, beside the CLI's same
 /// document; on none, `places` 0 and no other.
 #[test]
@@ -1419,9 +1393,9 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     );
 }
 
-/// The build review's P3: `names` says a name within a section answers
-/// alone, and the own sections' entries did not — `revision`, an entry
-/// of `pricing`, was sent to the language and refused. An own entry
+/// `names` says a name within a section answers alone, so an own
+/// section's entry must too, or `revision`, an entry of `pricing`, is
+/// sent to the language and refused. An own entry
 /// answers to its name, alone in its section, as the language's do; and
 /// no own name is one the language knows, so a name has one reading.
 #[test]
@@ -1461,10 +1435,10 @@ fn an_own_sections_entry_answers_to_its_name() {
     }
 }
 
-/// The fix round's review, P3: an entry that answers alone never points
-/// at a sibling by position. `status counts` said `by_effective` and
-/// `by_relation` count "by the two words above", which an agent asking
-/// for it alone never saw; read alone, it says each count's words.
+/// An entry that answers alone never points at a sibling by position:
+/// `status counts` saying `by_effective` and `by_relation` count "by the
+/// two words above" points at what an agent asking for it alone never
+/// sees; read alone, it says each count's words.
 #[test]
 fn the_status_counts_entry_reads_alone() {
     let mut seat = Seat::over(scratch("mcp-search"));
@@ -1478,11 +1452,11 @@ fn the_status_counts_entry_reads_alone() {
     assert!(!text.contains("above"), "{text}");
 }
 
-/// C149, the MCP's pin: every answer this step wrapped is one object
+/// C149, the MCP's pin: every answer listed here is one object
 /// carrying the counts its text prints — `characters`, `item_events` and
 /// its summary, `accounts`, `sync_policy` with no policy, and `list_jobs`
 /// with no daemon — and the server's one door for answers refuses any
-/// other shape (`told_as`), so no tool answers a bare array again.
+/// other shape (`told_as`), so no tool answers a bare array.
 #[test]
 fn c149_every_answer_the_step_wrapped_is_one_object() {
     let mut seat = Seat::new();
@@ -1526,7 +1500,7 @@ fn c149_every_answer_the_step_wrapped_is_one_object() {
     assert_eq!(jobs["running"], false, "{jobs}");
 }
 
-/// Round 5 of the answer-facts group (#157): the `leagues` tool reads the
+/// The `leagues` tool reads the
 /// stored league list with no daemon, `stored: true` required, the same
 /// document `acq leagues --stored --json` prints; never fetched says so;
 /// a list of twelve is ten with the rest counted and `expand` all, as is
@@ -1629,7 +1603,7 @@ fn the_leagues_tool_reads_the_stored_list_and_each_one_league_tool_says_what_els
     let (e, refused) = seat.call("leagues", &json!({ "stored": true }));
     assert!(refused, "{e}");
     assert_eq!(e["kind"], "ambiguous_account", "{e}");
-    // #168's text half, in the tool's own terms (C143): one request per
+    // in the tool's own terms (C143): one request per
     // account, the same call as each, sent back as printed
     let offers = e["offers"].as_array().unwrap_or_else(|| panic!("{e}"));
     assert_eq!(offers.len(), 2, "{e}");

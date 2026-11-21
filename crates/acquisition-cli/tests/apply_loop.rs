@@ -1,14 +1,12 @@
-//! The tracer's plan→apply→replan loop at process level (step 7): a real
-//! daemon over the in-process mock provider, a scripted browserless login,
-//! and the CLI as the only interface — the loop must *close*: each apply
-//! executes exactly its plan's actions (C38, C43: one child per tuple,
-//! `children.done` equals `requests`), discovery (substash stubs) waits
-//! for the next plan instead of expanding the current one, the admission
-//! budget refuses a plan whole and the next plan still owes every fetch
-//! (C42), and after a bootstrap listing plus two reconciliation cycles
-//! the plan is empty.
-//! The policy names tabs and characters together (characters joined the
-//! plan 2026-09-02): both listings in the bootstrap cycle, both facets'
+//! The plan→apply→replan loop at process level: a real daemon over the
+//! in-process mock provider, a scripted browserless login, and the CLI as the
+//! only interface — the loop must *close*: each apply executes exactly its
+//! plan's actions (C38, C43: one child per tuple, `children.done` equals
+//! `requests`), discovery (substash stubs) waits for the next plan instead of
+//! expanding the current one, the admission budget refuses a plan whole and the
+//! next plan still owes every fetch (C42), and after a bootstrap listing plus
+//! two reconciliation cycles the plan is empty. The policy names tabs and
+//! characters together: both listings in the bootstrap cycle, both facets'
 //! fetches in the next, and the character facts on record at the end.
 //!
 //! Slow-ish on purpose (one daemon, ~21 mock sends, real waits): this is
@@ -207,7 +205,7 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     // Stays a literal: a failed apply prints the daemon log's path, whose
     // directory is the world's hash, which no golden rule normalises.
     // The failure's report is on stderr, as `acq result` prints it below
-    // (#101: one stream for a failed job's report on both verbs); stdout
+    // (one stream for a failed job's report on both verbs); stdout
     // keeps the submission and what the store took.
     let out = acq(&base, &["refresh", &format!("--apply={}", file.display())]);
     let said = String::from_utf8_lossy(&out.stderr).into_owned();
@@ -263,13 +261,12 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     assert!(failed[0]["error"].is_string(), "{doc}");
 }
 
-/// C190 as #291 amended it: an apply over a route closed at the cap
-/// waits, its progress line saying the closure in the status's words and
-/// when the trial goes; nothing ends it but its jobs or a person, whose
-/// reset opens the route, and the same apply goes on. The closure is
-/// staged in the world's rails state at the cap, its trial an hour off,
-/// where a daemon keeps it across lifetimes. The test waits on the
-/// apply's own output, then on its exit, each under the harness's
+/// C190: an apply over a route closed at the cap waits, its progress line
+/// saying the closure in the status's words and when the trial goes; nothing
+/// ends it but its jobs or a person, whose reset opens the route, and the same
+/// apply goes on. The closure is staged in the world's rails state at the cap,
+/// its trial an hour off, where a daemon keeps it across lifetimes. The test
+/// waits on the apply's own output, then on its exit, each under the harness's
 /// deadline, never on a sleep's length.
 #[test]
 fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
