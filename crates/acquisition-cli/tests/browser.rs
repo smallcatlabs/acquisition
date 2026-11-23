@@ -370,6 +370,22 @@ impl Page {
             .to_string()
     }
 
+    /// Wait until the count's script asks the `count` route for `form`'s
+    /// fields as they stand, among the requests noted since they were
+    /// last cleared, then until `form` shows the server's total for them:
+    /// an operation that changes the fields is seen to ask, whatever the
+    /// total it leads to. `Network` must be enabled.
+    fn asks(&mut self, web: &harness::WebUi, form: &str) -> String {
+        let fields = self.cdp.eval(&format!(
+            "new URLSearchParams(new FormData({form})).toString()"
+        ));
+        let wanted = format!("/count?{}", fields.as_str().expect("the form's fields"));
+        while !self.cdp.requests.iter().any(|url| url.ends_with(&wanted)) {
+            self.cdp.event("Network.requestWillBeSent");
+        }
+        self.follows(web, form)
+    }
+
     /// Wait until `form` shows the total the server answers for it now.
     fn follows(&mut self, web: &harness::WebUi, form: &str) -> String {
         let expected = self.answered(web, form);
@@ -601,9 +617,15 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
         "the empty form's group holds a row"
     );
 
+    // each add, pick and remove below asks the count itself, seen by the
+    // count's request for the fields it leaves (`Page::asks`)
+    page.cdp.call("Network.enable", json!({}));
+
     // a pick by arrows and Enter, which submits nothing; the min typed
     // where the focus stands
+    page.cdp.requests.clear();
     pick(&mut page, &web, &first, "to maximum life", life);
+    page.asks(&web, SEARCH_FORM);
     assert_eq!(page.cdp.eval("window.submitted"), json!(false));
     let row0 = row(&first, 0);
     assert_eq!(
@@ -634,6 +656,7 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
 
     // a weighted sum added from the menu: its bound shows, the `and`
     // group's does not
+    page.cdp.requests.clear();
     page.cdp
         .click("document.querySelector('.add-group > summary')");
     page.cdp.click(
@@ -658,16 +681,18 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
     ));
     assert!(shows(&mut page, &field(&second, "group.min")));
     assert!(!shows(&mut page, &field(&first, "group.min")));
-    page.follows(&web, SEARCH_FORM);
+    page.asks(&web, SEARCH_FORM);
 
     // two stats picked into it, each with its weight, and its min
     for (m, id) in [life, implicit].into_iter().enumerate() {
+        page.cdp.requests.clear();
         pick(&mut page, &web, &second, "to maximum life", id);
         let added = row(&second, m);
         page.cdp.until(&format!(
             "document.activeElement === {}",
             field(&added, "stat.min")
         ));
+        page.asks(&web, SEARCH_FORM);
         assert!(shows(&mut page, &field(&added, "stat.weight")));
         page.cdp.click(&field(&added, "stat.weight"));
         page.cdp.keys("1");
@@ -698,6 +723,12 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
             weighted,
             "{to}"
         );
+        // a weight left half typed while it shows, which the next type
+        // hides: a field the type does not take never blocks the search
+        if weighted {
+            page.cdp.click(&field(&row0, "stat.weight"));
+            page.cdp.keys("1e");
+        }
         page.follows(&web, SEARCH_FORM);
     }
 
@@ -714,6 +745,11 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
     assert_eq!(total.to_string(), both);
     page.cdp
         .click(&format!("{SEARCH_FORM}.querySelector('button.search-btn')"));
+    assert_eq!(
+        page.cdp.eval("window.submitted"),
+        json!(true),
+        "the browser held the search back"
+    );
     page.loaded_again();
     let counted = match total {
         1 => "1 match".to_string(),
@@ -757,7 +793,8 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
         json!(fields)
     );
 
-    // a row removed, then a group: the count follows each
+    // a row removed, then a group: each asks the count
+    page.cdp.requests.clear();
     page.cdp.click(&format!(
         "{}.querySelector('[data-remove]')",
         row(&second, 1)
@@ -767,7 +804,8 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
             .eval(&format!("{second}.querySelectorAll('.stat-row').length")),
         json!(1)
     );
-    let fewer = page.follows(&web, SEARCH_FORM);
+    let fewer = page.asks(&web, SEARCH_FORM);
+    page.cdp.requests.clear();
     page.cdp
         .click(&format!("{first}.querySelector('.filter [data-remove]')"));
     assert_eq!(
@@ -780,7 +818,7 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
             .eval(&format!("{}.value", field(&first, "group.type"))),
         json!("weight")
     );
-    let last = page.follows(&web, SEARCH_FORM);
+    let last = page.asks(&web, SEARCH_FORM);
     eprintln!("first group alone {alone}; both {both}; a row less {fewer}; a group less {last}");
 }
 

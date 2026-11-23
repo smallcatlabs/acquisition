@@ -232,7 +232,8 @@ mod tests {
     use super::submitted::{submitted, unescaped};
 
     /// The search form's opening tag.
-    const SEARCH_FORM: &str = "<form method=\"get\" action=\"search#answer\" data-count>";
+    const SEARCH_FORM: &str =
+        "<form method=\"get\" action=\"search#answer\" novalidate data-count>";
 
     /// The paths the page names as left out by a search from the form.
     fn named_left(html: &str) -> Vec<String> {

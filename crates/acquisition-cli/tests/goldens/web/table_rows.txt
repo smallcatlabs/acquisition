@@ -101,7 +101,7 @@ GET search?<the table, its first two rows opened>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>

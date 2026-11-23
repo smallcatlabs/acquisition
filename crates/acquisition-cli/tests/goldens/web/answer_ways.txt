@@ -8,7 +8,7 @@ GET search?<every ring, tabs never fetched in two leagues>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -102,7 +102,7 @@ GET search?<every ring outside Standard>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -157,7 +157,7 @@ GET search?<the id that left>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -212,7 +212,7 @@ GET search?<a name eleven items carry>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -350,7 +350,7 @@ GET search?<a site search with an ambiguous clause>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -437,7 +437,7 @@ GET search?<a row that leaves lines out>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -497,7 +497,7 @@ GET search?<a table of two values, priced three ways>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -564,7 +564,7 @@ GET search?<a card whose numbers are links>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -628,7 +628,7 @@ GET search?<a character fetched from a later release>
 <main>
 <h1>Answer</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search#answer" data-count>
+<form method="get" action="search#answer" novalidate data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>

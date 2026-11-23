@@ -718,6 +718,11 @@ fn checked(ticked: bool) -> &'static str {
 /// holds a value. Each control reads its value at its path from the fill
 /// ([`Fill`]); a listing control shows it and sends nothing.
 ///
+/// The form is `novalidate`: what it sends is the fold's to judge, as
+/// the count beside its button already reads it, so a number box holding
+/// what no number reads, shown or hidden by its group's type, never holds
+/// a search back (a browser sends such a box empty).
+///
 /// The form is one realm's render: its league list is that realm's, so
 /// the realm is chosen by a form of its own that renders the page again,
 /// and the search carries the realm shown.
@@ -729,7 +734,7 @@ pub(crate) fn search_form(
     let fill = &filled.fill;
     let realm = filled.realm.as_str();
     let mut out = format!(
-        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search#{ANSWER}\" data-count>\n<div class=\"search-bar\">\n<div class=\"search-left\">"
+        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search#{ANSWER}\" novalidate data-count>\n<div class=\"search-bar\">\n<div class=\"search-left\">"
     );
     out.push_str(&format!(
         "<input class=\"item-search\" name=\"query.term\"{} placeholder=\"Search items\" aria-label=\"Search items\">{}</div>\n<div class=\"search-right\">",

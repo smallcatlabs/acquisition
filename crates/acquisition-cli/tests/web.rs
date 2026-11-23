@@ -467,7 +467,7 @@ fn ring_search() -> Vec<(&'static str, &'static str)> {
 }
 
 /// The search form's opening tag on every page that carries it.
-const SEARCH_FORM: &str = "<form method=\"get\" action=\"search#answer\" data-count>";
+const SEARCH_FORM: &str = "<form method=\"get\" action=\"search#answer\" novalidate data-count>";
 
 /// The search route asked with a form's fields as a browser sends them.
 fn sent_path(fields: &[(String, String)]) -> String {
