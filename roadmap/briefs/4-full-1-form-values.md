@@ -50,15 +50,23 @@ The design session's (C172, who designs), each settled:
    (#304) and the `303` is the page less it. Where the list is full
    (`VALUES`), the page lands where the search's own refusal of a
    longer list speaks (C143), never silently unchanged. A place page
-   sent `view.by` with no place open refuses it in words: no rows say
-   an order there. *Declined:* a view field the fold reads.
+   that would draw no item heads (no place open, an open tab with no
+   match, a folder whose children are closed) refuses `view.by` in
+   words: no rows say an order there. *Declined:* a view field the
+   fold reads.
 4. **One function lists, in the search crate** (C46): the value the
    translation compares for a bounded filter on one entry, a stat's
    or a number field's: what `trade_value` makes from a line's stat
-   id, made a public function of an entry, `trade_value` its caller. An entry is listed exactly where it answers a value.
-   Names are the site's: a stat's texts, a field's catalogue label.
-   The form's number fields first, then the stats in the vocabulary's
-   order; the first `PICKED` with a value listed, the rest counted.
+   id, made a public function of an entry, `trade_value` its caller
+   and keeping its own rule (a line's slot, a `Sum` alone). An entry
+   is listed exactly where it answers a value of any kind, a pseudo
+   total's too: every stat of the vocabulary and
+   every catalogue row the form renders as a number box (`minmax*`,
+   `sockets`) is put to it, and no shape decides. Names are the
+   site's: a stat's texts, a field's catalogue label. The number
+   fields first, then the stats in the vocabulary's order; the first
+   `PICKED` with a value listed, those past it counted after the
+   filter.
 5. **One route, one field**: `stats` asked for values (`values=true`)
    answers JSON where asked, else the options, each a `<button
    type="submit" role="option" name="view.by" value="…">` in its `<li>`.
@@ -82,8 +90,8 @@ The design session's (C172, who designs), each settled:
   drive it.
 - `git grep -ln 'data-finder\|view\.sort' crates/acquisition-cli/tests/goldens/web/`:
   the goldens the finder changes.
-- `grep -c 'shape = "minmax' crates/acquisition-search/reference/trade-catalogue-v1.toml`:
-  the number fields the listing may hold.
+- `grep -n -B3 'shape = "minmax\|shape = "sockets"' crates/acquisition-search/reference/trade-catalogue-v1.toml`:
+  the number boxes the listing puts to the function.
 - `git grep -n 'c16_no_served_script\|SCRIPTS' crates/acquisition-cli/tests/ ':!*/goldens/*'`:
   the scan the scripts meet.
 
@@ -98,12 +106,15 @@ The design session's (C172, who designs), each settled:
 - With no browser, in the search crate: every value the listing can
   offer, over every stat of the vocabulary and every number field of
   the catalogue, is taken by the search as an order (read as a
-  request's `view.sort`, refused by none); a stat with no value is
-  not listed (a named case).
+  request's `view.sort`, refused by none); and the listing, before
+  its limit, is exactly the entries the function answers a value for
+  (both ways), a pseudo total (the sitting's total elemental
+  resistance) and a stat with no value among the named cases.
 - `tests/web.rs`: `view.by` on the search page and a place page
   answers `303` to the head link's URL; beside a count, to the page
   less it; past a full list, the search's refusal; on a place page
-  with none open, a usage refusal; `stats?values=true` asked for JSON
+  with no place open, a tab of no match and a folder alone open, a
+  usage refusal; `stats?values=true` asked for JSON
   answers the listing. The fold never sees `view.by` (a test).
 - `git grep -n 'stats' crates/acquisition-cli/src/web/assets/` finds
   nothing; the scan's breakers still refuse a script naming a field.
@@ -118,8 +129,7 @@ The design session's (C172, who designs), each settled:
   7); the look (#285); a remembered view.
 - A widened translation or a value no entry reaches today (§6); a new
   route; a script that composes a value or a URL.
-- A change to the language, the vocabulary's existing JSON or what a
-  head's link writes.
+- A change to the language, the vocabulary's JSON or a head's link.
 
 ## Rules
 `TEMPLATE.md`. Every `acq` is in a mock world (the mock-session
