@@ -2687,6 +2687,40 @@ def round_zb(earlier):
     return rows
 
 
+def round_zc(earlier):
+    """The repair of the sitting of 2026-11-23, composed from its counts:
+    zb14 asked the abyssal line with `sockets` `max` 0 and was sent belts
+    with a socket `A`, zb07 having shown `min` counts one. Either the site
+    reads a `max` of 0 as no bound, or `max` counts no abyssal socket."""
+    composed = Composed("zc", 2, earlier)
+    add = composed.add
+
+    def bounded(option, group_id, name, value, item_type=None, unique=None):
+        filters = dict(category(option))
+        filters[group_id] = {"disabled": False, "filters": {name: value}}
+        q = batch_query([], filters, item_type)
+        if unique:
+            q = {"status": q["status"], "name": unique, **{k: v for k, v in q.items() if k != "status"}}
+        return q
+
+    add("`sockets` `max` 1 on `Darkness Enthroned`, zb04's fetched showing the belt with two sockets `A` and "
+        "with one. Each of the ten fetched with one: `max` counts an abyssal socket, and zb14's `max` 0 was "
+        "read as no bound; one with two: `max` counts no abyssal socket", "zb04, the belt alone",
+        bounded("accessory.belt", "socket_filters", "sockets", {"max": 1}, "Stygian Vise", "Darkness Enthroned"))
+    add("`sockets` `max` 0 under `armour.chest`. A fetched item with a socket: the site reads a `max` of 0 as "
+        "no bound, and the row's `sockets<=0` is not the site's; none, or each fetched with no socket: 0 "
+        "bounds", "u059 found chests of six sockets", bounded("armour.chest", "socket_filters", "sockets",
+                                                              {"max": 0}))
+    add("`misc_filters.quality` `max` 0 under `armour.chest`: whether a `max` of 0 is no bound on every range "
+        "or on the sockets' alone. A fetched item showing a quality: no bound on a range either; each "
+        "fetched with none: a range's 0 bounds", "zc02, the same bound on the sockets",
+        bounded("armour.chest", "misc_filters", "quality", {"max": 0}))
+    rows = composed.done()
+    if len(rows) != 3:
+        raise SystemExit(f"round zc has {len(rows)} searches, its names written for 3")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2730,6 +2764,7 @@ def compose_sheet(method="site"):
         searches += round_z(searches)
         searches += round_za(searches)
         searches += round_zb(searches)
+        searches += round_zc(searches)
     return searches
 
 
