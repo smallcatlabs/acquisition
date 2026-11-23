@@ -1,0 +1,13 @@
+`roadmap/briefs/4-full-1-form-rows.md` at `80c7638f`: a builder could start, but the completion criteria need changes before closing the step.
+
+- **Done when, first bullet — changes what gets built.** Positive weights do not guarantee that the weighted group actually runs. `trade/translate.rs::weighted` rejects unequal weights and bounds whose division by the weight is not an exact decimal. Two positive weights of 1 and 2 therefore allow the specified test to pass: the server omits the unsupported group, answers consistently, and refills its source fields. **Smallest change:** require the translation report to show both groups running, using a representable weighted case, and require fixtures whose results distinguish the weighted constraint being applied from being omitted.
+
+- **Done when / Decision 6 — changes what gets built.** The browser checks cover cancellation after Escape but omit cancellation after picking an option, although the browser-check ruling requires the script’s presentation rule to be exercised. A displayed listing with a newer request pending is the concrete case: picking must clear the finder and prevent that pending reply from restoring it. **Smallest change:** extend the intercepted-request check to pick an option before releasing the pending reply, then verify that the finder’s box and list remain empty.
+
+- **Decisions 1 and 4 — wording.** The zero-group rendering rule is ambiguous: Decision 1 requires one empty `and` group, while Decision 4 says a search’s page shows no empty group. Currently `page.rs::stat_groups` uses `groups.len().max(1)` for both cases. The first builder guess is what appears after removing every group and submitting. **Smallest change:** say that empty groups are not preserved, and explicitly state whether one default empty `and` group appears when none survive.
+
+- **Find first, golden sweep — wording.** The bare `disabled` alternative finds unrelated disabled controls. Running it includes `console_realm.txt` and `table_rows.txt` solely because their listing-only Status select is disabled; neither contains the targeted stat rows or enable boxes. **Smallest change:** match named `.disabled` fields instead of every occurrence of `disabled`, alongside the existing stat/group alternatives.
+
+What I did not check: builds, tests, the browser selector probe, or the gate, as instructed. I ran all six read-only “Find first” commands against the clean checkout matching the specified commit. External issue comments and CI conclusions were not independently verified.
+
+What got in my way: #184’s comments are a fixed input without a committed snapshot. Nothing else about the brief’s form or the prompt impeded the review.
