@@ -71,9 +71,9 @@ in the bar; Clear beside Search (the design's §8 step 4). Closes
    `membership` as `search` reads it.
 7. **The golden's cut** (`FORM_PANES`) starts at the search bar, so
    the bar, the site box and Clear are in `web/search_form`.
-8. **Open, for the design session**: whether the switch hides a stat
-   the finder lists that runs neither alone nor bounded. Until it
-   answers, the finder lists every stat, each with its fate.
+8. **The finder lists every stat**, whatever the switch, each with its
+   fate where not exact (the design session's): a finder answers what
+   was typed, and a picked row holds a value, which shows.
 
 ## Find first
 - `git grep -n 'read these as the item stands\|"defences"\|name=\\"defences' crates/acquisition-cli/src/web/ crates/acquisition-cli/tests/ ':!*/goldens/*'`:
