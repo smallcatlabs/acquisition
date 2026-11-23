@@ -633,7 +633,8 @@ pub struct Rows {
     pub sort: Option<String>,
     /// The values each row carries, by their texts as `sort` takes one,
     /// in this order: at most [`VALUES`], the sort among them. None
-    /// named: the values the query compares.
+    /// named: the default list, the values the query compares and `stack`
+    /// where a match carries one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub values: Vec<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]

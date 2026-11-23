@@ -136,8 +136,9 @@ pub struct SearchArgs {
     #[arg(long, requires = "sort")]
     pub desc: bool,
     /// A value each row carries, as `--sort` takes one; given again, the
-    /// next. None given, the rows carry the values the query compares, at
-    /// most 12. A sort the list lacks joins it.
+    /// next. None given, the rows carry the values the query compares, and
+    /// `stack`, a stack's count, where a match has one: at most 12. A sort
+    /// the list lacks joins it.
     #[arg(long, value_name = "VALUE")]
     pub value: Vec<String>,
     /// How many rows to return — or, of a count, how many values a table

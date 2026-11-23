@@ -1505,8 +1505,9 @@ fn c140_a_row_carries_the_icon_when_the_view_names_it() {
 /// the place gives them, whatever their ids; a worn, a socketed and a
 /// cell-less item after, by id, though a worn or socketed body's `x`/`y`
 /// would sort it first. A location's items stand together, locations in
-/// the store's order (a character before a tab, tabs by id), and a
-/// continuation goes on in that order.
+/// the store's order (a character before a tab, tabs by id), two tabs of
+/// one id in two leagues two locations, and a continuation goes on in
+/// that order.
 #[test]
 fn a_places_items_stand_as_they_lie_with_no_sort_asked() {
     let at =
@@ -1557,6 +1558,18 @@ fn a_places_items_stand_as_they_lie_with_no_sort_asked() {
         vec![at("bb", 1, 0), at("ab", 0, 0)],
         21,
     );
+    // a tab of another league with the first's id, its one item between
+    // the first's in id and in cell: a location of its own
+    list_tabs(&mut s, "pc", "Hardcore", json!([tab("t1", "Other")]), 22);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Hardcore",
+        "t1",
+        "Other",
+        vec![at("cc", 4, 0)],
+        23,
+    );
     list_characters(
         &mut s,
         "pc",
@@ -1582,7 +1595,8 @@ fn a_places_items_stand_as_they_lie_with_no_sort_asked() {
     let lie = [
         // the character, its inventory by cell, the worn after
         "zj", "zi", "aw", // the first tab: row 0, then row 1, then the cell-less by id
-        "d", "c", "b", "a", "a0", "b0", // the second tab
+        "d", "c", "b", "a", "a0", "b0", // the other league's tab of that id
+        "cc", // the second tab
         "ab", "bb",
     ];
     let ask = |rows: Value| {

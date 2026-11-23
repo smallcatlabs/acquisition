@@ -998,18 +998,21 @@ pub(crate) fn tab_type_unread(place: &Place) -> Option<Unread> {
 /// with one, then by id. A total order, so a continuation's offset is a
 /// place in it (C98).
 fn as_they_lie(items: &mut Vec<Held>) {
-    // a location's index: where its first row stands in the read
-    let mut first: HashMap<(&str, &str, &str), usize> = HashMap::new();
+    // a location's index: where its first row stands in the read, the
+    // location by its full coordinate (C54), so a tab's id in two leagues
+    // is two locations
+    let mut first: HashMap<Coordinate, usize> = HashMap::new();
     let ranks: Vec<usize> = items
         .iter()
         .map(|held| {
-            let facts = &held.item.facts;
+            let place = &held.place;
             let seen = first.len();
             *first
-                .entry((
-                    facts.realm.as_str(),
-                    facts.location_kind.as_str(),
-                    facts.location_id.as_str(),
+                .entry(coordinate(
+                    &place.realm,
+                    &place.kind,
+                    &place.id,
+                    place.league.as_deref(),
                 ))
                 .or_insert(seen)
         })
