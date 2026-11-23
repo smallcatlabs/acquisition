@@ -1772,10 +1772,26 @@ pub fn panes_golden(file: &str, name: &str, pages: &mut Pages) {
             "# golden {stem}/{name}: the search form from its bar, cut from every page \
              golden whose page carries it, each page's facts checked in that page as served \
              (C122). Regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.\n\n{}",
-            pages.rules(panes)
+            pages.rules(&world_leagues(panes))
         ),
     );
     pages.panes_pinned = true;
+}
+
+/// The form's league list, the world's and not the form's, masked in the
+/// one golden of the form ([`panes_golden`]), which tests over different
+/// worlds share: each page whose list differs from its own world's empty
+/// form records its league line as filled, as before.
+fn world_leagues(panes: &str) -> String {
+    let open = "<select name=\"league\">";
+    let Some(from) = panes.find(open).map(|at| at + open.len()) else {
+        return panes.to_string();
+    };
+    let to = from
+        + panes[from..]
+            .find("</select>")
+            .expect("a closed league select");
+    format!("{}<the world's leagues>{}", &panes[..from], &panes[to..])
 }
 
 /// Compare `actual` with the golden `<stem>/<name>.txt`, or write it
