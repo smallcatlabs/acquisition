@@ -11,8 +11,8 @@
 //! cannot be read, and a value the fields cannot read as a number.
 //!
 //! They reach the sockets (C101): `sockets`, `links` and
-//! `sockets.<colour>` as comparisons, `has:` and sorts, `linked( … )` as
-//! a group of colour and size counts in the one composition — and the
+//! `sockets.<word>` as comparisons, `has:` and sorts, `linked( … )` as
+//! a group of socket words' and size counts in the one composition — and the
 //! collection's own holes: no array, an element that is no socket, a
 //! socket whose colour could not be read (an `attr` and no `sColour`),
 //! and one whose group could not.
@@ -501,6 +501,7 @@ fn plain() -> BoxedStrategy<Q> {
             "sockets.blue=0",
             "sockets.white>=1",
             "sockets.green<=1",
+            "sockets.abyssal>=1",
             "category=weapon",
             "category=\"accessory.ring\"",
             "category=accessory",
@@ -605,12 +606,15 @@ fn pseudo_leaf() -> BoxedStrategy<Q> {
     .boxed()
 }
 
-/// A link group's leaves: a colour's count or the group's size, compared
-/// within the range a generated collection reaches, and the constants.
+/// A link group's leaves: a socket word's count or the group's size,
+/// compared within the range a generated collection reaches, and the
+/// constants.
 fn link_leaf() -> BoxedStrategy<G> {
+    let mut attrs = acquisition_search::sockets::words();
+    attrs.push("size");
     prop_oneof![
         6 => (
-            proptest::sample::select(vec!["red", "green", "blue", "white", "size"]),
+            proptest::sample::select(attrs),
             proptest::sample::select(vec![">=", ">", "<=", "<", "="]),
             0i32..=4,
         )
@@ -1418,9 +1422,14 @@ impl Sock {
     }
 }
 
-/// The colours a generated socket takes: the four words' letters and an
-/// abyssal socket's, which no word names.
-const LETTERS: [&str; 5] = ["R", "G", "B", "W", "A"];
+/// The letters a generated socket takes: every socket word's, in the
+/// table's order.
+static LETTERS: std::sync::LazyLock<Vec<&'static str>> = std::sync::LazyLock::new(|| {
+    acquisition_search::sockets::SOCKET_WORDS
+        .iter()
+        .map(|s| s.letter)
+        .collect()
+});
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Socks {
@@ -1522,7 +1531,7 @@ fn prop(name: PropName, holes: bool) -> BoxedStrategy<Prop> {
 
 fn sock(holes: bool) -> BoxedStrategy<Sock> {
     let hole = if holes { 1 } else { 0 };
-    let letter = proptest::sample::select(LETTERS.to_vec());
+    let letter = proptest::sample::select(LETTERS.clone());
     prop_oneof![
         8 => (letter.clone(), 0u8..3).prop_map(|(c, g)| Sock::Of(c, g)),
         hole => (0u8..3).prop_map(Sock::Blind),

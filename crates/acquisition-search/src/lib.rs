@@ -172,7 +172,7 @@
 //!   C106): each base's defence ranges and each text a local defence
 //!   stat displays, which the base defence percentile reads.
 //! - [`sockets`] — the socket counts (C101): `sockets`, `links`,
-//!   `sockets.<colour>` and a link group's counts as intervals of what
+//!   `sockets.<word>` and a link group's counts as intervals of what
 //!   was read; `linked( … )` is bound in `group` beside a line's group.
 //! - [`corpus`] — every live item of a scope, derived and classed from one
 //!   snapshot of the store's read (C108) and held with its basis (C98).

@@ -194,9 +194,10 @@ fn c101_sockets_counts_every_socket_and_a_count_is_decided_where_its_interval_ag
 }
 
 /// C101: a colour counted over the whole item, in the language's words
-/// for GGG's letters; an abyssal socket is a socket of no colour word; a
-/// socket whose colour could not be read leaves only the colour counts
-/// open, and one whose group could not be read leaves only `links`.
+/// for GGG's letters, an abyssal socket's `A` among them; a socket whose
+/// colour could not be read leaves only the words' counts open, the
+/// abyssal count as the red, and one whose group could not be read
+/// leaves only `links`.
 #[test]
 fn c101_a_colour_over_the_whole_item_and_what_each_unread_socket_leaves_open() {
     let s = stash();
@@ -206,6 +207,12 @@ fn c101_a_colour_over_the_whole_item_and_what_each_unread_socket_leaves_open() {
     assert_eq!(counts(&a["terms"][0]), [3, 4, 1, 2]);
     assert_eq!(ids(&asked(&s, "pc", "sockets.red=0")), ["abyss", "empty"]);
     assert_eq!(ids(&asked(&s, "pc", "sockets.white>=1")), ["six"]);
+    assert_eq!(ids(&asked(&s, "pc", "sockets.abyssal=1")), ["abyss"]);
+    // a socket whose colour is unread may be abyssal as it may be red
+    assert_eq!(
+        ids(&asked(&s, "pc", "undecided(sockets.abyssal)")),
+        ["blind", "junk", "notarray"]
+    );
     // blind: its count of sockets and its links are read, its colour is not
     assert_eq!(
         ids(&asked(&s, "pc", "id:blind sockets=1 links=1")),
@@ -307,6 +314,58 @@ fn c101_s59_a_link_group_holds_every_count_named_together() {
         a["terms"][0]["lacked"]["request"]["query"]["text"],
         "-has:links"
     );
+}
+
+/// C101, #185: an abyssal socket is asked for by its word, over the item
+/// and within one link group, as a colour is. GGG gives each its own
+/// group, as the site's items show (zb01, zb04): a belt with one `A`, a
+/// Darkness Enthroned with two, each a group of one, and a six-link with
+/// none.
+#[test]
+fn c101_an_abyssal_socket_is_asked_by_its_word_over_the_item_and_in_a_group() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("t1", "T")]), 10);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t1",
+        "T",
+        vec![
+            item(
+                "belt",
+                "Belt",
+                "Stygian Vise",
+                "Rare",
+                sockets_of(&[("A", 0)]),
+            ),
+            item(
+                "enthroned",
+                "Darkness Enthroned",
+                "Stygian Vise",
+                "Unique",
+                sockets_of(&[("A", 0), ("A", 1)]),
+            ),
+            item(
+                "six",
+                "Six",
+                "Vaal Regalia",
+                "Rare",
+                sockets_of(&[("R", 0), ("R", 0), ("G", 0), ("B", 0), ("B", 0), ("W", 0)]),
+            ),
+        ],
+        20,
+    );
+    let asked = |text: &str| ids(&as_json(&ask(&load(&s, Some("pc")), text).unwrap()));
+    assert_eq!(asked("sockets.abyssal>=1"), ["belt", "enthroned"]);
+    assert_eq!(asked("sockets.abyssal=2"), ["enthroned"]);
+    assert_eq!(asked("sockets.abyssal=0"), ["six"]);
+    assert_eq!(asked("linked(abyssal>=1)"), ["belt", "enthroned"]);
+    // each abyssal socket is a group of one: two never share a group
+    assert_eq!(asked("linked(abyssal>=2)"), Vec::<String>::new());
+    assert_eq!(asked("linked(abyssal=1 size=1)"), ["belt", "enthroned"]);
+    // in any case, as every closed word is (B1)
+    assert_eq!(asked("SOCKETS.Abyssal>=2"), ["enthroned"]);
 }
 
 /// C105: `--count sockets` and `--count links` account for every match —
@@ -464,8 +523,8 @@ fn show_gives_every_socket_as_read_and_the_layout_is_one_makers() {
 }
 
 /// What a socket term cannot be is an authoring error before anything is
-/// evaluated, with what was meant offered: a colour word outside the
-/// four, a count a link group has none of, a template or a flag inside
+/// evaluated, with what was meant offered: a word outside the five
+/// socket words, a count a link group has none of, a template or a flag inside
 /// `linked( … )`, a text operator on a number.
 #[test]
 fn a_socket_term_the_language_cannot_say_is_an_authoring_error_with_readings() {
@@ -496,10 +555,11 @@ fn a_socket_term_the_language_cannot_say_is_an_authoring_error_with_readings() {
             "sockets.red>=1",
             "sockets.green>=1",
             "sockets.blue>=1",
-            "sockets.white>=1"
+            "sockets.white>=1",
+            "sockets.abyssal>=1"
         ])
     );
-    // the help names the four and the link group's counts
+    // the help names the five words and the link group's counts
     let d = serde_json::to_value(acquisition_search::describe(&["sockets".to_string()]).unwrap())
         .unwrap();
     let names: Vec<&str> = d["fields"]
@@ -508,10 +568,10 @@ fn a_socket_term_the_language_cannot_say_is_an_authoring_error_with_readings() {
         .iter()
         .map(|f| f["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names, ["sockets", "sockets.<colour>"]);
+    assert_eq!(names, ["sockets", "sockets.<word>"]);
     assert_eq!(
         d["fields"][1]["values"],
-        json!(["red", "green", "blue", "white"])
+        json!(["red", "green", "blue", "white", "abyssal"])
     );
     let d = serde_json::to_value(acquisition_search::describe(&["linked".to_string()]).unwrap())
         .unwrap();
@@ -683,14 +743,14 @@ fn review_a_socket_whose_group_is_unread_is_a_socket_still_and_an_open_group_say
     .unwrap();
     let r = as_json(&answer(&load(&s, Some("pc")), &sorted).unwrap());
     assert_eq!(scalar(sort_value(&r["rows"][0])), json!({ "value": 1 }));
-    // 4: the help answers to each colour field
+    // 4: the help answers to each socket word's field
     let d =
         serde_json::to_value(acquisition_search::describe(&["sockets.red".to_string()]).unwrap())
             .unwrap();
-    assert_eq!(d["fields"][0]["name"], "sockets.<colour>");
+    assert_eq!(d["fields"][0]["name"], "sockets.<word>");
     // in any case, as every name is (B1)
     let d =
         serde_json::to_value(acquisition_search::describe(&["SOCKETS.RED".to_string()]).unwrap())
             .unwrap();
-    assert_eq!(d["fields"][0]["name"], "sockets.<colour>");
+    assert_eq!(d["fields"][0]["name"], "sockets.<word>");
 }

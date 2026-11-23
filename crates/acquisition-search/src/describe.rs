@@ -348,7 +348,7 @@ fn named(name: &str, kind: &'static str, what: &str) -> Named {
 /// id. An unknown name is an authoring error with the near ones offered.
 pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     let mut fields: Vec<Named> = bind::fields()
-        // the four colour fields are one entry, `sockets.<colour>`
+        // the socket words' fields are one entry, `sockets.<word>`
         .filter(|f| !matches!(f.thing, Thing::SocketColour(_)))
         .map(|f| {
             let (kind, values) = match f.kind {
@@ -450,13 +450,20 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
             }
         })
         .collect();
+    let letters = crate::sockets::SOCKET_WORDS
+        .iter()
+        .map(|s| format!("{} {}", s.word, s.letter))
+        .collect::<Vec<_>>()
+        .join(", ");
     fields.push(Named {
-        values: crate::sockets::colour_words(),
-        examples: vec!["sockets.red>=2", "sockets.blue=0"],
+        values: crate::sockets::words(),
+        examples: vec!["sockets.red>=2", "sockets.abyssal>=1"],
         ..named(
-            "sockets.<colour>",
+            "sockets.<word>",
             "number",
-            "how many sockets of one colour the item has, over every link group; GGG's letter for the word (red R, green G, blue B, white W), so an abyssal socket (A) or a resonator's (DV) counts in `sockets` and under no colour",
+            &format!(
+                "how many sockets of one kind the item has, over every link group; GGG's letter for the word ({letters}), so a resonator's socket (DV) counts in `sockets` and under no word"
+            ),
         )
     });
     fields.push(Named {
@@ -513,12 +520,12 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     ];
     let linked = vec![
         Named {
-            values: crate::sockets::colour_words(),
+            values: crate::sockets::words(),
             examples: vec!["linked(red>=3 green>=1)", "linked(blue>=2 or white>=1)"],
             ..named(
-                "red green blue white",
+                &crate::sockets::words().join(" "),
                 "number",
-                "how many sockets of the colour one link group holds; every count named holds together on one group",
+                "how many sockets of each word one link group holds, an abyssal socket a group of its own as GGG gives it; every count named holds together on one group",
             )
         },
         Named {
@@ -752,12 +759,12 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     // positional slots to any `arg<N>`, a block to its own
     let answers = |entry: &str, asked: &str| {
         entry.eq_ignore_ascii_case(asked)
-            // a dotted entry answers to its head: `sockets.<colour>` to `sockets`
+            // a dotted entry answers to its head: `sockets.<word>` to `sockets`
             || entry
                 .split_once('.')
                 .is_some_and(|(head, _)| head.eq_ignore_ascii_case(asked))
-            // and `sockets.<colour>` to each of the four
-            || (entry == "sockets.<colour>"
+            // and `sockets.<word>` to each socket word
+            || (entry == "sockets.<word>"
                 && asked
                     .split_once('.')
                     .is_some_and(|(head, word)| {

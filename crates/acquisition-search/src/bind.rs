@@ -67,10 +67,10 @@
 //!   defines is an unknown name with the near ones offered, with a slot
 //!   word or without.
 //! - **The sockets are numbers** (`sockets.rs`, C101): `sockets`, `links`
-//!   and `sockets.<colour>` for the four colour words are fields of
-//!   `Kind::Number`, so a comparison, `has:`, a sort, a sum and a count's
-//!   key take them as they take `ilvl`; a colour word outside the four is
-//!   an authoring error offering them. A link group, `linked( … )`, is
+//!   and `sockets.<word>` for each socket word (`sockets::SOCKET_WORDS`)
+//!   are fields of `Kind::Number`, so a comparison, `has:`, a sort, a sum
+//!   and a count's key take them as they take `ilvl`; a word outside the
+//!   table is an authoring error offering every one. A link group, `linked( … )`, is
 //!   bound in `group.rs` beside a line's.
 //! - **A tab's type is the place field `tab.type`** (V10): GGG's `type`
 //!   verbatim from the store's read (C108, `corpus::Place`), text like
@@ -246,7 +246,7 @@ pub(crate) enum Thing {
     Sockets,
     /// The size of its largest link group.
     Links,
-    /// How many sockets of one colour, by GGG's letter.
+    /// How many sockets of one socket word, by GGG's letter.
     SocketColour(&'static str),
     /// Whether the item carries an effective price (`price.rs`).
     Price,
@@ -379,37 +379,13 @@ pub(crate) const FIELDS: &[FieldDef] = &[
         name: "sockets",
         thing: Thing::Sockets,
         kind: Kind::Number,
-        what: "how many sockets the item has, of every colour; an item whose body lists none lacks it, and one that lists an empty collection has 0",
+        what: "how many sockets the item has, of every kind; an item whose body lists none lacks it, and one that lists an empty collection has 0",
     },
     FieldDef {
         name: "links",
         thing: Thing::Links,
         kind: Kind::Number,
         what: "the size of the item's largest link group; an item with no link group lacks it",
-    },
-    FieldDef {
-        name: "sockets.red",
-        thing: Thing::SocketColour("R"),
-        kind: Kind::Number,
-        what: "how many red sockets the item has, over every link group",
-    },
-    FieldDef {
-        name: "sockets.green",
-        thing: Thing::SocketColour("G"),
-        kind: Kind::Number,
-        what: "how many green sockets the item has, over every link group",
-    },
-    FieldDef {
-        name: "sockets.blue",
-        thing: Thing::SocketColour("B"),
-        kind: Kind::Number,
-        what: "how many blue sockets the item has, over every link group",
-    },
-    FieldDef {
-        name: "sockets.white",
-        thing: Thing::SocketColour("W"),
-        kind: Kind::Number,
-        what: "how many white sockets the item has, over every link group",
     },
     FieldDef {
         name: "priced",
@@ -491,10 +467,14 @@ pub(crate) const FIELDS: &[FieldDef] = &[
     },
 ];
 
-/// Every field: the language's own, then the property table's
+/// Every field: the language's own, the socket words' (`sockets.rs`, one
+/// a row of its table), then the property table's
 /// (`properties.rs`, C114), each a number defined by its row.
 pub(crate) fn fields() -> impl Iterator<Item = &'static FieldDef> {
-    FIELDS.iter().chain(crate::properties::field_defs())
+    FIELDS
+        .iter()
+        .chain(crate::sockets::field_defs())
+        .chain(crate::properties::field_defs())
 }
 
 fn field(name: &str) -> Option<&'static FieldDef> {
@@ -1229,12 +1209,12 @@ fn known_field(
     if let Some(field) = field(name) {
         return Ok(field);
     }
-    // `sockets.<colour>`: the four colour words, offered whole
-    if let Some(colour) = name.strip_prefix("sockets.") {
-        let words = crate::sockets::colour_words();
+    // `sockets.<word>`: every socket word, offered whole
+    if let Some(word) = name.strip_prefix("sockets.") {
+        let words = crate::sockets::words();
         return Err(LanguageError::new(
             ErrorKind::UnknownValue,
-            format!("`{colour}` is no socket colour: {}", words.join(", ")),
+            format!("`{word}` is no socket word: {}", words.join(", ")),
         )
         .with_readings(
             words

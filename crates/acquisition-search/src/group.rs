@@ -98,7 +98,7 @@
 //!   resolves to itself; and the words a suggestion is scored against.
 //! - **A link group's** (`linked( … )`, C101) is [`Linked`]: the same one
 //!   reader, over the attributes a link group has —
-//!   `red green blue white`, the colour counts, and `size` — each a
+//!   each socket word's count (`sockets::SOCKET_WORDS`) and `size` — each a
 //!   comparison, composed with and, or and not as a line's group is, and
 //!   three-valued on one group of the item as `sockets.rs` counts it: a
 //!   count the group's unread sockets leave open leaves the comparison
@@ -1128,7 +1128,7 @@ enum BLink {
     Any(Vec<BLink>),
     Not(Box<BLink>),
     Const(bool),
-    /// A colour's count in the group, by GGG's letter.
+    /// A socket word's count in the group, by GGG's letter.
     Colour {
         letter: &'static str,
         test: NumTest,
@@ -1142,7 +1142,7 @@ pub(crate) struct Linked(BLink);
 
 /// The attributes a link group has, as the help and an error list them.
 pub(crate) fn link_attributes() -> Vec<&'static str> {
-    let mut out = sockets::colour_words();
+    let mut out = sockets::words();
     out.push("size");
     out
 }

@@ -22,7 +22,7 @@ fields
   ilvl                       number      the item level; GGG's 0 is an item with none
   reqlevel                   number      the level the item requires
   stack                      number      GGG's stackSize
-  sockets                    number      how many sockets the item has, of every colour; an item whose body lists none lacks it, and one that lists an empty collection has 0
+  sockets                    number      how many sockets the item has, of every kind; an item whose body lists none lacks it, and one that lists an empty collection has 0
   links                      number      the size of the item's largest link group; an item with no link group lacks it
   priced                     flag        whether the item carries an effective price
   price.amount               number      the number the effective price states
@@ -81,7 +81,7 @@ fields
   level                      number      a gem's displayed `Level`, `(Max)` beside it read and dropped; the level an item requires is `reqlevel` (properties v1)
   experience                 number      a gem's experience as the percent of its level's
   stored_experience          number      the displayed `Stored Experience` (properties v1)
-  sockets.<colour>           number      how many sockets of one colour the item has, over every link group; GGG's letter for the word (red R, green G, blue B, white W), so an abyssal socket (A) or a resonator's (DV) counts in `sockets` and under no colour
+  sockets.<word>             number      how many sockets of one kind the item has, over every link group; GGG's letter for the word (red R, green G, blue B, white W, abyssal A), so a resonator's socket (DV) counts in `sockets` and under no word
   is                         flag        every yes the item's body says, as GGG spells it; `-is:` is no, silence is any
   has                        flag        presence; absence only when all that could hold the thing was readable
 inside line( … )
@@ -89,8 +89,8 @@ inside line( … )
   source          closed set  the array the line came in, without its `Mods`; hybrid is a vaal gem's base skill
   is              flag        the flags the body sets on the line
 inside linked( … )
-  red green blue white  number      how many sockets of the colour one link group holds; every count named holds together on one group
-  size                  number      how many sockets the link group holds; an item with no link group lacks every `linked( … )`
+  red green blue white abyssal  number      how many sockets of each word one link group holds, an abyssal socket a group of its own as GGG gives it; every count named holds together on one group
+  size                          number      how many sockets the link group holds; an item with no link group lacks every `linked( … )`
 values
   line(P).<slot>  value       one occurrence's number
   sum             value       the item's sum of a slot over the occurrences P selects, exact in decimals; nothing sums to zero; with a possible contributor unread it is incomplete and its comparison undecided. A sum over lines a pattern selects is your arithmetic, never a reviewed total
@@ -337,16 +337,17 @@ more: This is the index, each entry by its name and one line: name an entry for 
 
 $ acq search --describe '~^sockets'
 # holds "pattern ~^sockets — 2 entries, each whole"
-# holds "how many sockets the item has, of every colour"
+# holds "how many sockets the item has, of every kind"
+# holds "abyssal A"
 # holds "more: Each entry a pattern matched is whole here"
 --- stdout
 pattern ~^sockets — 2 entries, each whole
 fields
-  sockets           number      how many sockets the item has, of every colour; an item whose body lists none lacks it, and one that lists an empty collection has 0
-                                e.g. sockets>=5   -has:sockets
-  sockets.<colour>  number      how many sockets of one colour the item has, over every link group; GGG's letter for the word (red R, green G, blue B, white W), so an abyssal socket (A) or a resonator's (DV) counts in `sockets` and under no colour
-                                one of: red, green, blue, white
-                                e.g. sockets.red>=2   sockets.blue=0
+  sockets         number      how many sockets the item has, of every kind; an item whose body lists none lacks it, and one that lists an empty collection has 0
+                              e.g. sockets>=5   -has:sockets
+  sockets.<word>  number      how many sockets of one kind the item has, over every link group; GGG's letter for the word (red R, green G, blue B, white W, abyssal A), so a resonator's socket (DV) counts in `sockets` and under no word
+                              one of: red, green, blue, white, abyssal
+                              e.g. sockets.red>=2   sockets.abyssal>=1
 more: Each entry a pattern matched is whole here; nothing named is the index, every entry by its name and one line.
       at a terminal: `--describe <name>,…` names entries or blocks, `--describe=~<pattern>` a pattern, `--describe all` everything
 

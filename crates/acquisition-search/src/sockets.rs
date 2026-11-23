@@ -1,5 +1,5 @@
-//! The sockets (C101): what `sockets`, `links`, `sockets.<colour>` and a
-//! link group's `red green blue white size` count on one item, and what
+//! The sockets (C101): what `sockets`, `links`, `sockets.<word>` and a
+//! link group's `red green blue white abyssal size` count on one item, and what
 //! leaves each open. Arithmetic over the collection the deriver read
 //! (`derive::Item::sockets`), and nothing of the query tree: what
 //! `linked( … )` means is `group.rs`'s, which reads the counts here.
@@ -8,25 +8,29 @@
 //!
 //! # Rulings held here
 //!
-//! - **C101** (colours over the item and a group): Socket colours are
-//!   asked two ways: over the whole item — `sockets.red>=2`, a count over
-//!   every socket the item has — and within a link group —
-//!   `linked(red>=3 green>=1)`, where every colour and count named must be
-//!   met together by one group (S59). `sockets` is how many sockets the
-//!   item has, `links` the size of its largest link group, a link group's
-//!   `size` its own count. Every socket counts in `sockets`, whatever its
-//!   colour: an abyssal socket (GGG's `A`) and a resonator's (`DV`) are
-//!   sockets, each in a group of its own on the census's copy; the
-//!   colours a query names are four, so an abyssal socket is asked for by
-//!   the line every such item displays (`"Has # Abyssal Sockets"`) and a
-//!   resonator by its base (K1).
+//! - **C101** (colours, and abyssal sockets beside them, over the item
+//!   and within one link group): Socket words are asked two ways: over
+//!   the whole item — `sockets.red>=2`, a count over every socket the item
+//!   has — and within a link group — `linked(red>=3 green>=1)`, where every
+//!   word and count named must be met together by one group (S59).
+//!   `sockets` is how many sockets the item has, `links` the size of its
+//!   largest link group, a link group's `size` its own count. Every socket
+//!   counts in `sockets`, whatever its letter: an abyssal socket (GGG's
+//!   `A`) is asked for by its word, `abyssal`, as a colour is, and is a
+//!   link group of its own on every item the site has shown (#185); a
+//!   resonator's (`DV`) is a socket no word names, asked for by its base
+//!   (K1).
 //!
 //! # As built
 //!
-//! - **A colour word is GGG's letter** ([`COLOURS`]): `red` is `R`,
-//!   `green` `G`, `blue` `B`, `white` `W`, matched in any case as every
-//!   closed word is (B1); a socket's colour is compared as GGG spelled
-//!   it. A word outside the four is an authoring error offering them.
+//! - **A socket word is GGG's letter** ([`SOCKET_WORDS`]): `red` is `R`,
+//!   `green` `G`, `blue` `B`, `white` `W`, `abyssal` `A`, matched in any
+//!   case as every closed word is (B1); a socket's letter is compared as
+//!   GGG spelled it. A word outside the table is an authoring error
+//!   offering every one. The table is the one list of the words: the
+//!   binder's fields, a link group's counts, the help, the trade site's
+//!   keys beside them (`trade/translate.rs`) and the search form's boxes
+//!   each read it.
 //! - **A count is an interval** ([`Counted`]): what was read is its floor,
 //!   and each socket that may or may not add to it — an element that was
 //!   no socket, a socket whose colour or group could not be read — widens
@@ -36,7 +40,7 @@
 //!   when the interval is one number, which is when it sorts and sums as
 //!   a value and `undecided( … )` of it is false (`eval::scalar`).
 //!   `sockets` counts every element, so only an element that was no
-//!   socket leaves it open; `sockets.<colour>` is open by that and by a
+//!   socket leaves it open; `sockets.<word>` is open by that and by a
 //!   socket whose colour is unread; `links` and a group's counts by that
 //!   and by a socket whose group is unread, which may sit in any group or
 //!   make one of its own ([`Groups`]). A socket whose group is unread is
@@ -47,7 +51,7 @@
 //! - **Present and absent** (C93): an item whose body carries no `sockets`
 //!   lacks every count, so `sockets>=1` is false on a ring and `-has:sockets`
 //!   finds it. An item whose collection is present holds `sockets` and
-//!   every `sockets.<colour>` as a number — zero on GGG's `[]`, a poe2
+//!   every `sockets.<word>` as a number — zero on GGG's `[]`, a poe2
 //!   weapon that grants a skill (N44) — and `links` only while it has a
 //!   link group: the largest of no groups is nothing, so such an item
 //!   lacks `links`, `-has:links` finds it, and a `linked( … )` asked of it
@@ -60,25 +64,96 @@
 //!   whose group is unread set apart last, marked `(group unread)`. It
 //!   is what `show` and a row print, made here once (rule 10).
 
-use crate::bind::NumTest;
+use std::sync::LazyLock;
+
+use crate::bind::{FieldDef, Kind, NumTest, Thing};
 use crate::derive::{Item, Part, Socket};
 use crate::group::Truth;
 use crate::tree::Op;
 
-/// The colour words of the language and the letter GGG spells each with.
-pub const COLOURS: &[(&str, &str)] = &[("red", "R"), ("green", "G"), ("blue", "B"), ("white", "W")];
-
-/// The words a query names a colour by.
-pub fn colour_words() -> Vec<&'static str> {
-    COLOURS.iter().map(|(word, _)| *word).collect()
+/// One socket word of the language: the word a query names it by, the
+/// letter GGG spells it with in `sColour`, and the key the trade site's
+/// socket filters give its count.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SocketWord {
+    pub word: &'static str,
+    pub letter: &'static str,
+    pub key: &'static str,
 }
 
-/// GGG's letter for a colour word, in any case.
+/// The socket words (the module doc): every list of the words, the
+/// letters or the site's keys reads this table.
+pub const SOCKET_WORDS: [SocketWord; 5] = [
+    SocketWord {
+        word: "red",
+        letter: "R",
+        key: "r",
+    },
+    SocketWord {
+        word: "green",
+        letter: "G",
+        key: "g",
+    },
+    SocketWord {
+        word: "blue",
+        letter: "B",
+        key: "b",
+    },
+    SocketWord {
+        word: "white",
+        letter: "W",
+        key: "w",
+    },
+    SocketWord {
+        word: "abyssal",
+        letter: "A",
+        key: "a",
+    },
+];
+
+/// The words a query names a socket by, in the table's order.
+pub fn words() -> Vec<&'static str> {
+    SOCKET_WORDS.iter().map(|s| s.word).collect()
+}
+
+/// GGG's letter for a socket word, in any case.
 pub fn letter(word: &str) -> Option<&'static str> {
-    COLOURS
+    SOCKET_WORDS
         .iter()
-        .find(|(w, _)| w.eq_ignore_ascii_case(word))
-        .map(|(_, letter)| *letter)
+        .find(|s| s.word.eq_ignore_ascii_case(word))
+        .map(|s| s.letter)
+}
+
+/// The binder's `sockets.<word>` fields, one a row of the table, made
+/// once (`bind::fields`).
+pub(crate) fn field_defs() -> &'static [FieldDef] {
+    static NAMES: LazyLock<Vec<(String, String)>> = LazyLock::new(|| {
+        SOCKET_WORDS
+            .iter()
+            .map(|s| {
+                (
+                    format!("sockets.{}", s.word),
+                    format!(
+                        "how many {} sockets the item has, over every link group",
+                        s.word
+                    ),
+                )
+            })
+            .collect()
+    });
+    static DEFS: LazyLock<Vec<FieldDef>> = LazyLock::new(|| {
+        SOCKET_WORDS
+            .iter()
+            .zip(NAMES.iter())
+            .map(|(s, (name, what))| FieldDef {
+                name: name.as_str(),
+                thing: Thing::SocketColour(s.letter),
+                kind: Kind::Number,
+                what: what.as_str(),
+            })
+            .collect()
+    });
+    &DEFS
 }
 
 /// A count over the sockets, as far as it was read (the module doc).
@@ -176,8 +251,8 @@ pub(crate) struct GroupCounts {
     /// for the group that unplaced sockets may make of their own.
     pub members: Vec<usize>,
     pub size: Counted,
-    /// By GGG's letter, the colours the group's sockets carry, and the
-    /// four of the language each with a count even when zero.
+    /// By GGG's letter, the letters the group's sockets carry, and every
+    /// word's of the table each with a count even when zero.
     colours: Vec<(String, Counted)>,
 }
 
@@ -230,7 +305,7 @@ impl Groups<'_> {
         }
     }
 
-    /// `sockets.<colour>`: how many of GGG's colour `letter` over the item.
+    /// `sockets.<word>`: how many of GGG's letter `letter` over the item.
     pub fn colour(&self, letter: &str) -> Counted {
         let known = self
             .sockets
@@ -302,7 +377,8 @@ impl Groups<'_> {
     pub(crate) fn each(&self) -> Vec<GroupCounts> {
         let may_join = self.unplaced + self.junk;
         let letters = |of: &[&Socket]| {
-            let mut letters: Vec<String> = COLOURS.iter().map(|(_, l)| l.to_string()).collect();
+            let mut letters: Vec<String> =
+                SOCKET_WORDS.iter().map(|s| s.letter.to_string()).collect();
             for socket in of {
                 if let Some(colour) = &socket.colour
                     && !letters.contains(colour)
@@ -355,11 +431,11 @@ impl Groups<'_> {
                     low: 1,
                     high: may_join,
                 },
-                colours: COLOURS
+                colours: SOCKET_WORDS
                     .iter()
-                    .map(|(_, l)| {
-                        let high = self.unplaced_of(l, &[]) + self.junk;
-                        (l.to_string(), Counted::Range { low: 0, high })
+                    .map(|s| {
+                        let high = self.unplaced_of(s.letter, &[]) + self.junk;
+                        (s.letter.to_string(), Counted::Range { low: 0, high })
                     })
                     .collect(),
             });

@@ -129,7 +129,7 @@
 //!   as GGG numbers it, and its colour, GGG's `sColour` as given (`R`, `G`,
 //!   `B`, `W`; an abyssal socket's `A`, a resonator's `DV`); a socket with
 //!   neither `sColour` nor `attr` — a poe2 socket, `{group, type}` — has no
-//!   colour, known. The words a query names the colours by, and what is
+//!   colour, known. The words a query names the letters by, and what is
 //!   counted, is `sockets.rs`. Unread at the socket's grain (rule 8 of the
 //!   plan): a `group` that is no whole number is that socket's group unread
 //!   ([`Part::SocketGroup`]: only what places sockets in groups is left

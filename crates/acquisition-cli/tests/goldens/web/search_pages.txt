@@ -951,7 +951,7 @@ GET search?<a refused table query, an order and values named>
 <form class="write" method="post" action="leagues"><input type="hidden" name="from" value="search?realm=pc&amp;text=class%3Arings%20sort%3Alife&amp;view.fields=icon&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl&amp;view.value=pseudo.total_life"><button type="submit">Fetch the league list</button></form>
 <div id="answer">
 <div class="refusal"><pre>
-`sort` is no field the language knows — describe `fields` lists all 75; near it:
+`sort` is no field the language knows — describe `fields` lists all 76; near it:
     str:life
 </pre>
 </div>

@@ -1459,7 +1459,8 @@ fn describe_at_a_terminal() {
         &["search", "--describe", "~^sockets"],
         &[
             "pattern ~^sockets — 2 entries, each whole",
-            "how many sockets the item has, of every colour",
+            "how many sockets the item has, of every kind",
+            "abyssal A",
             "more: Each entry a pattern matched is whole here",
         ],
     );
@@ -1606,7 +1607,7 @@ fn describe_and_show_print_json_whole_and_text_from_it() {
             "level",
             "experience",
             "stored_experience",
-            "sockets.<colour>",
+            "sockets.<word>",
             "is",
             "has"
         ]

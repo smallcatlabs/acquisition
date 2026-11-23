@@ -454,6 +454,7 @@ impl PropertyTable {
                 || WORDS.contains(&name.as_str())
                 || crate::bind::FIELDS
                     .iter()
+                    .chain(crate::sockets::field_defs())
                     .any(|f| f.name.eq_ignore_ascii_case(&name))
             {
                 return Err(PropertyTableError::Taken(name));
