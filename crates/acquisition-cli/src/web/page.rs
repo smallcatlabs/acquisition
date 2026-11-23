@@ -857,6 +857,8 @@ pub(crate) fn search_form(
         valued(filled.view.count.as_deref()),
     ));
     out.push_str(COUNT);
+    out.push(' ');
+    out.push_str(&clear(realm, filled.membership.as_deref()));
     out.push_str("</div>\n</div>\n");
     out.push_str(&carried(
         &filled.view,
@@ -864,6 +866,19 @@ pub(crate) fn search_form(
     ));
     out.push_str("</form>\n");
     out
+}
+
+/// Clear (`4-full-1-form-rides.md`, Decision 6): a link beside Search to
+/// the form's page with the scope alone — the realm, and the membership
+/// where it is not `live`, the form's default — so it lands on the empty
+/// form of the scope shown. No other field, the switch among them, rides
+/// on it.
+fn clear(realm: &str, membership: Option<&str>) -> String {
+    let mut to = format!(".?realm={}", enc(realm));
+    if let Some(membership) = membership.filter(|m| *m != "live") {
+        to.push_str(&format!("&membership={}", enc(membership)));
+    }
+    format!("<a class=\"clear\" href=\"{}\">Clear</a>", esc(&to))
 }
 
 /// What the search form carries hidden: the view the URL named

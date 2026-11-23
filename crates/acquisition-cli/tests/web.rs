@@ -1398,6 +1398,50 @@ fn a_cards_number_adds_its_value_and_a_full_list_adds_none() {
     );
 }
 
+/// Clear (`4-full-1-form-rides.md`, Decision 6): followed from a filled
+/// page, a link to the form's page with the scope alone lands on the empty
+/// form of that realm and membership, every other field let go.
+#[test]
+fn clear_lands_on_the_empty_form_of_the_realm_and_membership_shown() {
+    let (_scratch, web) = offline_web("webclear");
+    let filled = web.get(
+        "search?realm=pc&membership=removed&league=Standard&query.term=Doom+Loop\
+         &defences=displayed&view.limit=50",
+    );
+    assert_eq!(filled.status, 200, "{}", filled.body);
+    let at = filled
+        .body
+        .find("<a class=\"clear\" href=\"")
+        .unwrap_or_else(|| {
+            panic!("no Clear:\n{}", filled.body);
+        })
+        + "<a class=\"clear\" href=\"".len();
+    let href = unescaped(&filled.body[at..at + filled.body[at..].find('"').unwrap()]);
+    assert_eq!(href, ".?realm=pc&membership=removed");
+    // `.` resolved against the search page, as a browser resolves it
+    let cleared = web.get(href.strip_prefix('.').unwrap());
+    assert_eq!(cleared.status, 200, "{}", cleared.body);
+    let mut empty = submitted(&web.get("").body, SEARCH_FORM);
+    for (name, value) in &mut empty {
+        if name == "membership" {
+            *value = "removed".to_string();
+        }
+    }
+    assert!(
+        empty.iter().any(|(name, _)| name == "membership"),
+        "{empty:?}"
+    );
+    assert_eq!(submitted(&cleared.body, SEARCH_FORM), empty);
+    // a live scope's Clear names the realm alone
+    let live = web.get("search?realm=pc&query.term=Doom+Loop");
+    assert!(
+        live.body
+            .contains("<a class=\"clear\" href=\".?realm=pc\">Clear</a>"),
+        "{}",
+        live.body
+    );
+}
+
 #[test]
 fn every_search_page_is_a_wording_golden() {
     let (scratch, web) = offline_web("webpages");
@@ -1966,7 +2010,8 @@ fn every_search_page_is_a_wording_golden() {
     // unticked, its panel open (`4-full-1-form-rides.md`)
     // and its rows' fates said where not exact (Decision 2): a stat exact
     // both ways by its group word alone, one not exact with both statuses
-    let displayed = "search?realm=pc&league=Standard&defences=displayed\
+    // and its Clear carrying the removed membership (Decision 6)
+    let displayed = "search?realm=pc&membership=removed&league=Standard&defences=displayed\
         &group.type=and&stat.id=explicit.stat_3299347043&stat.id=explicit.stat_983749596";
     let unticked = web.get(displayed);
     assert_eq!(unticked.status, 200, "{}", unticked.body);
@@ -1979,6 +2024,7 @@ fn every_search_page_is_a_wording_golden() {
             "<span class=\"stat-text\">+# to maximum Life</span>",
             "<span class=\"fate\">explicit</span>",
             "<span class=\"fate\">explicit \u{b7} alone exact \u{b7} with a bound ambiguous</span>",
+            "<a class=\"clear\" href=\".?realm=pc&amp;membership=removed\">Clear</a>",
         ],
     );
     // a site search its decode refused stands as sent in the bar's site

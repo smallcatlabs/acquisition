@@ -1413,13 +1413,17 @@ fn realm_of(fields: &[(String, String)]) -> Result<Realm, Failure> {
 
 // ---- the search pages ---------------------------------------------------------------------------
 
-/// The form, its league list the counts by league over the corpus.
+/// The form, its league list the counts by league over the corpus, of
+/// the realm and the membership the URL names (Clear's link names them).
 async fn home(
     State(web): State<Arc<Web>>,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
     let realm = pick(&fields, "realm").unwrap_or("pc").to_string();
-    let shown = realm.clone();
+    let mut filled = page::Filled::empty(&realm);
+    // the scope's membership, as `search` reads it: the word sent, which
+    // the form's select shows (Clear carries it)
+    filled.membership = pick(&fields, "membership").map(str::to_string);
     let (leagues, said) = blocking(&web, move |web| match web.leagues(&realm) {
         Ok(leagues) => (leagues, String::new()),
         Err(failure) => (None, page::refused(&web.refusal(&failure))),
@@ -1427,7 +1431,7 @@ async fn home(
     .await;
     let body = format!(
         "{said}{}",
-        page::editor(&web.form, &page::Filled::empty(&shown), leagues.as_deref())
+        page::editor(&web.form, &filled, leagues.as_deref())
     );
     web.page(
         "Search",
