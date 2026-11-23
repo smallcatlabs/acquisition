@@ -1,0 +1,5 @@
+- `86a63c9f^..c4550601`: the brief’s done-when holds by static inspection; both recorded findings are fixed and pinned.
+- Findings: none.
+- Not verified: builds, tests, gate status, browser behavior or fixture regeneration; execution was prohibited.
+- Nitpicks: none.
+- Brief: no obstacle. Plan: no obstacle. Prompt: no change proposed.
