@@ -11,7 +11,8 @@ the sockets, §2's bar and Clear; §8 step 4). Closes #180, #181, #188.
 - `4-full-1-form-design.md`: §2 "One page" and "A site search is one
   box and one button", §4, §8 step 4, §9's choices 1, 3, 4, §10.
   Step 3's close, `12eb180c`, its "Raised" and "Left open".
-- #180, #181 (its comment: the group types not run), #188.
+- #180, #181 (its comment: the switch hides the group types not run
+  in each type select and in "Add Stat Group"), #188.
 - C142 (the defences' reading beside the query), C46 (semantics in
   Rust), C187 (a script's rule has a browser-driven check), C138 (no
   new route), C16 (a page is its URL), C153 (one golden per wording).
@@ -32,8 +33,9 @@ the sockets, §2's bar and Clear; §8 step 4). Closes #180, #181, #188.
    drops a `disabled` of false, so the partition holds. The armour
    panel opens where the box is unticked. The CLI is untouched.
 2. **A fate is said where it is not exact** (`fate_span`, a select's
-   option, a group type's option, `stat_row` and `stat_options`): an
-   exact one renders nothing, mark or title. A stat's two statuses are
+   option, a group type's option and its "Add Stat Group" control,
+   `stat_row` and `stat_options`): an exact one renders nothing, mark
+   or title. A stat's two statuses are
    said where either is not exact; its group word (`explicit`) stays,
    as it tells two stats of one text apart.
 3. **The switch** is a box at the page's foot, after the answer, tied
@@ -41,23 +43,29 @@ the sockets, §2's bar and Clear; §8 step 4). Closes #180, #181, #188.
    `all_fields`, value `true`, worded "Show the fields this search does
    not run", with one line beside it: "A field with no mark runs as
    the trade site's; a mark says it is read differently here, or not
-   run." `opened_from`'s partition takes it out with `saved`, so
-   `search` and `count` never fold it; `home` and `search` render it
-   ticked where the URL names it. No link, other form or Clear carries
-   it (§10, no remembered switch).
-4. **What the switch hides** is marked by the server, `data-unrun`:
-   a control, a select's option, a group type's option and its "Add
-   Stat Group" control, whose catalogue status is neither `exact` nor
-   `ambiguous` (what `Status::runs` runs) and that holds no value
-   (the fill's at its path; an option, selected). A panel every control of which is
-   marked is marked. One rule in `page.css` hides `[data-unrun]` while
-   the switch is unticked (`:has(…:checked)`), as step 3's type rules.
+   run." `home`, `search` and `count` take it out of the fields first,
+   before `search` copies them as `sent`, so no fold, link or hidden
+   field of the page meets it; `home` and `search` render it ticked
+   where the URL names it. No link, other form or Clear carries it
+   (§10, no remembered switch).
+4. **What the switch hides**: the server marks, `data-unrun`, a
+   control, a select's option, a group type's option and its "Add Stat
+   Group" control whose catalogue status is neither `exact` nor
+   `ambiguous` (what `Status::runs` runs), and a panel every control of
+   which is marked. Whether it holds a value is the browser's, as
+   edited: `page.css` hides a marked control or panel while the switch
+   is unticked unless it holds a box not `:placeholder-shown` (every
+   box of a marked control gets a placeholder) or a select whose
+   checked option has a value; a marked option unless it is checked.
+   No script (`:has`, as step 3's type rules).
 5. **The site box in the bar**: its text and button after the item
    search, owned by an empty `<form id="trade-form">` before the search
    form by `form=`, as `realm-form` is, with its own hidden realm and
-   its count. `count.js` finds a form's outputs and hears its controls
-   through `form.elements` and an event's `target.form`, never by
-   descent, so neither form's count asks for the other's fields.
+   its count. `count.js` finds a form's outputs through
+   `form.elements` and hears on the document: an event's form is its
+   target's `form`, or, for a target with none (`lists.js`'s add and
+   remove notice, sent from an item list), the form it stands in. So
+   neither form's count asks for the other's fields.
 6. **Clear** is a link beside Search to `.` with the scope alone:
    `realm`, and `membership` where it is not `live`; `home` reads
    `membership` as `search` reads it.
@@ -81,12 +89,15 @@ the sockets, §2's bar and Clear; §8 step 4). Closes #180, #181, #188.
   the readers of page fields beside the fold.
 - `git grep -n 'FORM_PANES\|panes_golden' crates/acquisition-cli/tests/`:
   the cut and its pages.
-- `git grep -n 'querySelector\|addEventListener' crates/acquisition-cli/src/web/assets/count.js`:
-  what the count finds by descent.
+- `git grep -n 'querySelector\|addEventListener\|dispatchEvent' crates/acquisition-cli/src/web/assets/`:
+  what the count finds by descent, and the notices it hears.
+- `git grep -n 'let sent\|rows_links\|view_link\|table_fields' crates/acquisition-cli/src/web/`:
+  the copies of a search's fields the switch must never reach.
 
 ## Done when
 - `web/search_form` holds the five, empty: the ticked quality box, the
-  site box in the bar, Clear, no `fate-exact` and no `(exact)`; a page
+  site box in the bar, Clear, no `fate-exact` and no `(exact)`, the
+  not-run "Add Stat Group" controls with their mark; a page
   golden holds the switch and its line, unticked. Filled: a page
   golden holds a form of `defences: "displayed"` with the box
   unticked, the switch ticked by its URL, a non-exact fate with its
@@ -96,13 +107,16 @@ the sockets, §2's bar and Clear; §8 step 4). Closes #180, #181, #188.
   `"displayed"`; the partition pin holds with the box and the switch
   (each fill case of the pin unchanged).
 - `search` and `count` take `all_fields=true` beside the form's fields
-  and answer as without it (a test).
+  and answer as without it, and no link or hidden field of that page
+  names it (a test).
 - In `tests/browser.rs`, one test: unticked, a control not run and
   empty and a not-run type in a type select and in "Add Stat Group"
   are not displayed, a not-run control holding a value is; ticked,
-  all are, with no request sent. Typing a site search in the bar's box
-  moves its count and not the form's, and the reverse; running it
-  fills the form.
+  all are, with no request sent; an empty not-run control given a
+  value while ticked stays displayed once unticked. Adding and removing
+  a stat row still moves the form's count. Typing a site search in the
+  bar's box moves its count and not the form's, and the reverse;
+  running it fills the form.
 - Clear, followed from a filled page, renders the empty form of that
   realm and membership (a test).
 - Goldens regenerated under `ACQ_UPDATE_FIXTURES=1`, each diff read;
