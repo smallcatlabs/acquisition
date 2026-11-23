@@ -10,9 +10,9 @@ copies and removes what the server rendered.
 - `4-full-1-form-design.md`: §2's "Rows and groups as the site's", §8
   step 3, §10. Step 2's close, `44a4063c`.
 - #184 with its comments.
-- C46 (semantics in Rust), C16 (a page is its URL), C187 (a script's
-  rule has a browser-driven check), C138 (the listener: no new route),
-  C154 (a retirement names what holds it).
+- C46 (semantics in Rust), C187 (a script's rule has a browser-driven
+  check), C138 (the listener: no new route), C154 (a retirement names
+  what holds it).
 - Code: `web/page.rs` (`stat_groups`), `web/form.rs` (the fold),
   `web/fill.rs` (the partition pin), `web/mod.rs` (`stats`; `rows` for
   its HTML answer), the scripts under `assets/`, `tests/browser.rs`;
@@ -26,13 +26,12 @@ copies and removes what the server rendered.
    id a hidden `stat.id`, then the on box, the texts, min, max, weight,
    an option box where the row holds one, the fate, a remove button.
    The filled form and the finder's listing both call it. No row is
-   typed: `STAT_ROWS` goes, and an empty form is one `and` group with
-   no row.
+   typed: `STAT_ROWS` goes, and a search holding no stat group, an
+   empty form's among them, renders one `and` group with no row.
 2. **The listing carries each row.** `stats` answers JSON where JSON is
    asked, as now, and otherwise an HTML fragment, as `rows` does: each
    entry an option whose control holds a `<template>` of its row, and
-   the left-out count in the server's words. The fate sentence is then
-   written once.
+   the left-out count in the server's words.
 3. **Two verbs, delegated, in one script** that replaces `picker.js`,
    one click listener on the stat pane. An add control copies the
    template it holds, or the one its attribute names, into the item
@@ -45,14 +44,13 @@ copies and removes what the server rendered.
 4. **Groups.** One `<template>` per group type, the type selected by
    the server. After the last group, "Add Stat Group": a `details` menu
    of add controls, one a type, which an add closes. Each group ends
-   with its own finder, so a pick lands in its own group. A group has
-   a remove control. The fold drops a group with no row, so a search's
-   page shows none: no fault.
+   with its own finder. A group has a remove control. The fold drops
+   a group with no row, so none is kept through a search: no fault.
 5. **What a type shows is CSS.** Every row renders a weight box and
    every group its bound. Each type's `<option>` lists the positional
    fields it takes, written from the two key lists. `page.css` hides a
    field its group's checked option does not list
-   (`:has(option:checked)`), one rule a field, naming no type. The fill
+   (`:has(option:checked)`), one rule a field. The fill
    gives a box a value only where the type takes it. Try the
    selector in the gate's browser first; if it does not follow a
    changed select, stop and report.
@@ -66,21 +64,21 @@ copies and removes what the server rendered.
    what an option's click does.
 7. **The count follows the form's fields.** `count.js` asks when the
    form's data differs from the data it last asked, on any `input` or
-   `change` within the form; its filter on the target's name goes.
+   `change` within the form.
 8. **An on box is ticked for on**, by one maker for every `disabled`
    field of the form: a hidden `disabled=true` then the box's
    `disabled=false`, the fold reading the last sent (§4's quality
-   box). A URL then carries both for each row that is on: accepted.
+   box).
 
 ## Find first
 - `git grep -n 'picker\|stat-find\|stat-list\|stat-said\|stat-id\|STAT_ROWS' -- crates/ '*.md' ':!roadmap' ':!audits' ':!spikes'`:
-  every name of the picker and the typed rows.
-- `git grep -ln 'name="stat\.\|name="group\.\|disabled' crates/acquisition-cli/tests/goldens/web/`:
+  the picker's and the typed rows' names.
+- `git grep -ln 'name="stat\.\|name="group\.\|name="[a-z_.]*disabled"' crates/acquisition-cli/tests/goldens/web/`:
   the goldens the row and the on box change.
 - `git grep -n 'disabled' crates/acquisition-cli/src/web/`: Decision
   8's boxes and their readers.
 - `grep -n 'template' crates/acquisition-cli/tests/harness/submitted.rs`:
-  whether the form's reader skips a template.
+  does the form's reader skip one.
 - `grep -n 'stat\.\|group\.\|query\.\|view\.' crates/acquisition-cli/src/web/assets/*.js`:
   a field a script names.
 - `git grep -n 'target.name\|dispatchEvent' crates/acquisition-cli/src/web/assets/`:
@@ -91,15 +89,17 @@ copies and removes what the server rendered.
   form a stat is picked with arrows and Enter, the page not submitted;
   its min is typed where focus stands; "Add Stat Group" adds a
   weighted sum, whose weight boxes and bound show while the `and`
-  group's do not; two stats are picked into it, each given a positive
-  weight, and the group a min; the first group's type is changed to a
-  weighted sum and back, its weight boxes showing then hiding; Search
-  answers the server's total for the same fields, the form refilled
-  with both groups, their rows, weights and bound. Then a row and a
-  group are removed. The count follows each step with no other input.
+  group's do not; two stats are picked into it, with weights and a
+  group min the translation runs (`translate.rs`, `weighted`); the
+  first group's type is changed to a weighted sum and back, its weight
+  boxes showing then hiding; Search answers the server's total for the
+  same fields, which differs from the first group's alone, its report
+  dropping neither group, the form refilled with both groups, their
+  rows, weights and bound. Then a row and a group are removed. The
+  count follows each step with no other input.
 - There too: a `stats` ask held in flight (the debugging protocol's
-  `Fetch` domain), Escape pressed, the ask released: the list stays
-  empty.
+  `Fetch` domain) and released after Escape, and one after a pick from
+  a list already shown: the box and the list stay empty.
 - That test's commit carries `retired
   a_pick_fills_the_first_empty_stat_row_and_the_count_follows; held by`
   the new test's name. `the_count_beside_the_button_follows_its_own_form`
@@ -131,7 +131,7 @@ copies and removes what the server rendered.
   bar, Clear: step 4. The value finder: step 6, which reuses Decision
   6's finder.
 - An option list on a stat row, a new route, a vendored library, a
-  build step, a script that fills, orders or composes (§10, C46).
+  script that fills, orders or composes (§10, C46).
 - The look (#285). A change to the translation, the language, the
   vocabulary document's JSON or the saved row.
 
