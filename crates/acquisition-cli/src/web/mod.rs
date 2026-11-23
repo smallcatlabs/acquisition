@@ -158,7 +158,12 @@
 //!   first block the server's — and none where it holds none. Where the URL
 //!   opens a place, the document and every segment are read inside one
 //!   `places::steady`, which reads both again where the store moved, so the
-//!   page stands at one basis. The item columns' heads stand once above the
+//!   page stands at one basis. Every segment is asked under one list of
+//!   values, the union of what the open places' answers carry, since a
+//!   place's default list follows its matches (a currency tab's `stack`):
+//!   a place whose answer carries another is asked again naming the
+//!   union, and the page's own fields name none of it. The item columns'
+//!   heads stand once above the
 //!   places where a segment does, a value's head the page ordered by it
 //!   through the one maker of a change to the view, so a sort orders the
 //!   rows inside each place and the places keep their order. `window.js` is
@@ -3160,7 +3165,10 @@ fn named_places(fields: &[(String, String)], name: &str, among: &[&str]) -> Vec<
 }
 
 /// Each open place the page draws that shows items, as segments of the
-/// page's one window over `corpus`: the token of its request's first
+/// page's one window over `corpus`, every place asked under one list of
+/// values, the union of what their answers carry (#296: the default
+/// list depends on a place's matches, and the heads stand once above
+/// the places): the token of its request's first
 /// window, its count that window's own `total.matched`, cut after each
 /// row `opening` opens there, the blocks the server's; none where
 /// it holds none. Beside them, the opened rows some drawn place's order
@@ -3180,6 +3188,8 @@ fn windows_over(
 > {
     let mut windows = std::collections::HashMap::new();
     let mut held: Vec<String> = Vec::new();
+    // each drawn place's table and its first row's answer
+    let mut asked = Vec::new();
     for place in drawn_items(&places.places, open) {
         let Some(mut table) = place.request.clone() else {
             continue;
@@ -3189,10 +3199,33 @@ fn windows_over(
         }
         let first =
             acquisition_search::answer(corpus, &window_request(&table, &corpus.basis, 0, 1))?;
-        let count = first.total.matched;
-        if count == 0 {
+        if first.total.matched == 0 {
             continue;
         }
+        asked.push((place, table, first));
+    }
+    // one list over every drawn place, as the one head above them says
+    // it: the first's order, then what another adds at the end. A place
+    // whose answer carries another list is asked again naming that one,
+    // so its window and every block of it carry the same cells; the
+    // page's own fields name none of it
+    let mut list: Vec<String> = Vec::new();
+    for (_, _, first) in &asked {
+        for value in values_of(first) {
+            if !list.contains(value) {
+                list.push(value.clone());
+            }
+        }
+    }
+    for (place, mut table, mut first) in asked {
+        if values_of(&first) != list.as_slice() {
+            if let acquisition_search::answer::Shape::Rows(rows) = &mut table.view.shape {
+                rows.values = list.clone();
+            }
+            first =
+                acquisition_search::answer(corpus, &window_request(&table, &corpus.basis, 0, 1))?;
+        }
+        let count = first.total.matched;
         let (opened, at) = opening.held(corpus, &table)?;
         let rows: Vec<usize> = opened.iter().map(|(_, n)| *n).collect();
         held.extend(opened.into_iter().map(|(id, _)| id));
@@ -3209,6 +3242,14 @@ fn windows_over(
         .cloned()
         .collect();
     Ok((windows, kept))
+}
+
+/// The values an answer's rows carry, none where it lists no rows.
+fn values_of(answer: &acquisition_search::Answer) -> &[String] {
+    match &answer.view {
+        acquisition_search::answer::ViewOut::Rows(rows) => &rows.values,
+        _ => &[],
+    }
 }
 
 /// The open places a page draws that show their items: listed, every

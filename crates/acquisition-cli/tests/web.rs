@@ -7020,6 +7020,84 @@ fn the_grouped_table_is_a_wording_golden() {
         &searched,
         &[">stack</a></div>", "<span>40</span></div>"],
     );
+    // a gear tab and the currency tab open together: every open place is
+    // asked under one list, so one head holds `stack`, the gear rows an
+    // empty cell under it, and each segment's window names that list;
+    // the page's own URL and fields name no value
+    let together_path = "tabs?realm=pc&league=Standard&open=t1&open=c1";
+    let together = web.get(together_path);
+    let named = |body: &str| -> Vec<Vec<String>> {
+        body.split("<div class=\"seg\" data-route=\"")
+            .skip(1)
+            .map(|rest| {
+                let route = &rest[..rest.find('"').unwrap()];
+                let token = route.split_once("next=").unwrap().1;
+                let request = acquisition_search::answer::Request::from_token(token).unwrap();
+                match request.view.shape {
+                    acquisition_search::answer::Shape::Rows(rows) => rows.values,
+                    _ => panic!("a place's window is a rows request"),
+                }
+            })
+            .collect()
+    };
+    // the gear tab asked again naming the union; the currency tab's own
+    // default list is the union, so it is asked once, naming none
+    assert_eq!(
+        named(&together.body),
+        [vec!["stack".to_string()], Vec::<String>::new()],
+        "{}",
+        together.body
+    );
+    assert_eq!(
+        together.body.matches("<div class=\"r head\">").count(),
+        1,
+        "{}",
+        together.body
+    );
+    assert!(!together.body.contains("view.value"), "{}", together.body);
+    pages.page(
+        "GET tabs?<a gear tab and the currency tab open>",
+        &together,
+        &[
+            ">stack</a></div>",
+            "data-id=\"r1\"",
+            "<span>40</span></div>",
+        ],
+    );
+    let gear = together
+        .body
+        .lines()
+        .find(|l| l.contains("data-id=\"r1\""))
+        .unwrap();
+    assert!(gear.ends_with("<span></span></div>"), "{gear}");
+    // a window of the gear tab's segment, past its first row: the same
+    // cells, the empty `stack` among them
+    let route = attribute(
+        &together.body[together.body.find("<div class=\"seg\"").unwrap()..],
+        "data-route",
+    )
+    .unwrap()
+    .trim_start_matches(&format!("/{}/", web.token))
+    .to_string();
+    let window = web.get(&format!("{route}&offset=1&count=2"));
+    assert_eq!(window.status, 200, "{}", window.body);
+    let rows: Vec<&str> = window
+        .body
+        .lines()
+        .filter(|l| l.contains("data-id="))
+        .collect();
+    assert_eq!(rows.len(), 2, "{}", window.body);
+    for row in rows {
+        assert!(row.ends_with("<span></span></div>"), "{row}");
+    }
+    // places that agree are each asked as the page names them: no value
+    for agree in [
+        "tabs?realm=pc&league=Standard&open=t1",
+        "tabs?realm=pc&league=Standard&open=c1",
+    ] {
+        let body = web.get(agree).body;
+        assert!(named(&body).iter().all(Vec::is_empty), "{agree}: {}", body);
+    }
     panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "grouped", &pages);
 }
