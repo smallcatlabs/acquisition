@@ -63,6 +63,7 @@ input.socket { width: 2.6rem; }
 [data-finder] { position: relative; }
 .finder-list { list-style: none; padding: 0; margin: 0; max-height: 18rem; overflow: auto; width: 100%; }
 .finder-list [role=option] { cursor: pointer; padding: .15rem .3rem; }
+.finder-list button[role=option] { display: block; width: 100%; text-align: left; border: 0; background: none; font: inherit; color: inherit; }
 .finder-list [role=option][aria-selected=true] { background: var(--head); outline: 1px solid var(--accent); }
 .add-group > summary { cursor: pointer; padding: .3rem 0; color: var(--accent); }
 /* what a group's type shows: a field its checked type does not list as

@@ -1,17 +1,19 @@
-// The stat pane's lists (`acq web`): the rows and groups the server
-// rendered, copied and removed. One click listener on the pane serves two
-// verbs: an add control (`data-add`) copies the `<template>` it holds, or
-// the one its attribute names, into the item list (`data-items`) of its
-// nearest list (`data-list`); a remove control (`data-remove`) removes its
-// nearest item (`data-item`). The item list that changed then announces it
-// with one bubbling `change`, and after an add the copy's element marked
-// `data-focus` takes the focus. A finder (`data-finder`) is a box no form
-// sends and a listbox: it asks the server's stat vocabulary for the words
-// typed and puts the answer's options in its list, the first marked
-// (`aria-selected`); arrows move the mark, Enter clicks the marked option
-// and never submits, and Escape empties it. The script names no field and
-// writes no word and no value a form sends: every row, group and word is
-// the server's.
+// The stat pane's lists and the finders (`acq web`): the rows and groups
+// the server rendered, copied and removed. One click listener on the pane
+// serves two verbs: an add control (`data-add`) copies the `<template>` it
+// holds, or the one its attribute names, into the item list (`data-items`)
+// of its nearest list (`data-list`); a remove control (`data-remove`)
+// removes its nearest item (`data-item`). The item list that changed then
+// announces it with one bubbling `change`, and after an add the copy's
+// element marked `data-focus` takes the focus. A finder (`data-finder`) is
+// a box no form sends and a listbox, heard wherever it stands, its
+// listeners on the document: it asks the route its attribute names, the
+// server's, with the words typed appended, and puts the answer's options
+// in its list, the first marked (`aria-selected`); arrows move the mark,
+// Enter clicks the marked option and never submits, and Escape empties it.
+// What an option's click does is the option's own. The script names no
+// field and writes no word and no value a form sends: every row, group,
+// option and word is the server's.
 (function () {
   const panes = Array.from(document.querySelectorAll('[data-list]'))
     .filter((el) => !el.parentElement.closest('[data-list]'));
@@ -53,7 +55,7 @@
     const mine = new AbortController();
     asking.set(finder, mine);
     try {
-      const res = await fetch('stats?q=' + encodeURIComponent(words), { signal: mine.signal });
+      const res = await fetch(finder.dataset.finder + encodeURIComponent(words), { signal: mine.signal });
       const text = await res.text();
       if (mine.signal.aborted || !res.ok) return;
       list.innerHTML = text;
@@ -94,27 +96,29 @@
       const finder = control.closest('[data-finder]');
       if (finder) empty(finder);
     });
-    pane.addEventListener('input', (event) => {
-      const finder = event.target.closest('[data-finder]');
-      if (finder) ask(finder);
-    });
-    pane.addEventListener('keydown', (event) => {
-      const finder = event.target.closest('[data-finder]');
-      if (!finder) return;
-      const options = Array.from(finder.querySelectorAll('[role=option]'));
-      const at = options.indexOf(marked(finder));
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        event.preventDefault();
-        if (options.length === 0) return;
-        const step = event.key === 'ArrowDown' ? 1 : -1;
-        mark(finder, options[(at + step + options.length) % options.length]);
-      } else if (event.key === 'Enter') {
-        // Enter in a finder picks; it never submits the form
-        event.preventDefault();
-        if (at >= 0) options[at].click();
-      } else if (event.key === 'Escape') {
-        empty(finder);
-      }
-    });
   }
+  // a finder is heard wherever it stands: in the stat pane, in a form
+  // that carries the page's view, beside a place page's heads
+  document.addEventListener('input', (event) => {
+    const finder = event.target.closest && event.target.closest('[data-finder]');
+    if (finder) ask(finder);
+  });
+  document.addEventListener('keydown', (event) => {
+    const finder = event.target.closest && event.target.closest('[data-finder]');
+    if (!finder) return;
+    const options = Array.from(finder.querySelectorAll('[role=option]'));
+    const at = options.indexOf(marked(finder));
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (options.length === 0) return;
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      mark(finder, options[(at + step + options.length) % options.length]);
+    } else if (event.key === 'Enter') {
+      // Enter in a finder picks; it never submits the form
+      event.preventDefault();
+      if (at >= 0) options[at].click();
+    } else if (event.key === 'Escape') {
+      empty(finder);
+    }
+  });
 })();

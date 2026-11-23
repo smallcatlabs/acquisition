@@ -978,7 +978,11 @@ pub(crate) fn search_form(
     out.push_str(COUNT);
     out.push(' ');
     out.push_str(&clear(realm, filled.membership.as_deref()));
-    out.push_str("</div>\n</div>\n");
+    // "Add a column", after the form's button (the value finder)
+    out.push_str(&format!(
+        "</div>\n<div class=\"controls-right\">{}</div>\n</div>\n",
+        value_finder()
+    ));
     out.push_str(&carried(
         &filled.view,
         filled.saved.as_ref().map(|(id, at)| (id.as_str(), *at)),
@@ -1198,7 +1202,7 @@ fn stat_group(
         ));
     }
     out.push_str(&format!(
-        "</select> {} <input type=\"number\" step=\"any\" name=\"group.min\"{} placeholder=\"min\" aria-label=\"group min\"> <input type=\"number\" step=\"any\" name=\"group.max\"{} placeholder=\"max\" aria-label=\"group max\"> <button type=\"button\" data-remove>Remove group</button></div>\n<div class=\"stat-rows\" data-items>\n{rows}</div>\n<div class=\"filter\" data-finder><input type=\"search\" placeholder=\"+ Add Stat Filter\" aria-label=\"Add Stat Filter\" autocomplete=\"off\" data-focus><ul class=\"finder-list\" role=\"listbox\"></ul></div>\n</div>\n",
+        "</select> {} <input type=\"number\" step=\"any\" name=\"group.min\"{} placeholder=\"min\" aria-label=\"group min\"> <input type=\"number\" step=\"any\" name=\"group.max\"{} placeholder=\"max\" aria-label=\"group max\"> <button type=\"button\" data-remove>Remove group</button></div>\n<div class=\"stat-rows\" data-items>\n{rows}</div>\n<div class=\"filter\" data-finder=\"{STAT_FINDER}\"><input type=\"search\" placeholder=\"+ Add Stat Filter\" aria-label=\"Add Stat Filter\" autocomplete=\"off\" data-focus><ul class=\"finder-list\" role=\"listbox\"></ul></div>\n</div>\n",
         on_box("group.disabled", !off, "group on"),
         valued(bound.0.as_deref()),
         valued(bound.1.as_deref()),
@@ -1339,6 +1343,57 @@ pub(crate) fn stat_options(listed: &acquisition_search::trade::vocabulary::Vocab
     out
 }
 
+/// The route a stat finder asks, its words appended by the script: the
+/// stat vocabulary's options ([`stat_options`]).
+const STAT_FINDER: &str = "stats?q=";
+
+/// The route the value finder asks, its words appended by the script: the
+/// value listing's options ([`value_options`]), the same route asked for
+/// values.
+const VALUE_FINDER: &str = "stats?values=true&q=";
+
+/// The field a value finder's option sends: the value a pick orders the
+/// page by, which the page takes out of its fields first (`view.by`).
+pub(crate) const VIEW_BY: &str = "view.by";
+
+/// The value finder, "Add a column" (`4-full-1-form-values.md`): a box no
+/// form sends and a listbox, standing inside a form that carries the
+/// page's view, after that form's own submit button, so Enter in another
+/// box still sends that button. Its options are the form's submit buttons
+/// ([`value_options`]): a pick sends the form as it stands with one field
+/// more.
+pub(crate) fn value_finder() -> String {
+    format!(
+        "<div class=\"filter value-finder\" data-finder=\"{}\"><input type=\"search\" placeholder=\"Add a column\" aria-label=\"Add a column\" autocomplete=\"off\"><ul class=\"finder-list\" role=\"listbox\"></ul></div>",
+        esc(VALUE_FINDER)
+    )
+}
+
+/// The value finder's options: each value the listing offers as a submit
+/// button of the form the finder stands in, sending [`VIEW_BY`] with the
+/// value's text, named by the site's words and its group; then how many
+/// more match, or that none does.
+pub(crate) fn value_options(listed: &acquisition_search::trade::vocabulary::Values) -> String {
+    let mut out = String::new();
+    for e in &listed.entries {
+        out.push_str(&format!(
+            "<li><button type=\"submit\" role=\"option\" name=\"{VIEW_BY}\" value=\"{}\">{} <span class=\"fate\">{}</span></button></li>\n",
+            esc(&e.value),
+            esc(&e.texts.join(" / ")),
+            esc(e.group),
+        ));
+    }
+    if listed.left_out > 0 {
+        out.push_str(&format!(
+            "<li class=\"fate\">{} more match: add a word</li>\n",
+            listed.left_out
+        ));
+    } else if listed.entries.is_empty() {
+        out.push_str("<li class=\"fate\">no value holds every word asked</li>\n");
+    }
+    out
+}
+
 /// The count beside each search's button, on every form that submits to
 /// `search`, which carries `data-count`: the words are these, the server's;
 /// `count.js` writes the numbers alone, a dash until a change is answered,
@@ -1425,9 +1480,10 @@ fn query_box(filled: &Filled) -> String {
         if tabled { " selected" } else { "" }
     );
     format!(
-        "<details class=\"query-details\"{}><summary>The query, in the language</summary><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}</form></details>\n",
+        "<details class=\"query-details\"{}><summary>The query, in the language</summary><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}{}</form></details>\n",
         if filled.text_open { " open" } else { "" },
-        esc(text)
+        esc(text),
+        value_finder()
     )
 }
 
@@ -3407,26 +3463,17 @@ pub(crate) fn places(view: &PlacesPage) -> String {
     };
     body.push_str(&hidden);
     // the item columns' heads, once above the places, where one lists its
-    // items: from the first segment's rows, every segment's columns the
-    // same, since a place's terms compare no number
-    let heads = view
-        .places
-        .every()
-        .into_iter()
-        .find_map(|p| view.windows.get(p.id()))
-        .and_then(|w| w.segments.first()?.blocks.first())
-        .and_then(|(_, first)| match &first.view {
-            ViewOut::Rows(rows) => {
-                let rows: &RowsOut = rows;
-                Some(format!(
-                    "{}{}",
-                    order_way(rows, Presented::Places)
-                        .map(|way| format!("<p class=\"rows-shown\">{}</p>\n", esc(way)))
-                        .unwrap_or_default(),
-                    item_heads(rows, &|value| (view.view_links)(rows, value))
-                ))
-            }
-            _ => None,
+    // items, "Add a column" beside the order they say
+    let heads = heads_rows(view.places, view.windows)
+        .map(|rows| {
+            format!(
+                "{}{}\n{}",
+                order_way(rows, Presented::Places)
+                    .map(|way| format!("<p class=\"rows-shown\">{}</p>\n", esc(way)))
+                    .unwrap_or_default(),
+                value_finder(),
+                item_heads(rows, &|value| (view.view_links)(rows, value))
+            )
         })
         .unwrap_or_default();
     body.push_str(&format!(
@@ -3443,6 +3490,25 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         filter_row(view),
     ));
     body
+}
+
+/// The rows a place page's item heads are drawn from: the first open
+/// place's first segment's, every segment's columns the same, since a
+/// place's terms compare no number. None where no open place lists items:
+/// no place open, an open place of no match, a folder alone open.
+pub(crate) fn heads_rows<'a>(
+    places: &'a Places,
+    windows: &'a HashMap<String, Window>,
+) -> Option<&'a RowsOut> {
+    places
+        .every()
+        .into_iter()
+        .find_map(|p| windows.get(p.id()))
+        .and_then(|w| w.segments.first()?.blocks.first())
+        .and_then(|(_, first)| match &first.view {
+            ViewOut::Rows(rows) => Some(&**rows),
+            _ => None,
+        })
 }
 
 /// Under a query, the matches the league's places hold beside the

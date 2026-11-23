@@ -486,7 +486,7 @@ mod tests {
             let (html, _) = filled_page(&form, Fill::of(&envelope));
             let rows = &html[html.find(items).unwrap() + items.len()..];
             let rows = &rows[..rows
-                .find("</div>\n<div class=\"filter\" data-finder>")
+                .find("</div>\n<div class=\"filter\" data-finder=")
                 .unwrap()];
             assert_eq!(rows, row, "{}", entry.id);
             let open = "<template id=\"stat-group-and\">";

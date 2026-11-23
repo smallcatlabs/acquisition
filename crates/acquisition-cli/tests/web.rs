@@ -1398,6 +1398,211 @@ fn a_cards_number_adds_its_value_and_a_full_list_adds_none() {
     );
 }
 
+/// A value picked by name (`view.by`, the value finder;
+/// `4-full-1-form-values.md`, Decision 3) is the page's: the search page
+/// and a place page answer `303` to the URL their value's head writes,
+/// held or added; beside a count, to the page less it; past a full list,
+/// to the search's own refusal of the longer list; and a place page that
+/// draws no item heads refuses it in words. The fold never sees it: a
+/// route that folds the form's fields alone refuses it as no field of the
+/// form.
+#[test]
+fn a_value_picked_by_name_lands_where_its_head_would() {
+    let (scratch, web) = offline_web("webpicked");
+    let life = "sum(line(\"# to maximum Life\" source=explicit).arg1)";
+    let located = |path: &str| -> String {
+        let reply = web.get(path);
+        assert_eq!(reply.status, 303, "{path}: {}", reply.body);
+        reply.header("location").expect("a location").to_string()
+    };
+    let head_of = |body: &str, text: &str| -> String {
+        let (_, href) = heads(body)
+            .into_iter()
+            .find(|(t, _)| t == text)
+            .unwrap_or_else(|| panic!("{text}: {body}"));
+        let href = unescaped(&href);
+        match href.starts_with('/') {
+            true => href,
+            false => format!("/{}/{href}", web.token),
+        }
+    };
+    // the search page: a value held lands where its head links; one the
+    // list lacks where a head of the list with it would, ordered largest
+    // first, its column added
+    let held = [
+        ("realm", "pc"),
+        ("text", "class:rings"),
+        ("view.fields", "icon"),
+        ("view.value", "ilvl"),
+        ("view.value", life),
+    ];
+    let page = web.get(&format!("search?{}", query_string(&held))).body;
+    let mut picked = held.to_vec();
+    picked.push(("view.by", life));
+    let location = located(&format!("search?{}", query_string(&picked)));
+    assert_eq!(location, head_of(&page, life));
+    let added = [
+        ("realm", "pc"),
+        ("text", "class:rings"),
+        ("view.fields", "icon"),
+    ];
+    let mut picked = added.to_vec();
+    picked.push(("view.by", life));
+    let location = located(&format!("search?{}", query_string(&picked)));
+    let landed = follow(&web, &location);
+    assert_eq!(landed.status, 200, "{}", landed.body);
+    assert!(!location.contains("view.by"), "{location}");
+    let ordered = web.get_json(&location[location.find("search?").unwrap()..]);
+    assert_eq!(ordered["view"]["rows"]["sort"], life);
+    assert_eq!(ordered["view"]["rows"]["desc"], true);
+    assert_eq!(ordered["view"]["rows"]["values"], json!([life]));
+    assert!(
+        !head_of(&landed.body, life).contains("view.desc"),
+        "the ordered head flips"
+    );
+    // beside a count: the page less it
+    let counted = [
+        ("realm", "pc"),
+        ("text", "class:rings"),
+        ("view.count", "rarity"),
+    ];
+    let mut picked = counted.to_vec();
+    picked.push(("view.by", "ilvl"));
+    assert_eq!(
+        located(&format!("search?{}", query_string(&picked))),
+        format!("/{}/search?{}", web.token, query_string(&counted))
+    );
+    // past a full list: the search's own refusal of the longer one
+    let full = [
+        "ilvl",
+        "reqlevel",
+        "stack",
+        "sockets",
+        "links",
+        "sockets.red",
+        "sockets.green",
+        "sockets.blue",
+        "sockets.white",
+        "price.amount",
+        "price.lot",
+        "quality",
+    ];
+    let mut picked = added.to_vec();
+    picked.extend(full.iter().map(|v| ("view.value", *v)));
+    picked.push(("view.by", life));
+    let refused = follow(&web, &located(&format!("search?{}", query_string(&picked))));
+    assert_eq!(refused.status, 400, "{}", refused.body);
+    assert!(
+        refused.body.contains("a row carries at most 12"),
+        "{}",
+        refused.body
+    );
+    // the fold never meets it: the count, which folds the form's fields
+    // alone, refuses it as no field of the form
+    let mut counted = added.to_vec();
+    counted.push(("view.by", "ilvl"));
+    let count = web.raw(
+        "GET",
+        &format!("/{}/count?{}", web.token, query_string(&counted)),
+        None,
+        &[("accept", "application/json")],
+        "",
+    );
+    assert_eq!(count.status, 400, "{}", count.body);
+    assert!(
+        count.body.contains("`view.by` is no field of this form"),
+        "{}",
+        count.body
+    );
+
+    // a place page: the same, over the rows its heads are drawn from
+    let tab = "tabs?realm=pc&league=Standard&view.value=ilvl&open=t1";
+    let page = web.get(tab).body;
+    assert_eq!(
+        located(&format!("{tab}&view.by=ilvl")),
+        head_of(&page, "ilvl")
+    );
+    let location = located(&format!(
+        "tabs?realm=pc&league=Standard&open=t1&view.by={}",
+        harness::form_encoded(life)
+    ));
+    let landed = follow(&web, &location);
+    assert_eq!(landed.status, 200, "{}", landed.body);
+    assert!(
+        landed
+            .body
+            .contains("<span class=\"mark\" aria-hidden=\"true\">▼</span>"),
+        "{}",
+        landed.body
+    );
+    let at = |id: &str| landed.body.find(&format!("data-id=\"{id}\"")).unwrap();
+    assert!(
+        at("kaom") < at("r1") && at("r1") < at("r2"),
+        "{}",
+        landed.body
+    );
+    // past a full list there too: the search's refusal
+    let mut full_tab = "tabs?realm=pc&league=Standard&open=t1".to_string();
+    for value in full {
+        full_tab.push_str(&format!("&view.value={value}"));
+    }
+    let refused = follow(
+        &web,
+        &located(&format!(
+            "{full_tab}&view.by={}",
+            harness::form_encoded(life)
+        )),
+    );
+    assert!(
+        refused.status >= 400 && refused.body.contains("a row carries at most 12"),
+        "{}: {}",
+        refused.status,
+        refused.body
+    );
+    // a place page that draws no item heads refuses it in words: no place
+    // open, an open tab of no match, a folder alone open
+    let mut store = Store::open(&account_path(&scratch.0.join("mock"), USER)).unwrap();
+    let mut record = |ep: Endpoint, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "pc", "league": "Standard" }),
+                200,
+                &body,
+                at,
+            )
+            .unwrap();
+    };
+    record(
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        json!({ "stashes": [
+            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+            { "id": "t2", "name": "Launch", "type": "PremiumStash" },
+            { "id": "f1", "name": "Old", "type": "Folder", "children": [
+                { "id": "o1", "name": "Old rings", "type": "PremiumStash" } ] } ] }),
+        40,
+    );
+    drop(store);
+    for path in [
+        "tabs?realm=pc&league=Standard&view.by=ilvl",
+        "tabs?realm=pc&league=Standard&text=class%3Aboots&open=t1&view.by=ilvl",
+        "tabs?realm=pc&league=Standard&open=f1&view.by=ilvl",
+    ] {
+        let refused = web.get(path);
+        assert_eq!(refused.status, 400, "{path}: {}", refused.body);
+        assert!(
+            refused
+                .body
+                .contains("no open place on this page lists items"),
+            "{path}: {}",
+            refused.body
+        );
+    }
+}
+
 /// The switch (`4-full-1-form-rides.md`, Decision 3) is the page's: `search`
 /// and `count` take `all_fields=true` beside the form's fields and answer
 /// as without it, the page renders it ticked, and no link or hidden field
@@ -2115,6 +2320,31 @@ fn every_search_page_is_a_wording_golden() {
     for key in ["texts", "group", "alone", "bounded"] {
         assert!(entry.get(key).is_some(), "{key}: {vocabulary}");
     }
+    // the same route asked for values: the value finder's options, each a
+    // submit button sending the value's text, and the listing as JSON
+    let listing = web.get("stats?values=true&q=item+level");
+    assert_eq!(listing.status, 200, "{}", listing.body);
+    pages.page(
+        "GET stats?values=true&q=item level",
+        &listing,
+        &["<li><button type=\"submit\" role=\"option\" name=\"view.by\" value=\"ilvl\">Item Level <span class=\"fate\">filter</span></button></li>"],
+    );
+    let values = web.get_json("stats?values=true&q=total+elemental+resistance");
+    assert_eq!(
+        values["entries"][0],
+        json!({
+            "id": "pseudo.pseudo_total_elemental_resistance",
+            "texts": ["+#% total Elemental Resistance"],
+            "group": "pseudo",
+            "value": "pseudo.total_ele_res",
+        }),
+        "{values}"
+    );
+    for key in ["stats", "totals", "catalogue", "left_out"] {
+        assert!(values.get(key).is_some(), "{key}: {values}");
+    }
+    let refused = web.get("stats?values=yes&q=life");
+    assert_eq!(refused.status, 400, "{}", refused.body);
     panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "search_pages", &pages);
 }

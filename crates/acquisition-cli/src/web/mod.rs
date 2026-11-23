@@ -258,8 +258,10 @@
 //!   `change`, and an add's copy gives the focus to its element marked
 //!   `data-focus`. A group is an item of the pane's list and a list of its
 //!   own, ended by its finder (`data-finder`): a box no form sends, which
-//!   asks `GET stats?q=` for its words and puts the answer, HTML, in its
-//!   listbox, its first option marked (`aria-selected`). Arrows move the
+//!   asks the route its attribute names (`stats?q=`, written by the
+//!   server; the script appends the words) and puts the answer, HTML, in
+//!   its listbox, its first option marked (`aria-selected`). A finder is
+//!   heard wherever it stands: its listeners are the document's. Arrows move the
 //!   mark; Enter clicks the marked option and never submits; Escape, and a
 //!   click on an option after its add, empty the finder, its box and its
 //!   list, and abort its ask in flight. `stats` answers the vocabulary
@@ -269,6 +271,27 @@
 //!   weights is the stylesheet's, over the type's checked option, which
 //!   lists the fields the type takes ([`page::type_takes`]). The script
 //!   names no field and writes no word or value a form sends (C46).
+//! - **The value finder** (`roadmap/briefs/4-full-1-form-values.md`):
+//!   "Add a column" ([`page::value_finder`]) stands inside each form that
+//!   carries the page's view, after that form's own button — the search
+//!   form and the query box, and a place page's list form beside its item
+//!   heads, where they stand — and asks `stats?values=true&q=`, the value
+//!   listing (`acquisition_search::trade::vocabulary::values`): every number
+//!   field the form renders as a box and every stat of the vocabulary that
+//!   the translation compares a value for, by the site's words, JSON where
+//!   asked. Each option is a submit button of the finder's form
+//!   ([`page::value_options`]) sending `view.by` with the value's text, so
+//!   a pick sends that form as it stands with one field more. `view.by` is
+//!   the page's: [`search`] and [`places`] take it out of their fields
+//!   first ([`picked`]), as the switch is, so no fold, document or link
+//!   meets it, and answer `303` to the page ordered by it through the one
+//!   maker of a change to the view, over the rows the search as sent
+//!   answers (a place page's: those its heads are drawn from,
+//!   [`page::heads_rows`]), to the URL that value's head writes. Beside a
+//!   count it is let go, the `303` the page less it; past a full list the
+//!   change names the longer list, so the page lands on the search's own
+//!   refusal of it ([`view_picked`]); a search refused as sent is that
+//!   refusal; a place page that draws no heads refuses it in words.
 //! - **The table**: an answer asked as a table (`view.fields=icon`) is
 //!   every matching row in one scrolling page at one row height, the height
 //!   and the block's rows written on the table ([`page::ROW_HEIGHT`],
@@ -302,7 +325,8 @@
 //!   maker gives a change to the view ([`view_link`]): the same page
 //!   ordered by one value, largest first or the other way where the rows
 //!   are ordered by it, the value joining the answer's list where the list
-//!   lacks it and no link where the list is full. Each value's head of the
+//!   lacks it and no link where the list is full; a value picked by name
+//!   (the value finder, below) lands on that same link. Each value's head of the
 //!   table is that link, the ordered one marked by an arrow and by words a
 //!   screen reader gets. So is each number of an answer's card that a value
 //!   reads (`page::card`): a line whole by its `value`, the value a trade
@@ -965,6 +989,15 @@ impl Web {
         }
     }
 
+    /// A link a page writes, relative to the pages' token or absolute
+    /// under it, as an absolute path under the token: what a `303` names.
+    fn under_token(&self, href: &str) -> String {
+        match href.starts_with('/') {
+            true => href.to_string(),
+            false => format!("/{}/{href}", self.token),
+        }
+    }
+
     /// The saved pages' links and forms, absolute under the token.
     fn saved_links(&self) -> SavedLinks {
         SavedLinks {
@@ -1595,6 +1628,9 @@ async fn search(
         Err(failure) => return web.failed("Answer", &failure, &headers, &Here::none()),
     };
     let (fields, all_fields) = switched(fields);
+    // a value picked by name, the page's too: it orders the page the
+    // search as sent answers, and the search never meets it
+    let (fields, by) = picked(fields);
     // the opened rows, the landing and a row's toggle, taken off before
     // the fold as `saved` is
     let (fields, opening) = opening(fields);
@@ -1733,6 +1769,41 @@ async fn search(
         (asked, filled, leagues)
     })
     .await;
+    // a value picked by name (`view.by`): answered `303` to the page
+    // ordered by it as a head's link writes it, through the one maker of
+    // a change to the view, over the rows the search as sent answers; past
+    // a full list, to the search's own refusal of the longer one. Beside a
+    // count it is let go as the carried order is (#304): the page less it.
+    // A search refused as sent is that refusal, the pick let go.
+    if let (Some(by), Ok((answer, _, _, _, continued, _, _, kept, _))) = (&by, &asked) {
+        let sent: Fields = sent
+            .iter()
+            .cloned()
+            .chain(kept.iter().map(|id| ("item".to_string(), id.clone())))
+            .collect();
+        let to = match &answer.view {
+            acquisition_search::answer::ViewOut::Rows(rows) => {
+                match view_link(&web, &sent, continued.as_ref(), view_picked(rows, by)) {
+                    Some(link) => web.under_token(&link.href),
+                    None => {
+                        let failure = Failure::Usage(
+                            "this page's search is a continuation the form cannot ask, so no \
+                             value orders it: open the search from its start, then add the \
+                             column"
+                                .to_string(),
+                        );
+                        return web.failed("Answer", &failure, &headers, &Here::none());
+                    }
+                }
+            }
+            _ => {
+                let fields: Vec<(&str, String)> =
+                    sent.iter().map(|(k, v)| (k.as_str(), v.clone())).collect();
+                web.link("search", &fields)
+            }
+        };
+        return see_other(&to);
+    }
     // the page itself, as its every link writes it — its fields as sent and
     // the opened rows it keeps (or, refused, those its URL opens) — is what
     // its leaving forms post as `from`, as a place page's is
@@ -1785,7 +1856,7 @@ async fn search(
             rows_links.places = by_place(&web, &request, &answer, &held);
             let view_links = |value: &str| match &answer.view {
                 acquisition_search::answer::ViewOut::Rows(rows) => {
-                    view_link(&web, &sent, continued.as_ref(), rows, value)
+                    view_link(&web, &sent, continued.as_ref(), view_change(rows, value)?)
                 }
                 _ => None,
             };
@@ -2051,17 +2122,17 @@ fn view_link(
     web: &Web,
     sent: &Fields,
     continued: Option<&Request>,
-    rows: &acquisition_search::answer::RowsOut,
-    value: &str,
+    change: ViewChange,
 ) -> Option<page::ViewLink> {
     use acquisition_search::answer::Shape;
     let ViewChange {
+        sort: value,
         desc,
         values,
         held,
         ordered,
-        ..
-    } = view_change(rows, value)?;
+    } = change;
+    let value = value.as_str();
     let listed = |list: &mut Vec<String>| {
         if let Some(values) = &values {
             list.clone_from(values);
@@ -2135,8 +2206,17 @@ fn view_change(rows: &acquisition_search::answer::RowsOut, value: &str) -> Optio
     if !held && rows.values.len() >= acquisition_search::answer::VALUES {
         return None;
     }
+    Some(view_picked(rows, value))
+}
+
+/// A pick's change (`view.by`, the value finder): [`view_change`], and
+/// past a full list the same change all the same, the list one longer
+/// than a row carries, so the page it lands on is the search's own
+/// refusal of that list (C143), never the page unchanged.
+fn view_picked(rows: &acquisition_search::answer::RowsOut, value: &str) -> ViewChange {
+    let held = rows.values.iter().any(|v| v == value);
     let ordered = (rows.sort.as_deref() == Some(value)).then_some(rows.desc);
-    Some(ViewChange {
+    ViewChange {
         sort: value.to_string(),
         // largest first, or the other way where the rows are ordered by it so
         desc: ordered.is_none_or(|desc| !desc),
@@ -2147,7 +2227,16 @@ fn view_change(rows: &acquisition_search::answer::RowsOut, value: &str) -> Optio
         }),
         held,
         ordered,
-    })
+    }
+}
+
+/// The value a page is to be ordered by (`view.by`, [`page::VIEW_BY`])
+/// taken out of its fields, the first thing `search` and `places` do with
+/// the switch and `from`, so no fold, link or hidden field meets it: the
+/// last sent, where one was.
+fn picked(fields: Fields) -> (Fields, Option<String>) {
+    let (by, fields): (Fields, Fields) = fields.into_iter().partition(|(k, _)| k == page::VIEW_BY);
+    (fields, by.into_iter().next_back().map(|(_, v)| v))
 }
 
 /// What a link spelt from a continuation carries of the page beside its
@@ -2513,22 +2602,49 @@ async fn count(State(web): State<Arc<Web>>, Query(fields): Query<Fields>) -> Res
     }
 }
 
-/// A finder's listing: the stat vocabulary for the words asked, the
-/// vocabulary document where JSON is asked, else the finder's options as
-/// HTML, each holding the template of its row ([`page::stat_options`]).
+/// A finder's listing, by the words asked: the stat vocabulary, its
+/// document where JSON is asked, else the stat finder's options as HTML,
+/// each holding the template of its row ([`page::stat_options`]); or,
+/// asked for values (`values=true`), the value listing, its document or
+/// the value finder's options, each a submit button
+/// ([`page::value_options`]). One route, one field (C138, the listener).
 async fn stats(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    use acquisition_search::trade::vocabulary;
     let ask = pick(&fields, "q").unwrap_or_default().to_string();
-    match blocking(&web, move |_| {
-        acquisition_search::trade::vocabulary::vocabulary(&ask, PICKED)
-    })
-    .await
-    {
-        Ok(listed) if wants_json(&headers) => document(&listed),
-        Ok(listed) => html(StatusCode::OK, page::stat_options(&listed)),
+    let json = wants_json(&headers);
+    let listed = match pick(&fields, "values") {
+        None => {
+            blocking(&web, move |_| {
+                vocabulary::vocabulary(&ask, PICKED).map(|listed| match json {
+                    true => document(&listed),
+                    false => html(StatusCode::OK, page::stat_options(&listed)),
+                })
+            })
+            .await
+        }
+        Some("true") => {
+            blocking(&web, move |_| {
+                vocabulary::values(&ask, PICKED).map(|listed| match json {
+                    true => document(&listed),
+                    false => html(StatusCode::OK, page::value_options(&listed)),
+                })
+            })
+            .await
+        }
+        Some(other) => {
+            let failure = Failure::Usage(format!(
+                "`values` {other:?} is no listing a finder asks: `true` lists the values a \
+                 column is added by, and a listing without it the stats"
+            ));
+            return web.failed("Stats", &failure, &headers, &Here::none());
+        }
+    };
+    match listed {
+        Ok(answered) => answered,
         Err(e) => web.failed("Stats", &Failure::from(e), &headers, &Here::none()),
     }
 }
@@ -2604,6 +2720,9 @@ async fn places(
         Ok(taken) => taken,
         Err(failure) => return web.failed(title, &failure, &headers, &Here::none()),
     };
+    // a value picked by name, the page's own: it orders the rows the heads
+    // are drawn from, and no places document or segment meets it
+    let (fields, by) = picked(fields);
     // the page itself as sent, less what one load reads (a toggle, a
     // landing), is what its leaving forms post as `from`
     let itself: Fields = fields
@@ -2856,15 +2975,14 @@ async fn places(
     );
     // a value's head: the page ordered by it, through the one maker of a
     // change to the view, every open and tick kept
-    let view_links = |rows: &acquisition_search::answer::RowsOut, value: &str| {
-        let change = view_change(rows, value)?;
+    let changed_link = |change: ViewChange| {
         let mut changed = shown.clone();
         changed.view.sort = Some(change.sort);
         changed.view.desc = change.desc;
         if let Some(values) = change.values {
             changed.view.values = values;
         }
-        Some(page::ViewLink {
+        page::ViewLink {
             href: web.link(
                 listed.route(),
                 &place_fields(
@@ -2882,8 +3000,29 @@ async fn places(
             ),
             held: change.held,
             ordered: change.ordered,
-        })
+        }
     };
+    let view_links = |rows: &acquisition_search::answer::RowsOut, value: &str| {
+        Some(changed_link(view_change(rows, value)?))
+    };
+    // a value picked by name (`view.by`): answered `303` to the page
+    // ordered by it as a head's link writes it, over the rows the heads
+    // are drawn from; past a full list, to the search's own refusal of the
+    // longer one. A page that draws no heads has no rows to order: refused.
+    if let Some(by) = &by {
+        return match page::heads_rows(&places, &windows) {
+            Some(rows) => see_other(&changed_link(view_picked(rows, by)).href),
+            None => {
+                let failure = Failure::Usage(
+                    "no open place on this page lists items, so no rows stand to be ordered \
+                     by a value: open a tab or a character that holds items, then add the \
+                     column"
+                        .to_string(),
+                );
+                web.failed(title, &failure, &headers, &here)
+            }
+        };
+    }
     let hidden_view: Vec<(&'static str, String)> = shown.view_fields();
     // an opened row's place: this page with it and its holders open, no
     // query, the card adding its landing
@@ -2977,8 +3116,10 @@ async fn places(
     // C16: the documents the page renders that carry a version, each its
     // own field — the places document's basis under a query, and a
     // segment's window's, which its route answers; one basis by `steady`
+    // the finders' script where "Add a column" stands, beside the heads
     let mut head = Head {
         window: !windows.is_empty(),
+        lists: page::heads_rows(&places, &windows).is_some(),
         ..Head::default()
     };
     if let Some(basis) = &places.basis {

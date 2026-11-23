@@ -7,7 +7,9 @@
 //! (`count.js`); the stat pane's rows and groups are added, picked by keys
 //! from a finder, changed and removed, and a search of two groups is run
 //! from them, the count following each step; and a finder's ask in flight
-//! past an Escape or a pick fills nothing (`lists.js`); and the table's
+//! past an Escape or a pick fills nothing (`lists.js`); a value picked by
+//! name from "Add a column", on a place page and in the search form after
+//! an unsent edit, lands ordered by it with its head marked; and the table's
 //! window shows, wherever the page
 //! is scrolled, the server's rows at their places and holds no more than
 //! a bound the table's length does not move, takes the server's first
@@ -1053,6 +1055,162 @@ fn a_finders_ask_held_past_an_escape_or_a_pick_fills_nothing() {
         json!(["", 0]),
         "a reply after a pick filled the finder"
     );
+}
+
+/// The values a value finder's options send, joined.
+fn listed_values(finder: &str) -> String {
+    format!("Array.from({finder}.querySelectorAll('[role=option]'), (o) => o.value).join('\\n')")
+}
+
+/// A value picked from the value finder `finder` ("Add a column") as a
+/// user's keys would: its box clicked and `words` typed; once its list is
+/// the one the `stats` route answers asked for values, the arrows move the
+/// mark from the first option to `value`'s, and Enter picks it, which
+/// sends the finder's form: the page loads again.
+fn pick_value(page: &mut Page, web: &harness::WebUi, finder: &str, words: &str, value: &str) {
+    page.cdp.click(&format!("{finder}.querySelector('input')"));
+    page.cdp.keys(words);
+    let answered = web.get_json(&format!(
+        "stats?values=true&q={}",
+        harness::form_encoded(words)
+    ));
+    let values: Vec<&str> = answered["entries"]
+        .as_array()
+        .expect("the entries")
+        .iter()
+        .map(|e| e["value"].as_str().expect("a value"))
+        .collect();
+    page.cdp.until(&format!(
+        "{} === {}",
+        listed_values(finder),
+        json!(values.join("\n"))
+    ));
+    let at = values
+        .iter()
+        .position(|listed| *listed == value)
+        .unwrap_or_else(|| panic!("{value} is not listed for {words:?}: {values:?}"));
+    for _ in 0..at {
+        page.cdp.press("ArrowDown");
+    }
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "{finder}.querySelector('[aria-selected=true]').value"
+        )),
+        json!(value)
+    );
+    page.cdp.keys("\r");
+    page.loaded_again();
+}
+
+/// The fields of the URL the page holds, in order.
+const LOCATION_FIELDS: &str = "Array.from(new URLSearchParams(location.search))";
+
+/// The value finder on a place page (`4-full-1-form-values.md`): a tab
+/// opened with no query, "Add a column" focused, a value's name typed,
+/// the arrows and Enter: the page lands at the URL its head's link would
+/// write — the page's fields, the value added to the list and ordered by
+/// it, largest first — its column added and its head marked, the rows in
+/// that order.
+#[test]
+fn a_value_picked_by_name_orders_a_place_page() {
+    let (scratch, web) = offline_web("browserplacevalue");
+    let life = "sum(line(\"# to maximum Life\" source=explicit).arg1)";
+    let mut page = Page::open(
+        &profile_of(&scratch),
+        &format!("{}tabs?realm=pc&league=Standard&open=t1", web.url),
+    );
+    let finder = "document.querySelector('.value-finder')";
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "{finder}.querySelector('input').getAttribute('aria-label')"
+        )),
+        json!("Add a column")
+    );
+    pick_value(&mut page, &web, finder, "to maximum life", life);
+    assert_eq!(
+        page.cdp.eval(LOCATION_FIELDS),
+        json!([
+            ["realm", "pc"],
+            ["league", "Standard"],
+            ["view.value", life],
+            ["view.sort", life],
+            ["view.desc", "true"],
+            ["open", "t1"]
+        ])
+    );
+    let head =
+        "Array.from(document.querySelectorAll('a.head')).find((a) => a.querySelector('.mark'))";
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "{head}.textContent.replace('▼', '').replace(', ordered largest first', '')"
+        )),
+        json!(life)
+    );
+    page.cdp.until(
+        "Array.from(document.querySelectorAll('[data-id]'), (r) => r.dataset.id).join(',') === 'kaom,r1,r2'",
+    );
+}
+
+/// The value finder in the search form: an edit not yet sent, then a
+/// value picked by name, lands with the form filled as it stood, the edit
+/// among it, ordered by the value with its column; the ordered head's own
+/// link then flips the order.
+#[test]
+fn a_value_picked_from_the_form_keeps_its_unsent_edit_and_its_head_flips() {
+    let (scratch, web) = offline_web("browserformvalue");
+    let life = "sum(line(\"# to maximum Life\" source=explicit).arg1)";
+    let mut page = Page::open(
+        &profile_of(&scratch),
+        &format!(
+            "{}search?realm=pc&league=Standard&group.type=and\
+             &stat.id=explicit.stat_3299347043&stat.min=90&view.fields=icon",
+            web.url
+        ),
+    );
+    let bound = format!("{SEARCH_FORM}.querySelector('input[name=\"stat.min\"]')");
+    page.cdp.click(&bound);
+    page.cdp.eval(&format!("{bound}.select(); true"));
+    page.cdp.keys("70");
+    let finder = format!("{SEARCH_FORM}.querySelector('.value-finder')");
+    pick_value(&mut page, &web, &finder, "to maximum life", life);
+    assert_eq!(page.cdp.eval(&format!("{bound}.value")), json!("70"));
+    let fields = page.cdp.eval(LOCATION_FIELDS);
+    let has = |k: &str, v: &str| {
+        fields
+            .as_array()
+            .expect("the fields")
+            .contains(&json!([k, v]))
+    };
+    assert!(
+        has("stat.min", "70") && has("view.sort", life) && has("view.desc", "true"),
+        "{fields}"
+    );
+    assert!(!has("view.by", life), "{fields}");
+    let ids = "Array.from(document.querySelectorAll('[data-id]'), (r) => r.dataset.id).join(',')";
+    page.cdp.until(&format!("{ids} === 'kaom,r1,r2'"));
+    // the ordered head's own link: the other way
+    page.cdp.click(
+        "Array.from(document.querySelectorAll('a.head')).find((a) => a.querySelector('.mark'))",
+    );
+    page.loaded_again();
+    let fields = page.cdp.eval(LOCATION_FIELDS);
+    assert!(
+        fields
+            .as_array()
+            .expect("the fields")
+            .contains(&json!(["view.sort", life]))
+            && !fields
+                .as_array()
+                .expect("the fields")
+                .contains(&json!(["view.desc", "true"])),
+        "{fields}"
+    );
+    // the head's link carries no anchor: the table is scrolled to, as a
+    // reader would, for the window to draw its rows
+    page.cdp
+        .eval("document.querySelector('.window').scrollIntoView(); true");
+    page.cdp.until(&format!("{ids} === 'r2,r1,kaom'"));
+    assert_eq!(page.cdp.eval(&format!("{bound}.value")), json!("70"));
 }
 
 /// What the table's window shows now, as drawn: the table's row height
