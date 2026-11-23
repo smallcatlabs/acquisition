@@ -33,8 +33,9 @@
 //!   label, under `filter`, then the stats in the order above. An entry is
 //!   listed exactly where [`value_of`] answers a value for it: the value
 //!   the translation compares for a bounded filter on that entry alone, of
-//!   any kind, made once per entry in a process and held. A line's value
-//!   (`show.rs`, `trade_value`) is made by the same function, keeping its
+//!   any kind, held once made (two asks at once may each make it, and
+//!   agree: the translation is a pure function of the build's tables). A
+//!   line's value (`show.rs`, `trade_value`) is made by the same function, keeping its
 //!   own rule: a sum over the stat's lines, whose slot the line reads. No
 //!   shape decides what is listed. Only the entries the words match are put
 //!   to it; the first `limit` with a value are listed and the rest with one
@@ -265,8 +266,9 @@ pub fn value_of(entry: Valued) -> Option<String> {
     compared_of(entry).map(|one| one.text)
 }
 
-/// [`value_of`] with the value itself. Asked once per entry in a process
-/// and held: the translation is a pure function of the build's tables.
+/// [`value_of`] with the value itself, held once made: two asks at once
+/// may each make it, and agree, since the translation is a pure function
+/// of the build's tables.
 pub(crate) fn compared_of(entry: Valued) -> Option<crate::values::Compared> {
     use std::collections::HashMap;
     use std::sync::{LazyLock, Mutex};
@@ -381,8 +383,8 @@ fn asked() -> Result<&'static [Asked], LanguageError> {
 /// dropped (the vocabulary's rule): those [`value_of`] answers a value
 /// for, in the listing's order (the number fields, then the stats as
 /// the vocabulary lists them), the first `limit` listed and the rest
-/// counted. Only the entries the words match are put to it, each once in
-/// a process. An error is a table this build ships that does not load: a
+/// counted. Only the entries the words match are put to it, each value
+/// held once made ([`value_of`]). An error is a table this build ships that does not load: a
 /// build defect, said.
 pub fn values(ask: &str, limit: usize) -> Result<Values, LanguageError> {
     let words = words(ask);
