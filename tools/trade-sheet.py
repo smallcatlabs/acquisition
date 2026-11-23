@@ -2606,6 +2606,64 @@ def round_za(earlier):
     return rows
 
 
+def round_zb(earlier):
+    """Abyssal sockets (#185), asked of belts, where a socket is abyssal or
+    none: the site's own page posts a Sockets filter's unset `a` and `d`
+    null (u059), so its form holds an abyssal count. zb01-zb02 whether `a`
+    counts abyssal sockets; zb03 whether `min` counts one; zb04-zb05 what
+    Link Groups makes of one; zb06-zb09 the line every such item displays,
+    asked as a stat, and whether `a` and the line find the same belts."""
+    composed = Composed("zb", 2, earlier)
+    add = composed.add
+    line = "stat_3527617737"  # "Has # Abyssal Sockets"
+
+    def belts(name=None, value=None, stats=()):
+        filters = dict(category("accessory.belt"))
+        if name:
+            filters["socket_filters"] = {"disabled": False, "filters": {name: value}}
+        return batch_query(list(stats), filters)
+
+    add("`socket_filters.sockets` `a` 1 under `accessory.belt`. Only belts with an abyssal socket (Stygian Vise): "
+        "`a` asks the abyssal sockets; every kind of belt: the site ignores `a`; refused: the site takes no `a`. "
+        "The control of {next}", "the control: must find items", belts("sockets", {"a": 1}))
+    add("`a` 2, zb01's mutant. Fewer than zb01, each with two abyssal sockets (Darkness Enthroned): `a` is a "
+        "count; as many as zb01: `a` is a yes or no, or ignored. With zb06, every belt displaying the line: "
+        "zb01 as many as zb06, `a` asks at least; zb06 less this search, exactly", "zb01, `a` 1",
+        belts("sockets", {"a": 2}))
+    add("`socket_filters.sockets` `min` 1 under `accessory.belt`, no colour asked. The belts zb01 found: `min` "
+        "counts an abyssal socket, as the search's `sockets` does; none: `min` counts the coloured sockets "
+        "alone, and the row's `sockets{bounds}` is not the site's on such an item", "zb01, the belts with an "
+        "abyssal socket", belts("sockets", {"min": 1}))
+    add("`socket_filters.links` `a` 1 under `accessory.belt`. The belts zb01 found: Link Groups takes `a`, an "
+        "abyssal socket a group of its own; none: a link group holds no abyssal socket; every kind of belt: "
+        "ignored; refused: Link Groups takes no `a`", "zb01, the belts with an abyssal socket",
+        belts("links", {"a": 1}))
+    add("`socket_filters.links` `min` 1 under `accessory.belt`. The belts zb01 found: a lone abyssal socket is "
+        "a link group of one, as the search's `linked(size>=1)` reads it; none: it is no link group",
+        "zb01, the belts with an abyssal socket", belts("links", {"min": 1}))
+    add("the line as a stat, implicit: `implicit." + line + "` under `accessory.belt`. As many as zb01: a "
+        "Stygian Vise's socket is its implicit line; the ten fetched show `Has 1 Abyssal Socket`, the form the "
+        "translation reads", "zb01, the belts with an abyssal socket",
+        belts(stats=[group("and", ["implicit." + line])]))
+    add("the line as a stat, explicit, on any item: `explicit." + line + "`. The ten fetched show the line's "
+        "forms off a belt (gloves, boots, a helmet, a body armour) and each one's sockets, `A` among colours",
+        "the oracle (tests/trade_oracle.rs): every item returned is matched by the translated text, or a row",
+        batch_query([group("and", ["explicit." + line])]))
+    add("complete: `a` 1 under `accessory.belt` with the line's three ids in a `not` group. None: every belt "
+        "`a` finds displays the line, so the stat and the count ask the same belts; some: the ten fetched name "
+        "an abyssal socket no line says", "zb01, `a` 1 alone",
+        belts("sockets", {"a": 1}, [group("not", [f"{domain}.{line}" for domain in
+                                                    ("explicit", "implicit", "fractured")])]))
+    add("sound: the line's implicit id required with `a` 1 under `accessory.belt`. As many as zb06: every "
+        "belt displaying the line has a socket `a` counts; fewer: zb06's ten fetched and these name a line "
+        "with no such socket", "zb06, the line alone",
+        belts("sockets", {"a": 1}, [group("and", ["implicit." + line])]))
+    rows = composed.done()
+    if len(rows) != 9:
+        raise SystemExit(f"round zb has {len(rows)} searches, its names written for 9")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2648,6 +2706,7 @@ def compose_sheet(method="site"):
         searches += round_y(searches)
         searches += round_z(searches)
         searches += round_za(searches)
+        searches += round_zb(searches)
     return searches
 
 
