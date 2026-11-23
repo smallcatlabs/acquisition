@@ -31,7 +31,8 @@ the sitting of 2026-11-23 lands. Closes #185.
   and `c507299b909f45f61511e719100f7a9bd7fac276fa42f48321c13c4bd88df53c`; the sheet at
   `9594b66a` (zb) and `48bcfa0e` (zc); the site-sitting skill's steps
   6 to 10; the last landing, `393024b8`, as the model.
-- CI at `48bcfa0e`: Gate (Linux) 45277288828 success, Gate (Windows)
+- CI at `48bcfa0e` (`gh run list --branch main --workflow "Gate (Linux)"
+  --limit 1`, and Windows): Linux 45277288828 success, Windows
   45277289166 success.
 
 ## Decisions
@@ -43,8 +44,10 @@ The design session's (C172, who designs), each settled with the owner:
    counted as they are. Every list of the words, letters or keys reads
    it: the binder, `group.rs`, `describe.rs`, `Groups::each`,
    `filter_keys`'s sockets entry, the number loop, `PLACEHOLDERS`, the
-   form and the page. Words a user reads call it a socket, never a
-   colour.
+   form, the page and the fold's numeric keys. Words a user reads call
+   it a socket, never a colour. A complete list and a generator read
+   the table; a test's chosen example, an expected answer worked by
+   hand and a capacity fixture keep their words.
 2. **The site's key `a`.** `socket_filters.sockets` lands
    `sockets.abyssal>={a}` and `socket_filters.links`, inside its
    `linked( … )`, `abyssal>={a}`; both stay exact (zb01 to zb10). `d`
@@ -58,7 +61,8 @@ The design session's (C172, who designs), each settled with the owner:
    and the clause's report says so in words. No rule keyed on a row's
    name in code; Link Groups and the ranges untouched (#309).
 4. **The stat**, `stat_3527617737`, is in `trade-stats-v1.toml` and its
-   form in `trade-game-forms-v1.toml`: no table changes. Shown end to
+   form in `trade-game-forms-v1.toml` (`git grep -n 'stat_3527617737\|Abyssal Socket' -- crates/acquisition-search/reference`):
+   no table changes. Shown end to
    end: zb11 and zb12 run in the oracle; the page's finder offers it and
    a form row of it runs.
 5. **The form.** Each socket row gains an A box after W, made from the
@@ -70,9 +74,9 @@ The design session's (C172, who designs), each settled with the owner:
    the captures holds what it then measures.
 
 ## Find first
-- `git grep -n -E 'COLOURS|colour_words|sockets::letter|SocketColour|sockets\.(red|green|blue|white)|"[rgbw]", "[rgbw]"|"R", "G"|red,? green,? blue' -- crates ':!*/goldens/*'`:
-  each list of the words, letters or keys (a dotted field, a word list
-  in a string), each to read the table.
+- `git grep -n -E 'COLOURS|colour_words|sockets::letter|SocketColour|sockets\.(red|green|blue|white)|"[rgbw]", "[rgbw]"|"r" [|] "g"|"R", "G"|"red", "green"|red,? green,? blue' -- crates ':!*/goldens/*'`:
+  each list of the words, letters or keys (a dotted field, a match arm,
+  a word list in a string), each sorted by Decision 1's last sentence.
 - `git grep -n -i 'colour' -- crates/acquisition-search/src crates/acquisition-search/reference/trade-catalogue-v1.toml crates/acquisition-cli/src crates/acquisition-mcp/src`:
   each text a user reads that calls a socket word a colour, a row's
   `says` among them.
