@@ -1124,7 +1124,7 @@ struct ViewNamed {
 pub const VALUES: usize = 12;
 
 /// The value a stackable item's count is: the default list carries it
-/// wherever a match has one ([`BoundView::stacked`]).
+/// wherever a match has one (`BoundView::stacked`).
 pub const STACK: &str = "stack";
 
 /// The sort word for the order items lie in their places

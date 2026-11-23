@@ -74,7 +74,7 @@
 //!   in where no sort is named, at every door (`answer.rs`, "Rows"):
 //!   one stable sort of the items after the read, by their location,
 //!   locations in the order the store's read hands them over, then
-//!   within one as they lie in their place, by the cell [`celled`]
+//!   within one as they lie in their place, by the cell `celled`
 //!   leaves on it, top row first and left to right, then by id. An
 //!   item with no cell there — worn, socketed, or with no cell in its
 //!   body — stands after those with one, by id: a worn or socketed
