@@ -20,11 +20,12 @@ better Acquisition that is agent-friendly and agent-forward.
   parts (`git log --grep='^Step: 4-full-1'`). The search form's
   reshaping is designed and ruled (`briefs/4-full-1-form-design.md`)
   and built in the series of its §8, one brief a step
-  (`git log --grep='^Step: 4-full-1-form'`). Steps 1 and 2 are closed:
-  a saved search keeps what was asked (C194), and a search's page is
-  its source's editor, filled, above its answer, its stat fields
-  positional (`briefs/4-full-1-form-editor.md`). Step 3, rows and
-  groups by script, is next.
+  (`git log --grep='^Step: 4-full-1-form'`). Steps 1 to 3 are closed:
+  a saved search keeps what was asked (C194); a search's page is its
+  source's editor, filled, above its answer; and stat rows and groups
+  are added and removed on the page, each row the server's
+  (`briefs/4-full-1-form-rows.md`). Step 4, what rides on the form, is
+  next.
 
 ## Next
 
@@ -32,10 +33,10 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. 4-full part 1, the search form's reshaping (#184, #181, #180,
-   #185, #188, #183), its design ruled
+1. 4-full part 1, the search form's reshaping (#181, #180, #185,
+   #188, #183), its design ruled
    (`briefs/4-full-1-form-design.md`) and built in the series of its
-   §8, each step its own brief, step 3 next; #190's rest, the landing
+   §8, each step its own brief, step 4 next; #190's rest, the landing
    rule, a sort by values a player names and #296 ride with it. Its
    last step, a search's way back to the trade site (#303), waits on a
    sitting. The look is #285; what an apply brought, said on its job,
