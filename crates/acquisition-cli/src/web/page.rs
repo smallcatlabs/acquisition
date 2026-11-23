@@ -783,7 +783,15 @@ pub(crate) fn search_form(
         // own toggle is open and close alone
         out.push_str(&format!(
             "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\">{}</div>\n",
-            if !group.hidden || fill.holds_under(&at) { " open" } else { "" },
+            // the armour panel opens where its quality box is unticked
+            if !group.hidden
+                || fill.holds_under(&at)
+                || (group.id == "armour_filters" && fill.holds_under("defences"))
+            {
+                " open"
+            } else {
+                ""
+            },
             esc(title),
             on_box(
                 &format!("{at}.disabled"),
@@ -799,10 +807,7 @@ pub(crate) fn search_form(
         // C142: the defences' reading beside the query, the panel's one
         // convenience the site's form has no control for
         if group.id == "armour_filters" {
-            out.push_str(&format!(
-                "<div class=\"filter\"><label><input type=\"checkbox\" name=\"defences\" value=\"displayed\"{}> read these as the item stands, at its own quality, not the site's 20 %</label></div>\n",
-                checked(fill.ticked("defences", "displayed"))
-            ));
+            out.push_str(&quality_box(fill));
         }
         out.push_str("</div>\n</details>\n");
     }
@@ -903,6 +908,21 @@ fn view_hidden(view: &BoxView, count: bool) -> String {
         out.push_str(&hidden("view.count", keys));
     }
     out
+}
+
+/// The quality box (C142, the defences' reading beside the query;
+/// `4-full-1-form-rides.md`, Decision 1), shaped as an on box: a hidden
+/// `defences=displayed`, then the box, ticked by default, sending
+/// `defences=q20`, the site's own reading, which the fold's normal form
+/// drops. The fold reads the last sent, so the box unticked asks the
+/// defences as the item stands. It is unticked where the fill holds
+/// `displayed`.
+fn quality_box(fill: &Fill) -> String {
+    format!(
+        "<div class=\"filter\"><input type=\"hidden\" name=\"defences\" value=\"displayed\"><label><input type=\"checkbox\" name=\"defences\" value=\"{}\"{}> assume 20% quality</label></div>\n",
+        super::form::SITE_DEFENCES,
+        checked(!fill.ticked("defences", "displayed"))
+    )
 }
 
 /// An on box (`4-full-1-form-rows.md`, Decision 8), the one maker of

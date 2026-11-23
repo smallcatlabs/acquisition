@@ -12,8 +12,8 @@
 //!   value at its path only where that value folds back to itself exactly,
 //!   read by the fold's own typing ([`form::typed`]): a select's own
 //!   option, a number box's JSON number as serde writes it, a text box's
-//!   string equal to its trim, a box's `true` (or the defences' box's
-//!   `displayed`). The taking marks the path held. A listing control shows
+//!   string equal to its trim, a box's `true` (or the quality box's
+//!   `displayed`, which leaves it unticked). The taking marks the path held. A listing control shows
 //!   the value and holds nothing: a browser sends nothing of a disabled
 //!   control.
 //! - **What no control holds is named.** Every leaf of the normal envelope

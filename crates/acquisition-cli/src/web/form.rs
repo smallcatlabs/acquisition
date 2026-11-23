@@ -76,9 +76,14 @@
 //!   `max`, `weight` or socket colour that reads as a number is one;
 //!   anything else is the text typed, which the translation reports as it
 //!   reads it. The fold decides nothing the translation decides. Its
-//!   envelope is in one normal form ([`normal`]): a null, an empty string
-//!   and a `disabled` of false dropped, then what is left empty, then a
-//!   stat group with no filter; the fill reads that form (`fill.rs`).
+//!   envelope is in one normal form ([`normal`]): a null, an empty string,
+//!   a `disabled` of false and a `defences` of `q20`, the site's own
+//!   reading, dropped, then what is left empty, then a stat group with no
+//!   filter; the fill reads that form (`fill.rs`).
+//! - **The quality box is shaped as an on box** (`page.rs`,
+//!   `quality_box`): a hidden `defences=displayed`, then "assume 20%
+//!   quality", ticked by default, sending `defences=q20`. The last sent
+//!   stands, so the box unticked asks the defences as the item stands.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -560,9 +565,12 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
     if let Some(league) = league {
         envelope.insert("league".into(), Value::String(league));
     }
-    // C142: the defences' reading beside the query, as the box names it
-    if let Some(defences) = defences {
-        envelope.insert("defences".into(), Value::String(defences));
+    // C142: the defences' reading beside the query, as the quality box
+    // names it, the site's own dropped as the normal form drops it
+    if let Some(defences) = defences.map(Value::String)
+        && !dropped("defences", &defences)
+    {
+        envelope.insert("defences".into(), defences);
     }
     envelope.insert(
         "query".into(),
@@ -647,8 +655,8 @@ fn put_keys(at: &mut Value, keys: &[&str], value: &str) {
 }
 
 /// The fold's normal form of an envelope, what the fill reads and its pin
-/// compares (`4-full-1-form-design.md` §2): a null, an empty string and a
-/// `disabled` of false dropped at every depth, then what is left empty,
+/// compares (`4-full-1-form-design.md` §2): what [`dropped`] names dropped
+/// at every depth, then what is left empty,
 /// then a stat group with no filter. What the fold writes is in it.
 pub(crate) fn normal(envelope: &Value) -> Value {
     let mut out = strip(envelope);
@@ -659,17 +667,28 @@ pub(crate) fn normal(envelope: &Value) -> Value {
     out
 }
 
-/// A null, an empty string and a `disabled` of false dropped at every
-/// depth: the first move of the normal form ([`normal`]).
+/// The defences' reading that is the site's own (C142), which the quality
+/// box sends ticked and the normal form drops, as it drops a `disabled` of
+/// false.
+pub(crate) const SITE_DEFENCES: &str = "q20";
+
+/// Whether the normal form drops `value` at `key`: a null, an empty string,
+/// a `disabled` of false and the site's own defences' reading
+/// ([`SITE_DEFENCES`]).
+fn dropped(key: &str, value: &Value) -> bool {
+    value.is_null()
+        || value.as_str() == Some("")
+        || (key == "disabled" && *value == Value::Bool(false))
+        || (key == "defences" && value.as_str() == Some(SITE_DEFENCES))
+}
+
+/// What the normal form drops ([`dropped`]) dropped at every depth: the
+/// first move of the normal form ([`normal`]).
 fn strip(value: &Value) -> Value {
     match value {
         Value::Object(o) => Value::Object(
             o.iter()
-                .filter(|(k, v)| {
-                    !(v.is_null()
-                        || v.as_str() == Some("")
-                        || (k.as_str() == "disabled" && *v == &Value::Bool(false)))
-                })
+                .filter(|(k, v)| !dropped(k, v))
                 .map(|(k, v)| (k.clone(), strip(v)))
                 .collect(),
         ),
@@ -894,6 +913,33 @@ mod tests {
         );
     }
 
+    /// The quality box (C142, the defences' reading beside the query), as
+    /// a browser sends it: ticked, its hidden `displayed` then its `q20`,
+    /// which folds to no `defences`, the site's own reading dropped as the
+    /// normal form drops it; unticked, the hidden `displayed` alone.
+    #[test]
+    fn the_quality_box_ticked_folds_to_no_defences_and_unticked_to_displayed() {
+        let form = Form::load().unwrap();
+        let armour = ("query.filters.armour_filters.filters.ar.min", "300");
+        let ticked = fold(
+            &form,
+            &fields(&[("defences", "displayed"), ("defences", "q20"), armour]),
+        )
+        .unwrap();
+        assert_eq!(
+            ticked.envelope.get("defences"),
+            None,
+            "{:?}",
+            ticked.envelope
+        );
+        let unticked = fold(&form, &fields(&[("defences", "displayed"), armour])).unwrap();
+        assert_eq!(unticked.envelope["defences"], "displayed");
+        assert_eq!(
+            normal(&json!({ "defences": "q20", "query": { "term": "a" } })),
+            json!({ "query": { "term": "a" } })
+        );
+    }
+
     #[test]
     fn a_stat_group_with_no_filter_is_dropped_and_a_bad_name_refused() {
         let form = Form::load().unwrap();
@@ -903,17 +949,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(folded.envelope, json!({ "query": {} }));
-        // the armour panel's checkbox: the defences' reading beside the
-        // query (C142)
-        let folded = fold(
-            &form,
-            &fields(&[
-                ("defences", "displayed"),
-                ("query.filters.armour_filters.filters.ar.min", "300"),
-            ]),
-        )
-        .unwrap();
-        assert_eq!(folded.envelope["defences"], "displayed");
         // a group turned off is sent as the site sends it, its values
         // standing beside its `disabled`
         let folded = fold(

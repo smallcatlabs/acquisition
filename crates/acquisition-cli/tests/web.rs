@@ -1418,7 +1418,7 @@ fn every_search_page_is_a_wording_golden() {
             "<summary>Add Stat Group</summary>",
             "<template id=\"stat-group-weight\">",
             "<summary>Type Filters</summary>",
-            "name=\"defences\" value=\"displayed\"",
+            "<input type=\"checkbox\" name=\"defences\" value=\"q20\" checked> assume 20% quality",
             "<input type=\"hidden\" name=\"query.filters.armour_filters.disabled\" value=\"true\"><label><input type=\"checkbox\" name=\"query.filters.armour_filters.disabled\" value=\"false\" checked> group on</label>",
             "<input type=\"hidden\" name=\"group.disabled\" value=\"true\"><label><input type=\"checkbox\" name=\"group.disabled\" value=\"false\" checked> group on</label>",
             "<summary>Stat Filters</summary>",
@@ -1950,6 +1950,19 @@ fn every_search_page_is_a_wording_golden() {
             "name=\"stat.weight\" value=\"1\"",
             "name=\"stat.min\" value=\"40\"",
             "<p class=\"count\">1 match</p>",
+        ],
+    );
+    // a form whose defences are read as the item stands: the quality box
+    // unticked, its panel open (`4-full-1-form-rides.md`)
+    let displayed = "search?realm=pc&league=Standard&defences=displayed";
+    let unticked = web.get(displayed);
+    assert_eq!(unticked.status, 200, "{}", unticked.body);
+    pages.page(
+        "GET search?<the defences as the item stands>",
+        &unticked,
+        &[
+            "<input type=\"hidden\" name=\"defences\" value=\"displayed\"><label><input type=\"checkbox\" name=\"defences\" value=\"q20\"> assume 20% quality",
+            "<details class=\"panel\" open><summary>Armour Filters</summary>",
         ],
     );
     // a finder's listing: each option holding its row's template, the
