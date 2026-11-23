@@ -1413,7 +1413,7 @@ fn every_search_page_is_a_wording_golden() {
             "Fetch the league list",
             "disabled",
             "The seller&#39;s account is the listing&#39;s",
-            "fate fate-exact",
+            "<span class=\"fate fate-ambiguous\"",
             "placeholder=\"+ Add Stat Filter\"",
             "<summary>Add Stat Group</summary>",
             "<template id=\"stat-group-weight\">",
@@ -1429,6 +1429,15 @@ fn every_search_page_is_a_wording_golden() {
             "Run the site's search",
         ],
     );
+    // a fate is said where it is not exact (`4-full-1-form-rides.md`,
+    // Decision 2): no mark, title or label word for an exact one
+    for exact in [
+        "fate-exact",
+        "(exact)",
+        "\u{b7} alone exact \u{b7} with a bound exact",
+    ] {
+        assert!(!form.body.contains(exact), "{exact}: {}", form.body);
+    }
     let ring_path = format!("search?{}", query_string(&ring_search()));
     let answer = web.get(&ring_path);
     pages.page(
@@ -1954,15 +1963,21 @@ fn every_search_page_is_a_wording_golden() {
     );
     // a form whose defences are read as the item stands: the quality box
     // unticked, its panel open (`4-full-1-form-rides.md`)
-    let displayed = "search?realm=pc&league=Standard&defences=displayed";
+    // and its rows' fates said where not exact (Decision 2): a stat exact
+    // both ways by its group word alone, one not exact with both statuses
+    let displayed = "search?realm=pc&league=Standard&defences=displayed\
+        &group.type=and&stat.id=explicit.stat_3299347043&stat.id=explicit.stat_983749596";
     let unticked = web.get(displayed);
     assert_eq!(unticked.status, 200, "{}", unticked.body);
     pages.page(
-        "GET search?<the defences as the item stands>",
+        "GET search?<the defences as the item stands, two rows>",
         &unticked,
         &[
             "<input type=\"hidden\" name=\"defences\" value=\"displayed\"><label><input type=\"checkbox\" name=\"defences\" value=\"q20\"> assume 20% quality",
             "<details class=\"panel\" open><summary>Armour Filters</summary>",
+            "<span class=\"stat-text\">+# to maximum Life</span>",
+            "<span class=\"fate\">explicit</span>",
+            "<span class=\"fate\">explicit \u{b7} alone exact \u{b7} with a bound ambiguous</span>",
         ],
     );
     // a finder's listing: each option holding its row's template, the
@@ -1976,6 +1991,13 @@ fn every_search_page_is_a_wording_golden() {
             "<li role=\"option\" data-add>+# total maximum Life",
             "<template><div class=\"filter stat-row\" data-item><input type=\"hidden\" name=\"stat.id\" value=\"pseudo.pseudo_total_life\">",
         ],
+    );
+    let listing = web.get("stats?q=increased+maximum+life");
+    assert_eq!(listing.status, 200, "{}", listing.body);
+    pages.page(
+        "GET stats?q=increased maximum life",
+        &listing,
+        &["<li role=\"option\" data-add>#% increased maximum Life <span class=\"fate\">explicit \u{b7} alone exact \u{b7} with a bound ambiguous</span>"],
     );
     let vocabulary = web.get_json("stats?q=pseudo+maximum+life");
     assert!(vocabulary["stats"].is_string(), "{vocabulary}");

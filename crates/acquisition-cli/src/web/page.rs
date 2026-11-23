@@ -603,8 +603,11 @@ fn save_forms(
     out
 }
 
+/// A control's fate beside it, where it is not exact
+/// (`4-full-1-form-rides.md`, Decision 2): its status as a mark, its
+/// `says` as the title; a control that runs as the site's says nothing.
 fn fate_span(fate: Option<&Fate>) -> String {
-    match fate {
+    match fate.filter(|f| !f.exact()) {
         Some(f) => format!(
             " <span class=\"fate fate-{}\"{}>{}</span>",
             esc(&f.status),
@@ -937,6 +940,22 @@ fn on_box(name: &str, on: bool, words: &str) -> String {
     )
 }
 
+/// A stat's fate as a row and a finder's entry say it
+/// (`4-full-1-form-rides.md`, Decision 2): its group word, which tells two
+/// stats of one text apart, then its two statuses where either is not
+/// exact.
+fn stat_fate(e: &acquisition_search::trade::vocabulary::Entry) -> String {
+    match (e.alone, e.bounded) {
+        (Status::Exact, Status::Exact) => e.group.to_string(),
+        (alone, bounded) => format!(
+            "{} \u{b7} alone {} \u{b7} with a bound {}",
+            e.group,
+            status_words(alone),
+            status_words(bounded)
+        ),
+    }
+}
+
 /// A status as a stat's fate says it.
 fn status_words(status: Status) -> String {
     serde_json::to_value(status)
@@ -962,7 +981,7 @@ pub(crate) struct RowValues {
 /// `stat.id`, which begins the row (`form.rs`, the stat fields), then its
 /// on box, its texts (the id itself where no table holds it), its min,
 /// max and weight, an option box where the row holds one, its fate as the
-/// vocabulary gives it and its remove control. Every row renders a weight
+/// vocabulary gives it ([`stat_fate`]) and its remove control. Every row renders a weight
 /// box: what its group's type shows is the stylesheet's ([`type_takes`]).
 /// The row is an item of its group's list (`assets/lists.js`), and its
 /// min takes the focus when a pick adds it.
@@ -972,15 +991,7 @@ pub(crate) fn stat_row(
     values: &RowValues,
 ) -> String {
     let (texts, fate) = match entry {
-        Some(e) => (
-            e.texts.join(" / "),
-            format!(
-                "{} \u{b7} alone {} \u{b7} with a bound {}",
-                e.group,
-                status_words(e.alone),
-                status_words(e.bounded)
-            ),
-        ),
+        Some(e) => (e.texts.join(" / "), stat_fate(e)),
         None => (
             id.to_string(),
             "no stat this build's tables hold".to_string(),
@@ -1042,12 +1053,12 @@ fn stat_group(
     }
     for (k, text, fate) in &form.stat_types {
         out.push_str(&format!(
-            "<option value=\"{}\" data-takes=\"{}\"{}>{} ({})</option>",
+            "<option value=\"{}\" data-takes=\"{}\"{}>{}{}</option>",
             esc(k),
             type_takes(k).join(" "),
             if k == kind { " selected" } else { "" },
             esc(text.as_deref().unwrap_or(k)),
-            esc(&fate.status.replace('_', " "))
+            esc(&fate.marked())
         ));
     }
     out.push_str(&format!(
@@ -1145,11 +1156,12 @@ fn stat_pane(form: &Form, fill: &Fill) -> String {
         ));
     }
     out.push_str("</div>\n<details class=\"add-group\"><summary>Add Stat Group</summary><div class=\"filter\">");
-    for (k, text, _) in &form.stat_types {
+    for (k, text, fate) in &form.stat_types {
         out.push_str(&format!(
-            "<button type=\"button\" data-add=\"{}\">{}</button>",
+            "<button type=\"button\" data-add=\"{}\">{}{}</button>",
             group_template(k),
             esc(text.as_deref().unwrap_or(k)),
+            esc(&fate.marked()),
         ));
     }
     out.push_str("</div></details>\n");
@@ -1173,11 +1185,9 @@ pub(crate) fn stat_options(listed: &acquisition_search::trade::vocabulary::Vocab
     let mut out = String::new();
     for e in &listed.entries {
         out.push_str(&format!(
-            "<li role=\"option\" data-add>{} <span class=\"fate\">{} \u{b7} alone {} \u{b7} with a bound {}</span><template>{}</template></li>\n",
+            "<li role=\"option\" data-add>{} <span class=\"fate\">{}</span><template>{}</template></li>\n",
             esc(&e.texts.join(" / ")),
-            esc(e.group),
-            status_words(e.alone),
-            status_words(e.bounded),
+            esc(&stat_fate(e)),
             stat_row(&e.id, Some(e), &RowValues::default()),
         ));
     }
@@ -1415,7 +1425,7 @@ fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> 
             let own = id
                 .as_ref()
                 .and_then(|id| form.fate(&format!("{key}={id}")))
-                .map(|f| format!(" ({})", f.status.replace('_', " ")))
+                .map(|f| f.marked())
                 .unwrap_or_default();
             out.push_str(&format!(
                 "<option value=\"{}\"{}>{}{}</option>",

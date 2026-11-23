@@ -11,9 +11,11 @@
 //!   compiled into the binary and read once when the server starts: a
 //!   control per filter, in the dump's groups and order, its label the
 //!   site's. No build step writes it and no page reads the dump.
-//! - **Each control's fate is the catalogue's** (`--describe trade`):
-//!   beside it, its row's status, its `says` as the title; an option
-//!   whose own row differs carries that row's status in its label. A
+//! - **Each control's fate is the catalogue's** (`--describe trade`),
+//!   said where it is not exact: beside it, its row's status, its `says`
+//!   as the title; an option whose own row is not exact carries that
+//!   row's status in its label, as a stat group's type and its "Add Stat
+//!   Group" control do. A control that runs as the site's says nothing. A
 //!   listing-only row is rendered disabled: a browser submits nothing of
 //!   a disabled control, so the fold never meets one.
 //! - **A name is a path**: dot-separated keys —
@@ -89,6 +91,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use acquisition_search::LanguageError;
 use acquisition_search::answer::{RowField, Rows, Shape, View};
+use acquisition_search::trade::catalogue::Disposition;
 use serde_json::{Map, Value};
 
 /// The dump this build's form is generated from, as the search crate
@@ -106,6 +109,35 @@ pub(crate) struct Fate {
     pub says: Option<String>,
     /// The site's label as the catalogue writes it.
     pub text: Option<String>,
+}
+
+impl Fate {
+    /// The catalogue's status as its word names it.
+    fn disposition(&self) -> Option<Disposition> {
+        [
+            Disposition::Exact,
+            Disposition::Ambiguous,
+            Disposition::Unsupported,
+            Disposition::ListingOnly,
+        ]
+        .into_iter()
+        .find(|d| d.word() == self.status)
+    }
+
+    /// Whether the control runs as the site's: an exact one says nothing
+    /// (`4-full-1-form-rides.md`, Decision 2).
+    pub(crate) fn exact(&self) -> bool {
+        self.disposition() == Some(Disposition::Exact)
+    }
+
+    /// The status in a label's words, ` (ambiguous)`, where it is not
+    /// exact; nothing where it is.
+    pub(crate) fn marked(&self) -> String {
+        match self.exact() {
+            true => String::new(),
+            false => format!(" ({})", self.status.replace('_', " ")),
+        }
+    }
 }
 
 #[derive(Debug)]
