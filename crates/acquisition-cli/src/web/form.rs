@@ -75,7 +75,8 @@
 //!   group left with no filter (its type alone says nothing). `text`
 //!   sent is the text, empty or not: the text `""` is a query, every item
 //!   in its scope, so a saved search over every item folds back. A `min`,
-//!   `max`, `weight` or socket colour that reads as a number is one;
+//!   `max`, `weight` or socket word's key (`sockets::SOCKET_WORDS`) that
+//!   reads as a number is one;
 //!   anything else is the text typed, which the translation reports as it
 //!   reads it. The fold decides nothing the translation decides. Its
 //!   envelope is in one normal form ([`normal`]): a null, an empty string,
@@ -87,6 +88,7 @@
 //!   quality", ticked by default, sending `defences=q20`. The last sent
 //!   stands, so the box unticked asks the defences as the item stands.
 
+use acquisition_search::sockets::SOCKET_WORDS;
 use std::collections::{BTreeMap, BTreeSet};
 
 use acquisition_search::LanguageError;
@@ -316,8 +318,8 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
                 names.insert(format!("{path}.max"));
             }
             if f.sockets {
-                for c in ["r", "g", "b", "w"] {
-                    names.insert(format!("{path}.{c}"));
+                for s in &SOCKET_WORDS {
+                    names.insert(format!("{path}.{}", s.key));
                 }
             }
         }
@@ -784,7 +786,8 @@ pub(crate) fn typed(key: &str, value: &str) -> Value {
             _ => {}
         }
     }
-    let numeric = matches!(key, "min" | "max" | "weight" | "r" | "g" | "b" | "w");
+    let numeric =
+        matches!(key, "min" | "max" | "weight") || SOCKET_WORDS.iter().any(|s| s.key == key);
     if numeric {
         if let Ok(n) = value.parse::<i64>() {
             return n.into();

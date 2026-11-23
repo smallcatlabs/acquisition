@@ -528,8 +528,8 @@ mod tests {
                     value.insert("max".into(), json!(2.5));
                 }
                 if filter.sockets {
-                    for c in ["r", "g", "b", "w"] {
-                        value.insert(c.into(), json!(1));
+                    for s in &acquisition_search::sockets::SOCKET_WORDS {
+                        value.insert(s.key.into(), json!(1));
                     }
                 }
                 if listed {

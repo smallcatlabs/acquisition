@@ -21,6 +21,7 @@
 //! first. Every version a page renders is copied into its head's basis
 //! line, never composed ([`Head::basis`]).
 
+use acquisition_search::sockets::SOCKET_WORDS;
 use std::collections::HashMap;
 
 use acquisition_protocol::realm::Realm;
@@ -1666,12 +1667,15 @@ fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> 
             valued(number(&format!("{path}.max")).as_deref()),
         ));
     }
+    // a box per socket word, in the table's order, named by the site's
+    // key and marked with GGG's letter: `A` the abyssal count after `W`
     if filter.sockets {
-        for c in ["r", "g", "b", "w"] {
+        for s in &SOCKET_WORDS {
             out.push_str(&format!(
-                " <input class=\"socket\" type=\"number\" name=\"{path}.{c}\"{} placeholder=\"{}\"{disabled}>",
-                valued(number(&format!("{path}.{c}")).as_deref()),
-                c.to_uppercase()
+                " <input class=\"socket\" type=\"number\" name=\"{path}.{}\"{} placeholder=\"{}\"{disabled}>",
+                s.key,
+                valued(number(&format!("{path}.{}", s.key)).as_deref()),
+                s.letter
             ));
         }
     }

@@ -146,6 +146,105 @@ pub(crate) fn offline_web(tag: &str) -> (harness::Scratch, WebUi) {
     (scratch, web)
 }
 
+/// #185: an abyssal socket's stat is in the page's finder and a form row
+/// of it runs. Over the offline world with a third tab of belts — one with
+/// the implicit `Has 1 Abyssal Socket` and its socket `A`, one with none —
+/// `stats?q=` finds `implicit.stat_3527617737`, and the form's row of it
+/// finds the abyssal belt alone, as does the Sockets filter's `a` box.
+#[test]
+fn an_abyssal_sockets_stat_is_found_and_its_form_row_runs() {
+    let scratch = harness::scratch("webabyssal");
+    seed(&scratch.0);
+    let mock = scratch.0.join("mock");
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    let params = json!({ "realm": "pc", "league": "Standard" });
+    let belt = |id: &str, more: Value| {
+        let mut v = json!({ "id": id, "name": "Doom Clasp", "typeLine": "Stygian Vise",
+                            "baseType": "Stygian Vise", "rarity": "Rare", "frameTypeId": 2,
+                            "identified": true, "ilvl": 84, "x": 0, "y": 0 });
+        for (k, value) in more.as_object().unwrap() {
+            v[k] = value.clone();
+        }
+        v
+    };
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &params,
+            200,
+            &json!({ "stashes": [
+                { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+                { "id": "t2", "name": "Launch", "type": "PremiumStash" },
+                { "id": "t3", "name": "Belts", "type": "PremiumStash" } ] }),
+            60,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "t3".into(),
+                sub: None,
+            },
+            &params,
+            200,
+            &json!({ "stash": { "id": "t3", "name": "Belts", "type": "PremiumStash", "items": [
+                belt("abyss", json!({
+                    "implicitMods": ["Has 1 Abyssal Socket"],
+                    "sockets": [{ "group": 0, "attr": "A", "sColour": "A" }] })),
+                belt("plain", json!({ "implicitMods": ["+30 to maximum Life"] })),
+            ] } }),
+            70,
+        )
+        .unwrap();
+    drop(store);
+    let web = start_web(harness::offline_command(
+        &scratch.0,
+        &["web", "--no-browser"],
+    ));
+    let found = web.get_json("stats?q=abyssal+socket");
+    let ids_found: Vec<&str> = found["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["id"].as_str().unwrap())
+        .collect();
+    assert!(ids_found.contains(&"implicit.stat_3527617737"), "{found}");
+    let listing = web.get("stats?q=abyssal+socket");
+    assert!(
+        listing.body.contains(
+            "<input type=\"hidden\" name=\"stat.id\" value=\"implicit.stat_3527617737\">"
+        ),
+        "{}",
+        listing.body
+    );
+    // the form's row of the stat, as the finder's template writes it
+    let row = [
+        ("realm", "pc"),
+        ("league", "Standard"),
+        ("group.type", "and"),
+        ("stat.id", "implicit.stat_3527617737"),
+    ];
+    let answer = web.get_json(&format!("search?{}", query_string(&row)));
+    assert_eq!(ids(&answer), ["abyss"], "{answer}");
+    // the Sockets filter's `a` box asks the same belt
+    let boxed = [
+        ("realm", "pc"),
+        ("league", "Standard"),
+        ("query.filters.socket_filters.filters.sockets.a", "1"),
+    ];
+    let answer = web.get_json(&format!("search?{}", query_string(&boxed)));
+    assert_eq!(ids(&answer), ["abyss"], "{answer}");
+    assert_eq!(
+        answer["query"]["text"], "league=Standard sockets.abyssal>=1",
+        "{answer}"
+    );
+}
+
 /// A store that holds tabs in two leagues and never fetched the league
 /// list, as a copy of another store does where no session can fetch one:
 /// the place pages offer the leagues it holds, and under a query say where
@@ -2280,6 +2379,25 @@ fn every_search_page_is_a_wording_golden() {
             "<span class=\"fate\">explicit \u{b7} alone exact \u{b7} with a bound ambiguous</span>",
             "<a class=\"clear\" href=\".?realm=pc&amp;membership=removed\">Clear</a>",
             "form=\"search-form\" data-page checked> Show the fields this search does not run",
+        ],
+    );
+    // each socket row's `A` box, after `W`, filled from the site's key
+    let abyssal = format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            ("league", "Standard"),
+            ("query.filters.socket_filters.filters.sockets.a", "1"),
+            ("query.filters.socket_filters.filters.links.a", "1"),
+        ])
+    );
+    pages.page(
+        "GET search?<the socket rows' abyssal counts>",
+        &web.get(&abyssal),
+        &[
+            "name=\"query.filters.socket_filters.filters.sockets.a\" value=\"1\" placeholder=\"A\"",
+            "name=\"query.filters.socket_filters.filters.links.a\" value=\"1\" placeholder=\"A\"",
+            "sockets.abyssal&gt;=1 linked(abyssal&gt;=1)",
         ],
     );
     // a site search its decode refused stands as sent in the bar's site
