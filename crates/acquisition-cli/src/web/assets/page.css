@@ -72,6 +72,15 @@ input.socket { width: 2.6rem; }
 .stat-group:has(> .filter > select > option:checked:not([data-takes~="group.max"])) [name="group.max"] { display: none; }
 .stat-group:has(> .filter > select > option:checked:not([data-takes~="stat.weight"])) [name="stat.weight"] { display: none; }
 
+/* what the switch hides (the page's foot): while it is unticked, a control,
+   a panel or an add control marked as not run, unless among its controls a
+   text or number box holds what was typed or a select stands off its first
+   option, the site's default; an on box is no value; and a marked option
+   unless it is the one chosen. The browser still sends what is hidden. */
+body:has(#all-fields:not(:checked)) [data-unrun]:not(option):not(:has(input[placeholder]:not(:placeholder-shown), select > option:not(:first-child):checked)) { display: none; }
+body:has(#all-fields:not(:checked)) option[data-unrun]:not(:checked) { display: none; }
+.switch { margin: 1.5rem 0 0; border-top: 1px solid var(--rule); padding-top: .6rem; }
+
 /* the query box: the language, typed */
 .query-box { display: flex; flex-direction: column; gap: .35rem; background: var(--panel); border: 1px solid var(--rule); padding: .6rem; margin: .75rem 0; }
 .query-box textarea { background: var(--page); color: var(--text); border: 1px solid var(--rule); font: 12.5px/1.35 ui-monospace, monospace; padding: .35rem; }

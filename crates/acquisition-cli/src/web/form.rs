@@ -130,6 +130,13 @@ impl Fate {
         self.disposition() == Some(Disposition::Exact)
     }
 
+    /// Whether a clause of this status runs (`Disposition::runs`, exact or
+    /// ambiguous): a control whose fate does not is marked, and the switch
+    /// hides it (`4-full-1-form-rides.md`, Decision 4).
+    pub(crate) fn runs(&self) -> bool {
+        self.disposition().is_some_and(Disposition::runs)
+    }
+
     /// The status in a label's words, ` (ambiguous)`, where it is not
     /// exact; nothing where it is.
     pub(crate) fn marked(&self) -> String {

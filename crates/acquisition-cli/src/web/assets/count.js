@@ -22,8 +22,16 @@
     const part = undecided.parentElement;
     let timer = null;
     let asking = null;
-    // the fields the form sends, as the count asks them
-    const fields = () => new URLSearchParams(new FormData(form)).toString();
+    // the fields the form sends, as the count asks them: a control marked
+    // `data-page` (the switch) is the page's, never the search's, and is
+    // left out, so a tick asks nothing
+    const fields = () => {
+      const data = new FormData(form);
+      for (const el of form.elements) {
+        if (el.hasAttribute('data-page') && el.name) data.delete(el.name);
+      }
+      return new URLSearchParams(data).toString();
+    };
     // the fields last asked: the page's own until the form changes
     let asked = fields();
     const dash = () => {

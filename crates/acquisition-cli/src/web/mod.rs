@@ -357,6 +357,24 @@
 //!   the decode gave, the site box holding a search the decode refused,
 //!   the query box a text and the view as sent, the form empty where the
 //!   fold refused.
+//! - **What rides on the form** (`roadmap/briefs/4-full-1-form-rides.md`):
+//!   the armour panel's quality box, "assume 20% quality", ticked by
+//!   default (C142, the defences' reading beside the query); a fate said
+//!   only where it is not exact; the site box in the bar; Clear beside
+//!   Search, a link to `.` with the scope alone, which [`home`] reads; and
+//!   at the page's foot, after the answer, the switch ([`page::switch`]),
+//!   tied to the search form by `form=`, with the line that says what a
+//!   mark means. The server marks `data-unrun` a control, a select's
+//!   option, a group type's option, its "Add Stat Group" control and a
+//!   panel all of whose controls do not run (a fate neither exact nor
+//!   ambiguous); the stylesheet hides a marked one while the switch is
+//!   unticked, unless among its controls a text or number box is not
+//!   showing its placeholder or a select stands off its first option, and
+//!   a marked option unless it is chosen. No script hides anything. The
+//!   switch is the page's, marked `data-page`: [`home`], [`search`] and
+//!   [`count`] take `all_fields` out of the fields first, so no fold,
+//!   link or hidden field meets it, and `count.js` leaves it out of what
+//!   it asks. Nothing remembers it (#181).
 
 mod fill;
 mod form;
@@ -721,14 +739,15 @@ impl Web {
     }
 
     /// A refused search: its editors as `editors` renders them, filled from
-    /// what was sent, then the refusal at the answer's anchor; JSON and
-    /// status the refusal's.
+    /// what was sent, then the refusal at the answer's anchor, then `foot`,
+    /// the page's switch; JSON and status the refusal's.
     fn failed_under(
         &self,
         title: &str,
         failure: &Failure,
         headers: &HeaderMap,
         editors: &str,
+        foot: &str,
     ) -> Response {
         if wants_json(headers) {
             return self.refused_document(failure);
@@ -746,7 +765,7 @@ impl Web {
                     ..Head::default()
                 },
                 &format!(
-                    "{editors}<div id=\"{}\">\n{}</div>\n",
+                    "{editors}<div id=\"{}\">\n{}</div>\n{foot}",
                     page::ANSWER,
                     page::refused(&doc)
                 ),
@@ -1419,6 +1438,7 @@ async fn home(
     State(web): State<Arc<Web>>,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    let (fields, all_fields) = switched(fields);
     let realm = pick(&fields, "realm").unwrap_or("pc").to_string();
     let mut filled = page::Filled::empty(&realm);
     // the scope's membership, as `search` reads it: the word sent, which
@@ -1430,8 +1450,9 @@ async fn home(
     })
     .await;
     let body = format!(
-        "{said}{}",
-        page::editor(&web.form, &filled, leagues.as_deref())
+        "{said}{}{}",
+        page::editor(&web.form, &filled, leagues.as_deref()),
+        page::switch(all_fields)
     );
     web.page(
         "Search",
@@ -1458,6 +1479,9 @@ async fn search(
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
     let json = wants_json(&headers);
+    // the switch, the page's own, first: nothing the page reads, links or
+    // carries meets it
+    let (fields, all_fields) = switched(fields);
     // the opened rows, the landing and a row's toggle, taken off before
     // the fold as `saved` is
     let (fields, opening) = opening(fields);
@@ -1642,7 +1666,7 @@ async fn search(
                 "Answer",
                 head,
                 &format!(
-                    "{said}{editors}<div id=\"{}\">\n{}</div>\n",
+                    "{said}{editors}<div id=\"{}\">\n{}</div>\n{}",
                     page::ANSWER,
                     page::answer(
                         &answer,
@@ -1665,13 +1689,20 @@ async fn search(
                             placed: &|place| placed.get(&place_key(place)).cloned(),
                             fields: &sent,
                         },
-                    )
+                    ),
+                    page::switch(all_fields)
                 ),
             )
         }
         // a refused search is the same page, its editors filled from what
         // was sent (#190): its status and its JSON the refusal's
-        Err(failure) => web.failed_under("Answer", &failure, &headers, &editors),
+        Err(failure) => web.failed_under(
+            "Answer",
+            &failure,
+            &headers,
+            &editors,
+            &page::switch(all_fields),
+        ),
     }
 }
 
@@ -1997,6 +2028,16 @@ fn carried_on(sent: &Fields, rows: bool) -> String {
         .collect()
 }
 
+/// The switch ([`page::switch`]) taken out of a page's fields, the first
+/// thing `home`, `search` and `count` do, so no fold, link or hidden field
+/// of the page meets it; ticked where any of it is `true`, its one value.
+/// It is the page's, never the search's: no other value is refused.
+fn switched(fields: Fields) -> (Fields, bool) {
+    let (switch, fields): (Fields, Fields) =
+        fields.into_iter().partition(|(k, _)| k == page::ALL_FIELDS);
+    (fields, switch.iter().any(|(_, v)| v == "true"))
+}
+
 /// `saved` and `saved_revision` taken out of a search's fields, which the
 /// fold would refuse: together or not at all, `saved` an id's shape and
 /// the revision a positive integer, else a usage refusal.
@@ -2319,6 +2360,7 @@ async fn rows(
 /// search's refusal document. Asked with no basis, it is the store's
 /// count now, never compared with the page's answer.
 async fn count(State(web): State<Arc<Web>>, Query(fields): Query<Fields>) -> Response {
+    let (fields, _) = switched(fields);
     let counted = blocking(&web, move |web| -> Result<_, Failure> {
         let (fields, _) = opened_from(fields)?;
         let folded = form::fold_count(&web.form, &fields).map_err(Failure::Usage)?;

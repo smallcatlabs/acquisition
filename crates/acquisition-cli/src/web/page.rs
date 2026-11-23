@@ -603,6 +603,33 @@ fn save_forms(
     out
 }
 
+/// ` data-unrun`, the mark the switch hides by (`4-full-1-form-rides.md`,
+/// Decision 4), where a fate's status does not run ([`Fate::runs`]):
+/// neither exact nor ambiguous.
+fn unrun(fate: Option<&Fate>) -> &'static str {
+    match fate.is_some_and(|f| !f.runs()) {
+        true => " data-unrun",
+        false => "",
+    }
+}
+
+/// The switch at the page's foot (`4-full-1-form-rides.md`, Decision 3):
+/// a box tied to the search form by `form=`, ticked where the URL names it,
+/// that shows the fields this search does not run, which the stylesheet
+/// hides while it is unticked unless one holds a value; and the line that
+/// says what a mark means. It is the page's, marked `data-page`: `home`,
+/// `search` and `count` take it out of the fields first, so nothing a
+/// search reads, links or carries names it, and the count leaves it out.
+pub(crate) fn switch(on: bool) -> String {
+    format!(
+        "<p class=\"switch\"><label><input type=\"checkbox\" id=\"all-fields\" name=\"{ALL_FIELDS}\" value=\"true\" form=\"{SEARCH_FORM}\" data-page{}> Show the fields this search does not run</label> <span class=\"fate\">A field with no mark runs as the trade site's; a mark says it is read differently here, or not run.</span></p>\n",
+        checked(on)
+    )
+}
+
+/// The switch's field ([`switch`]).
+pub(crate) const ALL_FIELDS: &str = "all_fields";
+
 /// A control's fate beside it, where it is not exact
 /// (`4-full-1-form-rides.md`, Decision 2): its status as a mark, its
 /// `says` as the title; a control that runs as the site's says nothing.
@@ -786,7 +813,7 @@ pub(crate) fn search_form(
         // sent with its `disabled` field and its values stand; the panel's
         // own toggle is open and close alone
         out.push_str(&format!(
-            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\">{}</div>\n",
+            "<details class=\"panel\"{}{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\">{}</div>\n",
             // the armour panel opens where its quality box is unticked
             if !group.hidden
                 || fill.holds_under(&at)
@@ -795,6 +822,15 @@ pub(crate) fn search_form(
                 " open"
             } else {
                 ""
+            },
+            // a panel every control of which is not run is marked as they are
+            match group.filters.iter().all(|f| {
+                form.fate(&format!("{}.{}", group.id, f.id))
+                    .is_some_and(|fate| !fate.runs())
+            }) && !group.filters.is_empty()
+            {
+                true => " data-unrun",
+                false => "",
             },
             esc(title),
             on_box(
@@ -1069,10 +1105,11 @@ fn stat_group(
     }
     for (k, text, fate) in &form.stat_types {
         out.push_str(&format!(
-            "<option value=\"{}\" data-takes=\"{}\"{}>{}{}</option>",
+            "<option value=\"{}\" data-takes=\"{}\"{}{}>{}{}</option>",
             esc(k),
             type_takes(k).join(" "),
             if k == kind { " selected" } else { "" },
+            unrun(Some(fate)),
             esc(text.as_deref().unwrap_or(k)),
             esc(&fate.marked())
         ));
@@ -1174,8 +1211,9 @@ fn stat_pane(form: &Form, fill: &Fill) -> String {
     out.push_str("</div>\n<details class=\"add-group\"><summary>Add Stat Group</summary><div class=\"filter\">");
     for (k, text, fate) in &form.stat_types {
         out.push_str(&format!(
-            "<button type=\"button\" data-add=\"{}\">{}{}</button>",
+            "<button type=\"button\" data-add=\"{}\"{}>{}{}</button>",
             group_template(k),
+            unrun(Some(fate)),
             esc(text.as_deref().unwrap_or(k)),
             esc(&fate.marked()),
         ));
@@ -1445,8 +1483,10 @@ fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> 
         true => fill.shown(at),
         false => fill.number(at),
     };
-    let mut out =
-        format!("<div class=\"filter\"{title}><span class=\"filter-title\"{tip}>{label}</span> ");
+    let mut out = format!(
+        "<div class=\"filter\"{title}{}><span class=\"filter-title\"{tip}>{label}</span> ",
+        unrun(fate)
+    );
     if let Some(options) = &filter.options {
         let at = format!("{path}.option");
         let chosen = match listing {
@@ -1458,14 +1498,12 @@ fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> 
         out.push_str(&format!("<select name=\"{at}\"{disabled}>"));
         for (id, text) in options {
             let value = id.as_deref().unwrap_or("");
-            let own = id
-                .as_ref()
-                .and_then(|id| form.fate(&format!("{key}={id}")))
-                .map(|f| f.marked())
-                .unwrap_or_default();
+            let fate = id.as_ref().and_then(|id| form.fate(&format!("{key}={id}")));
+            let own = fate.map(|f| f.marked()).unwrap_or_default();
             out.push_str(&format!(
-                "<option value=\"{}\"{}>{}{}</option>",
+                "<option value=\"{}\"{}{}>{}{}</option>",
                 esc(value),
+                unrun(fate),
                 if chosen.as_deref() == Some(value) {
                     " selected"
                 } else {
@@ -1478,7 +1516,7 @@ fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> 
         out.push_str("</select>");
     } else if filter.known_item || filter.input {
         out.push_str(&format!(
-            "<input name=\"{path}.option\"{} size=\"16\"{disabled}>",
+            "<input name=\"{path}.option\"{} size=\"16\" placeholder=\"any\"{disabled}>",
             valued(text(&format!("{path}.option")).as_deref())
         ));
     }

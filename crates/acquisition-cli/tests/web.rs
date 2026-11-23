@@ -1398,6 +1398,52 @@ fn a_cards_number_adds_its_value_and_a_full_list_adds_none() {
     );
 }
 
+/// The switch (`4-full-1-form-rides.md`, Decision 3) is the page's: `search`
+/// and `count` take `all_fields=true` beside the form's fields and answer
+/// as without it, the page renders it ticked, and no link or hidden field
+/// of the page names it, Clear among them; the form page renders it ticked
+/// where its URL names it, unticked where not.
+#[test]
+fn the_switch_is_the_pages_and_no_search_reads_or_carries_it() {
+    let (_scratch, web) = offline_web("webswitch");
+    let fields = ring_search();
+    let mut switched = fields.clone();
+    switched.push(("all_fields", "true"));
+    let (plain, ticked) = (
+        format!("search?{}", query_string(&fields)),
+        format!("search?{}", query_string(&switched)),
+    );
+    assert_eq!(web.get_json(&ticked), web.get_json(&plain));
+    let (plain_count, ticked_count) = (
+        format!("count?{}", query_string(&fields)),
+        format!("count?{}", query_string(&switched)),
+    );
+    assert_eq!(web.get_json(&ticked_count), web.get_json(&plain_count));
+    let page = web.get(&ticked);
+    assert_eq!(page.status, 200, "{}", page.body);
+    let box_ = "<input type=\"checkbox\" id=\"all-fields\" name=\"all_fields\" value=\"true\" form=\"search-form\" data-page checked>";
+    assert!(page.body.contains(box_), "{}", page.body);
+    assert_eq!(
+        page.body.matches("all_fields").count(),
+        1,
+        "a link or a field beside the switch names it:\n{}",
+        page.body
+    );
+    // a refused search's page and the form page carry it as their URL names it
+    let refused = web.get("search?realm=pc&view.sort=no+such+value&all_fields=true");
+    assert_eq!(refused.status, 400, "{}", refused.body);
+    assert!(refused.body.contains(box_), "{}", refused.body);
+    assert!(web.get("?realm=pc&all_fields=true").body.contains(box_));
+    let unticked = web.get("");
+    assert!(
+        unticked
+            .body
+            .contains("data-page> Show the fields this search does not run"),
+        "{}",
+        unticked.body
+    );
+}
+
 /// Clear (`4-full-1-form-rides.md`, Decision 6): followed from a filled
 /// page, a link to the form's page with the scope alone lands on the empty
 /// form of that realm and membership, every other field let go.
@@ -1459,6 +1505,8 @@ fn every_search_page_is_a_wording_golden() {
             "disabled",
             "The seller&#39;s account is the listing&#39;s",
             "<span class=\"fate fate-ambiguous\"",
+            "<button type=\"button\" data-add=\"stat-group-crucible\" data-unrun>Crucible Passive Tree Path (unsupported)</button>",
+            "data-page> Show the fields this search does not run</label> <span class=\"fate\">A field with no mark runs as the trade site's; a mark says it is read differently here, or not run.</span>",
             "placeholder=\"+ Add Stat Filter\"",
             "<summary>Add Stat Group</summary>",
             "<template id=\"stat-group-weight\">",
@@ -2011,7 +2059,8 @@ fn every_search_page_is_a_wording_golden() {
     // and its rows' fates said where not exact (Decision 2): a stat exact
     // both ways by its group word alone, one not exact with both statuses
     // and its Clear carrying the removed membership (Decision 6)
-    let displayed = "search?realm=pc&membership=removed&league=Standard&defences=displayed\
+    // and the switch ticked by its URL (Decision 3)
+    let displayed = "search?realm=pc&membership=removed&league=Standard&defences=displayed&all_fields=true\
         &group.type=and&stat.id=explicit.stat_3299347043&stat.id=explicit.stat_983749596";
     let unticked = web.get(displayed);
     assert_eq!(unticked.status, 200, "{}", unticked.body);
@@ -2025,6 +2074,7 @@ fn every_search_page_is_a_wording_golden() {
             "<span class=\"fate\">explicit</span>",
             "<span class=\"fate\">explicit \u{b7} alone exact \u{b7} with a bound ambiguous</span>",
             "<a class=\"clear\" href=\".?realm=pc&amp;membership=removed\">Clear</a>",
+            "form=\"search-form\" data-page checked> Show the fields this search does not run",
         ],
     );
     // a site search its decode refused stands as sent in the bar's site

@@ -510,6 +510,113 @@ fn the_count_beside_the_button_follows_its_own_form() {
     );
 }
 
+/// What the switch hides (`4-full-1-form-rides.md`, Decisions 3 and 4),
+/// the stylesheet's alone: unticked, a control not run and empty, a whole
+/// panel of them, and a type not run in a group's type select and in "Add
+/// Stat Group" are not displayed; ticked, all are, the tick asking no
+/// count; an empty control not run given a value while ticked stays
+/// displayed once unticked; adding and removing a group still asks the
+/// form's count. A page filled with a value in a control not run and in a
+/// listing field shows both, the listing's panel with it.
+#[test]
+fn the_switch_shows_what_a_search_does_not_run_and_a_held_value_always() {
+    let (scratch, web) = offline_web("browserswitch");
+    let mut page = Page::open(&profile_of(&scratch), &web.url);
+    let named = |name: &str| format!("document.querySelector('[name=\"{name}\"]')");
+    let panel = |title: &str| {
+        format!(
+            "Array.from(document.querySelectorAll('details.panel')).find((d) => \
+             d.querySelector('summary').textContent === '{title}')"
+        )
+    };
+    let damage = named("query.filters.weapon_filters.filters.damage.min");
+    let damage_control = format!("{damage}.closest('.filter')");
+    let status = format!("{}.closest('.filter')", named("query.status.option"));
+    let account = format!(
+        "{}.closest('.filter')",
+        named("query.filters.trade_filters.filters.account.option")
+    );
+    let trade = panel("Trade Filters");
+    let ultimatum = panel("Ultimatum Filters");
+    let crucible_type = format!(
+        "{}.querySelector('option[value=\"crucible\"]')",
+        named("group.type")
+    );
+    let crucible_add = "document.querySelector('button[data-add=\"stat-group-crucible\"]')";
+    let switch = "document.getElementById('all-fields')";
+    let unrun = [
+        damage_control.as_str(),
+        status.as_str(),
+        trade.as_str(),
+        ultimatum.as_str(),
+        crucible_type.as_str(),
+        crucible_add,
+    ];
+    for element in unrun {
+        assert!(!shows(&mut page, element), "{element} shown unticked");
+    }
+    // a number beside Search, so a change counted would put the dash back
+    page.cdp
+        .click(&format!("{SEARCH_FORM}.querySelector('input.item-search')"));
+    page.cdp.keys("Kaom's Heart");
+    let number = page.follows(&web, SEARCH_FORM);
+    page.cdp.click(switch);
+    assert_eq!(
+        page.shown(SEARCH_FORM),
+        json!(number),
+        "the tick asked a count"
+    );
+    for element in unrun {
+        assert!(shows(&mut page, element), "{element} hidden ticked");
+    }
+    // a value typed, ticked, into an empty control not run, which stays
+    // displayed once unticked; the rest hide again
+    page.cdp.click(&format!(
+        "{}.querySelector('summary')",
+        panel("Weapon Filters")
+    ));
+    page.cdp.click(&damage);
+    page.cdp.keys("10");
+    page.follows(&web, SEARCH_FORM);
+    page.cdp.click(switch);
+    assert!(shows(&mut page, &damage_control), "a typed value hidden");
+    for element in &unrun[1..] {
+        assert!(!shows(&mut page, element), "{element} shown unticked");
+    }
+    // a group added and removed, unticked, each asking the form's count
+    page.cdp.call("Network.enable", json!({}));
+    page.cdp.requests.clear();
+    page.cdp
+        .click("document.querySelector('.add-group > summary')");
+    page.cdp.click(
+        "Array.from(document.querySelectorAll('.add-group button')).find((b) => b.textContent === 'And')",
+    );
+    page.asks(&web, SEARCH_FORM);
+    page.cdp.requests.clear();
+    page.cdp.click(
+        "Array.from(document.querySelectorAll('.stat-group')).pop().querySelector('[data-remove]')",
+    );
+    page.asks(&web, SEARCH_FORM);
+    // a page filled with a value in a control not run and in a listing
+    // field: both shown, the listing's panel with it; an empty panel not
+    // run still hidden
+    page.navigate(&format!(
+        "{}search?realm=pc&query.filters.weapon_filters.filters.damage.min=10\
+         &query.filters.trade_filters.filters.account.option=someone#answer",
+        web.url
+    ));
+    assert_eq!(page.cdp.eval(&format!("{damage}.value")), json!("10"));
+    for element in [damage_control.as_str(), account.as_str(), trade.as_str()] {
+        assert!(
+            shows(&mut page, element),
+            "{element} holding a value hidden"
+        );
+    }
+    for element in [status.as_str(), ultimatum.as_str()] {
+        assert!(!shows(&mut page, element), "{element} shown empty");
+    }
+}
+
 /// The one page in a browser (`4-full-1-form-design.md` §2): an answer
 /// stands under its search form filled with the search it answered; a
 /// bound edited there and the form sent by its own button lands at the
