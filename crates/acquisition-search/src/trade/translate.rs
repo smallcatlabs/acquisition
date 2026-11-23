@@ -143,6 +143,14 @@
 //!   "meets_maximum"` on its row): with a maximum and no minimum, an item
 //!   lacking the field meets the clause, `(F<=max or -has:F)` — no
 //!   requirement meets any maximum (u061).
+//! - **A `max` the site reads as no bound** (`max_zero = "no_bound"` on
+//!   its row, the Sockets filter's alone): a `max` of 0 is dropped before
+//!   the bounds are read at all, so `min` 2 with `max` 0 is `>=2` and never
+//!   a range that runs backwards, and the clause's report says so
+//!   ([`MAX_ZERO`]); the site sends body armour with six sockets under
+//!   `max` 0 (zb14, zc02, #185). A socket filter's keys are the socket
+//!   words' (`sockets::SOCKET_WORDS`), `a` the abyssal count; `d`, a
+//!   resonator's, is a key no row reads.
 //! - **The text is the product.** The clauses' nodes are the conjuncts of
 //!   the query in the report's order — the URL's league, then the query
 //!   object's `status`, `term`, `name`, `type`, its filters in the
@@ -194,6 +202,7 @@ use super::stats::{self, StatTable};
 use super::{Decoded, Defences, Source};
 use crate::error::{ErrorKind, LanguageError};
 use crate::exact::{self, Exact, Ratio};
+use crate::sockets::SOCKET_WORDS;
 use crate::totals::{self, TotalsTable};
 use crate::tree::{self, Node, Number, Op, Value, ValueRef};
 use crate::{bind, print, template};
@@ -280,6 +289,11 @@ pub struct Clause {
 /// The catalogue row of a clause that matches nothing, a range that runs
 /// backwards: what tells such a clause apart, never its term.
 pub const INVERTED: &str = "query.inverted";
+
+/// What the report says of a clause whose `max` of 0 its row reads as no
+/// bound (the module doc).
+pub const MAX_ZERO: &str =
+    "a maximum of 0 is no bound, as the site reads it on this filter: no maximum is compared";
 
 impl Clause {
     /// Whether the clause matches nothing ([`INVERTED`]).
@@ -906,11 +920,35 @@ const STAT_GROUP: [&str; 4] = ["type", "filters", "value", "disabled"];
 const GROUP_VALUE: [&str; 2] = ["min", "max"];
 const STAT_FILTER: [&str; 3] = ["id", "value", "disabled"];
 
+/// The keys a socket filter's value reads: its bounds, then each socket
+/// word's key in the table's order (`sockets.rs`).
+const SOCKET_BOUNDS: [&str; 2 + SOCKET_WORDS.len()] = {
+    let mut out = [""; 2 + SOCKET_WORDS.len()];
+    out[0] = "min";
+    out[1] = "max";
+    let mut i = 0;
+    while i < SOCKET_WORDS.len() {
+        out[2 + i] = SOCKET_WORDS[i].key;
+        i += 1;
+    }
+    out
+};
+const SOCKET_FILTER: [&str; 3 + SOCKET_WORDS.len()] = {
+    let mut out = [""; 3 + SOCKET_WORDS.len()];
+    let mut i = 0;
+    while i < SOCKET_BOUNDS.len() {
+        out[i] = SOCKET_BOUNDS[i];
+        i += 1;
+    }
+    out[SOCKET_BOUNDS.len()] = "disabled";
+    out
+};
+
 fn filter_keys(shape: &str) -> &'static [&'static str] {
     match shape {
         "option" => &["option", "disabled"],
         "minmax" => &["min", "max", "disabled"],
-        "sockets" => &["min", "max", "r", "g", "b", "w", "disabled"],
+        "sockets" => &SOCKET_FILTER,
         "minmax_option" => &["min", "max", "option", "disabled"],
         _ => &["disabled"],
     }
@@ -1322,11 +1360,25 @@ impl Translator<'_> {
             return self.option(key, value, fields.and_then(|f| f.get("option")));
         }
         let mut numbers: Vec<(&str, Option<Number>)> = Vec::new();
-        for name in ["min", "max", "r", "g", "b", "w"] {
+        let names: &[&str] = if shape == "sockets" {
+            &SOCKET_BOUNDS
+        } else {
+            &["min", "max"]
+        };
+        for name in names {
             match number(fields, name) {
                 Ok(n) => numbers.push((name, n)),
                 Err(why) => return self.unknown_beside(key, value, &why),
             }
+        }
+        // a `max` of 0 is no bound where the row says the site reads it so
+        // (`max_zero`), dropped before any other reading of the bounds
+        let max_zero = row.max_zero_no_bound
+            && numbers
+                .iter()
+                .any(|(name, n)| *name == "max" && n.is_some_and(|n| n.as_f64() == 0.0));
+        if max_zero {
+            numbers.retain(|(name, _)| *name != "max");
         }
         let n = |name: &str| {
             numbers
@@ -1346,6 +1398,9 @@ impl Translator<'_> {
         })?;
         // an item lacking the field meets a maximum alone (u061: no
         // requirement meets any maximum), and fails a minimum as ever
+        if max_zero {
+            landed.notes.push(MAX_ZERO.to_string());
+        }
         if row.lacked_meets_maximum
             && n("min").is_none()
             && n("max").is_some()

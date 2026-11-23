@@ -19,7 +19,8 @@
 //!   placeholder one the translation fills ([`PLACEHOLDERS`]), and none
 //!   inside quotes, where the printer's quoting of its value cannot reach,
 //!   a row's other reading's among them ([`READING_PLACEHOLDERS`]),
-//!   which an ambiguous row alone carries (C119); every field
+//!   which an ambiguous row alone carries (C119); a `lacked` and a
+//!   `max_zero` only on the rows the header allows them; every field
 //!   named written in the row's text, and **every field named one this
 //!   build knows** — a field of the language, a property field
 //!   (`properties.rs`, C114), a computed value, or the `is:` word — so a
@@ -39,6 +40,7 @@ use std::sync::LazyLock;
 use serde::Deserialize;
 
 use super::stats;
+use crate::sockets::SOCKET_WORDS;
 
 /// The catalogue this build ships, verbatim (the reviewed file).
 pub const CATALOGUE_TOML: &str = include_str!("../../reference/trade-catalogue-v1.toml");
@@ -64,9 +66,21 @@ pub const FILTERS_JSON: &str = include_str!("../../reference/trade-filters-2026-
 /// What a row's `lands` may be filled with (the file's header): each a
 /// part of a clause the translation reads (`translate.rs`, which fills
 /// every one).
-pub const PLACEHOLDERS: [&str; 9] = [
-    "value", "text", "option", "r", "g", "b", "w", "bounds", "total",
-];
+/// The socket words' keys stand in the table's order (`sockets.rs`).
+pub const PLACEHOLDERS: [&str; 5 + SOCKET_WORDS.len()] = {
+    let mut out = [""; 5 + SOCKET_WORDS.len()];
+    out[0] = "value";
+    out[1] = "text";
+    out[2] = "option";
+    let mut i = 0;
+    while i < SOCKET_WORDS.len() {
+        out[3 + i] = SOCKET_WORDS[i].key;
+        i += 1;
+    }
+    out[3 + SOCKET_WORDS.len()] = "bounds";
+    out[4 + SOCKET_WORDS.len()] = "total";
+    out
+};
 
 /// What a row's `other`, the clause's other reading (C119), may be filled
 /// with beside a `lands` placeholder (the file's header): the clause's own
@@ -130,6 +144,7 @@ struct RowIn {
     #[serde(default)]
     fields: Vec<String>,
     lacked: Option<String>,
+    max_zero: Option<String>,
     note: Option<String>,
     says: Option<String>,
     other: Option<String>,
@@ -149,6 +164,9 @@ pub struct Row {
     /// An item lacking the row's one field meets a maximum alone (the
     /// file's header: `lacked = "meets_maximum"`).
     pub lacked_meets_maximum: bool,
+    /// A `max` of 0 is no bound, and the clause drops it before any other
+    /// reading of its bounds (the file's header: `max_zero = "no_bound"`).
+    pub max_zero_no_bound: bool,
     /// The row's evidence, its citations among it: the catalogue file's
     /// record, which neither the report nor `--describe trade` prints.
     pub note: Option<String>,
@@ -236,6 +254,9 @@ pub enum CatalogueError {
     /// A `lacked` that is not `meets_maximum`, or on a row whose text is
     /// not one field's bounds.
     Lacked(String),
+    /// A `max_zero` that is not `no_bound`, or on a row whose shape is not
+    /// `sockets`.
+    MaxZero(String),
 }
 
 impl std::fmt::Display for CatalogueError {
@@ -313,6 +334,10 @@ impl std::fmt::Display for CatalogueError {
             CatalogueError::Lacked(key) => write!(
                 f,
                 "the trade catalogue gives {key:?} a `lacked`, which is `meets_maximum` on a row landing one field's `{{bounds}}` alone"
+            ),
+            CatalogueError::MaxZero(key) => write!(
+                f,
+                "the trade catalogue gives {key:?} a `max_zero`, which is `no_bound` on a row of the shape `sockets` alone"
             ),
         }
     }
@@ -537,6 +562,11 @@ impl Catalogue {
                 }
                 Some(_) => return Err(CatalogueError::Lacked(key)),
             };
+            let max_zero_no_bound = match row.max_zero.as_deref() {
+                None => false,
+                Some("no_bound") if row.shape.as_deref() == Some("sockets") => true,
+                Some(_) => return Err(CatalogueError::MaxZero(key)),
+            };
             rows.push(Row {
                 key,
                 text: row.text,
@@ -545,6 +575,7 @@ impl Catalogue {
                 lands: row.lands,
                 fields: row.fields,
                 lacked_meets_maximum,
+                max_zero_no_bound,
                 note: row.note,
                 says: row.says,
                 other: row.other,

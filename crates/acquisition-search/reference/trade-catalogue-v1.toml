@@ -30,8 +30,8 @@
 # written through the printer's quoting, `{text}` as a stat's displays
 # (its text and its forms, reference/trade-forms-v1.toml, each quoted, as
 # one line's alternatives, a number its text writes as a digit a `#` of the
-# template like any other: the line rules below), `{r}`, `{g}`, `{b}` and `{w}` as the
-# printer writes a number, `{total}` as a computed value's name,
+# template like any other: the line rules below), the socket words' keys
+# `{r}`, `{g}`, `{b}`, `{w}` and `{a}` (src/sockets.rs) as the printer writes a number, `{total}` as a computed value's name,
 # `{bounds}` as the clause's `min` and `max` the way a person types them —
 # `>=60`, `<=80`, `=60..80`. A term of `lands` holding a placeholder the
 # clause lacks is dropped; a clause that fills none of its row's
@@ -49,8 +49,8 @@
 # translation composes it from its filters' texts.
 # What a site object may carry is read where it stands: a filter's value
 # the keys its row's `shape` names (`option` and `disabled` an option's,
-# `min`, `max` and `disabled` a range's, the colours beside them the
-# sockets'), a filter group `filters` and `disabled`, a stat group `type`,
+# `min`, `max` and `disabled` a range's, the socket words' keys beside
+# them the sockets'), a filter group `filters` and `disabled`, a stat group `type`,
 # `filters`, `value` and `disabled`, its value `min` and `max` in a count
 # or a weighted sum alone, a stat filter `id`, `value` and `disabled`,
 # its value `min`, `max`, `option` and, in a weighted sum alone, `weight`.
@@ -65,6 +65,9 @@
 # on a row landing one field's `{bounds}` alone: an item lacking the field
 # meets a maximum, and a clause with a maximum and no minimum is
 # `(F<=max or -has:F)` — the site's requirement filters (u061).
+# `max_zero = "no_bound"`, on a row of the shape `sockets` alone: a `max`
+# of 0 is no bound, dropped before the clause's bounds are read, and the
+# report says so — the site's Sockets filter (zb14, zc02).
 # `note` is the row's evidence, its citations among it, kept in this file
 # alone, and every ambiguous or unsupported clause has one. `says` is what
 # the report and `--describe trade` print for the clause, in a reader's
@@ -93,7 +96,7 @@
 # (14 categories and 13 line rules); 90 exact, 18 ambiguous, 34
 # unsupported, 9 listing-only.
 # Every one of the capture's 94 filters, 14 categories and 8 group types
-# has a row (tests/trade_catalogue.rs). 59 fields named. Every one of the
+# has a row (tests/trade_catalogue.rs). 60 fields named. Every one of the
 # stat table's 14,700 category and id pairs translates, alone and with a
 # bound (tests/trade_translate.rs): alone 13,661 exact, 819 ambiguous,
 # 220 unsupported — the two-text ids, every one; with a bound 9,400, 5,080
@@ -381,18 +384,19 @@ key = "socket_filters.sockets"
 text = "Sockets"
 shape = "sockets"
 disposition = "exact"
-lands = "sockets{bounds} sockets.red>={r} sockets.green>={g} sockets.blue>={b} sockets.white>={w}"
-fields = ["sockets", "sockets.red", "sockets.green", "sockets.blue", "sockets.white"]
-note = "a colour the clause lacks drops its comparison"
-says = "Sockets by colour; a colour not asked for is not compared."
+lands = "sockets{bounds} sockets.red>={r} sockets.green>={g} sockets.blue>={b} sockets.white>={w} sockets.abyssal>={a}"
+fields = ["sockets", "sockets.red", "sockets.green", "sockets.blue", "sockets.white", "sockets.abyssal"]
+max_zero = "no_bound"
+note = "a socket word the clause lacks drops its comparison; `a` counts abyssal sockets, at least, and `min` and `max` count them among the sockets (zb01 to zb07, zc01); a `max` of 0 is no bound: under it the site sent belts with an abyssal socket and body armour with six (zb14, zc02); `d` no row reads"
+says = "Sockets by kind, the abyssal among them; a kind not asked for is not compared, and a maximum of 0 is no bound, as on the site."
 
 [[row]]
 key = "socket_filters.links"
 text = "Link Groups"
 shape = "sockets"
 disposition = "exact"
-lands = "linked(size{bounds} red>={r} green>={g} blue>={b} white>={w})"
-note = "one link group holds every count named (S59)"
+lands = "linked(size{bounds} red>={r} green>={g} blue>={b} white>={w} abyssal>={a})"
+note = "one link group holds every count named (S59); an abyssal socket is a link group of its own, of one, which `a` and `min` read (zb08 to zb10)"
 says = "One link group holds every count asked for."
 
 # ---- req_filters --------------------------------------------------------

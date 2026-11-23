@@ -192,7 +192,7 @@ fn c114_every_field_the_catalogue_names_binds() {
         .iter()
         .flat_map(|r| r.fields.iter().map(String::as_str))
         .collect();
-    assert_eq!(named.len(), 59);
+    assert_eq!(named.len(), 60);
     for field in &named {
         let term = match *field {
             "is" => "is:corrupted".to_string(),
@@ -219,6 +219,7 @@ fn c114_every_field_the_catalogue_names_binds() {
         "sockets.green",
         "sockets.blue",
         "sockets.white",
+        "sockets.abyssal",
         "reqlevel",
         "ilvl",
         "stack",
@@ -448,6 +449,25 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
         ))
         .is_ok()
     );
+    // a maximum of 0 read as no bound is a sockets row's alone, and
+    // `no_bound` its one value; the Sockets row carries it, Link Groups not
+    let sockets = "shape = \"sockets\"\ndisposition = \"exact\"\nlands = \"sockets{bounds}\"\nfields = [\"sockets\"]";
+    assert!(
+        Catalogue::parse(&one(&format!("{sockets}\nmax_zero = \"no_bound\"")))
+            .unwrap()
+            .rows()[0]
+            .max_zero_no_bound
+    );
+    for body in [
+        "shape = \"minmax\"\ndisposition = \"exact\"\nlands = \"ilvl{bounds}\"\nfields = [\"ilvl\"]\nmax_zero = \"no_bound\"".to_string(),
+        "disposition = \"exact\"\nlands = \"ilvl{bounds}\"\nfields = [\"ilvl\"]\nmax_zero = \"no_bound\"".to_string(),
+        format!("{sockets}\nmax_zero = \"bound\""),
+    ] {
+        assert_eq!(refused(one(&body)), CatalogueError::MaxZero(key()), "{body}");
+    }
+    let c = catalogue::catalogue().unwrap();
+    assert!(c.row("socket_filters.sockets").unwrap().max_zero_no_bound);
+    assert!(!c.row("socket_filters.links").unwrap().max_zero_no_bound);
     for broken in [
         "version = 1\n".to_string(),
         one("disposition = \"exact\"\nwhat = 1"),

@@ -2707,6 +2707,19 @@ fn site_word() -> BoxedStrategy<String> {
         .boxed()
 }
 
+/// A socket filter's numeric keys: its bounds and each socket word's key
+/// (`sockets::SOCKET_WORDS`).
+static SOCKET_KEYS: std::sync::LazyLock<Vec<&'static str>> = std::sync::LazyLock::new(|| {
+    ["min", "max"]
+        .into_iter()
+        .chain(
+            acquisition_search::sockets::SOCKET_WORDS
+                .iter()
+                .map(|s| s.key),
+        )
+        .collect()
+});
+
 /// The numbers of a value object, each drawn alone.
 fn site_value(keys: &'static [&'static str]) -> BoxedStrategy<Value> {
     prop::collection::vec(site_number(), keys.len())
@@ -2740,7 +2753,7 @@ fn site_filter() -> BoxedStrategy<(String, Value)> {
     (
         prop::sample::select(filters.clone()),
         site_value(&["min", "max"]),
-        site_value(&["min", "max", "r", "g", "b", "w"]),
+        site_value(SOCKET_KEYS.as_slice()),
         options,
         site_word(),
         prop::bool::weighted(0.1),

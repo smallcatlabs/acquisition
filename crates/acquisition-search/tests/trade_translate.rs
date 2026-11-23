@@ -60,6 +60,10 @@ struct Case {
     fails: Vec<String>,
     #[serde(default)]
     others: BTreeMap<String, Other>,
+    /// Words the report gives a clause, by where it stands: each among
+    /// the clause's notes.
+    #[serde(default)]
+    notes: BTreeMap<String, Vec<String>>,
 }
 
 /// An ambiguous clause's other reading as a case works it by hand
@@ -420,6 +424,17 @@ fn worked_by_hand(case: &Case) {
         case.name
     );
     assert_eq!(statuses, case.statuses, "{}", case.name);
+    for (at, notes) in &case.notes {
+        let clause = t.clauses.iter().find(|c| &c.at == at).unwrap();
+        for note in notes {
+            assert!(
+                clause.notes.contains(note),
+                "{}: {at} does not say {note:?}: {:?}",
+                case.name,
+                clause.notes
+            );
+        }
+    }
     assert_eq!(
         serde_json::to_value(t.fidelity).unwrap(),
         case.fidelity,

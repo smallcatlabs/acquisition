@@ -284,6 +284,71 @@ statuses = { "socket_filters.links" = "exact" }
 matches = ['{"sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "D", "sColour": "G"}]}']
 fails = ['{"sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 1, "attr": "D", "sColour": "G"}]}']
 
+[[case]]
+name = "sockets with an abyssal count: `a`, at least, beside the sockets it counts among (zb01, zb05, zb07)"
+query = '{"filters": {"socket_filters": {"filters": {"sockets": {"min": 2, "a": 1}}}}}'
+text = 'sockets>=2 sockets.abyssal>=1'
+fidelity = "exact"
+statuses = { "socket_filters.sockets" = "exact" }
+matches = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "name": "Darkness Enthroned", "rarity": "Unique", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}, {"group": 1, "attr": "A", "sColour": "A"}]}']
+fails = [
+  '{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}]}',
+  '{"sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}]}',
+]
+
+[[case]]
+name = "links with an abyssal count: an abyssal socket is a link group of one (zb08, zb10)"
+query = '{"filters": {"socket_filters": {"filters": {"links": {"min": 1, "a": 1}}}}}'
+text = 'linked(size>=1 abyssal>=1)'
+fidelity = "exact"
+statuses = { "socket_filters.links" = "exact" }
+matches = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}]}', '{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "name": "Darkness Enthroned", "rarity": "Unique", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}, {"group": 1, "attr": "A", "sColour": "A"}]}']
+fails = ['{"baseType": "Vaal Regalia", "typeLine": "Vaal Regalia", "sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "G", "sColour": "W"}]}']
+
+[[case]]
+name = "a Sockets maximum of 0 is no bound: the clause states nothing (zc02)"
+query = '{"filters": {"socket_filters": {"filters": {"sockets": {"max": 0}}}}}'
+text = 'true()'
+fidelity = "exact"
+statuses = { "socket_filters.sockets" = "exact" }
+notes = { "socket_filters.sockets" = ["a maximum of 0 is no bound, as the site reads it on this filter: no maximum is compared"] }
+matches = ['{"baseType": "Vaal Regalia", "typeLine": "Vaal Regalia", "sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "G", "sColour": "W"}]}', '{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}]}']
+
+[[case]]
+name = "a Sockets maximum of 0 is dropped before the bounds are read: `min` 2 is no range that runs backwards"
+query = '{"filters": {"socket_filters": {"filters": {"sockets": {"min": 2, "max": 0}}}}}'
+text = 'sockets>=2'
+fidelity = "exact"
+statuses = { "socket_filters.sockets" = "exact" }
+notes = { "socket_filters.sockets" = ["a maximum of 0 is no bound, as the site reads it on this filter: no maximum is compared"] }
+matches = ['{"sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}]}', '{"baseType": "Vaal Regalia", "typeLine": "Vaal Regalia", "sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "G", "sColour": "W"}]}']
+fails = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}]}']
+
+[[case]]
+name = "a Sockets maximum of 0 beside an abyssal count: the count alone (zb14)"
+query = '{"filters": {"socket_filters": {"filters": {"sockets": {"max": 0, "a": 1}}}}}'
+text = 'sockets.abyssal>=1'
+fidelity = "exact"
+statuses = { "socket_filters.sockets" = "exact" }
+notes = { "socket_filters.sockets" = ["a maximum of 0 is no bound, as the site reads it on this filter: no maximum is compared"] }
+matches = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}]}', '{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "name": "Darkness Enthroned", "rarity": "Unique", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}, {"group": 1, "attr": "A", "sColour": "A"}]}']
+fails = ['{"baseType": "Vaal Regalia", "typeLine": "Vaal Regalia", "sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "G", "sColour": "W"}]}']
+
+[[case]]
+name = "a resonator's count `d` is a key no row reads: the clause unsupported by name"
+query = '{"filters": {"socket_filters": {"filters": {"sockets": {"min": 1, "d": 1}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "socket_filters.sockets" = "unsupported" }
+
+[[case]]
+name = "a Link Groups maximum of 0 is read as a bound, as before the sitting (#309: not asked)"
+query = '{"filters": {"socket_filters": {"filters": {"links": {"max": 0}}}}}'
+text = 'linked(size<=0)'
+fidelity = "exact"
+statuses = { "socket_filters.links" = "exact" }
+fails = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}]}', '{"baseType": "Vaal Regalia", "typeLine": "Vaal Regalia", "sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "G", "sColour": "W"}]}']
+
 # ---- req_filters ------------------------------------------------------------------------------
 
 [[case]]
