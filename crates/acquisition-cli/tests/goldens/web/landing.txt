@@ -1,0 +1,160 @@
+# golden web/landing: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+POST saved <an empty name>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<main>
+<h1>Saved searches</h1>
+<p class="back"><a href="/<token>/search?realm=pc&amp;text=rarity%3Drare">Back to the search</a></p>
+<div class="refusal"><pre>
+a name is one character at least once trimmed: &quot;&quot;
+</pre>
+</div>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=rarity%3Drare"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save</button></form>
+</div>
+
+</main>
+
+POST saved <a row written since>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<meta name="basis" content="{&quot;saved_search&quot;:2}">
+<main>
+<h1>Saved searches</h1>
+<p class="back"><a href="/<token>/search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a1&amp;saved_revision=1">Back to the search</a></p>
+<div class="refusal"><pre>
+saved search 0000000000a1 stands at revision 2, not the revision the write named: nothing was written
+</pre>
+<p>It stands now as:</p>
+<table class="saved">
+<tr><th>Name</th><th>Scope</th><th>Query</th><th>Revision</th><th>Last written</th><th>Id</th></tr>
+<tr><td>elsewhere</td><td>pc · live</td><td>rarity=rare</td><td>2</td><td><age> ago via cli</td><td>0000000000a1</td></tr>
+</table>
+<ul class="offers">
+<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a1&amp;saved_revision=1"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="name" value="mine"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><button type="submit">the same write over revision 2, the row as it stands</button></form></li>
+</ul>
+</div>
+
+</main>
+
+POST saved/clear <a row written since>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<meta name="basis" content="{&quot;saved_search&quot;:3}">
+<main>
+<h1>Saved searches</h1>
+<p class="back"><a href="/<token>/saved">Back to the saved searches</a></p>
+<div class="refusal"><pre>
+saved search 0000000000a1 stands at revision 3, not the revision the write named: nothing was written
+</pre>
+<p>It stands now as:</p>
+<table class="saved">
+<tr><th>Name</th><th>Scope</th><th>Query</th><th>Revision</th><th>Last written</th><th>Id</th></tr>
+<tr><td>moved</td><td>pc · live</td><td>rarity=rare</td><td>3</td><td><age> ago via cli</td><td>0000000000a1</td></tr>
+</table>
+<ul class="offers">
+<li><form class="write" method="post" action="/<token>/saved/clear"><input type="hidden" name="from" value="saved"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="3"><button type="submit">the same clear at revision 3, the row as it stands</button></form></li>
+</ul>
+</div>
+
+</main>
+
+GET saved/clear <a row no longer there>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<main>
+<h1>Saved search</h1>
+<p class="back"><a href="/<token>/saved">Back to the saved searches</a></p>
+<div class="refusal"><pre>
+no saved search has the id 0000000000ff
+</pre>
+<ul class="offers">
+<li><a href="/<token>/saved">the saved searches, each with its id</a></li>
+</ul>
+</div>
+
+</main>
+
+GET saved/open <a row no longer there>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<main>
+<h1>Saved search</h1>
+<p class="back"><a href="/<token>/saved">Back to the saved searches</a></p>
+<div class="refusal"><pre>
+no saved search has the id 0000000000ff
+</pre>
+<ul class="offers">
+<li><a href="/<token>/saved">the saved searches, each with its id</a></li>
+</ul>
+</div>
+
+</main>
+
+GET plan <nothing ticked>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<main>
+<h1>Plan</h1>
+<p class="back"><a href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1">Back to the stash tabs</a></p>
+<div class="refusal"><pre>
+nothing is selected: tick a tab or a character to refresh it
+</pre>
+</div>
+
+</main>
+
+GET plan <no policy>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<main>
+<h1>Plan</h1>
+<p class="back"><a href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1">Back to the stash tabs</a></p>
+<div class="refusal"><pre>
+no sync policy is set for Alice#1234 — declare one first, e.g. `acq policy set --account &#39;Alice#1234&#39; --if-revision 0 &#39;{&quot;version&quot;:3,&quot;realms&quot;:{&quot;pc&quot;:{&quot;leagues&quot;:{&quot;Standard&quot;:{&quot;tabs&quot;:&quot;all&quot;,&quot;characters&quot;:&quot;all&quot;,&quot;max_age_seconds&quot;:3600}}}}}&#39;`
+</pre>
+</div>
+
+</main>
+
+GET plan <a league not covered>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<main>
+<h1>Plan</h1>
+<p class="back"><a href="/<token>/tabs?realm=pc&amp;league=Hardcore">Back to the stash tabs</a></p>
+<div class="refusal"><pre>
+the sync policy covers Standard on realm pc, not Hardcore
+</pre>
+<ul class="offers">
+<li><a href="/<token>/plan?realm=pc&amp;league=Standard&amp;from=tabs%3Frealm%3Dpc%26league%3DHardcore">the plan of pc Standard, which the policy covers</a></li>
+</ul>
+</div>
+
+</main>
+
+POST apply <the policy moved>
+# holds "<p class=\"back\"><a href="
+# holds "<div class=\"refusal\">"
+--- status 400
+<main>
+<h1>Apply</h1>
+<p class="back"><a href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1">Back to the stash tabs</a></p>
+<div class="refusal"><pre>
+the sync policy moved: the plan cites revision 1, but revision 2 is stored — review and replan
+</pre>
+<ul class="offers">
+<li><a href="/<token>/plan?realm=pc&amp;league=Standard&amp;from=tabs%3Frealm%3Dpc%26league%3DStandard%26open%3Dt1">the plan of pc Standard compiled again, from the policy as it stands</a></li>
+</ul>
+</div>
+
+</main>

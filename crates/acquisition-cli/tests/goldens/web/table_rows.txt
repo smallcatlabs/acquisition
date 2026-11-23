@@ -106,7 +106,7 @@ GET search?<the table, its first two rows opened>
 <the search form from its bar: golden web/search_form, filled with these lines>
 <div class="controls-left"><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <label class="control">Or count by <input name="view.count" placeholder="rarity"></label> <span class="fate">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>
 <details class="query-details" open><summary>The query, in the language</summary><form class="query-box" method="get" action="search#answer" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><textarea id="query-text" aria-label="the query, in the language" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span></form></details>
-<form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+<form class="write" method="post" action="leagues"><input type="hidden" name="from" value="search?realm=pc&amp;text=&amp;view.fields=icon"><button type="submit">Fetch the league list</button></form>
 <div id="answer">
 <p class="count">3 matches</p>
 <table class="opening">
@@ -165,7 +165,7 @@ basis   store <store> · build <build> · snapshot 8 · facts v9 · prices and p
 </p>
 <div class="save">
 <p class="save-note">Saved without the table: a saved search is its query and its scope.</p>
-<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=&amp;view.fields=icon"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 </div>
 <p class="switch"><label><input type="checkbox" id="all-fields" name="all_fields" value="true" form="search-form" data-page> Show the fields this search does not run</label> <span class="fate">A field with no mark runs as the trade site's; a mark says it is read differently here, or not run.</span></p>

@@ -27,7 +27,7 @@ GET plan?<every timing unknown>
 <li>429 re-sends (up to 2 per request) — possible, never predicted</li>
 </ul>
 </details>
-<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+<form class="write" method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
 </main>
 
@@ -50,7 +50,7 @@ GET plan?<the daemon holds no session>
 </table>
 <p class="skipped">Your sync policy names 1 tab not on record; nothing is fetched for it.</p>
 <p class="quote">Not signed in: the daemon holds no session for this account, so it says nothing of when these requests could go. Sign in before you apply.</p>
-<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+<form class="write" method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
 </main>
 
@@ -73,7 +73,7 @@ GET plan?<no daemon>
 </table>
 <p class="skipped">Your sync policy names 1 tab not on record; nothing is fetched for it.</p>
 <p class="quote">No daemon is running, so nothing says when these requests could go; Apply starts one.</p>
-<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+<form class="write" method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
 </main>
 
@@ -104,6 +104,6 @@ GET plan?<a closed route>
 <li>429 re-sends (up to 2 per request) — possible, never predicted</li>
 </ul>
 </details>
-<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+<form class="write" method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
 </main>

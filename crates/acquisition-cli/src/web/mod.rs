@@ -87,9 +87,9 @@
 //!   `jobs` document, each in [`page`] and none through the CLI's text;
 //!   their JSON is the document unchanged. A submit lands at its job: `POST
 //!   apply`, the listings and the league list's fetch answer `303` to
-//!   `jobs?job=<id>` at the row's anchor, with the realm and league the
-//!   plan or the form named, and a jobs URL naming a league links its two
-//!   place pages. `job` names one job as `open` names a parent: read by id,
+//!   `jobs?job=<id>` at the row's anchor, carrying the `from` the submit
+//!   handed on, which the jobs page draws as its way back (the landing
+//!   rule, below). `job` names one job as `open` names a parent: read by id,
 //!   listed or not, its row marked, one the list leaves out above the list,
 //!   and a failed or cancelled one's result under it, its failure said by
 //!   its kind and its offers spelled by [`Paged`], which spells a job's
@@ -109,13 +109,32 @@
 //!   An `open` or a tick that names no place of the league is dropped, in
 //!   the page and in every URL it writes. Heads are never windowed. A
 //!   place's name is its request as a table, spelled by [`Paged`]; a
-//!   folder's is words. "Refresh ticked" sends the form to `plan` as a
-//!   selection, and "Plan under the policy" shows only where the policy
-//!   names the league (C168: no page writes a policy). "List this league's
-//!   stash tabs" (`POST tabs`) and "List characters" (`POST characters`)
-//!   submit the `stashes` and `characters` jobs as `POST leagues` submits
-//!   `leagues`. A league with nothing listed says so in words where the
-//!   table would be, beside the listing.
+//!   folder's is words. "Refresh ticked" and "Plan under the policy" send
+//!   `refresh` (`ticked`, `policy`), a field of the page itself, which
+//!   answers `303` to `plan` with the selection as sent and the page as
+//!   sent as its `from`, so the place form never leaves its page; "Plan
+//!   under the policy" shows only where the policy names the league (C168:
+//!   no page writes a policy). "List this league's stash tabs" (`POST
+//!   tabs`) and "List characters" (`POST characters`) submit the `stashes`
+//!   and `characters` jobs as `POST leagues` submits `leagues`, each
+//!   offered only where its realm's endpoints take the realm
+//!   (`Family::accepts`). A league with nothing listed says so in words
+//!   where the table would be, beside the listing.
+//! - **The landing rule** (`from`, [`from`]): a request that leaves its
+//!   page carries that page, and what answers it leads back to the page
+//!   holding what was sent. A route is a place (the search page, `tabs`,
+//!   `characters`, `saved`, `jobs`, an item's page) or a step (`plan`,
+//!   `saved/open`, the clear's ask, every POST): a place's `from` is
+//!   itself, and one its URL carries is only its way back, drawn above its
+//!   body; a step hands on the `from` it was given. Every route takes
+//!   `from` out of its fields first, so no fold, verb or JSON answer meets
+//!   it. Every form that posts is made by [`page::post_form`] and every
+//!   link to a step carries it ([`from::onward`], [`Paged`]). Landed, a
+//!   leaving request answers `303` to the next page carrying `from`, or to
+//!   that page as sent where `from` is the page it lands on ([`Web::landed`]);
+//!   refused, the refusal in the shared words, then the save form as sent
+//!   where the write was a save and the refusal offers no write of its own,
+//!   then the way back ([`Web::failed`]).
 //! - **The filter**: `name` (words the name holds), `type` (a tab's type)
 //!   and `fetched` (`never`) are the places document's filter, read by it
 //!   and refused in its words. Its controls stand under the column heads in
@@ -378,6 +397,7 @@
 
 mod fill;
 mod form;
+mod from;
 mod page;
 
 use std::sync::{Arc, OnceLock};
@@ -408,6 +428,7 @@ use serde_json::{Value, json};
 
 use crate::run::Ctx;
 use crate::store_cmd;
+use from::{FromPage, Here, Place};
 use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, refusal};
 
 /// The channel every write and submit from a page carries (C65).
@@ -632,7 +653,12 @@ async fn with_account(
 ) -> Response {
     match blocking(&web, |web| web.served().map(|_| ())).await {
         Ok(()) => next.run(request).await,
-        Err(fault) => web.failed("Account", &Failure::from(fault), request.headers()),
+        Err(fault) => web.failed(
+            "Account",
+            &Failure::from(fault),
+            request.headers(),
+            &Here::none(),
+        ),
     }
 }
 
@@ -704,27 +730,87 @@ impl Web {
     }
 
     /// A refusal's document, in the one refusal shape as a page spells it
-    /// ([`Paged`]).
-    fn refusal(&self, failure: &Failure) -> Value {
+    /// ([`Paged`]), its links to a step carrying `from` where the page
+    /// renders it (none in a JSON answer: `from` is the page's).
+    fn refusal(&self, failure: &Failure, from: Option<&FromPage>) -> Value {
+        let paged = Paged { web: self, from };
         match failure {
             Failure::Usage(words) => json!({ "error": words, "kind": "usage" }),
-            Failure::Search(e) => acquisition_verbs::refusal::of_search(e, &Paged { web: self }),
-            Failure::Other(e) => acquisition_verbs::refusal::document(e, &Paged { web: self }),
+            Failure::Search(e) => acquisition_verbs::refusal::of_search(e, &paged),
+            Failure::Other(e) => acquisition_verbs::refusal::document(e, &paged),
+        }
+    }
+
+    /// The way back `here` draws, where it has one.
+    fn back(&self, here: &Here) -> Option<page::Back> {
+        here.back.as_ref().map(|back| page::Back {
+            href: back.href(self),
+            words: back.place().words(),
+        })
+    }
+
+    /// A page drawn with `here`'s way back.
+    fn page_at(&self, title: &str, head: Head, body: &str, here: &Here) -> Response {
+        let head = Head {
+            back: self.back(here),
+            ..head
+        };
+        self.page(title, head, body)
+    }
+
+    /// A leaving request landed (the landing rule): `303` to `route` with
+    /// `fields` at `anchor`, carrying the `from` the request handed on —
+    /// or, where that `from` is the very place `route` names with no field
+    /// of its own, to that page as sent, its own way back left out.
+    fn landed(
+        &self,
+        route: &str,
+        fields: &[(&str, String)],
+        anchor: Option<String>,
+        here: &Here,
+    ) -> Response {
+        let to = match here.onward() {
+            Some(from) if fields.is_empty() && from.is_route(route) => from.href(self),
+            from => from::onward(&self.link(route, fields), from),
+        };
+        match anchor {
+            Some(anchor) => see_other(&format!("{to}#{anchor}")),
+            None => see_other(&to),
         }
     }
 
     /// A refusal as a page, or as its document where JSON is asked (C11):
     /// the page renders the document (C16).
-    fn failed(&self, title: &str, failure: &Failure, headers: &HeaderMap) -> Response {
+    /// Its way back is `here`'s, and its offers post `here`'s `from`: a
+    /// refused leaving request's refusal, then that way back (the landing
+    /// rule).
+    fn failed(&self, title: &str, failure: &Failure, headers: &HeaderMap, here: &Here) -> Response {
+        self.failed_as_sent(title, failure, headers, here, "")
+    }
+
+    /// [`Web::failed`], with `sent` after the refusal: the form as sent,
+    /// where the route has one a reader fills.
+    fn failed_as_sent(
+        &self,
+        title: &str,
+        failure: &Failure,
+        headers: &HeaderMap,
+        here: &Here,
+        sent: &str,
+    ) -> Response {
         if wants_json(headers) {
             return self.refused_document(failure);
         }
-        let doc = self.refusal(failure);
+        let doc = self.refusal(failure, here.onward());
         // a conflict's page renders the row as it stands: its revision is
         // the page's basis
         let head = match page::saved_current(&doc) {
             Some(row) => Head::default().with("saved_search", &row["revision"]),
             None => Head::default(),
+        };
+        let head = Head {
+            back: self.back(here),
+            ..head
         };
         html(
             StatusCode::BAD_REQUEST,
@@ -733,7 +819,7 @@ impl Web {
                 title,
                 self.account_name(),
                 head,
-                &page::refused(&doc),
+                &format!("{}{sent}", page::refused(&doc, here.onward())),
             ),
         )
     }
@@ -748,11 +834,12 @@ impl Web {
         headers: &HeaderMap,
         editors: &str,
         foot: &str,
+        here: &Here,
     ) -> Response {
         if wants_json(headers) {
             return self.refused_document(failure);
         }
-        let doc = self.refusal(failure);
+        let doc = self.refusal(failure, here.onward());
         html(
             StatusCode::BAD_REQUEST,
             page::page(
@@ -762,12 +849,13 @@ impl Web {
                 Head {
                     lists: true,
                     count: true,
+                    back: self.back(here),
                     ..Head::default()
                 },
                 &format!(
                     "{editors}<div id=\"{}\">\n{}</div>\n{foot}",
                     page::ANSWER,
-                    page::refused(&doc)
+                    page::refused(&doc, here.onward())
                 ),
             ),
         )
@@ -851,7 +939,7 @@ impl Web {
         (
             StatusCode::BAD_REQUEST,
             [(header::CONTENT_TYPE, "application/json")],
-            self.refusal(failure).to_string(),
+            self.refusal(failure, None).to_string(),
         )
             .into_response()
     }
@@ -1188,9 +1276,13 @@ impl Web {
 /// fields that route takes as strings, `if_revision` `0` for a create at
 /// an id. A way no page takes is offered nowhere on a page: another
 /// account, a price or policy write, a job, `describe`, a search the form
-/// cannot ask, a saved search written at the revision read.
+/// cannot ask, a saved search written at the revision read. A link to a
+/// step (a league's plan, a saved search opened) carries `from`, the
+/// page's, where the page renders it (the landing rule); none in a JSON
+/// answer.
 struct Paged<'a> {
     web: &'a Web,
+    from: Option<&'a FromPage>,
 }
 
 impl acquisition_verbs::refusal::Surface for Paged<'_> {
@@ -1242,7 +1334,9 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
                 account,
                 realm,
                 league: named,
-            } if self.web.serves(account) => self.web.link("plan", &league(realm, named)),
+            } if self.web.serves(account) => {
+                from::onward(&self.web.link("plan", &league(realm, named)), self.from)
+            }
             Way::Tabs {
                 account,
                 realm,
@@ -1261,7 +1355,10 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
             Way::SavedSearchRun { id, account }
                 if account.as_deref().is_none_or(|a| self.web.serves(a)) =>
             {
-                self.web.link("saved/open", &[("id", id.clone())])
+                from::onward(
+                    &self.web.link("saved/open", &[("id", id.clone())]),
+                    self.from,
+                )
             }
             Way::SavedSearchSet(set) => {
                 let mut fields = serde_json::Map::new();
@@ -1436,25 +1533,36 @@ fn realm_of(fields: &[(String, String)]) -> Result<Realm, Failure> {
 /// the realm and the membership the URL names (Clear's link names them).
 async fn home(
     State(web): State<Arc<Web>>,
+    headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    // `from`, then the switch, first: neither is the search's
+    let (fields, back) = match from::taken(fields) {
+        Ok(taken) => taken,
+        Err(failure) => return web.failed("Search", &failure, &headers, &Here::none()),
+    };
     let (fields, all_fields) = switched(fields);
+    let here = Here::place(FromPage::here(Place::Home, &fields), back);
     let realm = pick(&fields, "realm").unwrap_or("pc").to_string();
     let mut filled = page::Filled::empty(&realm);
     // the scope's membership, as `search` reads it: the word sent, which
     // the form's select shows (Clear carries it)
     filled.membership = pick(&fields, "membership").map(str::to_string);
     let (leagues, said) = blocking(&web, move |web| match web.leagues(&realm) {
-        Ok(leagues) => (leagues, String::new()),
-        Err(failure) => (None, page::refused(&web.refusal(&failure))),
+        Ok(leagues) => (leagues, Ok(())),
+        Err(failure) => (None, Err(failure)),
     })
     .await;
+    let said = match said {
+        Ok(()) => String::new(),
+        Err(failure) => page::refused(&web.refusal(&failure, here.onward()), here.onward()),
+    };
     let body = format!(
         "{said}{}{}",
-        page::editor(&web.form, &filled, leagues.as_deref()),
+        page::editor(&web.form, &filled, leagues.as_deref(), here.onward()),
         page::switch(all_fields)
     );
-    web.page(
+    web.page_at(
         "Search",
         Head {
             lists: true,
@@ -1462,6 +1570,7 @@ async fn home(
             ..Head::default()
         },
         &body,
+        &here,
     )
 }
 
@@ -1479,8 +1588,12 @@ async fn search(
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
     let json = wants_json(&headers);
-    // the switch, the page's own, first: nothing the page reads, links or
-    // carries meets it
+    // `from`, then the switch, the page's own, first: nothing the page
+    // reads, links or carries meets them
+    let (fields, back) = match from::taken(fields) {
+        Ok(taken) => taken,
+        Err(failure) => return web.failed("Answer", &failure, &headers, &Here::none()),
+    };
     let (fields, all_fields) = switched(fields);
     // the opened rows, the landing and a row's toggle, taken off before
     // the fold as `saved` is
@@ -1500,6 +1613,8 @@ async fn search(
     }
     let sent = fields.clone();
     let editing = fields.clone();
+    // the page itself, as sent, is what its leaving forms post as `from`
+    let here = Here::place(FromPage::here(Place::Search, &sent), back);
     let (asked, filled, leagues) = blocking(&web, move |web| {
         // the query as read, the fold's or a token's: what the editors are
         // filled from, answered or refused
@@ -1619,7 +1734,7 @@ async fn search(
         (asked, filled, leagues)
     })
     .await;
-    let editors = page::editor(&web.form, &filled, leagues.as_deref());
+    let editors = page::editor(&web.form, &filled, leagues.as_deref(), here.onward());
     match asked {
         Ok((answer, ..)) if json => document(&answer),
         Ok((answer, window, opened, carried, continued, request, held, kept, placed)) => {
@@ -1662,7 +1777,7 @@ async fn search(
                 }
                 _ => None,
             };
-            web.page(
+            web.page_at(
                 "Answer",
                 head,
                 &format!(
@@ -1674,13 +1789,17 @@ async fn search(
                             source: &request.query,
                             opened: opened.as_ref(),
                             view: &filled.view,
+                            from: here.onward(),
                         },
                         &web.saved_links(),
                         &|way| {
                             use acquisition_verbs::refusal::Surface as _;
-                            Paged { web: &web }
-                                .request(way)
-                                .and_then(|(link, _)| link.as_str().map(str::to_string))
+                            Paged {
+                                web: &web,
+                                from: here.onward(),
+                            }
+                            .request(way)
+                            .and_then(|(link, _)| link.as_str().map(str::to_string))
                         },
                         &rows_links,
                         &view_links,
@@ -1692,6 +1811,7 @@ async fn search(
                     ),
                     page::switch(all_fields)
                 ),
+                &here,
             )
         }
         // a refused search is the same page, its editors filled from what
@@ -1702,6 +1822,7 @@ async fn search(
             &headers,
             &editors,
             &page::switch(all_fields),
+            &here,
         ),
     }
 }
@@ -2241,6 +2362,11 @@ async fn item(
     Query(fields): Query<Fields>,
 ) -> Response {
     let json = wants_json(&headers);
+    let (fields, back) = match from::taken(fields) {
+        Ok(taken) => taken,
+        Err(failure) => return web.failed("Item", &failure, &headers, &Here::none()),
+    };
+    let here = Here::place(FromPage::here(Place::Item(id.clone()), &fields), back);
     let against = fields
         .iter()
         .find(|(k, _)| k == "against")
@@ -2269,12 +2395,13 @@ async fn item(
     .await;
     match shown {
         Ok((shown, _)) if json => document(&shown),
-        Ok((shown, placed)) => web.page(
+        Ok((shown, placed)) => web.page_at(
             "Item",
             Head::default().with("item", &shown.basis),
             &page::item(&shown, placed.as_deref()),
+            &here,
         ),
-        Err(failure) => web.failed("Item", &failure, &headers),
+        Err(failure) => web.failed("Item", &failure, &headers, &here),
     }
 }
 
@@ -2333,7 +2460,7 @@ async fn rows(
             page::window_rows(&answer, acquisition_store::now()),
         ),
         Err(failure) => {
-            let doc = web.refusal(&failure);
+            let doc = web.refusal(&failure, None);
             let status = match doc["kind"].as_str() {
                 Some("basis_changed") => StatusCode::CONFLICT,
                 _ => StatusCode::BAD_REQUEST,
@@ -2346,7 +2473,7 @@ async fn rows(
                 )
                     .into_response()
             } else {
-                html(status, page::refused(&doc))
+                html(status, page::refused(&doc, None))
             }
         }
     }
@@ -2390,7 +2517,7 @@ async fn stats(
     {
         Ok(listed) if wants_json(&headers) => document(&listed),
         Ok(listed) => html(StatusCode::OK, page::stat_options(&listed)),
-        Err(e) => web.failed("Stats", &Failure::from(e), &headers),
+        Err(e) => web.failed("Stats", &Failure::from(e), &headers, &Here::none()),
     }
 }
 
@@ -2460,20 +2587,61 @@ async fn places(
     listed: Listed,
 ) -> Response {
     let title = listed.title();
+    // `from` first: the page's way back, never the places' document's
+    let (fields, back) = match from::taken(fields) {
+        Ok(taken) => taken,
+        Err(failure) => return web.failed(title, &failure, &headers, &Here::none()),
+    };
+    // the page itself as sent, less what one load reads (a toggle, a
+    // landing), is what its leaving forms post as `from`
+    let itself: Fields = fields
+        .iter()
+        .filter(|(k, _)| !matches!(k.as_str(), "toggle" | "toggle_item" | "at" | "refresh"))
+        .cloned()
+        .collect();
+    let place = match listed {
+        Listed::Tabs => Place::Tabs,
+        Listed::Characters => Place::Characters,
+    };
+    let here = Here::place(FromPage::here(place.clone(), &itself), back);
+    // "Refresh ticked" and "Plan under the policy" are this page's own
+    // field, `refresh` (the landing rule: the place form never leaves): answered
+    // `303` to `plan` with the selection as sent and this page as `from`
+    if let Some(asked) = pick(&fields, "refresh") {
+        let mut to: Vec<(&str, String)> = fields
+            .iter()
+            .filter(|(k, _)| {
+                matches!(k.as_str(), "realm" | "league" | "deep") || k == listed.tick()
+            })
+            .map(|(k, v)| (k.as_str(), v.clone()))
+            .collect();
+        match asked {
+            "ticked" => to.push(("selected", "yes".to_string())),
+            "policy" => to.retain(|(k, _)| matches!(*k, "realm" | "league")),
+            other => {
+                let failure = Failure::Usage(format!(
+                    "`refresh` {other:?} is no plan a place page asks: `ticked`, the ticked \
+                     places, or `policy`, the league's policy"
+                ));
+                return web.failed(title, &failure, &headers, &here);
+            }
+        }
+        return web.landed("plan", &to, None, &here);
+    }
     // the opened rows, the landing and a row's toggle
     let (fields, opening) = opening(fields);
     let toggled = opening.toggled().map(|(items, id)| (items, id.to_string()));
     let sent_items = opening.items.clone();
     let realm = match realm_of(&fields) {
         Ok(realm) => realm,
-        Err(failure) => return web.failed(title, &failure, &headers),
+        Err(failure) => return web.failed(title, &failure, &headers, &here),
     };
     let league = pick(&fields, "league")
         .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
         .to_string();
     let shown = match Shown::read(&fields) {
         Ok(shown) => shown,
-        Err(failure) => return web.failed(title, &failure, &headers),
+        Err(failure) => return web.failed(title, &failure, &headers, &here),
     };
     let asking = shown.asking();
     let sent = fields.clone();
@@ -2547,7 +2715,7 @@ async fn places(
     .await;
     let (league, places, windows, kept, none, policy, leagues) = match read {
         Ok(read) => read,
-        Err(failure) => return web.failed(title, &failure, &headers),
+        Err(failure) => return web.failed(title, &failure, &headers, &here),
     };
     if wants_json(&headers) {
         return document(&places);
@@ -2608,11 +2776,32 @@ async fn places(
             page::row_anchor(id)
         ));
     }
+    // the page as it draws itself, a tick or an open that names no place
+    // dropped, is what its leaving forms post as `from`
+    let itself: Fields = place_fields(
+        listed,
+        realm,
+        &league,
+        &shown,
+        Marked {
+            deep,
+            open: &open,
+            items: &kept,
+            ticked: &ticked,
+        },
+    )
+    .into_iter()
+    .map(|(k, v)| (k.to_string(), v))
+    .collect();
+    let here = Here::place(FromPage::here(place, &itself), here.back);
     let spell = |way: &acquisition_verbs::refusal::Way| {
         use acquisition_verbs::refusal::Surface as _;
-        Paged { web: &web }
-            .request(way)
-            .and_then(|(link, _)| link.as_str().map(str::to_string))
+        Paged {
+            web: &web,
+            from: here.onward(),
+        }
+        .request(way)
+        .and_then(|(link, _)| link.as_str().map(str::to_string))
     };
     // what the selects' form carries: every field but the ticks and the
     // opens, since one id can stand in two leagues
@@ -2748,6 +2937,7 @@ async fn places(
         .collect();
     let body = page::places(&page::PlacesPage {
         listed: listed.route(),
+        onward: here.onward(),
         title,
         tick: listed.tick(),
         realm,
@@ -2790,7 +2980,7 @@ async fn places(
     {
         head = head.with("rows", basis);
     }
-    web.page(title, head, &body)
+    web.page_at(title, head, &body, &here)
 }
 
 /// The places a page can open: those that show something, their places
@@ -3022,9 +3212,14 @@ async fn list(
     fields: Vec<(String, String)>,
     listed: Listed,
 ) -> Response {
+    // a step: it hands on the `from` it was given
+    let (fields, here) = match from::taken(fields) {
+        Ok((fields, given)) => (fields, Here::step(given)),
+        Err(failure) => return web.failed(listed.title(), &failure, &headers, &Here::none()),
+    };
     let realm = match realm_of(&fields) {
         Ok(realm) => realm,
-        Err(failure) => return web.failed(listed.title(), &failure, &headers),
+        Err(failure) => return web.failed(listed.title(), &failure, &headers, &here),
     };
     let league = pick(&fields, "league")
         .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
@@ -3051,15 +3246,31 @@ async fn list(
     }
     .await;
     match submitted {
-        Ok(id) => to_job(&web, id, Some((realm, &league))),
-        Err(e) => web.failed(listed.title(), &Failure::Other(e), &headers),
+        Ok(id) => to_job(&web, id, &here),
+        Err(e) => web.failed(listed.title(), &Failure::Other(e), &headers, &here),
     }
 }
 
 /// "Fetch the league list": the `leagues`
 /// job, as `acq leagues` submits it — one request, no probe — through the
-/// human door and as the served account, landing on the jobs page.
-async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
+/// human door and as the served account, landing on the jobs page with
+/// the way back to the page it was fetched from. It takes no field but
+/// `from`.
+async fn fetch_leagues(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Form(fields): Form<Vec<(String, String)>>,
+) -> Response {
+    let here = match from::taken(fields) {
+        Ok((fields, given)) => {
+            let here = Here::step(given);
+            if let Err(failure) = taken(&fields, &[], "the league list's fetch") {
+                return web.failed("Leagues", &failure, &headers, &here);
+            }
+            here
+        }
+        Err(failure) => return web.failed("Leagues", &failure, &headers, &Here::none()),
+    };
     let submitted = async {
         let mut client = crate::run::connect(&web.cx).await?;
         let id = acquisition_verbs::jobs::submit(
@@ -3075,27 +3286,22 @@ async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Respo
     }
     .await;
     match submitted {
-        Ok(id) => to_job(&web, id, None),
-        Err(e) => web.failed("Leagues", &Failure::Other(e), &headers),
+        Ok(id) => to_job(&web, id, &here),
+        Err(e) => web.failed("Leagues", &Failure::Other(e), &headers, &here),
     }
 }
 
-/// A submit lands at its job: `303` to the
-/// jobs page naming the job, at its row, with the realm and league the
-/// form or the plan named, so the page links that league's place pages.
-/// The way back is made here, from what the reader asked, never read
-/// back out of the job.
-fn to_job(web: &Web, id: u64, league: Option<(Realm, &str)>) -> Response {
-    let mut fields = vec![("job", id.to_string())];
-    if let Some((realm, league)) = league {
-        fields.push(("realm", realm.as_str().to_string()));
-        fields.push(("league", league.to_string()));
-    }
-    see_other(&format!(
-        "{}#{}",
-        web.link("jobs", &fields),
-        page::job_anchor(id)
-    ))
+/// A submit lands at its job: `303` to the jobs page naming the job, at
+/// its row, carrying the `from` the submit handed on, which the jobs page
+/// draws as its way back. It decides nothing else: the way back is the
+/// page the reader left, never read back out of the job.
+fn to_job(web: &Web, id: u64, here: &Here) -> Response {
+    web.landed(
+        "jobs",
+        &[("job", id.to_string())],
+        Some(page::job_anchor(id)),
+        here,
+    )
 }
 
 /// The plan page: a selection's plan or the stored policy's,
@@ -3106,9 +3312,15 @@ async fn plan(
     headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    // a step: it hands on the `from` it was given, and draws it as its way
+    // back, answered or refused
+    let (fields, here) = match from::taken(fields) {
+        Ok((fields, given)) => (fields, Here::step(given)),
+        Err(failure) => return web.failed("Plan", &failure, &headers, &Here::none()),
+    };
     let realm = match realm_of(&fields) {
         Ok(realm) => realm,
-        Err(failure) => return web.failed("Plan", &failure, &headers),
+        Err(failure) => return web.failed("Plan", &failure, &headers, &here),
     };
     let league = pick(&fields, "league")
         .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
@@ -3138,11 +3350,11 @@ async fn plan(
         let failure = Failure::Other(anyhow::anyhow!(
             "nothing is selected: tick a tab or a character to refresh it"
         ));
-        return web.failed("Plan", &failure, &headers);
+        return web.failed("Plan", &failure, &headers, &here);
     }
     let account = match web.served() {
         Ok(account) => account,
-        Err(fault) => return web.failed("Plan", &Failure::from(fault), &headers),
+        Err(fault) => return web.failed("Plan", &Failure::from(fault), &headers, &here),
     };
     let planned = async {
         let mut opened = account.open()?;
@@ -3154,7 +3366,7 @@ async fn plan(
     .await;
     let planned = match planned {
         Ok(planned) => planned,
-        Err(fault) => return web.failed("Plan", &Failure::from(fault), &headers),
+        Err(fault) => return web.failed("Plan", &Failure::from(fault), &headers, &here),
     };
     if wants_json(&headers) {
         return document(&planned);
@@ -3165,16 +3377,17 @@ async fn plan(
     if !planned.plan.actions.is_empty() {
         match serde_json::to_string(&planned.plan) {
             Ok(envelope) => body.push_str(&format!(
-                "<form method=\"post\" action=\"apply\"><input type=\"hidden\" name=\"plan\" value=\"{}\"><button type=\"submit\">Apply</button></form>\n",
-                esc(&envelope)
+                "{}\n",
+                page::post_form("apply", here.onward(), [("plan", envelope)], "", "Apply")
             )),
             Err(e) => body.push_str(&refusal(&e.to_string())),
         }
     }
-    web.page(
+    web.page_at(
         "Plan",
         Head::default().with("plan", &planned.plan.basis),
         &body,
+        &here,
     )
 }
 
@@ -3187,6 +3400,11 @@ async fn apply(
     headers: HeaderMap,
     Form(fields): Form<Vec<(String, String)>>,
 ) -> Response {
+    // a step: it hands on the `from` the plan page posted
+    let (fields, here) = match from::taken(fields) {
+        Ok((fields, given)) => (fields, Here::step(given)),
+        Err(failure) => return web.failed("Apply", &failure, &headers, &Here::none()),
+    };
     let applied = async {
         let text = pick(&fields, "plan").ok_or_else(|| {
             anyhow::anyhow!("no plan was posted: apply posts the envelope a plan page holds")
@@ -3203,24 +3421,26 @@ async fn apply(
     }
     .await;
     match applied {
-        Ok((Apply::Submitted(submitted), plan)) => to_job(
-            &web,
-            submitted.job_id,
-            Some((plan.realm, plan.league.as_str())),
-        ),
+        Ok((Apply::Submitted(submitted), _)) => to_job(&web, submitted.job_id, &here),
         Ok((done, _)) if wants_json(&headers) => document(&done),
-        Ok((done, plan)) => web.page(
+        Ok((done, plan)) => web.page_at(
             "Apply",
             Head::default(),
-            &page::applied(&done, &plan_again(&web, &plan), acquisition_store::now()),
+            &page::applied(
+                &done,
+                &plan_again(&web, &plan, here.onward()),
+                acquisition_store::now(),
+            ),
+            &here,
         ),
-        Err(e) => web.failed("Apply", &Failure::Other(e), &headers),
+        Err(e) => web.failed("Apply", &Failure::Other(e), &headers, &here),
     }
 }
 
 /// The plan `plan` was compiled from, compiled again: its realm and league,
-/// and the selection it names, ticked as the place pages send one.
-fn plan_again(web: &Web, plan: &RefreshPlan) -> String {
+/// and the selection it names, ticked as the place pages send one; a link
+/// to a step, carrying `from`.
+fn plan_again(web: &Web, plan: &RefreshPlan, from: Option<&FromPage>) -> String {
     let mut fields = vec![
         ("realm", plan.realm.as_str().to_string()),
         ("league", plan.league.clone()),
@@ -3240,20 +3460,25 @@ fn plan_again(web: &Web, plan: &RefreshPlan) -> String {
             fields.push(("deep", "true".to_string()));
         }
     }
-    web.link("plan", &fields)
+    from::onward(&web.link("plan", &fields), from)
 }
 
 /// The jobs: the `jobs` document rendered in words
 /// ([`page::jobs`]), reloading itself while a job is not done; `job`
 /// names one job, read by id whether the list holds it or not, its
-/// result shown where it failed or was cancelled; `realm` and `league`
-/// name the league whose place pages it links. It observes and never
-/// spawns, and its JSON is the `jobs` document whatever the URL names.
+/// result shown where it failed or was cancelled; `from`, the page a
+/// submit left, is its one way back. It observes and never spawns, and its
+/// JSON is the `jobs` document whatever the URL names.
 async fn jobs(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    let (fields, back) = match from::taken(fields) {
+        Ok(taken) => taken,
+        Err(failure) => return web.failed("Jobs", &failure, &headers, &Here::none()),
+    };
+    let here = Here::place(FromPage::here(Place::Jobs, &fields), back);
     let opened = match pick(&fields, "job").map(|word| {
         word.parse::<u64>().map_err(|_| {
             Failure::Usage(format!(
@@ -3263,29 +3488,11 @@ async fn jobs(
     }) {
         None => None,
         Some(Ok(id)) => Some(id),
-        Some(Err(failure)) => return web.failed("Jobs", &failure, &headers),
-    };
-    let places = match pick(&fields, "league") {
-        None => None,
-        Some(league) => match realm_of(&fields) {
-            Ok(realm) => {
-                let at = [
-                    ("realm", realm.as_str().to_string()),
-                    ("league", league.to_string()),
-                ];
-                Some(page::PlaceLinks {
-                    realm,
-                    league: league.to_string(),
-                    tabs: web.link("tabs", &at),
-                    characters: web.link("characters", &at),
-                })
-            }
-            Err(failure) => return web.failed("Jobs", &failure, &headers),
-        },
+        Some(Err(failure)) => return web.failed("Jobs", &failure, &headers, &here),
     };
     let listed = match web.cx.frontend.jobs(ListState::All, false).await {
         Ok(listed) => listed,
-        Err(fault) => return web.failed("Jobs", &Failure::from(fault), &headers),
+        Err(fault) => return web.failed("Jobs", &Failure::from(fault), &headers, &here),
     };
     if wants_json(&headers) {
         return document(&listed);
@@ -3311,9 +3518,9 @@ async fn jobs(
         Jobs::Absent { .. } => (false, None),
     };
     let opened = match opened {
-        Some(id) => match opened_job(&web, &listed, id).await {
+        Some(id) => match opened_job(&web, &listed, id, here.onward()).await {
             Ok(opened) => Some(opened),
-            Err(fault) => return web.failed("Jobs", &Failure::from(fault), &headers),
+            Err(fault) => return web.failed("Jobs", &Failure::from(fault), &headers, &here),
         },
         None => None,
     };
@@ -3324,33 +3531,41 @@ async fn jobs(
         .unwrap_or_default();
     let spell = |way: &acquisition_verbs::refusal::Way| {
         use acquisition_verbs::refusal::Surface as _;
-        Paged { web: &web }
-            .request(way)
-            .and_then(|(link, _)| link.as_str().map(str::to_string))
+        Paged {
+            web: &web,
+            from: here.onward(),
+        }
+        .request(way)
+        .and_then(|(link, _)| link.as_str().map(str::to_string))
     };
     let head = Head {
         refresh: running.then_some(JOBS_REFRESH),
         ..Head::default()
     };
-    web.page(
+    web.page_at(
         "Jobs",
         head,
         &page::jobs(&page::JobsPage {
             jobs: &listed,
             rails: rails.as_ref(),
             opened: opened.as_ref(),
-            places,
             account: &served,
             spell: &spell,
             now: acquisition_store::now(),
         }),
+        &here,
     )
 }
 
 /// The job `id` as the jobs page opens it: read by id where
 /// the list leaves it out, and its result where it failed or was
 /// cancelled, its offers spelled by [`Paged`].
-async fn opened_job(web: &Web, listed: &Jobs, id: u64) -> Result<page::OpenedJob, Fault> {
+async fn opened_job(
+    web: &Web,
+    listed: &Jobs,
+    id: u64,
+    from: Option<&FromPage>,
+) -> Result<page::OpenedJob, Fault> {
     use acquisition_protocol::job::JobState;
     let row = match listed {
         Jobs::Live(jobs) => jobs.rows.iter().find(|j| j.id == id).map(|j| j.state),
@@ -3375,7 +3590,7 @@ async fn opened_job(web: &Web, listed: &Jobs, id: u64) -> Result<page::OpenedJob
     };
     let result = match finished {
         true => match web.cx.frontend.result(id).await {
-            Ok(result) => Some(result.offered(&Paged { web })),
+            Ok(result) => Some(result.offered(&Paged { web, from })),
             Err(Fault::Unfinished { .. }) => None,
             Err(fault) => return Err(fault),
         },
@@ -3438,6 +3653,11 @@ async fn saved_list(
     headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    let (fields, back) = match from::taken(fields) {
+        Ok(taken) => taken,
+        Err(failure) => return web.failed("Saved searches", &failure, &headers, &Here::none()),
+    };
+    let here = Here::place(FromPage::here(Place::Saved, &fields), back);
     let listed = blocking(&web, move |web| -> Result<_, Failure> {
         taken(&fields, &["expand"], "the saved searches' list")?;
         let expand = match sent(&fields, "expand") {
@@ -3455,25 +3675,38 @@ async fn saved_list(
     .await;
     match listed {
         Ok(listed) if wants_json(&headers) => document(&listed),
-        Ok(listed) => web.page(
+        Ok(listed) => web.page_at(
             "Saved searches",
             Head::default().with("saved_searches", listed.revision),
-            &page::saved_list(&listed, &web.saved_links(), &|id| {
-                web.link("saved/open", &[("id", id.to_string())])
-            }),
+            &page::saved_list(
+                &listed,
+                &web.saved_links(),
+                &|id| {
+                    from::onward(
+                        &web.link("saved/open", &[("id", id.to_string())]),
+                        here.onward(),
+                    )
+                },
+                here.onward(),
+            ),
+            &here,
         ),
-        Err(failure) => web.failed("Saved searches", &failure, &headers),
+        Err(failure) => web.failed("Saved searches", &failure, &headers, &here),
     }
 }
 
 /// A saved search opened: `303` to the search its request folds
-/// to, carrying its id and the revision it was opened at. It writes
-/// nothing.
+/// to, carrying its id and the revision it was opened at, and the `from`
+/// it was given (a step). It writes nothing.
 async fn saved_open(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    let (fields, here) = match from::taken(fields) {
+        Ok((fields, given)) => (fields, Here::step(given)),
+        Err(failure) => return web.failed("Saved search", &failure, &headers, &Here::none()),
+    };
     let opened = blocking(&web, move |web| -> Result<_, Failure> {
         taken(&fields, &["id"], "a saved search's opening")?;
         let id = sent(&fields, "id").unwrap_or_default().to_string();
@@ -3529,12 +3762,12 @@ async fn saved_open(
         };
         asked.push(("saved", id));
         asked.push(("saved_revision", row.revision.to_string()));
-        Ok(web.link("search", &asked))
+        Ok(asked)
     })
     .await;
     match opened {
-        Ok(location) => see_other(&location),
-        Err(failure) => web.failed("Saved search", &failure, &headers),
+        Ok(asked) => web.landed("search", &asked, None, &here),
+        Err(failure) => web.failed("Saved search", &failure, &headers, &here),
     }
 }
 
@@ -3562,6 +3795,12 @@ async fn saved_set(
     headers: HeaderMap,
     Form(fields): Form<Vec<(String, String)>>,
 ) -> Response {
+    // a step: it hands on the `from` the page posted
+    let (fields, here) = match from::taken(fields) {
+        Ok((fields, given)) => (fields, Here::step(given)),
+        Err(failure) => return web.failed("Saved searches", &failure, &headers, &Here::none()),
+    };
+    let as_posted = fields.clone();
     let written = blocking(&web, move |web| -> Result<_, Failure> {
         taken(
             &fields,
@@ -3608,7 +3847,7 @@ async fn saved_set(
         )?)
     })
     .await;
-    web.written(written, &headers)
+    web.written(written, &headers, &here, Some(&as_posted))
 }
 
 /// A clear asked first (the owner: "Clear should ask first"): the row at
@@ -3621,6 +3860,11 @@ async fn saved_ask(
     headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    // a step: it hands on the `from` it was given to the clear's form
+    let (fields, here) = match from::taken(fields) {
+        Ok((fields, given)) => (fields, Here::step(given)),
+        Err(failure) => return web.failed("Saved search", &failure, &headers, &Here::none()),
+    };
     let asked = blocking(&web, move |web| -> Result<_, Failure> {
         taken(&fields, &["id"], "a saved search's clear, asked first")?;
         let id = sent(&fields, "id").unwrap_or_default().to_string();
@@ -3643,13 +3887,14 @@ async fn saved_ask(
         Ok(row) if wants_json(&headers) => document(&row),
         Ok(row) => {
             let doc = serde_json::to_value(&row).unwrap_or_default();
-            web.page(
+            web.page_at(
                 "Clear a saved search",
                 Head::default().with("saved_search", row.revision()),
-                &page::saved_ask(&doc, &web.saved_links()),
+                &page::saved_ask(&doc, &web.saved_links(), here.onward()),
+                &here,
             )
         }
-        Err(failure) => web.failed("Saved search", &failure, &headers),
+        Err(failure) => web.failed("Saved search", &failure, &headers, &here),
     }
 }
 
@@ -3659,6 +3904,10 @@ async fn saved_clear(
     headers: HeaderMap,
     Form(fields): Form<Vec<(String, String)>>,
 ) -> Response {
+    let (fields, here) = match from::taken(fields) {
+        Ok((fields, given)) => (fields, Here::step(given)),
+        Err(failure) => return web.failed("Saved searches", &failure, &headers, &Here::none()),
+    };
     let written = blocking(&web, move |web| -> Result<_, Failure> {
         taken(&fields, &["id", "if_revision"], "a saved search's clear")?;
         let id = sent(&fields, "id")
@@ -3673,27 +3922,72 @@ async fn saved_clear(
         )?)
     })
     .await;
-    web.written(written, &headers)
+    web.written(written, &headers, &here, None)
 }
 
 impl Web {
     /// A write's answer (the owner: "Redirect to the list"): the
     /// receipt where JSON is asked, its undo spelled as a page's form;
-    /// else `303` to the list. A refusal as every refusal is.
+    /// else landed on the list with the way back to the page the write
+    /// left. Refused, the refusal, then the save form as `sent`, where the
+    /// write was a save and the refusal offers no write of its own (a
+    /// conflict's offer is the write as sent, re-aimed), then the way back.
     fn written(
         &self,
         written: Result<saved::SavedWritten, Failure>,
         headers: &HeaderMap,
+        here: &Here,
+        sent: Option<&Fields>,
     ) -> Response {
         match written {
             Ok(written) if wants_json(headers) => document(&acquisition_verbs::receipt::saved(
                 &written,
-                &Paged { web: self },
+                &Paged {
+                    web: self,
+                    from: None,
+                },
             )),
-            Ok(_) => see_other(&self.link("saved", &[])),
-            Err(failure) => self.failed("Saved searches", &failure, headers),
+            Ok(_) => self.landed("saved", &[], None, here),
+            Err(failure) => {
+                let offers_a_write = self.refusal(&failure, None)["offers"]
+                    .as_array()
+                    .is_some_and(|offers| {
+                        offers.iter().any(|o| o["request"].get("post").is_some())
+                    });
+                let form = match sent {
+                    Some(sent) if !offers_a_write => as_sent(self, sent, here),
+                    _ => String::new(),
+                };
+                self.failed_as_sent("Saved searches", &failure, headers, here, &form)
+            }
         }
     }
+}
+
+/// A save's form as `sent`, by the save form's one maker: its source,
+/// scope and row hidden, its name in the box as sent, posting `from`.
+fn as_sent(web: &Web, sent: &Fields, here: &Here) -> String {
+    let hidden = sent
+        .iter()
+        .filter(|(k, _)| k != "name")
+        .map(|(k, v)| (k.as_str(), v.clone()));
+    format!(
+        "<div class=\"save\">\n{}\n</div>\n",
+        page::save_form(
+            &web.saved_links().write,
+            here.onward(),
+            hidden,
+            sent_name(sent),
+            "Save",
+        )
+    )
+}
+
+fn sent_name(sent: &Fields) -> &str {
+    sent.iter()
+        .find(|(k, _)| k == "name")
+        .map(|(_, v)| v.as_str())
+        .unwrap_or_default()
 }
 
 /// `303 See Other` to `location`, an absolute path under the token.

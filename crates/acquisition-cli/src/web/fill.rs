@@ -249,7 +249,7 @@ mod tests {
             fill,
             ..Filled::empty("pc")
         };
-        let html = page::editor(form, &filled, Some(&[("Standard".to_string(), true)]));
+        let html = page::editor(form, &filled, Some(&[("Standard".to_string(), true)]), None);
         (html, filled.fill.envelope.clone())
     }
 

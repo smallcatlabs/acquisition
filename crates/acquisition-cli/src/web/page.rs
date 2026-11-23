@@ -38,6 +38,7 @@ use acquisition_verbs::saved::{ReadRow, SavedSearches};
 
 use super::fill::Fill;
 use super::form::{Fate, Filter, Form, LIMITS};
+use super::from::{FROM, FromPage};
 use crate::search_cmd::{self, ItemParts, RowPiece};
 use serde_json::Value;
 
@@ -99,6 +100,15 @@ pub(crate) struct Head {
     /// where there is at least one, so part 3's feed has something to
     /// compare.
     pub basis: Vec<(&'static str, Value)>,
+    /// The page's one way back: the `from` its URL carries, drawn above
+    /// its body (the landing rule, `super::from`).
+    pub back: Option<Back>,
+}
+
+/// A way back: the page a request left, as a link in its place's words.
+pub(crate) struct Back {
+    pub href: String,
+    pub words: &'static str,
 }
 
 impl Head {
@@ -167,7 +177,19 @@ pub(crate) fn page(
         .replace("{token}", token)
         .replace("{account}", &esc(&account_words(account)))
         .replace("{basis}", &basis)
-        .replace("{body}", body)
+        .replace("{body}", &format!("{}{body}", back(head.back.as_ref())))
+}
+
+/// A page's way back, where it has one: one line above its body.
+fn back(back: Option<&Back>) -> String {
+    match back {
+        Some(back) => format!(
+            "<p class=\"back\"><a href=\"{}\">{}</a></p>\n",
+            esc(&back.href),
+            esc(&format!("Back to {}", back.words))
+        ),
+        None => String::new(),
+    }
 }
 
 /// A refusal's words as the CLI prints them (`failure_words`), as a
@@ -189,8 +211,9 @@ pub(crate) fn refusal(words: &str) -> String {
 /// as the list renders it, so the page shows what the offered write would
 /// replace; then each way on, saying what it is — a read as a link to the
 /// page that takes it, a write (`{post, fields}`) as a form of hidden
-/// fields with one button — never a command line.
-pub(crate) fn refused(doc: &Value) -> String {
+/// fields with one button, posting the page's `from` (the landing rule) —
+/// never a command line.
+pub(crate) fn refused(doc: &Value, from: Option<&FromPage>) -> String {
     let said = |v: &Value| v.as_str().unwrap_or_default().to_string();
     let words = std::iter::once(said(&doc["error"]))
         .chain(
@@ -211,6 +234,7 @@ pub(crate) fn refused(doc: &Value) -> String {
                 "<li>{}</li>\n",
                 post_form(
                     &said(post),
+                    from,
                     o["request"]["fields"]
                         .as_object()
                         .into_iter()
@@ -256,15 +280,21 @@ pub(crate) fn saved_current(doc: &Value) -> Option<&Value> {
 }
 
 /// A form posting `fields` hidden to `action`, with `shown` (an input a
-/// reader fills) before its one button.
-fn post_form<'a>(
+/// reader fills) before its one button: the one maker of a form that
+/// leaves its page, so each takes the page's `from` and posts it first
+/// (the landing rule; no `method="post"` stands in the web module but
+/// here).
+pub(crate) fn post_form<'a>(
     action: &str,
+    from: Option<&FromPage>,
     fields: impl IntoIterator<Item = (&'a str, String)>,
     shown: &str,
     button: &str,
 ) -> String {
-    let hidden: String = fields
+    let hidden: String = from
+        .map(|from| (FROM, from.word()))
         .into_iter()
+        .chain(fields)
         .map(|(name, value)| {
             format!(
                 "<input type=\"hidden\" name=\"{}\" value=\"{}\">",
@@ -341,6 +371,7 @@ pub(crate) fn saved_list(
     listed: &SavedSearches,
     links: &SavedLinks,
     open: &dyn Fn(&str) -> String,
+    from: Option<&FromPage>,
 ) -> String {
     if listed.total == 0 {
         return format!(
@@ -362,6 +393,7 @@ pub(crate) fn saved_list(
         let rename = match row.name() {
             Some(name) => post_form(
                 &links.write,
+                from,
                 keyed(),
                 &format!(
                     "<input name=\"name\" value=\"{}\" aria-label=\"the new name\"> ",
@@ -375,7 +407,10 @@ pub(crate) fn saved_list(
         // link to the page that shows the row and holds the clear's form
         let clear = format!(
             "<a class=\"ask\" href=\"{}\">Clear</a>",
-            esc(&format!("{}?id={id}", links.clear))
+            esc(&super::from::onward(
+                &format!("{}?id={id}", links.clear),
+                from
+            ))
         );
         let opened = row.name().map(|_| open(&id));
         out.push_str(&format!(
@@ -400,7 +435,7 @@ pub(crate) fn saved_list(
 /// beside a link back to the list. The page writes nothing; its form's POST
 /// is the clear. A row this build cannot read is asked about the same way,
 /// since a clear is the one thing a page can do with it.
-pub(crate) fn saved_ask(row: &Value, links: &SavedLinks) -> String {
+pub(crate) fn saved_ask(row: &Value, links: &SavedLinks, from: Option<&FromPage>) -> String {
     let said = |v: &Value| v.as_str().unwrap_or_default().to_string();
     let named = match row.get("name").and_then(Value::as_str) {
         Some(name) => format!("the saved search \"{name}\""),
@@ -416,6 +451,7 @@ pub(crate) fn saved_ask(row: &Value, links: &SavedLinks) -> String {
         saved_cells(row, None),
         post_form(
             &links.clear,
+            from,
             [
                 ("id", said(&row["id"])),
                 ("if_revision", row["revision"].to_string()),
@@ -508,6 +544,30 @@ pub(crate) struct Saving<'a> {
     /// The view the page's editors carry, whose parts a save leaves
     /// behind.
     pub view: &'a BoxView,
+    /// The page the save forms post as `from`: the search page itself.
+    pub from: Option<&'a FromPage>,
+}
+
+/// A save form, the one maker of each: `hidden` its source, scope and the
+/// row it writes over, if any; a name typed, `name` filled in; posting
+/// `from`. A refused write renders it again as sent (the landing rule).
+pub(crate) fn save_form<'a>(
+    action: &str,
+    from: Option<&FromPage>,
+    hidden: impl IntoIterator<Item = (&'a str, String)>,
+    name: &str,
+    button: &str,
+) -> String {
+    post_form(
+        action,
+        from,
+        hidden,
+        &format!(
+            "<label class=\"filter-title\">Name <input name=\"name\" value=\"{}\" aria-label=\"the search's name\"></label> ",
+            esc(name)
+        ),
+        button,
+    )
 }
 
 /// The save form under an answer's query box: the source of the request
@@ -523,6 +583,7 @@ fn save_forms(
     opened: Option<&Opened>,
     links: &SavedLinks,
     boxed: &BoxView,
+    from: Option<&FromPage>,
 ) -> String {
     let asked = match source.trade_word() {
         Some(trade) => ("trade", trade),
@@ -534,12 +595,6 @@ fn save_forms(
             ("realm", a.scope.realm.as_str().to_string()),
             ("membership", a.scope.membership.as_str().to_string()),
         ]
-    };
-    let named = |name: &str| {
-        format!(
-            "<label class=\"filter-title\">Name <input name=\"name\" value=\"{}\" aria-label=\"the search's name\"></label> ",
-            esc(name)
-        )
     };
     let mut out = String::from("<div class=\"save\">\n");
     // a saved site search keeps the search as given, and its text is
@@ -578,24 +633,27 @@ fn save_forms(
             let mut fields = query();
             fields.push(("id", id.clone()));
             fields.push(("if_revision", at.to_string()));
-            out.push_str(&post_form(
+            out.push_str(&save_form(
                 &links.write,
+                from,
                 fields,
-                &named(&row.name),
+                &row.name,
                 &format!("Save over \"{}\"", row.name),
             ));
             out.push('\n');
-            out.push_str(&post_form(
+            out.push_str(&save_form(
                 &links.write,
+                from,
                 query(),
-                &named(""),
+                "",
                 "Save as a new search",
             ));
         }
-        _ => out.push_str(&post_form(
+        _ => out.push_str(&save_form(
             &links.write,
+            from,
             query(),
-            &named(""),
+            "",
             "Save this search",
         )),
     }
@@ -685,13 +743,18 @@ impl Filled {
 /// what the form's envelope holds and no control sends, named; the search
 /// form, the site box in its bar; the query box; the league list's fetch. The answer or
 /// the refusal stands under them, at [`ANSWER`].
-pub(crate) fn editor(form: &Form, filled: &Filled, leagues: Option<&[(String, bool)]>) -> String {
+pub(crate) fn editor(
+    form: &Form,
+    filled: &Filled,
+    leagues: Option<&[(String, bool)]>,
+    from: Option<&FromPage>,
+) -> String {
     // the form first, so its controls have taken what they hold
     let searched = search_form(form, filled, leagues);
     let mut out = unsent(&filled.fill.left());
     out.push_str(&searched);
     out.push_str(&query_box(filled));
-    out.push_str(&fetch_leagues());
+    out.push_str(&fetch_leagues(from));
     out
 }
 
@@ -1628,6 +1691,7 @@ pub(crate) fn answer(
         source,
         opened,
         view: boxed,
+        from: saving_from,
     } = saving;
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
@@ -1754,7 +1818,7 @@ pub(crate) fn answer(
         ));
     }
     out.push_str(&basis_foot(&search_cmd::basis_text(&a.basis)));
-    out.push_str(&save_forms(a, source, opened, links, boxed));
+    out.push_str(&save_forms(a, source, opened, links, boxed, saving_from));
     out
 }
 
@@ -3111,9 +3175,12 @@ pub(crate) fn league_select(
 }
 
 /// The button that fetches the league list: the `leagues` job, one
-/// request, answered on the jobs page.
-pub(crate) fn fetch_leagues() -> String {
-    "<form method=\"post\" action=\"leagues\"><button type=\"submit\">Fetch the league list</button></form>\n".to_string()
+/// request, answered on the jobs page with the way back to `from`.
+pub(crate) fn fetch_leagues(from: Option<&FromPage>) -> String {
+    format!(
+        "{}\n",
+        post_form("leagues", from, [], "", "Fetch the league list")
+    )
 }
 
 // ---- the place pages ---------------------------------------------------------------------------
@@ -3123,6 +3190,8 @@ pub(crate) fn fetch_leagues() -> String {
 pub(crate) struct PlacesPage<'a> {
     /// Its route: `tabs` or `characters`.
     pub listed: &'static str,
+    /// The page itself as its leaving forms post it (`from`).
+    pub onward: Option<&'a FromPage>,
     pub title: &'static str,
     /// The field a tick is sent as: `tab` or `character`.
     pub tick: &'static str,
@@ -3204,15 +3273,32 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         })
         .collect::<String>();
     let listing = format!(
-        "<form method=\"post\" action=\"{route}\"><input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\"><button type=\"submit\">{}</button></form>\n",
-        esc(view.realm.as_str()),
-        esc(view.league),
-        esc(match view.listed {
-            "tabs" => "List this league's stash tabs",
-            _ => "List characters",
-        }),
-        route = view.listed,
+        "{}\n",
+        post_form(
+            view.listed,
+            view.onward,
+            [
+                ("realm", view.realm.as_str().to_string()),
+                ("league", view.league.to_string()),
+            ],
+            "",
+            match view.listed {
+                "tabs" => "List this league's stash tabs",
+                _ => "List characters",
+            },
+        )
     );
+    // a listing the realm's endpoints refuse is offered nowhere: a page
+    // offers no request whose refusal it has no way on from (the landing
+    // rule's census; `Family::accepts`, the one place that knows)
+    let family = match view.listed {
+        "tabs" => acquisition_protocol::realm::Family::Stashes,
+        _ => acquisition_protocol::realm::Family::Characters,
+    };
+    let listing = match family.accepts(view.realm) {
+        true => listing,
+        false => String::new(),
+    };
     // the listing stands beside the league list's fetch, or, where the
     // league has nothing listed, where the list would be
     let empty = view.places.places.is_empty();
@@ -3221,7 +3307,7 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         view.listed,
         league_select(view.leagues, Some(view.league), false),
         hidden_fields(view.carried),
-        fetch_leagues(),
+        fetch_leagues(view.onward),
         if empty { "" } else { listing.as_str() },
     );
     body.push_str(&format!(
@@ -3267,12 +3353,14 @@ pub(crate) fn places(view: &PlacesPage) -> String {
     // the query's box and the buttons above the list, so a long list
     // never hides them; "Show" the form's first
     // button, its default, so Enter in a box sends the page again with
-    // every tick and open, never the plan
+    // every tick and open, never the plan; the plan's two buttons send
+    // `refresh`, a field of this page, which answers it with the plan (the
+    // landing rule: the place form never leaves)
     body.push_str(&format!(
-        "<p><label class=\"control\">Items matching <input type=\"text\" name=\"text\" value=\"{}\" placeholder=\"a query, as the search reads it\" aria-label=\"show the places holding items this query matches\"></label> <button type=\"submit\">Show</button> <button type=\"submit\" formaction=\"plan\" name=\"selected\" value=\"yes\">Refresh ticked</button>{}</p>\n",
+        "<p><label class=\"control\">Items matching <input type=\"text\" name=\"text\" value=\"{}\" placeholder=\"a query, as the search reads it\" aria-label=\"show the places holding items this query matches\"></label> <button type=\"submit\">Show</button> <button type=\"submit\" name=\"refresh\" value=\"ticked\">Refresh ticked</button>{}</p>\n",
         esc(view.text.unwrap_or("")),
         if view.policy {
-            " <button type=\"submit\" formaction=\"plan\">Plan under the policy</button>"
+            " <button type=\"submit\" name=\"refresh\" value=\"policy\">Plan under the policy</button>"
         } else {
             ""
         }
@@ -4294,29 +4382,18 @@ pub(crate) fn applied(applied: &acquisition_verbs::Apply, again: &str, now: i64)
 // ---- the jobs page ------------------------------------------------------------------------------
 
 /// What the jobs page renders: the jobs document, the daemon's halts
-/// where one answers, the job the URL opens, and the league the URL
-/// names.
+/// where one answers, and the job the URL opens; its way back, the
+/// `from` its URL carries, is the page's ([`Back`]).
 pub(crate) struct JobsPage<'a> {
     pub jobs: &'a acquisition_verbs::Jobs,
     /// The daemon's rails, where a daemon answers.
     pub rails: Option<&'a acquisition_protocol::status::RailsStatus>,
     /// The job the URL names (`job`), where it does.
     pub opened: Option<&'a OpenedJob>,
-    /// The league the URL names, with its two place pages' links: where
-    /// a submit came from, made forward at the submit.
-    pub places: Option<PlaceLinks>,
     /// The account the page serves: a job of another says whose it is.
     pub account: &'a str,
     pub spell: Spell<'a>,
     pub now: i64,
-}
-
-/// The league a jobs URL names, and the links to its place pages.
-pub(crate) struct PlaceLinks {
-    pub realm: Realm,
-    pub league: String,
-    pub tabs: String,
-    pub characters: String,
 }
 
 /// A job the URL opens (`jobs?job=<id>`): read by id, listed or not,
@@ -4575,14 +4652,6 @@ fn result_words(result: &acquisition_verbs::jobs::JobResult, spell: Spell) -> St
 pub(crate) fn jobs(view: &JobsPage) -> String {
     use acquisition_verbs::Jobs;
     let mut body = String::new();
-    if let Some(places) = &view.places {
-        body.push_str(&format!(
-            "<p class=\"places\">{}: <a href=\"{}\">Stash tabs</a> · <a href=\"{}\">Characters</a></p>\n",
-            esc(&league_on(places.realm, &places.league)),
-            esc(&places.tabs),
-            esc(&places.characters)
-        ));
-    }
     if let Some(rails) = view.rails {
         body.push_str(&rails_words(rails, view.now));
     }

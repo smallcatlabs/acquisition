@@ -3415,12 +3415,13 @@ fn the_refresh_loop_runs_through_the_pages() {
     ] {
         // the form's action is the page's own route, relative as a
         // browser resolves it
-        let mut form = form_on(&page.body, button, None);
-        form.action = format!("/{}/{}", web.token, form.action);
+        let form = form_on(&page.body, button, None);
         let listed = send(&web, &form, false);
-        // a listing lands at its job, naming the form's league: its row
-        // marked, the league's place pages linked
-        let (id, landed) = landed_at_a_job(&web, &listed, Some("Standard"));
+        // a listing lands at its job, its row marked, with the way back to
+        // the place page it was asked from
+        let from = form.field("from").expect("the page's `from`").to_string();
+        assert!(from.ends_with("?realm=pc&league=Standard"), "{from}");
+        let (id, landed) = landed_at_a_job(&web, &listed, Some(&from));
         assert!(
             landed
                 .body
@@ -3430,8 +3431,8 @@ fn the_refresh_loop_runs_through_the_pages() {
         );
         until_done(&web);
     }
-    // the league list's fetch lands at its job and names no league, so
-    // the page it lands on links no place page
+    // the league list's fetch posted with no page lands at its job with no
+    // way back
     let (id, landed) = landed_at_a_job(&web, &web.post("leagues", &[]), None);
     assert!(
         landed.body.contains(&format!(
@@ -3541,8 +3542,18 @@ fn the_refresh_loop_runs_through_the_pages() {
         "{}",
         selected.body
     );
-    let applied = web.post("apply", &[("plan", &hidden_plan(&selected.body))]);
-    let (_, landed) = landed_at_a_job(&web, &applied, Some("Standard"));
+    // Apply, from the plan the ticked page asked: it lands at its job with
+    // the way back to that page, every tick kept
+    let apply = form_on(&selected.body, "Apply", None);
+    let from = apply.field("from").expect("the plan's `from`").to_string();
+    assert!(
+        from.starts_with("tabs?realm=pc&league=Standard")
+            && from.contains("&tab=dump")
+            && from.contains("&tab=cur1"),
+        "{from}"
+    );
+    let applied = send(&web, &apply, false);
+    let (_, landed) = landed_at_a_job(&web, &applied, Some(&from));
     assert!(
         landed.body.contains("A refresh of 3 requests"),
         "{}",
@@ -3924,8 +3935,10 @@ fn the_refresh_loop_runs_through_the_pages() {
         "{}",
         plan.body
     );
-    let applied = web.post("apply", &[("plan", &envelope)]);
-    landed_at_a_job(&web, &applied, Some("Standard"));
+    let apply = form_on(&plan.body, "Apply", None);
+    assert_eq!(apply.field("plan"), Some(envelope.as_str()));
+    let from = apply.field("from").expect("the plan's `from`").to_string();
+    landed_at_a_job(&web, &send(&web, &apply, false), Some(&from));
     let jobs = probes_in_order(until_done(&web));
     pages.page(
         "GET jobs <every job done>",
@@ -3958,7 +3971,11 @@ fn the_refresh_loop_runs_through_the_pages() {
     );
     let answered: Value = serde_json::from_str(&answered.body).unwrap();
     assert_eq!(answered["total"]["matched"], held, "{answered}");
-    let replay = web.post("apply", &[("plan", &envelope)]);
+    // each apply below posts the plan page's `from`, as its Apply form
+    // does: every replan link it answers hands that page on (the landing
+    // rule), so the way back survives a spent plan and a moved policy
+    let onward = format!("&amp;from={}", url_encoded(&from));
+    let replay = web.post("apply", &[("plan", &envelope), ("from", &from)]);
     assert_eq!(replay.status, 200, "{}", replay.body);
     pages.page(
         "POST apply <the same envelope again>",
@@ -3967,9 +3984,20 @@ fn the_refresh_loop_runs_through_the_pages() {
             "Nothing was sent: every request of this plan is spent",
             "2 fetched after it was compiled",
             "A plan made now would fetch",
-            "plan?realm=pc&amp;league=Standard\">The plan made again</a>",
+            "plan?realm=pc&amp;league=Standard&amp;from=tabs%3Frealm%3Dpc%26league%3DStandard",
+            "\">The plan made again</a>",
         ],
     );
+    let again = link_saying(&replay.body, "The plan made again");
+    assert!(again.ends_with(&unescaped(&onward)), "{again}");
+    // followed, the plan made again draws the way back to that page
+    let replanned = follow(&web, &again);
+    let back = format!(
+        "<p class=\"back\"><a href=\"/{}/{}\">",
+        web.token,
+        from.replace('&', "&amp;")
+    );
+    assert!(replanned.body.contains(&back), "{back}: {}", replanned.body);
     // the policy's plan once all it covers is fresh: nothing to fetch, no
     // Apply; its envelope posted anyway sends nothing and says so
     let fresh = web.get("plan?realm=pc&league=Standard");
@@ -3980,7 +4008,10 @@ fn the_refresh_loop_runs_through_the_pages() {
     );
     assert!(!fresh.body.contains(">Apply</button>"), "{}", fresh.body);
     let nothing = web.get_json("plan?realm=pc&league=Standard");
-    let nothing = web.post("apply", &[("plan", &nothing["plan"].to_string())]);
+    let nothing = web.post(
+        "apply",
+        &[("plan", &nothing["plan"].to_string()), ("from", &from)],
+    );
     assert_eq!(nothing.status, 200, "{}", nothing.body);
     pages.page(
         "POST apply <a plan with nothing to fetch>",
@@ -3991,13 +4022,18 @@ fn the_refresh_loop_runs_through_the_pages() {
             "\">The plan made again</a>",
         ],
     );
+    assert!(
+        link_saying(&nothing.body, "The plan made again").ends_with(&unescaped(&onward)),
+        "{}",
+        nothing.body
+    );
     let moved = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["cur1"],"max_age_seconds":3600}}}}}"#;
     assert!(
         harness::acq(&base, &["policy", "set", "--replace", moved])
             .status
             .success()
     );
-    let refused = web.post("apply", &[("plan", &envelope)]);
+    let refused = web.post("apply", &[("plan", &envelope), ("from", &from)]);
     assert_eq!(refused.status, 400, "{}", refused.body);
     // its way on is the plan page, a link, never the command a terminal
     // types; followed, the plan compiled again from the policy as it
@@ -4008,7 +4044,8 @@ fn the_refresh_loop_runs_through_the_pages() {
         &refused,
         &[
             "the sync policy moved",
-            "plan?realm=pc&amp;league=Standard\">the plan of pc Standard compiled again, from the policy as it stands</a>",
+            "plan?realm=pc&amp;league=Standard&amp;from=tabs%3Frealm%3Dpc%26league%3DStandard",
+            "\">the plan of pc Standard compiled again, from the policy as it stands</a>",
         ],
     );
     let replanned = web.raw("GET", &offered_links(&refused.body)[0], None, &[], "");
@@ -4018,6 +4055,11 @@ fn the_refresh_loop_runs_through_the_pages() {
         "{}",
         replanned.body
     );
+    // the refusal and the plan it offers both lead back to the place page
+    // the plan was asked from
+    for page in [&refused.body, &replanned.body] {
+        assert!(page.contains(&back), "{back}: {page}");
+    }
     page_golden(file!(), "refresh_loop", &pages);
     drop(web);
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
@@ -4170,12 +4212,27 @@ fn place_form(
     if let (Some(name), Some(value)) = (attribute(&tag, "name"), attribute(&tag, "value")) {
         fields.push((name, value));
     }
-    let action = attribute(&tag, "formaction").unwrap_or(action);
+    assert!(attribute(&tag, "formaction").is_none(), "{tag}");
     let query: Vec<String> = fields
         .iter()
         .map(|(k, v)| format!("{}={}", harness::form_encoded(k), harness::form_encoded(v)))
         .collect();
-    format!("/{}/{action}?{}", web.token, query.join("&"))
+    let path = format!("/{}/{action}?{}", web.token, query.join("&"));
+    // a plan asked is the place page's own field, answered `303` to the
+    // plan with the page as sent as its `from` (the landing rule): the
+    // path a browser lands on is that plan's
+    if attribute(&tag, "name").as_deref() == Some("refresh") {
+        let asked = follow(web, &path);
+        assert_eq!(asked.status, 303, "{path}: {}", asked.body);
+        let location = asked.header("location").unwrap().to_string();
+        assert!(
+            location.starts_with(&format!("/{}/plan?", web.token))
+                && location.contains(&format!("&from={action}%3F")),
+            "{location}"
+        );
+        return location;
+    }
+    path
 }
 
 /// The jobs page under a halt: a trip and a closed route at the cap staged
@@ -4270,14 +4327,15 @@ fn hidden_plan(body: &str) -> String {
 
 /// The jobs page read until it no longer reloads itself: every job done.
 /// No deadline but the hang ceiling (C137).
-/// A submit's `303` to the jobs page: the
-/// location names the job, at its row's anchor, and the league where
-/// `league` is one, whose two place pages the page it lands on links; a
-/// location naming no league links none. The job's id and that page.
+/// A submit's `303` to the jobs page (the landing rule): the location
+/// names the job, at its row's anchor, carrying `from`, the page the
+/// submit left as that page wrote it, where it was sent one; the page it
+/// lands on draws that one way back, and none where none was sent. The
+/// job's id and that page.
 fn landed_at_a_job(
     web: &WebUi,
     reply: &harness::Reply,
-    league: Option<&str>,
+    from: Option<&str>,
 ) -> (u64, harness::Reply) {
     assert_eq!(reply.status, 303, "{}", reply.body);
     let location = reply.header("location").expect("a location").to_string();
@@ -4287,36 +4345,38 @@ fn landed_at_a_job(
         .unwrap_or_else(|| panic!("{location}"));
     let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
     let id: u64 = rest[..digits].parse().unwrap();
-    let query = match league {
-        Some(league) => format!("&realm=pc&league={league}"),
+    let query = match from {
+        Some(from) => format!("&from={}", url_encoded(from)),
         None => String::new(),
     };
     assert_eq!(rest[digits..], format!("{query}#j-{id}"), "{location}");
     let (path, _) = location.split_once('#').unwrap();
     let page = web.raw("GET", path, None, &[], "");
     assert_eq!(page.status, 200, "{}", page.body);
-    let places = |route: &str| {
-        format!(
-            "href=\"/{}/{route}?realm=pc&amp;league={}\"",
-            web.token,
-            league.unwrap_or("")
-        )
-    };
-    for route in ["tabs", "characters"] {
-        assert_eq!(
-            page.body.contains(&places(route)),
-            league.is_some(),
-            "{route}: {}",
-            page.body
-        );
+    match from {
+        Some(from) => {
+            let back = format!("{}Back to ", back_link(web, from));
+            assert!(page.body.contains(&back), "{back}: {}", page.body);
+        }
+        None => assert!(!page.body.contains("<p class=\"back\">"), "{}", page.body),
     }
-    assert_eq!(
-        page.body.contains("<p class=\"places\">"),
-        league.is_some(),
-        "{}",
-        page.body
-    );
+    // the league's place links retired with `realm` and `league`: the way
+    // back is the one link to where the submit came from
+    assert!(!page.body.contains("<p class=\"places\">"), "{}", page.body);
     (id, page)
+}
+
+/// `text` as the server writes a URL component: everything but the
+/// unreserved percent-encoded.
+fn url_encoded(text: &str) -> String {
+    text.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
+            b => format!("%{b:02X}"),
+        })
+        .collect()
 }
 
 fn until_done(web: &WebUi) -> harness::Reply {
@@ -4488,14 +4548,14 @@ fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
             "jobs?job=12#j-12\">Tab Standard/dump</a> failed",
         ],
     );
-    let child = web.get("jobs?job=12&realm=pc&league=Standard");
+    let child = web.get("jobs?job=12&from=tabs%3Frealm%3Dpc%26league%3DStandard");
     pages.page(
-        "GET jobs?job=12&realm=pc&league=Standard <a refused token opened>",
+        "GET jobs?job=12&from=tabs?realm=pc&league=Standard <a refused token opened>",
         &child,
         &[
             "Its account had no session to send with",
             "Signing in again is a person",
-            "Standard: <a href=",
+            "\">Back to the stash tabs</a></p>",
         ],
     );
     // a result's offer of itself is the page shown, and none
@@ -4823,11 +4883,14 @@ fn send(web: &WebUi, form: &PageForm, json: bool) -> harness::Reply {
     if json {
         headers.push(("Accept", "application/json"));
     }
-    assert!(
-        form.action.starts_with(&format!("/{}/", web.token)),
-        "{form:?}"
-    );
-    web.raw("POST", &form.action, None, &headers, &body)
+    // a relative action, as a browser resolves it from a page of the
+    // server's (every page stands one segment under the token)
+    let action = match form.action.starts_with('/') {
+        true => form.action.clone(),
+        false => format!("/{}/{}", web.token, form.action),
+    };
+    assert!(action.starts_with(&format!("/{}/", web.token)), "{form:?}");
+    web.raw("POST", &action, None, &headers, &body)
 }
 
 /// A JSON document's offer or undo that is a page's write, as a form.
@@ -4861,14 +4924,31 @@ fn follow(web: &WebUi, path: &str) -> harness::Reply {
     web.raw("GET", &unescaped(path), None, &[], "")
 }
 
-/// A write answered as a browser asks it: `303` to the list.
+/// A write answered as a browser asks it: `303` to the list, carrying the
+/// page the write left as `from` (the landing rule), or to the list as
+/// sent where the write left the list itself; the list it lands on draws
+/// that way back.
 fn landed_on_the_list(web: &WebUi, reply: &harness::Reply) {
     assert_eq!(reply.status, 303, "{}", reply.body);
-    assert_eq!(
-        reply.header("location"),
-        Some(format!("/{}/saved", web.token).as_str())
-    );
     assert!(reply.body.is_empty(), "{}", reply.body);
+    let location = reply.header("location").expect("a location").to_string();
+    let list = format!("/{}/saved", web.token);
+    let from = match location.strip_prefix(&list) {
+        Some("") | Some("?expand=true") => None,
+        Some(rest) => Some(
+            rest.strip_prefix("?from=")
+                .unwrap_or_else(|| panic!("{location}")),
+        ),
+        None => panic!("{location}"),
+    };
+    let landed = follow(web, &location);
+    assert_eq!(landed.status, 200, "{}", landed.body);
+    assert_eq!(
+        landed.body.contains("<p class=\"back\">"),
+        from.is_some(),
+        "{location}: {}",
+        landed.body
+    );
 }
 
 /// A clear as a page makes it, asking first:
@@ -4876,13 +4956,20 @@ fn landed_on_the_list(web: &WebUi, reply: &harness::Reply) {
 /// page, which writes nothing (the file's revision unchanged across it),
 /// and the clear's one form on that page.
 fn asked_clear(web: &WebUi, world: &Path, list: &str, id: &str) -> (harness::Reply, PageForm) {
-    let link = format!("/{}/saved/clear?id={id}", web.token);
+    let prefix = format!("href=\"/{}/saved/clear?id={id}", web.token);
+    let at = list
+        .find(&prefix)
+        .unwrap_or_else(|| panic!("no Clear link for {id}:\n{list}"))
+        + "href=\"".len();
+    let link = &list[at..at + list[at..].find('"').unwrap()];
     assert!(
-        list.contains(&format!("href=\"{link}\">Clear</a>")),
+        list[at..].starts_with(&format!("{link}\">Clear</a>")),
         "no Clear link for {id}:\n{list}"
     );
+    // the clear's ask is a step: it hands on the list it was asked from
+    assert!(link.contains("&amp;from=saved"), "{link}");
     let before = file_revision(world);
-    let asking = follow(web, &link);
+    let asking = follow(web, link);
     assert_eq!(asking.status, 200, "{}", asking.body);
     assert_eq!(file_revision(world), before, "asking wrote");
     let form = form_on(&asking.body, "Clear", Some(id));
@@ -5905,12 +5992,14 @@ fn the_saved_pages_are_a_wording_golden() {
         &[
             "5 saved searches · the file at revision 5",
             "<th>Name</th><th>Scope</th><th>Query</th><th>Revision</th><th>Last written</th><th>Id</th>",
-            "saved/open?id=0000000000a2\">rings</a>",
+            // an opening and a clear's ask are steps: each hands on the
+            // list as `from` (the landing rule)
+            "saved/open?id=0000000000a2&amp;from=saved\">rings</a>",
             "<td>pc · live</td><td>rarity=rare</td><td>1</td>",
             "via test",
             "this build cannot read it:",
             ">Rename</button>",
-            "saved/clear?id=0000000000a2\">Clear</a>",
+            "saved/clear?id=0000000000a2&amp;from=saved\">Clear</a>",
         ],
     );
     assert!(!main_of(&listed.body).contains("acq "), "{}", listed.body);
@@ -5927,7 +6016,9 @@ fn the_saved_pages_are_a_wording_golden() {
         "GET search?<the ring search>",
         &answer,
         &[
-            "/saved\"><input type=\"hidden\" name=\"trade\" value=\"{&quot;league&quot;:&quot;Standard&quot;",
+            // the save form posts the search page itself as `from` first
+            "/saved\"><input type=\"hidden\" name=\"from\" value=\"search?realm=pc&amp;",
+            "\"><input type=\"hidden\" name=\"trade\" value=\"{&quot;league&quot;:&quot;Standard&quot;",
             "name=\"membership\" value=\"live\"",
             ">Save this search</button>",
         ],
@@ -6246,8 +6337,8 @@ fn the_saved_pages_are_a_wording_golden() {
         "GET saved?expand=true <a source this build cannot read, and a version 1 row>",
         &listed,
         &[
-            "saved/open?id=0000000000c1\">lost</a></td><td>pc · live</td><td>this build cannot read its query:",
-            "saved/open?id=0000000000c2\">old rings</a></td><td>pc · live</td><td>class:rings rarity=rare</td>",
+            "saved/open?id=0000000000c1&amp;from=saved%3Fexpand%3Dtrue\">lost</a></td><td>pc · live</td><td>this build cannot read its query:",
+            "saved/open?id=0000000000c2&amp;from=saved%3Fexpand%3Dtrue\">old rings</a></td><td>pc · live</td><td>class:rings rarity=rare</td>",
         ],
     );
     let lost = follow(&web, &format!("/{}/saved/open?id=0000000000c1", web.token));
@@ -6622,4 +6713,429 @@ fn the_grouped_table_is_a_wording_golden() {
     ] {
         assert_eq!(by(path), Vec::<String>::new(), "{path}");
     }
+}
+
+// ---- the landing rule (`roadmap/briefs/4-full-1-form-landing.md`) ------------------------------
+
+/// Where a leaving request lands: on its page as sent (a write from the
+/// saved list itself), or on another page carrying `from`.
+enum Lands {
+    AsSent,
+    Jobs,
+    Saved,
+}
+
+/// The landing rule: each request that leaves a page carries that page as
+/// `from`, written by the page, and lands on the page as sent or on one
+/// that draws the way back to it — the league list's fetch from every page
+/// that holds it among them, which once landed with no way back (#194).
+/// One table: the page, the button pressed, where it lands. Apply, after a
+/// plan asked from a ticked place page, is the refresh loop's
+/// (`the_refresh_loop_runs_through_the_pages`), whose world has tabs to
+/// tick.
+#[test]
+fn every_leaving_request_lands_with_the_way_back_to_its_page() {
+    let scratch = harness::scratch("weblanding");
+    let base = scratch.0.clone();
+    let daemon = harness::login(&base, "Alice");
+    let web = start_web(harness::command(&base, &["web", "--no-browser"]));
+    let search = "search?realm=pc&text=rarity%3Drare";
+    // a saved search to rename, made by the page's own save form
+    let saved = send(
+        &web,
+        &form_on(&web.get(search).body, "Save this search", None).typed("name", "rares"),
+        false,
+    );
+    assert_eq!(saved.status, 303, "{}", saved.body);
+    let id = sole_json(&harness::acq(&base, &["saved", "list", "--json"]))["searches"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let table: [(&str, &str, Option<&str>, Lands); 9] = [
+        (search, "Save this search", None, Lands::Saved),
+        (search, "Fetch the league list", None, Lands::Jobs),
+        ("", "Fetch the league list", None, Lands::Jobs),
+        (
+            "tabs?realm=pc&league=Standard",
+            "Fetch the league list",
+            None,
+            Lands::Jobs,
+        ),
+        (
+            "tabs?realm=pc&league=Standard",
+            "List this league's stash tabs",
+            None,
+            Lands::Jobs,
+        ),
+        (
+            "characters?realm=pc&league=Standard",
+            "Fetch the league list",
+            None,
+            Lands::Jobs,
+        ),
+        (
+            "characters?realm=pc&league=Standard",
+            "List characters",
+            None,
+            Lands::Jobs,
+        ),
+        ("saved", "Rename", Some(&id), Lands::AsSent),
+        ("saved?expand=true", "Rename", Some(&id), Lands::AsSent),
+    ];
+    for (n, (page, button, id, lands)) in table.into_iter().enumerate() {
+        let shown = web.get(page);
+        assert_eq!(shown.status, 200, "{page}: {}", shown.body);
+        let mut form = form_on(&shown.body, button, id);
+        if form.field("name").is_some() {
+            form = form.typed("name", &format!("rares {n}"));
+        }
+        // the page writes itself, as its own URL names it; the home page
+        // is `.`
+        let from = match page {
+            "" => ".",
+            page => page,
+        };
+        assert_eq!(form.field("from"), Some(from), "{page} {button}");
+        let reply = send(&web, &form, false);
+        let location = reply.header("location").unwrap_or_default().to_string();
+        match lands {
+            Lands::Jobs => {
+                landed_at_a_job(&web, &reply, Some(from));
+            }
+            Lands::Saved => {
+                assert_eq!(
+                    location,
+                    format!("/{}/saved?from={}", web.token, url_encoded(from)),
+                    "{page} {button}"
+                );
+                let landed = follow(&web, &location);
+                let back = back_link(&web, from);
+                assert!(landed.body.contains(&back), "{back}: {}", landed.body);
+            }
+            Lands::AsSent => {
+                assert_eq!(location, format!("/{}/{page}", web.token), "{button}");
+                let landed = follow(&web, &location);
+                assert!(
+                    !landed.body.contains("<p class=\"back\">"),
+                    "{}",
+                    landed.body
+                );
+            }
+        }
+        until_done(&web);
+    }
+    // the clear's ask is a step: asked from the list whole, it hands the
+    // list on, and its Clear lands there as sent
+    let list = web.get("saved?expand=true");
+    let ask = link_saying(&list.body, "Clear");
+    assert!(ask.ends_with("&from=saved%3Fexpand%3Dtrue"), "{ask}");
+    let asking = follow(&web, &ask);
+    assert!(
+        asking.body.contains(&format!(
+            "<p class=\"back\"><a href=\"/{}/saved?expand=true\">Back to the saved searches</a></p>",
+            web.token
+        )),
+        "{}",
+        asking.body
+    );
+    let cleared = send(&web, &form_on(&asking.body, "Clear", None), false);
+    assert_eq!(
+        cleared.header("location"),
+        Some(format!("/{}/saved?expand=true", web.token).as_str())
+    );
+    // an opening is a step too: the search it lands on draws the list
+    saved_list_opens_with_the_way_back(&web, &base);
+    drop(web);
+    drop(daemon);
+}
+
+/// A saved search opened from the list lands on its search page, which
+/// draws the way back to the list it was opened from and posts itself, not
+/// that way back, from its own forms.
+fn saved_list_opens_with_the_way_back(web: &WebUi, base: &Path) {
+    let made = harness::acq(base, &["saved", "set", "--name", "opened", "rarity=rare"]);
+    assert!(made.status.success(), "{made:?}");
+    let list = web.get("saved");
+    let open = link_saying(&list.body, "opened");
+    assert!(open.ends_with("&from=saved"), "{open}");
+    let (location, page) = redirected(web, &open);
+    assert!(location.ends_with("&from=saved"), "{location}");
+    assert!(
+        page.body.contains(&format!(
+            "<p class=\"back\"><a href=\"/{}/saved\">Back to the saved searches</a></p>",
+            web.token
+        )),
+        "{}",
+        page.body
+    );
+    let save = form_on(&page.body, "Save as a new search", None);
+    let from = save.field("from").expect("the page's `from`");
+    assert!(
+        from.starts_with("search?") && !from.contains("from"),
+        "{from}"
+    );
+}
+
+/// The way back a page draws to `from` as a page wrote it, up to its
+/// words: the home page's `.` is the token's own path.
+fn back_link(web: &WebUi, from: &str) -> String {
+    let path = from.strip_prefix('.').unwrap_or(from);
+    format!(
+        "<p class=\"back\"><a href=\"/{}/{}\">",
+        web.token,
+        path.replace('&', "&amp;")
+    )
+}
+
+/// What a refusal's page offers as its way on, besides the way back.
+#[derive(Debug, Clone, Copy)]
+enum WayOn {
+    /// The form as sent, its name box as typed.
+    FormAsSent,
+    /// The page as sent, which the way back is: a refused plan's ticks.
+    PageAsSent,
+    /// An offer a page takes: a link or a form under the refusal.
+    Offer,
+    /// Words naming a command, a person's act at a terminal.
+    Command,
+}
+
+/// The census of the refusals the leaving requests can meet
+/// (`4-full-1-form-design.md` §5): each, staged as a page meets it, is
+/// refused on a page holding the way back to the page it left and its way
+/// on — its form as sent, an offer a page takes, or words naming the
+/// command a person runs at a terminal. Its JSON is the refusal alone: no
+/// `from` meets it. The census by route, and each refusal no page meets
+/// with why, is the commit message of `4-full-1-form-landing`'s build.
+#[test]
+fn every_refusal_a_leaving_request_meets_has_its_way_on_and_its_way_back() {
+    let (scratch, web) = offline_web("webcensus");
+    let world = scratch.0.clone();
+    let mock = world.join("mock");
+    crate::saved_json::put(&mock, "0000000000a1", "rings");
+    let search = "search?realm=pc&text=rarity%3Drare";
+    let tabs = "tabs?realm=pc&league=Standard&open=t1";
+    let policy = |value: &str| {
+        let out = harness::offline_acq(&world, &["policy", "set", "--replace", value]);
+        assert!(out.status.success(), "{out:?}");
+    };
+    let standard = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["t1"],"max_age_seconds":3600}}}}}"#;
+    let mut census: Vec<(&str, WayOn, harness::Reply, String)> = Vec::new();
+
+    // POST saved: a name no search takes, its form kept as sent
+    let empty = form_on(&web.get(search).body, "Save this search", None);
+    census.push((
+        "POST saved <an empty name>",
+        WayOn::FormAsSent,
+        send(&web, &empty, false),
+        search.into(),
+    ));
+    // POST saved: a write over a row written since, offered over it
+    let opened = web.get(&format!("{search}&saved=0000000000a1&saved_revision=1"));
+    saved_cli(
+        &world,
+        &["set", "--id", "0000000000a1", "--name", "elsewhere"],
+    );
+    let over = form_on(&opened.body, "Save over \"rings\"", None).typed("name", "mine");
+    let from = over.field("from").unwrap().to_string();
+    census.push((
+        "POST saved <a row written since>",
+        WayOn::Offer,
+        send(&web, &over, false),
+        from,
+    ));
+    // POST saved/clear: a clear at a revision that moved, offered at it
+    let asking = follow(
+        &web,
+        &link_saying(&web.get("saved").body, "Clear").replace("&amp;", "&"),
+    );
+    let clear = form_on(&asking.body, "Clear", None);
+    saved_cli(&world, &["set", "--id", "0000000000a1", "--name", "moved"]);
+    census.push((
+        "POST saved/clear <a row written since>",
+        WayOn::Offer,
+        send(&web, &clear, false),
+        "saved".into(),
+    ));
+    // GET saved/clear and saved/open: a row no longer there, the list
+    // offered
+    for (label, route) in [
+        ("GET saved/clear <a row no longer there>", "saved/clear"),
+        ("GET saved/open <a row no longer there>", "saved/open"),
+    ] {
+        let reply = web.get(&format!("{route}?id=0000000000ff&from=saved"));
+        census.push((label, WayOn::Offer, reply, "saved".into()));
+    }
+    // GET plan, asked from the place page: nothing ticked, the page as
+    // sent its way back; no policy stored, its command; a league the
+    // policy does not cover, the plan of one it does
+    let (_, unticked) = redirected(&web, &format!("/{}/{tabs}&refresh=ticked", web.token));
+    census.push((
+        "GET plan <nothing ticked>",
+        WayOn::PageAsSent,
+        unticked,
+        tabs.into(),
+    ));
+    let (_, none) = redirected(&web, &format!("/{}/{tabs}&refresh=policy", web.token));
+    census.push(("GET plan <no policy>", WayOn::Command, none, tabs.into()));
+    policy(standard);
+    let hardcore = "tabs?realm=pc&league=Hardcore";
+    let (_, uncovered) = redirected(&web, &format!("/{}/{hardcore}&refresh=policy", web.token));
+    census.push((
+        "GET plan <a league not covered>",
+        WayOn::Offer,
+        uncovered,
+        hardcore.into(),
+    ));
+    // POST apply: a plan whose policy moved, the plan compiled again
+    let (_, plan) = redirected(&web, &format!("/{}/{tabs}&refresh=policy", web.token));
+    let apply = form_on(&plan.body, "Apply", None);
+    policy(
+        r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["t2"],"max_age_seconds":3600}}}}}"#,
+    );
+    census.push((
+        "POST apply <the policy moved>",
+        WayOn::Offer,
+        send(&web, &apply, false),
+        tabs.into(),
+    ));
+
+    // a listing the realm's endpoints refuse is no page's offer, so no
+    // page meets its refusal, which has no way on
+    let poe2 = web.get("tabs?realm=poe2&league=Standard");
+    assert_eq!(poe2.status, 200, "{}", poe2.body);
+    assert!(
+        !poe2.body.contains("List this league&#39;s stash tabs"),
+        "{}",
+        poe2.body
+    );
+    let mut pages = Pages::new(&world, &web);
+    for (label, way, reply, from) in &census {
+        assert_eq!(reply.status, 400, "{label}: {}", reply.body);
+        let back = back_link(&web, from);
+        assert!(
+            reply.body.contains(&back),
+            "{label}: {back}: {}",
+            reply.body
+        );
+        pages.page(
+            label,
+            reply,
+            &["<p class=\"back\"><a href=", "<div class=\"refusal\">"],
+        );
+        let refusal = &reply.body[reply.body.find("<div class=\"refusal\">").unwrap()..];
+        match way {
+            WayOn::FormAsSent => {
+                let form = form_on(refusal, "Save", None);
+                assert_eq!(form.field("name"), Some(""), "{label}");
+                assert_eq!(form.field("text"), Some("rarity=rare"), "{label}");
+                assert_eq!(form.field("from"), Some(from.as_str()), "{label}");
+            }
+            WayOn::PageAsSent => {
+                assert!(back.contains("open=t1"), "{label}: {back}");
+            }
+            WayOn::Offer => {
+                assert!(
+                    refusal.contains("<ul class=\"offers\">"),
+                    "{label}: {refusal}"
+                );
+            }
+            WayOn::Command => {
+                assert!(refusal.contains("`acq "), "{label}: {refusal}");
+            }
+        }
+    }
+    page_golden(file!(), "landing", &pages);
+    // a submit the daemon refuses for want of a session: its command
+    let signed = harness::scratch("webcensussession");
+    let daemon = harness::login(&signed.0, "Alice");
+    let live = start_web(harness::command(&signed.0, &["web", "--no-browser"]));
+    let shown = live.get("tabs?realm=pc&league=Standard");
+    let out = harness::acq(&signed.0, &["auth", "logout", "--account", "Alice"]);
+    assert!(out.status.success(), "{out:?}");
+    for button in ["Fetch the league list", "List this league's stash tabs"] {
+        let reply = send(&live, &form_on(&shown.body, button, None), false);
+        assert_eq!(reply.status, 400, "{button}: {}", reply.body);
+        let back = back_link(&live, "tabs?realm=pc&league=Standard");
+        assert!(reply.body.contains(&back), "{button}: {}", reply.body);
+        assert!(
+            reply.body.contains("run `acq auth`"),
+            "{button}: {}",
+            reply.body
+        );
+    }
+    drop(live);
+    drop(daemon);
+    // a refusal's JSON is the refusal alone: the page's `from` meets no
+    // document (Decision 7)
+    let json = web.raw(
+        "POST",
+        &format!("/{}/saved", web.token),
+        None,
+        &[
+            ("Origin", &format!("http://{}", web.addr)),
+            ("Content-Type", "application/x-www-form-urlencoded"),
+            ("Accept", "application/json"),
+        ],
+        &format!(
+            "from={}&name=&text=rarity%3Drare&realm=pc&membership=live",
+            url_encoded(search)
+        ),
+    );
+    assert_eq!(json.status, 400, "{}", json.body);
+    assert!(!json.body.contains("from"), "{}", json.body);
+}
+
+/// `from` is read by one reader, and every place and step meets it first:
+/// a step, a route no place names, a token, an absolute URL and a nested
+/// `from` are each refused as usage, never dropped; a place's URL with a
+/// `from` draws it, and its own forms carry the place itself, never that
+/// `from`.
+#[test]
+fn a_from_is_a_place_of_this_server_read_once_and_never_carried_on() {
+    let (scratch, web) = offline_web("webfrom");
+    let token = web.token.clone();
+    for (word, why) in [
+        ("plan%3Frealm%3Dpc", "never to a step"),
+        ("saved%2Fopen%3Fid%3D0000000000a1", "never to a step"),
+        ("nowhere", "no page of this server"),
+        (&*format!("{token}%2Fsearch"), "no page of this server"),
+        (
+            "https%3A%2F%2Fexample.com%2Fsearch",
+            "no scheme, host or token",
+        ),
+        ("jobs%3Ffrom%3Dtabs", "no way back of its own"),
+    ] {
+        for route in [
+            "jobs",
+            "saved",
+            "tabs?realm=pc&league=Standard",
+            "search?text=x",
+            "plan?realm=pc",
+        ] {
+            let joint = if route.contains('?') { '&' } else { '?' };
+            let refused = refused_json(&web, &format!("{route}{joint}from={word}"), 400);
+            assert_eq!(refused["kind"], "usage", "{route} {word}: {refused}");
+            assert!(
+                refused["error"].as_str().unwrap().contains(why),
+                "{route}: {refused}"
+            );
+        }
+    }
+    let tabs = web.get("tabs?realm=pc&league=Standard&from=jobs%3Fjob%3D3");
+    assert!(
+        tabs.body.contains(&format!(
+            "<p class=\"back\"><a href=\"/{token}/jobs?job=3\">Back to the jobs</a></p>"
+        )),
+        "{}",
+        tabs.body
+    );
+    let listing = form_on(&tabs.body, "List this league's stash tabs", None);
+    assert_eq!(listing.field("from"), Some("tabs?realm=pc&league=Standard"));
+    assert!(
+        !tabs.body.contains("from=jobs") && !tabs.body.contains("jobs%3Fjob"),
+        "{}",
+        tabs.body
+    );
+    drop(scratch);
 }

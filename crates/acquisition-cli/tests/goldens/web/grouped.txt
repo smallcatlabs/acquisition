@@ -19,13 +19,13 @@ GET tabs?<rings, four places open>
 <main>
 <h1>Stash tabs</h1>
 <form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <input type="hidden" name="text" value="class:rings ilvl&gt;=60"><input type="hidden" name="view.sort" value="ilvl"><input type="hidden" name="view.desc" value="true"><button type="submit">Show</button></form>
-<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
-<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+<div class="actions"><form class="write" method="post" action="leagues"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.sort=ilvl&amp;view.desc=true&amp;open=t1&amp;open=f1&amp;open=o1&amp;open=m1&amp;tab=t3"><button type="submit">Fetch the league list</button></form>
+<form class="write" method="post" action="tabs"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.sort=ilvl&amp;view.desc=true&amp;open=t1&amp;open=f1&amp;open=o1&amp;open=m1&amp;tab=t3"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
 </div>
 <p class="counts">8 tabs in Standard: 5 fetched, 2 never fetched, 1 folder (never fetched); 9 items in tabs (characters apart); facts: 7 tabs, 5 fetched (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Tier 16); stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="view.sort" value="ilvl"><input type="hidden" name="view.desc" value="true"><input type="hidden" name="open" value="t1"><input type="hidden" name="open" value="f1"><input type="hidden" name="open" value="o1"><input type="hidden" name="open" value="m1">
-<p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" name="refresh" value="ticked">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <input type="hidden" name="tab" value="t3"><details class="list" open><summary>Stash tabs</summary>
 <p class="matched">7 matching items in these stash tabs, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.sort=ilvl&amp;view.desc=true&amp;view.fields=icon">every match as a table</a> · elsewhere: <a href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.sort=ilvl&amp;view.desc=true">1 on the characters of Standard</a></p>
@@ -67,13 +67,13 @@ GET tabs?realm=pc&league=Standard&fetched=never
 <main>
 <h1>Stash tabs</h1>
 <form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <input type="hidden" name="fetched" value="never"><button type="submit">Show</button></form>
-<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
-<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+<div class="actions"><form class="write" method="post" action="leagues"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;fetched=never"><button type="submit">Fetch the league list</button></form>
+<form class="write" method="post" action="tabs"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;fetched=never"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
 </div>
 <p class="counts">8 tabs in Standard: 5 fetched, 2 never fetched, 1 folder (never fetched); 9 items in tabs (characters apart); facts: 7 tabs, 5 fetched (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Tier 16); stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
-<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" name="refresh" value="ticked">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
 <div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>
@@ -99,13 +99,13 @@ GET characters?<rings, Exile open>
 <main>
 <h1>Characters</h1>
 <form method="get" action="characters"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <input type="hidden" name="text" value="class:rings ilvl&gt;=60"><button type="submit">Show</button></form>
-<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
-<form method="post" action="characters"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List characters</button></form>
+<div class="actions"><form class="write" method="post" action="leagues"><input type="hidden" name="from" value="characters?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60&amp;open=ch1"><button type="submit">Fetch the league list</button></form>
+<form class="write" method="post" action="characters"><input type="hidden" name="from" value="characters?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60&amp;open=ch1"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List characters</button></form>
 </div>
 <p class="counts">2 characters: 1 fetched, 1 never fetched; 1 items</p>
 <form method="get" action="characters">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="ch1">
-<p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" name="refresh" value="ticked">Refresh ticked</button></p>
 <details class="list" open><summary>Characters</summary>
 <p class="matched">1 matching item on these characters, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.fields=icon">every match as a table</a> · elsewhere: <a href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60">7 in the stash tabs of Standard</a></p>
 <div class="p head"><span></span><span>Character</span><span>Level</span><span>Items</span><span>Fetched</span></div>
@@ -135,13 +135,13 @@ GET tabs?<rings, Old rings open, its first row opened>
 <main>
 <h1>Stash tabs</h1>
 <form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <input type="hidden" name="text" value="class:rings ilvl&gt;=60"><button type="submit">Show</button></form>
-<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
-<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+<div class="actions"><form class="write" method="post" action="leagues"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60&amp;open=f1&amp;open=o1&amp;item=o-high"><button type="submit">Fetch the league list</button></form>
+<form class="write" method="post" action="tabs"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60&amp;open=f1&amp;open=o1&amp;item=o-high"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
 </div>
 <p class="counts">8 tabs in Standard: 5 fetched, 2 never fetched, 1 folder (never fetched); 9 items in tabs (characters apart); facts: 7 tabs, 5 fetched (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Tier 16); stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="f1"><input type="hidden" name="open" value="o1"><input type="hidden" name="item" value="o-high">
-<p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" name="refresh" value="ticked">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
 <p class="matched">7 matching items in these stash tabs, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.fields=icon">every match as a table</a> · elsewhere: <a href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60">1 on the characters of Standard</a></p>
@@ -188,13 +188,13 @@ GET tabs?<a place open, no query>
 <main>
 <h1>Stash tabs</h1>
 <form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
-<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
-<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+<div class="actions"><form class="write" method="post" action="leagues"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;open=t1"><button type="submit">Fetch the league list</button></form>
+<form class="write" method="post" action="tabs"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;open=t1"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
 </div>
 <p class="counts">8 tabs in Standard: 5 fetched, 2 never fetched, 1 folder (never fetched); 9 items in tabs (characters apart); facts: 7 tabs, 5 fetched (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Tier 16); stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="t1">
-<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" name="refresh" value="ticked">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
 <div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>

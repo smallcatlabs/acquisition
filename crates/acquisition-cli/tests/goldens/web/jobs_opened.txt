@@ -50,13 +50,13 @@ GET jobs?job=10 <a failed parent the list leaves out>
 
 </main>
 
-GET jobs?job=12&realm=pc&league=Standard <a refused token opened>
+GET jobs?job=12&from=tabs?realm=pc&league=Standard <a refused token opened>
 # holds "Its account had no session to send with"
 # holds "Signing in again is a person"
-# holds "Standard: <a href="
+# holds "\">Back to the stash tabs</a></p>"
 <main>
 <h1>Jobs</h1>
-<p class="places">Standard: <a href="/<token>/tabs?realm=pc&amp;league=Standard">Stash tabs</a> · <a href="/<token>/characters?realm=pc&amp;league=Standard">Characters</a></p>
+<p class="back"><a href="/<token>/tabs?realm=pc&amp;league=Standard">Back to the stash tabs</a></p>
 <p class="opened">This job is not among those listed below.</p>
 <table class="jobs">
 <tr><th>What</th><th>State</th><th>When</th></tr>
