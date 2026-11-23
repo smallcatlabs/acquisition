@@ -7616,6 +7616,7 @@ fn a_from_is_a_place_of_this_server_read_once_and_never_carried_on() {
     for (word, why) in [
         ("plan%3Frealm%3Dpc", "never to a step"),
         ("saved%2Fopen%3Fid%3D0000000000a1", "never to a step"),
+        ("describe%3Fnames%3Dfields", "never to a step"),
         ("nowhere", "no page of this server"),
         (&*format!("{token}%2Fsearch"), "no page of this server"),
         (
@@ -7630,6 +7631,7 @@ fn a_from_is_a_place_of_this_server_read_once_and_never_carried_on() {
             "tabs?realm=pc&league=Standard",
             "search?text=x",
             "plan?realm=pc",
+            "describe",
         ] {
             let joint = if route.contains('?') { '&' } else { '?' };
             let refused = refused_json(&web, &format!("{route}{joint}from={word}"), 400);
@@ -7668,5 +7670,210 @@ fn a_from_is_a_place_of_this_server_read_once_and_never_carried_on() {
             "{button}"
         );
     }
+    drop(scratch);
+}
+
+// ---- the language on a page (`4-full-1-form-index.md`) ------------------------------------------
+
+/// A name as a page writes it in HTML.
+fn escaped(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+/// Every name a describe document lists an entry or a category by.
+fn described_names(doc: &Value) -> Vec<String> {
+    let mut names = Vec::new();
+    for (key, value) in doc.as_object().unwrap() {
+        for entry in value.as_array().into_iter().flatten() {
+            let name = match key.as_str() {
+                "categories" => &entry["id"],
+                "patterns" | "not_built" | "limits" => continue,
+                _ => &entry["name"],
+            };
+            names.push(name.as_str().unwrap().to_string());
+        }
+    }
+    names
+}
+
+/// `GET describe` answers as `acq search --describe`: bare the index,
+/// a block, the computed values, `all`, a pattern, two lists, and a
+/// pattern whose commas its own field keeps; its JSON is the search
+/// crate's document as the CLI prints it, and its page lists each entry
+/// and category the document lists, by its name, a link.
+#[test]
+fn the_language_on_a_page_answers_as_acq_search_describe() {
+    let (scratch, web) = offline_web("webdescribe");
+    for (path, args) in [
+        ("describe", vec!["--describe"]),
+        ("describe?names=fields", vec!["--describe", "fields"]),
+        ("describe?names=computed", vec!["--describe", "computed"]),
+        ("describe?names=all", vec!["--describe", "all"]),
+        ("describe?names=~resist", vec!["--describe=~resist"]),
+        (
+            "describe?names=fields&names=computed",
+            vec!["--describe", "fields", "--describe", "computed"],
+        ),
+        (
+            "describe?names=fields%2Clinked",
+            vec!["--describe", "fields,linked"],
+        ),
+        (
+            "describe?names=fields&names=~s%2C%20t",
+            vec!["--describe", "fields", "--describe=~s, t"],
+        ),
+    ] {
+        let page = web.get_json(path);
+        let mut asked = vec!["search"];
+        asked.extend(&args);
+        asked.push("--json");
+        let out = offline_acq(&scratch.0, &asked);
+        assert!(out.status.success(), "{args:?}: {out:?}");
+        assert_eq!(page, sole_json(&out), "{path}");
+        let shown = web.get(path);
+        assert_eq!(shown.status, 200, "{path}: {}", shown.body);
+        let names = described_names(&page);
+        assert!(!names.is_empty(), "{path}");
+        for name in names {
+            assert!(
+                shown.body.contains(&format!(">{}</a>", escaped(&name))),
+                "{path}: {name} is no link:\n{}",
+                shown.body
+            );
+        }
+    }
+    drop(scratch);
+}
+
+/// The language's pages as a reader meets them: the index, each entry and
+/// each block's head a link and the names box; one entry whole, with its
+/// way back to the index; one block; an unknown name refused with the
+/// near names; a pattern that matches nothing refused with the index
+/// offered as a link.
+#[test]
+fn the_language_on_a_page_is_a_wording_golden() {
+    let (scratch, web) = offline_web("webdescribegolden");
+    let mut pages = Pages::new(&scratch.0, &web);
+    pages.page(
+        "GET describe",
+        &web.get("describe"),
+        &[
+            "This is the index, each entry by its name and one line",
+            "<form class=\"names\" method=\"get\" action=\"describe\">",
+            "<input type=\"text\" name=\"names\"",
+            "describe?names=pseudo.total_life\">pseudo.total_life</a>",
+            "describe?names=accessory.ring\">accessory.ring</a>",
+            "describe?names=line\">inside line( … )</a>",
+            "describe?names=computed\">computed values</a> — totals v",
+            "describe?names=trade\">trade</a> — each clause a site search can carry,",
+            "describe?names=limits\">limits, as the search states them</a>",
+        ],
+    );
+    pages.page(
+        "GET describe?names=pseudo.total_life",
+        &web.get("describe?names=pseudo.total_life"),
+        &[
+            "<td>total</td>",
+            "<code>pseudo.total_life&gt;=60</code>",
+            "a total leaves out a crucible node",
+            "The language&#39;s index: every entry by its name and one line</a>",
+        ],
+    );
+    pages.page(
+        "GET describe?names=linked",
+        &web.get("describe?names=linked"),
+        &[
+            "describe?names=linked\">inside linked( … )</a>",
+            "one of: red, green, blue, white, abyssal",
+            "<code>linked(size&gt;=5 blue&gt;=2)</code>",
+        ],
+    );
+    pages.page(
+        "GET describe?names=pseudo.total_lfe",
+        &web.get("describe?names=pseudo.total_lfe"),
+        &[
+            "`pseudo.total_lfe` is nothing describe knows",
+            "    pseudo.total_life",
+        ],
+    );
+    pages.page(
+        "GET describe?names=~qqqqq",
+        &web.get("describe?names=~qqqqq"),
+        &[
+            "`~qqqqq` matches nothing describe holds",
+            "/describe\">the index, every entry by its name and one line</a>",
+        ],
+    );
+    page_golden(file!(), "describe", &pages);
+    drop(scratch);
+}
+
+/// `describe` is a step (the landing rule): reached with a `from`, every
+/// page of it draws that way back, and its links to an entry, to a block
+/// and to the index, and its names box, hand it on; a pattern that matches
+/// nothing is refused with its offer of the index a link carrying it, and
+/// its JSON spells that offer as a page's other ways, with no `from`.
+#[test]
+fn the_language_hands_on_the_way_back_it_was_given() {
+    let (scratch, web) = offline_web("webdescribefrom");
+    let from = "search?realm=pc&text=rarity%3Drare";
+    let carried = format!("from={}", url_encoded(from));
+    let back = back_link(&web, from);
+    let index = web.get(&format!("describe?{carried}"));
+    assert_eq!(index.status, 200, "{}", index.body);
+    assert!(index.body.contains(&back), "{back}: {}", index.body);
+    assert!(
+        index.body.contains(&format!(
+            "<form class=\"names\" method=\"get\" action=\"describe\"><input type=\"hidden\" name=\"from\" value=\"{}\">",
+            escaped(from)
+        )),
+        "{}",
+        index.body
+    );
+    for words in ["pseudo.total_life", "computed values", "accessory.ring"] {
+        let link = link_saying(&index.body, words);
+        assert!(link.ends_with(&format!("&{carried}")), "{words}: {link}");
+        let page = follow(&web, &link);
+        assert_eq!(page.status, 200, "{link}: {}", page.body);
+        assert!(page.body.contains(&back), "{link}: {}", page.body);
+        let again = link_saying(
+            &page.body,
+            "The language&#39;s index: every entry by its name and one line",
+        );
+        assert_eq!(again, format!("/{}/describe?{carried}", web.token));
+        assert!(follow(&web, &again).body.contains(&back), "{again}");
+    }
+    // the names box, sent as a browser sends it
+    let boxed = web.get(&format!("describe?{carried}&names=linked"));
+    assert_eq!(boxed.status, 200, "{}", boxed.body);
+    assert!(boxed.body.contains(&back), "{}", boxed.body);
+    // a box sent empty names nothing: the index
+    assert_eq!(
+        web.get_json("describe?names="),
+        web.get_json("describe"),
+        "an empty box"
+    );
+    // a pattern matching nothing: the index offered, a link carrying the
+    // way back, and in JSON a link as any way on is, no `from`
+    let refused = web.get(&format!("describe?names=~qqqqq&{carried}"));
+    assert_eq!(refused.status, 400, "{}", refused.body);
+    assert!(refused.body.contains(&back), "{}", refused.body);
+    assert_eq!(
+        offered_links(&refused.body),
+        vec![format!("/{}/describe?{carried}", web.token)]
+    );
+    let json = refused_json(&web, &format!("describe?names=~qqqqq&{carried}"), 400);
+    assert_eq!(
+        json["offers"][0]["request"],
+        json!(format!("/{}/describe", web.token)),
+        "{json}"
+    );
+    // a field the route does not take is refused as usage
+    let odd = refused_json(&web, "describe?name=fields", 400);
+    assert_eq!(odd["kind"], "usage", "{odd}");
     drop(scratch);
 }

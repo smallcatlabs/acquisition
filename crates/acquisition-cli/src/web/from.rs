@@ -9,13 +9,14 @@
 //! search page, `tabs`, `characters`, `saved`, `jobs`, an item's page): its
 //! `from` is itself, its route and its fields less `from`, and a `from` its
 //! URL carries is read only as its own way back. A step (`plan`,
-//! `saved/open`, the clear's ask and every POST) hands on the `from` it was
-//! given, and one reached with none has none. So `from` never nests, and no
-//! way back leads to a step: a `from` that names a step, no place of this
-//! server, or holds a token, a scheme or a `from` of its own is a usage
-//! refusal (C47), never dropped. *Declined:* the browser's `Referer`, which
-//! a browser may trim unseen by any test, while the landing page's URL must
-//! carry its way back anyway (C16, a page is its URL).
+//! `saved/open`, the clear's ask, `describe` and every POST) hands on the
+//! `from` it was given, and one reached with none has none. So `from` never
+//! nests, and no way back leads to a step: a `from` that names a step, no
+//! place of this server, or holds a token, a scheme or a `from` of its own
+//! is a usage refusal (C47), never dropped. *Declined:* the browser's
+//! `Referer`, which a browser may trim unseen by any test, while the
+//! landing page's URL must carry its way back anyway (C16, a page is its
+//! URL).
 
 use axum::extract::Query;
 use axum::http::Uri;
@@ -185,7 +186,14 @@ impl FromPage {
 
 /// The routes that are steps: a `from` naming one is refused by its own
 /// words.
-const STEPS: [&str; 5] = ["plan", "apply", "leagues", "saved/open", "saved/clear"];
+const STEPS: [&str; 6] = [
+    "plan",
+    "apply",
+    "leagues",
+    "saved/open",
+    "saved/clear",
+    "describe",
+];
 
 /// The one reader, met first by every place and every step: `from` taken
 /// out of a request's fields and read, at most one, or a usage refusal.
@@ -293,6 +301,7 @@ mod tests {
             ("saved/open?id=0000000000a1", "never to a step"),
             ("apply", "never to a step"),
             ("leagues", "never to a step"),
+            ("describe?names=fields", "never to a step"),
             ("", "no page of this server"),
             ("nowhere", "no page of this server"),
             ("item/a/b", "no page of this server"),

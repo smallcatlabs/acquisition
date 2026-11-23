@@ -5005,6 +5005,253 @@ fn rails_words(rails: &acquisition_protocol::status::RailsStatus, now: i64) -> S
     out
 }
 
+// ---- the language (`describe`) ------------------------------------------------------------------
+
+/// The words of the link from a page that is not the index back to it.
+const THE_INDEX: &str = "The language's index: every entry by its name and one line";
+
+/// The names box's label: what a reader may name in it.
+const NAMES_BOX: &str = "Names: an entry, a block, ~ and a pattern, or all";
+
+/// `describe`'s document as a page (`4-full-1-form-index.md`, Decision 3):
+/// the search crate's words, under the heads of the one table both
+/// renderers read ([`search_cmd::BLOCKS`]), the document destructured
+/// whole, so a field the search crate adds does not compile until it is
+/// rendered here. An entry shows its name, its kind, what it is, its values
+/// and its examples, which are text; each entry's name, each category's id
+/// and each block's head is a link to that name described, made by `link`,
+/// which hands on the page's `from` (`None` the index); a page that is not the index links
+/// back to it. What `next` tells a reader to do is spelled as those links
+/// and the names box, a GET form to this route carrying `from`. A view's
+/// entry is named by the request's word: no flag is spelled here.
+pub(crate) fn describe(
+    d: &acquisition_search::Describe,
+    index: bool,
+    totals: bool,
+    link: &dyn Fn(Option<&str>) -> String,
+    from: Option<&FromPage>,
+) -> String {
+    use search_cmd::{BLOCKS, Block, Part};
+    let acquisition_search::Describe {
+        patterns,
+        fields,
+        line,
+        linked,
+        values,
+        composition,
+        operators,
+        slots,
+        computed,
+        totals: table,
+        counts,
+        explain,
+        answer,
+        categories,
+        trade,
+        trade_rows,
+        not_built,
+        limits,
+        next,
+    } = d;
+    let named = |name: &str, words: &str| {
+        format!("<a href=\"{}\">{}</a>", esc(&link(Some(name))), esc(words))
+    };
+    let mut out = String::from("<div class=\"describe\">\n");
+    for m in patterns {
+        out.push_str(&format!(
+            "<p class=\"pattern\">{}</p>\n",
+            esc(&search_cmd::pattern_said(m))
+        ));
+    }
+    if let Some(next) = next {
+        out.push_str(&format!("<p class=\"next\">{}</p>\n", esc(next)));
+    }
+    let hidden = from
+        .map(|from| hidden(FROM, &from.word()))
+        .unwrap_or_default();
+    out.push_str(&format!(
+        "<form class=\"names\" method=\"get\" action=\"describe\">{hidden}<label class=\"control\">{} <input type=\"text\" name=\"names\" aria-label=\"{}\"></label> <button type=\"submit\">Describe</button></form>\n",
+        esc(NAMES_BOX),
+        esc(NAMES_BOX)
+    ));
+    if !index {
+        out.push_str(&format!(
+            "<p class=\"index\"><a href=\"{}\">{}</a></p>\n",
+            esc(&link(None)),
+            esc(THE_INDEX)
+        ));
+    }
+    let head = |name: &str, head: &str, after: Option<&str>| {
+        format!(
+            "<p class=\"head\">{}{}</p>\n",
+            named(name, head),
+            after
+                .map(|after| esc(&format!(" — {after}")))
+                .unwrap_or_default()
+        )
+    };
+    let entries = |out: &mut String,
+                   block: &Block,
+                   after: Option<&str>,
+                   list: &[acquisition_search::describe::Named]| {
+        if list.is_empty() {
+            return;
+        }
+        out.push_str(&format!(
+            "<section class=\"block\">\n{}",
+            head(block.name, block.head, after)
+        ));
+        out.push_str(
+            "<table class=\"entries\">\n<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>\n",
+        );
+        for e in list {
+            let mut what = esc(&e.what);
+            if !e.values.is_empty() {
+                what.push_str(&format!("<br>one of: {}", esc(&e.values.join(", "))));
+            }
+            if !e.examples.is_empty() {
+                let examples: Vec<String> = e
+                    .examples
+                    .iter()
+                    .map(|x| format!("<code>{}</code>", esc(x)))
+                    .collect();
+                what.push_str(&format!("<br>e.g. {}", examples.join(" ")));
+            }
+            out.push_str(&format!(
+                "<tr><td>{}</td><td>{}</td><td>{what}</td></tr>\n",
+                named(&e.name, &e.name),
+                esc(e.kind)
+            ));
+        }
+        out.push_str("</table>\n</section>\n");
+    };
+    for block in &BLOCKS {
+        match block.part {
+            Part::Fields => entries(&mut out, block, None, fields),
+            Part::Line => entries(&mut out, block, None, line),
+            Part::Linked => entries(&mut out, block, None, linked),
+            Part::Values => entries(&mut out, block, None, values),
+            Part::Composition => entries(&mut out, block, None, composition),
+            Part::Operators => entries(&mut out, block, None, operators),
+            Part::Slots => entries(&mut out, block, None, slots),
+            // the totals' table is named once, over its block (C106's
+            // clause (c))
+            Part::Computed => entries(&mut out, block, Some(table), computed),
+            Part::Counts => entries(&mut out, block, None, counts),
+            Part::Explain => entries(&mut out, block, None, explain),
+            Part::Answer => entries(&mut out, block, None, answer),
+            Part::Totals => {
+                if totals && computed.is_empty() {
+                    out.push_str(&format!(
+                        "<section class=\"block\">\n{}</section>\n",
+                        head(block.name, block.head, Some(table))
+                    ));
+                }
+            }
+            Part::Categories => {
+                if categories.is_empty() {
+                    continue;
+                }
+                out.push_str(&format!(
+                    "<section class=\"block\">\n{}<table class=\"entries\">\n<tr><th>Id</th><th>The site's text</th><th>What makes it hold</th></tr>\n",
+                    head(block.name, block.head, None)
+                ));
+                for c in categories {
+                    out.push_str(&format!(
+                        "<tr><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+                        named(c.id, c.id),
+                        esc(&c.text),
+                        esc(&c.holds)
+                    ));
+                }
+                out.push_str("</table>\n</section>\n");
+            }
+            Part::Trade => {
+                // the index names the catalogue by its rows, a link to it
+                if let Some(rows) = trade_rows {
+                    out.push_str(&format!(
+                        "<section class=\"block\">\n{}</section>\n",
+                        head(
+                            block.name,
+                            block.head,
+                            Some(&format!(
+                                "each clause a site search can carry, {}",
+                                plural(*rows, "row", "rows")
+                            ))
+                        )
+                    ));
+                }
+                let Some(trade) = trade else {
+                    continue;
+                };
+                out.push_str(&format!(
+                    "<section class=\"block\">\n{}",
+                    head(block.name, block.head, Some(&search_cmd::trade_said(trade)))
+                ));
+                out.push_str(
+                    "<table class=\"entries\">\n<tr><th>Key</th><th>What it says</th></tr>\n",
+                );
+                for e in &trade.report {
+                    out.push_str(&format!(
+                        "<tr><td>{}</td><td>{}</td></tr>\n",
+                        esc(&e.name),
+                        esc(&e.what)
+                    ));
+                }
+                out.push_str("</table>\n<table class=\"entries\">\n<tr><th>Clause</th><th>Status</th><th>Lands as</th><th>The text it becomes</th></tr>\n");
+                for r in &trade.rows {
+                    let mut said: Vec<String> =
+                        r.text.iter().chain(&r.says).map(|s| esc(s)).collect();
+                    if let Some(other) = &r.other {
+                        said.push(esc(&format!("read the other way: {other}")));
+                    }
+                    out.push_str(&format!(
+                        "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+                        esc(&r.key),
+                        esc(r.status),
+                        esc(r.lands.as_deref().unwrap_or("—")),
+                        said.join("<br>")
+                    ));
+                }
+                out.push_str("</table>\n</section>\n");
+            }
+            Part::NotBuilt => {
+                if not_built.is_empty() {
+                    continue;
+                }
+                out.push_str(&format!(
+                    "<section class=\"block\">\n{}<table class=\"entries\">\n<tr><th>Name</th><th>When</th><th>What it would do</th></tr>\n",
+                    head(block.name, block.head, None)
+                ));
+                for n in not_built {
+                    out.push_str(&format!(
+                        "<tr><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+                        esc(n.construct),
+                        esc(&n.step_text()),
+                        esc(n.what)
+                    ));
+                }
+                out.push_str("</table>\n</section>\n");
+            }
+            Part::Limits => {
+                if limits.is_empty() {
+                    continue;
+                }
+                out.push_str(&format!(
+                    "<section class=\"block\">\n{}<ul>\n",
+                    head(block.name, block.head, None)
+                ));
+                for l in limits {
+                    out.push_str(&format!("<li>{}</li>\n", esc(l.said)));
+                }
+                out.push_str("</ul>\n</section>\n");
+            }
+        }
+    }
+    out.push_str("</div>\n");
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

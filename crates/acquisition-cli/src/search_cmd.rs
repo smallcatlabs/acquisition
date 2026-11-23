@@ -459,7 +459,7 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
         // `all` every entry whole, in text and in JSON alike (C53)
         let names = describe_list(names);
         let described = describe(&names).map_err(|e| fail(e, json))?;
-        let totals = names.iter().any(|n| n.eq_ignore_ascii_case("totals"));
+        let totals = asks_totals(&names);
         return emit(&described, json, |d| describe_text(d, totals));
     }
     // a saved search is its scope and its query whole, as a continuation
@@ -2459,7 +2459,7 @@ pub(crate) fn cross_head_words(cross: &CrossOut, rest: &str) -> String {
 /// part the names, and an item that starts with `~` and has more is a
 /// pattern taking the rest of its value whole, so a pattern's own commas
 /// reach the search crate; each `--describe` adds a list of its own.
-fn describe_list(values: &[String]) -> Vec<String> {
+pub(crate) fn describe_list(values: &[String]) -> Vec<String> {
     let mut names = Vec::new();
     for value in values {
         let mut rest = value.as_str();
@@ -2483,28 +2483,171 @@ fn describe_list(values: &[String]) -> Vec<String> {
     names
 }
 
+/// Whether a list asks for the totals table by its block's name: its head
+/// stands alone where no computed value's head names it.
+pub(crate) fn asks_totals(names: &[String]) -> bool {
+    names.iter().any(|n| n.eq_ignore_ascii_case("totals"))
+}
+
 /// How a terminal asks what the document's `next` names.
 /// A static example, so in the portable form no declared shell expands or
 /// needs quoted (C156): `~` after `=` is no home directory anywhere.
 const DESCRIBE_SPELLED: &str = "at a terminal: `--describe <name>,…` names entries or blocks, `--describe=~<pattern>` a pattern, `--describe all` everything";
 
+/// A block of `describe`'s document, as a renderer prints it under its
+/// head ([`BLOCKS`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Part {
+    Fields,
+    Line,
+    Linked,
+    Values,
+    Composition,
+    Operators,
+    Slots,
+    Computed,
+    Counts,
+    Explain,
+    Answer,
+    Totals,
+    Categories,
+    Trade,
+    NotBuilt,
+    Limits,
+}
+
+/// One block of `describe`'s document: its part, the name that asks for
+/// it whole (the document's key, `acquisition_search::describe::SECTIONS`)
+/// and the head a renderer prints over it.
+pub(crate) struct Block {
+    pub part: Part,
+    pub name: &'static str,
+    pub head: &'static str,
+}
+
+/// The blocks' heads and their order, the one home both renderers read
+/// (`describe_text` and the page's, `4-full-1-form-index.md`, Decision 3):
+/// words that name no flag, a terminal adding its own after a head where
+/// it spells one. A head that carries a fact of the document (the totals
+/// table's version, the catalogue's) is followed by it, in each renderer.
+pub(crate) const BLOCKS: [Block; 16] = [
+    Block {
+        part: Part::Fields,
+        name: "fields",
+        head: "fields",
+    },
+    Block {
+        part: Part::Line,
+        name: "line",
+        head: "inside line( … )",
+    },
+    Block {
+        part: Part::Linked,
+        name: "linked",
+        head: "inside linked( … )",
+    },
+    Block {
+        part: Part::Values,
+        name: "values",
+        head: "values",
+    },
+    Block {
+        part: Part::Composition,
+        name: "composition",
+        head: "composition",
+    },
+    Block {
+        part: Part::Operators,
+        name: "operators",
+        head: "operators",
+    },
+    Block {
+        part: Part::Slots,
+        name: "slots",
+        head: "slots",
+    },
+    Block {
+        part: Part::Computed,
+        name: "computed",
+        head: "computed values",
+    },
+    Block {
+        part: Part::Counts,
+        name: "counts",
+        head: "counts",
+    },
+    Block {
+        part: Part::Explain,
+        name: "explain",
+        head: "why an answer is what it is",
+    },
+    Block {
+        part: Part::Answer,
+        name: "answer",
+        head: "an answer, key by key",
+    },
+    Block {
+        part: Part::Totals,
+        name: "totals",
+        head: "totals",
+    },
+    Block {
+        part: Part::Categories,
+        name: "categories",
+        head: "categories — the trade site's ids, as spelled",
+    },
+    Block {
+        part: Part::Trade,
+        name: "trade",
+        head: "trade",
+    },
+    Block {
+        part: Part::NotBuilt,
+        name: "not_built",
+        head: "not built, refused by name",
+    },
+    Block {
+        part: Part::Limits,
+        name: "limits",
+        head: "limits, as the search states them",
+    },
+];
+
+/// What a pattern of a list matched, as its answer opens: the pattern,
+/// how many entries, whole or at one line.
+pub(crate) fn pattern_said(m: &acquisition_search::describe::Matched) -> String {
+    format!(
+        "pattern {} — {}, {}",
+        m.pattern,
+        plural(m.matched, "entry", "entries"),
+        match m.whole {
+            true => "each whole",
+            false => "one line each",
+        }
+    )
+}
+
+/// What the trade catalogue's block holds, after its head where it is
+/// whole: its version, the stats table's, and what it lists.
+pub(crate) fn trade_said(trade: &acquisition_search::describe::TradeCatalogue) -> String {
+    format!(
+        "the catalogue v{}, the site's stats of {}: what an answer reports of a translation, then each clause a site search can carry, its status when it runs, and the text it becomes",
+        trade.version, trade.stats
+    )
+}
+
 fn describe_text(d: &Describe, totals: bool) -> String {
     let mut out = String::new();
     // a pattern's answer opens with what each pattern matched
     for m in &d.patterns {
-        out.push_str(&format!(
-            "pattern {} — {}, {}\n",
-            m.pattern,
-            plural(m.matched, "entry", "entries"),
-            match m.whole {
-                true => "each whole",
-                false => "one line each",
-            }
-        ));
+        out.push_str(&format!("{}\n", pattern_said(m)));
     }
     // a view's entry is named by the request's word, and this terminal
     // spells it as its flag after it (C143)
-    let mut block = |head: &str, entries: &[acquisition_search::describe::Named], flags: bool| {
+    let entries = |out: &mut String,
+                   head: &str,
+                   entries: &[acquisition_search::describe::Named],
+                   flags: bool| {
         if entries.is_empty() {
             return;
         }
@@ -2552,106 +2695,120 @@ fn describe_text(d: &Describe, totals: bool) -> String {
             }
         }
     };
-    block("fields", &d.fields, false);
-    block("inside line( … )", &d.line, false);
-    block("inside linked( … )", &d.linked, false);
-    block("values", &d.values, false);
-    block("composition", &d.composition, false);
-    block("operators", &d.operators, false);
-    block("slots", &d.slots, false);
-    // the totals' table is named once, over the block, with its version
-    // and source (C106's clause (c))
-    block(
-        &format!("computed values — {}", d.totals),
-        &d.computed,
-        false,
-    );
-    block("counts", &d.counts, true);
-    block("why an answer is what it is", &d.explain, true);
-    block("an answer, key by key", &d.answer, false);
-    // `--describe totals`: the table, where no computed value's head
-    // already names it
-    if totals && d.computed.is_empty() {
-        out.push_str(&format!("totals — {}\n", d.totals));
-    }
-    // every category id with the site's text for it and what makes it
-    // hold (C106)
-    if !d.categories.is_empty() {
-        out.push_str("categories — the trade site's ids, as spelled\n");
-        for c in &d.categories {
-            out.push_str(&format!("  {:<30}{}\n", c.id, c.text));
-            if !c.holds.is_empty() {
-                out.push_str(&format!("  {:<30}  {}\n", "", c.holds));
+    for Block { part, head, .. } in &BLOCKS {
+        match part {
+            Part::Fields => entries(&mut out, head, &d.fields, false),
+            Part::Line => entries(&mut out, head, &d.line, false),
+            Part::Linked => entries(&mut out, head, &d.linked, false),
+            Part::Values => entries(&mut out, head, &d.values, false),
+            Part::Composition => entries(&mut out, head, &d.composition, false),
+            Part::Operators => entries(&mut out, head, &d.operators, false),
+            Part::Slots => entries(&mut out, head, &d.slots, false),
+            // the totals' table is named once, over the block, with its
+            // version and source (C106's clause (c))
+            Part::Computed => entries(
+                &mut out,
+                &format!("{head} — {}", d.totals),
+                &d.computed,
+                false,
+            ),
+            Part::Counts => entries(&mut out, head, &d.counts, true),
+            Part::Explain => entries(&mut out, head, &d.explain, true),
+            Part::Answer => entries(&mut out, head, &d.answer, false),
+            // `--describe totals`: the table, where no computed value's
+            // head already names it
+            Part::Totals => {
+                if totals && d.computed.is_empty() {
+                    out.push_str(&format!("{head} — {}\n", d.totals));
+                }
             }
-        }
-    }
-    // the catalogue is a block of its own: the index names it
-    if let Some(rows) = d.trade_rows {
-        out.push_str(&format!(
-            "trade — what `--trade` makes of each clause a site search can carry, {rows} rows: `--describe trade`\n"
-        ));
-    }
-    if let Some(trade) = &d.trade {
-        out.push_str(&format!(
-                "trade — the catalogue v{}, the site's stats of {}: what an answer reports of a translation, then each clause a site search can carry, its status when it runs, and the text it becomes\n",
-                trade.version, trade.stats
-            ));
-        // the report an answer carries opens the block, before the rows
-        let width = trade
-            .report
-            .iter()
-            .map(|e| e.name.chars().count() + 2)
-            .max()
-            .unwrap_or(0);
-        for e in &trade.report {
-            out.push_str(&format!("  {:<width$}{}\n", e.name, e.what));
-        }
-        let key = trade
-            .rows
-            .iter()
-            .map(|r| r.key.chars().count() + 2)
-            .max()
-            .unwrap_or(0);
-        for r in &trade.rows {
-            out.push_str(&format!(
-                "  {:<key$}{:<14}{}\n",
-                r.key,
-                r.status,
-                r.lands.as_deref().unwrap_or("—")
-            ));
-            for said in r.text.iter().chain(&r.says) {
-                out.push_str(&format!("  {:<key$}{:<14}{said}\n", "", ""));
+            // every category id with the site's text for it and what makes
+            // it hold (C106)
+            Part::Categories => {
+                if !d.categories.is_empty() {
+                    out.push_str(&format!("{head}\n"));
+                    for c in &d.categories {
+                        out.push_str(&format!("  {:<30}{}\n", c.id, c.text));
+                        if !c.holds.is_empty() {
+                            out.push_str(&format!("  {:<30}  {}\n", "", c.holds));
+                        }
+                    }
+                }
             }
-            if let Some(other) = &r.other {
-                out.push_str(&format!(
-                    "  {:<key$}{:<14}read the other way: {other}\n",
-                    "", ""
-                ));
+            Part::Trade => {
+                // the catalogue is a block of its own: the index names it,
+                // and this terminal spells how to ask it
+                if let Some(rows) = d.trade_rows {
+                    out.push_str(&format!(
+                        "{head} — what `--trade` makes of each clause a site search can carry, {rows} rows: `--describe trade`\n"
+                    ));
+                }
+                if let Some(trade) = &d.trade {
+                    out.push_str(&format!("{head} — {}\n", trade_said(trade)));
+                    // the report an answer carries opens the block, before
+                    // the rows
+                    let width = trade
+                        .report
+                        .iter()
+                        .map(|e| e.name.chars().count() + 2)
+                        .max()
+                        .unwrap_or(0);
+                    for e in &trade.report {
+                        out.push_str(&format!("  {:<width$}{}\n", e.name, e.what));
+                    }
+                    let key = trade
+                        .rows
+                        .iter()
+                        .map(|r| r.key.chars().count() + 2)
+                        .max()
+                        .unwrap_or(0);
+                    for r in &trade.rows {
+                        out.push_str(&format!(
+                            "  {:<key$}{:<14}{}\n",
+                            r.key,
+                            r.status,
+                            r.lands.as_deref().unwrap_or("—")
+                        ));
+                        for said in r.text.iter().chain(&r.says) {
+                            out.push_str(&format!("  {:<key$}{:<14}{said}\n", "", ""));
+                        }
+                        if let Some(other) = &r.other {
+                            out.push_str(&format!(
+                                "  {:<key$}{:<14}read the other way: {other}\n",
+                                "", ""
+                            ));
+                        }
+                    }
+                }
             }
-        }
-    }
-    if !d.not_built.is_empty() {
-        out.push_str("not built, refused by name\n");
-        let width = d
-            .not_built
-            .iter()
-            .map(|n| flagged(n.construct).chars().count() + 2)
-            .max()
-            .unwrap_or(0)
-            .max(22);
-        for n in &d.not_built {
-            out.push_str(&format!(
-                "  {:<width$}{:<32}{}\n",
-                flagged(n.construct),
-                n.step_text(),
-                n.what
-            ));
-        }
-    }
-    if !d.limits.is_empty() {
-        out.push_str("limits, as the search states them\n");
-        for l in &d.limits {
-            out.push_str(&format!("  {}\n", l.said));
+            Part::NotBuilt => {
+                if !d.not_built.is_empty() {
+                    out.push_str(&format!("{head}\n"));
+                    let width = d
+                        .not_built
+                        .iter()
+                        .map(|n| flagged(n.construct).chars().count() + 2)
+                        .max()
+                        .unwrap_or(0)
+                        .max(22);
+                    for n in &d.not_built {
+                        out.push_str(&format!(
+                            "  {:<width$}{:<32}{}\n",
+                            flagged(n.construct),
+                            n.step_text(),
+                            n.what
+                        ));
+                    }
+                }
+            }
+            Part::Limits => {
+                if !d.limits.is_empty() {
+                    out.push_str(&format!("{head}\n"));
+                    for l in &d.limits {
+                        out.push_str(&format!("  {}\n", l.said));
+                    }
+                }
+            }
         }
     }
     // how to go on, in the document's words, then this terminal's
@@ -3059,6 +3216,18 @@ fn flagged(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The heads' one table names each block of the document once, by the
+    /// key the search crate serialises it under and asks it by: a block the
+    /// search crate adds has no head until it is given one here.
+    #[test]
+    fn the_heads_table_names_every_block_of_the_document_once() {
+        let mut named: Vec<&str> = BLOCKS.iter().map(|b| b.name).collect();
+        let mut sections = acquisition_search::describe::SECTIONS.to_vec();
+        named.sort_unstable();
+        sections.sort_unstable();
+        assert_eq!(named, sections);
+    }
 
     /// C53 (an answer says the limit it applied): where a limit asked
     /// past the item rows' bound was lowered, the words name the bound and

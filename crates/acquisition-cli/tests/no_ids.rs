@@ -40,6 +40,27 @@ fn ids(text: &str) -> Vec<String> {
     found
 }
 
+/// A page's line less its URLs' percent-escapes (`%E2%80%A6`, a link to
+/// the slot entry `arg1 arg2 …`): bytes of a link, which no reader reads
+/// as words, and whose hex digits are shaped as an id.
+fn without_escapes(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(at) = rest.find('%') {
+        out.push_str(&rest[..at]);
+        let after = &rest[at + 1..];
+        match after.get(..2) {
+            Some(hex) if hex.chars().all(|c| c.is_ascii_hexdigit()) => rest = &after[2..],
+            _ => {
+                out.push('%');
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// A sitting's search as a reader meets it, `t41`, `u090`, `i06`: a
 /// small letter and two or three digits, a whole word not after a dot (a
 /// field's `armour.q20` is one). Swept in the printed documents alone —
@@ -253,7 +274,7 @@ fn c116_no_user_facing_text_cites_a_record_id() {
             let found = if line.starts_with("# golden ") {
                 Vec::new()
             } else {
-                ids(line)
+                ids(&without_escapes(line))
             };
             if !found.is_empty() {
                 let at = page.strip_prefix(root).unwrap_or(page).display();
@@ -286,7 +307,8 @@ fn c116_no_user_facing_text_cites_a_record_id() {
 }
 
 /// The sweep's own reader: a literal is read whole, a comment is not, and
-/// a test module's literals are no binary's.
+/// a test module's literals are no binary's; a page's percent-escapes
+/// are left out.
 #[test]
 fn c116_the_sweep_reads_literals_and_leaves_comments_and_tests() {
     let src = r##"
@@ -311,5 +333,10 @@ fn h() { "after the tests, N47" }
     assert_eq!(
         searches("as the site reads it (u090), armour.q20, v1, t41"),
         ["u090", "t41"]
+    );
+    // a link's percent-escape is no word; an id beside it still is
+    assert_eq!(
+        ids(&without_escapes("names=arg1%20arg2%20%E2%80%A6\">C81 100%")),
+        ["C81"]
     );
 }

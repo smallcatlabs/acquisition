@@ -1,0 +1,488 @@
+# golden web/describe: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+GET describe
+# holds "This is the index, each entry by its name and one line"
+# holds "<form class=\"names\" method=\"get\" action=\"describe\">"
+# holds "<input type=\"text\" name=\"names\""
+# holds "describe?names=pseudo.total_life\">pseudo.total_life</a>"
+# holds "describe?names=accessory.ring\">accessory.ring</a>"
+# holds "describe?names=line\">inside line( … )</a>"
+# holds "describe?names=computed\">computed values</a> — totals v"
+# holds "describe?names=trade\">trade</a> — each clause a site search can carry,"
+# holds "describe?names=limits\">limits, as the search states them</a>"
+<main>
+<h1>The language</h1>
+<div class="describe">
+<p class="next">This is the index, each entry by its name and one line: name an entry for it whole (league, pseudo.total_res, accessory.ring), a block for every entry in it (computed, categories, trade), ~ and a pattern for the entries whose name or definition it matches (~resist), or all for everything whole.</p>
+<form class="names" method="get" action="describe"><label class="control">Names: an entry, a block, ~ and a pattern, or all <input type="text" name="names" aria-label="Names: an entry, a block, ~ and a pattern, or all"></label> <button type="submit">Describe</button></form>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=fields">fields</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=text">text</a></td><td>text</td><td>every displayed string, each tested on its own</td></tr>
+<tr><td><a href="/<token>/describe?names=name">name</a></td><td>text</td><td>GGG&#39;s name; a magic or normal item, a gem, a currency stack has none</td></tr>
+<tr><td><a href="/<token>/describe?names=typeline">typeline</a></td><td>text</td><td>GGG&#39;s type line</td></tr>
+<tr><td><a href="/<token>/describe?names=base">base</a></td><td>text</td><td>GGG&#39;s base type</td></tr>
+<tr><td><a href="/<token>/describe?names=note">note</a></td><td>text</td><td>the item&#39;s note as GGG gives it; never part of `text`</td></tr>
+<tr><td><a href="/<token>/describe?names=rarity">rarity</a></td><td>closed set</td><td>GGG&#39;s rarity; a gem, a currency stack, a card has none</td></tr>
+<tr><td><a href="/<token>/describe?names=frame">frame</a></td><td>closed set</td><td>GGG&#39;s frameTypeId, on every item</td></tr>
+<tr><td><a href="/<token>/describe?names=class">class</a></td><td>closed set</td><td>the item&#39;s class as the game names it, read from its base in the class table — classes v1, 83 classes over pc, xbox, sony</td></tr>
+<tr><td><a href="/<token>/describe?names=category">category</a></td><td>closed set</td><td>the trade site&#39;s category of the item, by the site&#39;s own id — a convention, computed from the item&#39;s class and reviewed rules</td></tr>
+<tr><td><a href="/<token>/describe?names=ilvl">ilvl</a></td><td>number</td><td>the item level; GGG&#39;s 0 is an item with none</td></tr>
+<tr><td><a href="/<token>/describe?names=reqlevel">reqlevel</a></td><td>number</td><td>the level the item requires</td></tr>
+<tr><td><a href="/<token>/describe?names=stack">stack</a></td><td>number</td><td>GGG&#39;s stackSize</td></tr>
+<tr><td><a href="/<token>/describe?names=sockets">sockets</a></td><td>number</td><td>how many sockets the item has, of every kind; an item whose body lists none lacks it, and one that lists an empty collection has 0</td></tr>
+<tr><td><a href="/<token>/describe?names=links">links</a></td><td>number</td><td>the size of the item&#39;s largest link group; an item with no link group lacks it</td></tr>
+<tr><td><a href="/<token>/describe?names=priced">priced</a></td><td>flag</td><td>whether the item carries an effective price</td></tr>
+<tr><td><a href="/<token>/describe?names=price.amount">price.amount</a></td><td>number</td><td>the number the effective price states</td></tr>
+<tr><td><a href="/<token>/describe?names=price.currency">price.currency</a></td><td>closed set</td><td>the effective price&#39;s currency, by the tag of the currency table</td></tr>
+<tr><td><a href="/<token>/describe?names=price.lot">price.lot</a></td><td>number</td><td>a bulk ratio&#39;s lot — `wanted/lot` — which a decimal price lacks</td></tr>
+<tr><td><a href="/<token>/describe?names=price.side">price.side</a></td><td>closed set</td><td>who set the effective price</td></tr>
+<tr><td><a href="/<token>/describe?names=league">league</a></td><td>text</td><td>the league the item is in now — its place, never where it came from</td></tr>
+<tr><td><a href="/<token>/describe?names=tab">tab</a></td><td>text</td><td>the name of the stash tab the item is in; in a substash, that name and its tab&#39;s</td></tr>
+<tr><td><a href="/<token>/describe?names=tab.type">tab.type</a></td><td>text</td><td>GGG&#39;s `type` of the stash tab the item is in, verbatim — MapStash, QuadStash, CurrencyStash, …</td></tr>
+<tr><td><a href="/<token>/describe?names=tab.public">tab.public</a></td><td>closed set</td><td>whether the stash tab the item is in is public, as GGG&#39;s stash list says of it</td></tr>
+<tr><td><a href="/<token>/describe?names=tab.remove_only">tab.remove_only</a></td><td>closed set</td><td>whether the stash tab the item is in is remove-only, which GGG marks by ending its name with ` (Remove-only)`</td></tr>
+<tr><td><a href="/<token>/describe?names=character">character</a></td><td>text</td><td>the name of the character the item is on</td></tr>
+<tr><td><a href="/<token>/describe?names=container">container</a></td><td>text</td><td>the array the item came in</td></tr>
+<tr><td><a href="/<token>/describe?names=id">id</a></td><td>id</td><td>any id an answer printed, whole</td></tr>
+<tr><td><a href="/<token>/describe?names=attacks_per_second">attacks_per_second</a></td><td>number</td><td>a weapon&#39;s `Attacks per Second`, as displayed — local modifiers applied by the game (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=critical_strike_chance">critical_strike_chance</a></td><td>number</td><td>the displayed `Critical Strike Chance`, in percent</td></tr>
+<tr><td><a href="/<token>/describe?names=chance_to_block">chance_to_block</a></td><td>number</td><td>a shield&#39;s displayed `Chance to Block`, in percent (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=armour.q20">armour.q20</a></td><td>number</td><td>the displayed `Armour` at 20 % quality, as the trade site&#39;s Armour filter states it</td></tr>
+<tr><td><a href="/<token>/describe?names=evasion_rating.q20">evasion_rating.q20</a></td><td>number</td><td>the displayed `Evasion Rating` at 20 % quality, by `armour.q20`&#39;s rule (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=energy_shield.q20">energy_shield.q20</a></td><td>number</td><td>the displayed `Energy Shield` at 20 % quality, by `armour.q20`&#39;s rule (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=ward.q20">ward.q20</a></td><td>number</td><td>the displayed `Ward` at 20 % quality, by `armour.q20`&#39;s rule (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=armour">armour</a></td><td>number</td><td>the displayed `Armour`, as the item stands at its own quality; `armour.q20` is the trade site&#39;s reading at 20 % (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=evasion_rating">evasion_rating</a></td><td>number</td><td>the displayed `Evasion Rating`, as the item stands at its own quality; `evasion_rating.q20` is the trade site&#39;s reading at 20 % (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=energy_shield">energy_shield</a></td><td>number</td><td>the displayed `Energy Shield`, as the item stands at its own quality; `energy_shield.q20` is the trade site&#39;s reading at 20 % (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=ward">ward</a></td><td>number</td><td>the displayed `Ward`, as the item stands at its own quality; `ward.q20` is the trade site&#39;s reading at 20 % (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=str">str</a></td><td>number</td><td>the Strength the item requires</td></tr>
+<tr><td><a href="/<token>/describe?names=dex">dex</a></td><td>number</td><td>the Dexterity the item requires</td></tr>
+<tr><td><a href="/<token>/describe?names=int">int</a></td><td>number</td><td>the Intelligence the item requires</td></tr>
+<tr><td><a href="/<token>/describe?names=map_tier">map_tier</a></td><td>number</td><td>a map&#39;s tier</td></tr>
+<tr><td><a href="/<token>/describe?names=area_level">area_level</a></td><td>number</td><td>the displayed `Area Level`</td></tr>
+<tr><td><a href="/<token>/describe?names=monster_pack_size">monster_pack_size</a></td><td>number</td><td>a map&#39;s displayed `Monster Pack Size`, in percent (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=item_quantity">item_quantity</a></td><td>number</td><td>the displayed `Item Quantity`, in percent</td></tr>
+<tr><td><a href="/<token>/describe?names=atlas_drops">atlas_drops</a></td><td>number</td><td>the displayed `Atlas Drops`, in percent</td></tr>
+<tr><td><a href="/<token>/describe?names=item_rarity">item_rarity</a></td><td>number</td><td>the displayed `Item Rarity`, in percent (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=memory_strands">memory_strands</a></td><td>number</td><td>the displayed `Memory Strands` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=wings_revealed">wings_revealed</a></td><td>number</td><td>a blueprint&#39;s wings revealed</td></tr>
+<tr><td><a href="/<token>/describe?names=wings_revealed.of">wings_revealed.of</a></td><td>number</td><td>a blueprint&#39;s wings in all</td></tr>
+<tr><td><a href="/<token>/describe?names=escape_routes_revealed">escape_routes_revealed</a></td><td>number</td><td>the first number of `Escape Routes Revealed</td></tr>
+<tr><td><a href="/<token>/describe?names=escape_routes_revealed.of">escape_routes_revealed.of</a></td><td>number</td><td>the second number of `Escape Routes Revealed</td></tr>
+<tr><td><a href="/<token>/describe?names=reward_rooms_revealed">reward_rooms_revealed</a></td><td>number</td><td>the first number of `Reward Rooms Revealed</td></tr>
+<tr><td><a href="/<token>/describe?names=reward_rooms_revealed.of">reward_rooms_revealed.of</a></td><td>number</td><td>the second number of `Reward Rooms Revealed</td></tr>
+<tr><td><a href="/<token>/describe?names=lockpicking">lockpicking</a></td><td>number</td><td>the level of Lockpicking a contract or blueprint requires, `Requires Lockpicking (Level n)`, or a heist item requires of its wearer, `Requires Level n in Lockpicking`, which the trade site&#39;s skill filter reads too (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=brute_force">brute_force</a></td><td>number</td><td>the level of Brute Force a contract or blueprint requires, as `lockpicking` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=perception">perception</a></td><td>number</td><td>the level of Perception a contract or blueprint requires, as `lockpicking` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=demolition">demolition</a></td><td>number</td><td>the level of Demolition a contract or blueprint requires, as `lockpicking` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=counter_thaumaturgy">counter_thaumaturgy</a></td><td>number</td><td>the level of Counter-Thaumaturgy a contract or blueprint requires, as `lockpicking` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=trap_disarmament">trap_disarmament</a></td><td>number</td><td>the level of Trap Disarmament a contract or blueprint requires, as `lockpicking` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=agility">agility</a></td><td>number</td><td>the level of Agility a contract or blueprint requires, as `lockpicking` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=deception">deception</a></td><td>number</td><td>the level of Deception a contract or blueprint requires, as `lockpicking` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=engineering">engineering</a></td><td>number</td><td>the level of Engineering a contract or blueprint requires, as `lockpicking` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=resolve">resolve</a></td><td>number</td><td>a sanctum&#39;s resolve</td></tr>
+<tr><td><a href="/<token>/describe?names=resolve.of">resolve.of</a></td><td>number</td><td>a sanctum&#39;s maximum resolve</td></tr>
+<tr><td><a href="/<token>/describe?names=inspiration">inspiration</a></td><td>number</td><td>a sanctum&#39;s displayed `Inspiration` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=aureus">aureus</a></td><td>number</td><td>a sanctum&#39;s displayed `Aureus` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=quality">quality</a></td><td>number</td><td>the displayed `Quality`, in percent, and a catalysed ring&#39;s or amulet&#39;s, `Quality (Resistance Modifiers)` and its eleven kin, which the trade site&#39;s Quality reads too; a map&#39;s `Quality (Quantity)` and its kin are names of their own and not read (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=level">level</a></td><td>number</td><td>a gem&#39;s displayed `Level`, `(Max)` beside it read and dropped; the level an item requires is `reqlevel` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=experience">experience</a></td><td>number</td><td>a gem&#39;s experience as the percent of its level&#39;s</td></tr>
+<tr><td><a href="/<token>/describe?names=stored_experience">stored_experience</a></td><td>number</td><td>the displayed `Stored Experience` (properties v1)</td></tr>
+<tr><td><a href="/<token>/describe?names=sockets.%3Cword%3E">sockets.&lt;word&gt;</a></td><td>number</td><td>how many sockets of one kind the item has, over every link group; GGG&#39;s letter for the word (red R, green G, blue B, white W, abyssal A), so a resonator&#39;s socket (DV) counts in `sockets` and under no word</td></tr>
+<tr><td><a href="/<token>/describe?names=is">is</a></td><td>flag</td><td>every yes the item&#39;s body says, as GGG spells it; `-is:` is no, silence is any</td></tr>
+<tr><td><a href="/<token>/describe?names=has">has</a></td><td>flag</td><td>presence; absence only when all that could hold the thing was readable</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=line">inside line( … )</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=template">template</a></td><td>text</td><td>the displayed line with each number a #, the sign in the number — a + typed before a #, as the game and the trade site write a line, is spelling and is dropped; a bare &quot;T&quot; means template=&quot;T&quot;. A mod displayed over several rows is one line</td></tr>
+<tr><td><a href="/<token>/describe?names=source">source</a></td><td>closed set</td><td>the array the line came in, without its `Mods`; hybrid is a vaal gem&#39;s base skill</td></tr>
+<tr><td><a href="/<token>/describe?names=is">is</a></td><td>flag</td><td>the flags the body sets on the line</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=linked">inside linked( … )</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=red%20green%20blue%20white%20abyssal">red green blue white abyssal</a></td><td>number</td><td>how many sockets of each word one link group holds, an abyssal socket a group of its own as GGG gives it; every count named holds together on one group</td></tr>
+<tr><td><a href="/<token>/describe?names=size">size</a></td><td>number</td><td>how many sockets the link group holds; an item with no link group lacks every `linked( … )`</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=values">values</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=line%28P%29.%3Cslot%3E">line(P).&lt;slot&gt;</a></td><td>value</td><td>one occurrence&#39;s number</td></tr>
+<tr><td><a href="/<token>/describe?names=sum">sum</a></td><td>value</td><td>the item&#39;s sum of a slot over the occurrences P selects, exact in decimals; nothing sums to zero; with a possible contributor unread it is incomplete and its comparison undecided. A sum over lines a pattern selects is your arithmetic, never a reviewed total</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=composition">composition</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=and">and</a></td><td>composition</td><td>whitespace or the word, at the level you are in; `a b or c` unparenthesised is an error showing both readings</td></tr>
+<tr><td><a href="/<token>/describe?names=or">or</a></td><td>composition</td><td>either</td></tr>
+<tr><td><a href="/<token>/describe?names=not%20-">not -</a></td><td>composition</td><td>the term is false; at a terminal a query that starts with - goes after --</td></tr>
+<tr><td><a href="/<token>/describe?names=%28%20%29">( )</a></td><td>composition</td><td>grouping, and nothing else; a query nests at most 32 deep, each `( )`, `not`, `holds( )` and `undecided( )` around a term one level</td></tr>
+<tr><td><a href="/<token>/describe?names=holds">holds</a></td><td>composition</td><td>how many of its queries hold</td></tr>
+<tr><td><a href="/<token>/describe?names=undecided">undecided</a></td><td>composition</td><td>true when a thing&#39;s value or a term&#39;s truth cannot be established on the item — something it needs was unread; always decided itself</td></tr>
+<tr><td><a href="/<token>/describe?names=true%28%29%20false%28%29">true() false()</a></td><td>composition</td><td>always true, always false</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=operators">operators</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=%3A">:</a></td><td>operator</td><td>contains, in any case; on a closed set, picks among its legal values</td></tr>
+<tr><td><a href="/<token>/describe?names=%3D">=</a></td><td>operator</td><td>the whole value, in any case; with a..b, a number inside the range, a side may be blank</td></tr>
+<tr><td><a href="/<token>/describe?names=~">~</a></td><td>operator</td><td>a pattern</td></tr>
+<tr><td><a href="/<token>/describe?names=%3E%20%3E%3D%20%3C%20%3C%3D">&gt; &gt;= &lt; &lt;=</a></td><td>operator</td><td>a number against a number</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=slots">slots</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=arg1%20arg2%20%E2%80%A6">arg1 arg2 …</a></td><td>slot</td><td>every number of a template by position, counting from 1</td></tr>
+<tr><td><a href="/<token>/describe?names=low%20high%20avg">low high avg</a></td><td>slot</td><td>on a ranged line — a template with exactly one `# to #`</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=computed">computed values</a> — totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats, by what the site answered of each or, for a row a patch reworded, by its stats (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at acquisition-qt@946a4f51; a total leaves out a crucible node&#39;s lines and a flask&#39;s own lines: the arrays `crucibleMods` and `utilityMods`, and no other array</p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_cold_res">pseudo.total_cold_res</a></td><td>total</td><td>the trade site&#39;s pseudo_total_cold_resistance (`+#% total to Cold Resistance`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_fire_res">pseudo.total_fire_res</a></td><td>total</td><td>the trade site&#39;s pseudo_total_fire_resistance (`+#% total to Fire Resistance`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_lightning_res">pseudo.total_lightning_res</a></td><td>total</td><td>the trade site&#39;s pseudo_total_lightning_resistance (`+#% total to Lightning Resistance`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_ele_res">pseudo.total_ele_res</a></td><td>total</td><td>the trade site&#39;s pseudo_total_elemental_resistance (`+#% total Elemental Resistance`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_chaos_res">pseudo.total_chaos_res</a></td><td>total</td><td>the trade site&#39;s pseudo_total_chaos_resistance (`+#% total to Chaos Resistance`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_res">pseudo.total_res</a></td><td>total</td><td>the trade site&#39;s pseudo_total_resistance (`+#% total Resistance`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_str">pseudo.total_str</a></td><td>total</td><td>the trade site&#39;s pseudo_total_strength (`+# total to Strength`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_dex">pseudo.total_dex</a></td><td>total</td><td>the trade site&#39;s pseudo_total_dexterity (`+# total to Dexterity`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_int">pseudo.total_int</a></td><td>total</td><td>the trade site&#39;s pseudo_total_intelligence (`+# total to Intelligence`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_attack_speed">pseudo.total_attack_speed</a></td><td>total</td><td>the trade site&#39;s pseudo_total_attack_speed (`+#% total Attack Speed`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_cast_speed">pseudo.total_cast_speed</a></td><td>total</td><td>the trade site&#39;s pseudo_total_cast_speed (`+#% total Cast Speed`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_increased_phys">pseudo.total_increased_phys</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_physical_damage (`+#% total increased Physical Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_spell_crit">pseudo.total_spell_crit</a></td><td>total</td><td>the trade site&#39;s pseudo_critical_strike_chance_for_spells (`+#% total Critical Strike Chance for Spells`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_gem_levels">pseudo.total_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_gem_levels (`+# total to Level of Socketed Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_elemental_gem_levels">pseudo.total_elemental_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_elemental_gem_levels (`+# total to Level of Socketed Elemental Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_fire_gem_levels">pseudo.total_fire_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_fire_gem_levels (`+# total to Level of Socketed Fire Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_cold_gem_levels">pseudo.total_cold_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_cold_gem_levels (`+# total to Level of Socketed Cold Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_lightning_gem_levels">pseudo.total_lightning_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_lightning_gem_levels (`+# total to Level of Socketed Lightning Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_chaos_gem_levels">pseudo.total_chaos_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_chaos_gem_levels (`+# total to Level of Socketed Chaos Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_spell_gem_levels">pseudo.total_spell_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_spell_gem_levels (`+# total to Level of Socketed Spell Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_projectile_gem_levels">pseudo.total_projectile_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_projectile_gem_levels (`+# total to Level of Socketed Projectile Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_bow_gem_levels">pseudo.total_bow_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_bow_gem_levels (`+# total to Level of Socketed Bow Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_melee_gem_levels">pseudo.total_melee_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_melee_gem_levels (`+# total to Level of Socketed Melee Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_minion_gem_levels">pseudo.total_minion_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_minion_gem_levels (`+# total to Level of Socketed Minion Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_strength_gem_levels">pseudo.total_strength_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_strength_gem_levels (`+# total to Level of Socketed Strength Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_dexterity_gem_levels">pseudo.total_dexterity_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_dexterity_gem_levels (`+# total to Level of Socketed Dexterity Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_intelligence_gem_levels">pseudo.total_intelligence_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_intelligence_gem_levels (`+# total to Level of Socketed Intelligence Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_aura_gem_levels">pseudo.total_aura_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_aura_gem_levels (`+# total to Level of Socketed Aura Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_movement_gem_levels">pseudo.total_movement_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_movement_gem_levels (`+# total to Level of Socketed Movement Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_curse_gem_levels">pseudo.total_curse_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_curse_gem_levels (`+# total to Level of Socketed Curse Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_vaal_gem_levels">pseudo.total_vaal_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_vaal_gem_levels (`+# total to Level of Socketed Vaal Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_support_gem_levels">pseudo.total_support_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_support_gem_levels (`+# total to Level of Socketed Support Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_skill_gem_levels">pseudo.total_skill_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_skill_gem_levels (`+# total to Level of Socketed Skill Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_warcry_gem_levels">pseudo.total_warcry_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_warcry_gem_levels (`+# total to Level of Socketed Warcry Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_golem_gem_levels">pseudo.total_golem_gem_levels</a></td><td>total</td><td>the trade site&#39;s pseudo_total_additional_golem_gem_levels (`+# total to Level of Socketed Golem Gems`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_physical">pseudo.adds_physical</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_physical_damage (`Adds # to # Physical Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_lightning">pseudo.adds_lightning</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_lightning_damage (`Adds # to # Lightning Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_cold">pseudo.adds_cold</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_cold_damage (`Adds # to # Cold Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_fire">pseudo.adds_fire</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_fire_damage (`Adds # to # Fire Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_chaos">pseudo.adds_chaos</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_chaos_damage (`Adds # to # Chaos Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_elemental">pseudo.adds_elemental</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_elemental_damage (`Adds # to # Elemental Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_damage">pseudo.adds_damage</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_damage (`Adds # to # Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_physical_to_attacks">pseudo.adds_physical_to_attacks</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_physical_damage_to_attacks (`Adds # to # Physical Damage to Attacks`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_lightning_to_attacks">pseudo.adds_lightning_to_attacks</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_lightning_damage_to_attacks (`Adds # to # Lightning Damage to Attacks`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_cold_to_attacks">pseudo.adds_cold_to_attacks</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_cold_damage_to_attacks (`Adds # to # Cold Damage to Attacks`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_fire_to_attacks">pseudo.adds_fire_to_attacks</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_fire_damage_to_attacks (`Adds # to # Fire Damage to Attacks`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_chaos_to_attacks">pseudo.adds_chaos_to_attacks</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_chaos_damage_to_attacks (`Adds # to # Chaos Damage to Attacks`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_elemental_to_attacks">pseudo.adds_elemental_to_attacks</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_elemental_damage_to_attacks (`Adds # to # Elemental Damage to Attacks`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_damage_to_attacks">pseudo.adds_damage_to_attacks</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_damage_to_attacks (`Adds # to # Damage to Attacks`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_physical_to_spells">pseudo.adds_physical_to_spells</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_physical_damage_to_spells (`Adds # to # Physical Damage to Spells`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_lightning_to_spells">pseudo.adds_lightning_to_spells</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_lightning_damage_to_spells (`Adds # to # Lightning Damage to Spells`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_cold_to_spells">pseudo.adds_cold_to_spells</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_cold_damage_to_spells (`Adds # to # Cold Damage to Spells`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_fire_to_spells">pseudo.adds_fire_to_spells</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_fire_damage_to_spells (`Adds # to # Fire Damage to Spells`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_chaos_to_spells">pseudo.adds_chaos_to_spells</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_chaos_damage_to_spells (`Adds # to # Chaos Damage to Spells`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_elemental_to_spells">pseudo.adds_elemental_to_spells</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_elemental_damage_to_spells (`Adds # to # Elemental Damage to Spells`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.adds_damage_to_spells">pseudo.adds_damage_to_spells</a></td><td>ranged total</td><td>the trade site&#39;s pseudo_adds_damage_to_spells (`Adds # to # Damage to Spells`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_life">pseudo.total_life</a></td><td>total</td><td>the trade site&#39;s pseudo_total_life (`+# total maximum Life`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_mana">pseudo.total_mana</a></td><td>total</td><td>the trade site&#39;s pseudo_total_mana (`+# total maximum Mana`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_energy_shield">pseudo.total_energy_shield</a></td><td>total</td><td>the trade site&#39;s pseudo_total_energy_shield (`+# total maximum Energy Shield`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_increased_energy_shield">pseudo.total_increased_energy_shield</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_energy_shield (`#% total increased maximum Energy Shield`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_movement_speed">pseudo.increased_movement_speed</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_movement_speed (`#% increased Movement Speed`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.global_crit_chance">pseudo.global_crit_chance</a></td><td>total</td><td>the trade site&#39;s pseudo_global_critical_strike_chance (`+#% Global Critical Strike Chance`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.global_crit_multi">pseudo.global_crit_multi</a></td><td>total</td><td>the trade site&#39;s pseudo_global_critical_strike_multiplier (`+#% Global Critical Strike Multiplier`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_ele_damage">pseudo.increased_ele_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_elemental_damage (`#% increased Elemental Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_lightning_damage">pseudo.increased_lightning_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_lightning_damage (`#% increased Lightning Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_cold_damage">pseudo.increased_cold_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_cold_damage (`#% increased Cold Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_fire_damage">pseudo.increased_fire_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_fire_damage (`#% increased Fire Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_spell_damage">pseudo.increased_spell_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_spell_damage (`#% increased Spell Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_lightning_spell_damage">pseudo.increased_lightning_spell_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_lightning_spell_damage (`#% increased Lightning Spell Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_cold_spell_damage">pseudo.increased_cold_spell_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_cold_spell_damage (`#% increased Cold Spell Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_fire_spell_damage">pseudo.increased_fire_spell_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_fire_spell_damage (`#% increased Fire Spell Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_lightning_attack_damage">pseudo.increased_lightning_attack_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_lightning_damage_with_attack_skills (`#% increased Lightning Damage with Attack Skills`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_cold_attack_damage">pseudo.increased_cold_attack_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_cold_damage_with_attack_skills (`#% increased Cold Damage with Attack Skills`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_fire_attack_damage">pseudo.increased_fire_attack_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_fire_damage_with_attack_skills (`#% increased Fire Damage with Attack Skills`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_ele_attack_damage">pseudo.increased_ele_attack_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_elemental_damage_with_attack_skills (`#% increased Elemental Damage with Attack Skills`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_rarity">pseudo.increased_rarity</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_rarity (`#% increased Rarity of Items found`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_burning_damage">pseudo.increased_burning_damage</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_burning_damage (`#% increased Burning Damage`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.life_regen">pseudo.life_regen</a></td><td>total</td><td>the trade site&#39;s pseudo_total_life_regen (`# Life Regenerated per Second`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.life_regen_pct">pseudo.life_regen_pct</a></td><td>total</td><td>the trade site&#39;s pseudo_percent_life_regen (`#% of Life Regenerated per Second`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.phys_attack_life_leech">pseudo.phys_attack_life_leech</a></td><td>total</td><td>the trade site&#39;s pseudo_physical_attack_damage_leeched_as_life (`#% of Physical Attack Damage Leeched as Life`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.phys_attack_mana_leech">pseudo.phys_attack_mana_leech</a></td><td>total</td><td>the trade site&#39;s pseudo_physical_attack_damage_leeched_as_mana (`#% of Physical Attack Damage Leeched as Mana`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.increased_mana_regen">pseudo.increased_mana_regen</a></td><td>total</td><td>the trade site&#39;s pseudo_increased_mana_regen (`#% increased Mana Regeneration Rate`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.count_res">pseudo.count_res</a></td><td>derived</td><td>the trade site&#39;s pseudo_count_resistances (`# total Resistances`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.count_ele_res">pseudo.count_ele_res</a></td><td>derived</td><td>the trade site&#39;s pseudo_count_elemental_resistances (`# total Elemental Resistances`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_all_ele_res">pseudo.total_all_ele_res</a></td><td>derived</td><td>the trade site&#39;s pseudo_total_all_elemental_resistances (`+#% total to all Elemental Resistances`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_all_attributes">pseudo.total_all_attributes</a></td><td>derived</td><td>the trade site&#39;s pseudo_total_all_attributes (`+# total to all Attributes`)</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.dps">pseudo.dps</a></td><td>derived</td><td>damage per second</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.pdps">pseudo.pdps</a></td><td>derived</td><td>physical damage per second</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.edps">pseudo.edps</a></td><td>derived</td><td>elemental damage per second</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.dps_q20">pseudo.dps_q20</a></td><td>derived</td><td>damage per second at 20 % quality, as the trade site&#39;s Damage per Second states it</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.pdps_q20">pseudo.pdps_q20</a></td><td>derived</td><td>physical damage per second at 20 % quality, as the trade site&#39;s Physical DPS states it</td></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.defence_pct">pseudo.defence_pct</a></td><td>derived</td><td>the trade site&#39;s Base Percentile, by the site&#39;s own rule — &quot;The percentile of all base defence rolls, averaged (0-100%)&quot;</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=counts">counts</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=count">count</a></td><td>view</td><td>the matches counted by each key, one table each, no rows</td></tr>
+<tr><td><a href="/<token>/describe?names=line%3A">line:</a></td><td>view</td><td>the vocabulary narrowed</td></tr>
+<tr><td><a href="/<token>/describe?names=cross">cross</a></td><td>view</td><td>one table of two fields</td></tr>
+<tr><td><a href="/<token>/describe?names=sum">sum</a></td><td>value</td><td>beside each count, one number of each item added</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=explain">why an answer is what it is</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=explain">explain</a></td><td>view</td><td>one node of the query, named by its path</td></tr>
+<tr><td><a href="/<token>/describe?names=context">context</a></td><td>scope</td><td>what the answer is of</td></tr>
+<tr><td><a href="/<token>/describe?names=show%20against">show against</a></td><td>show</td><td>beside one item, a query&#39;s canonical text, the root&#39;s outcome on the item and each node&#39;s — a term&#39;s `matched`, `failed`, `lacked` or `undecided`, a group&#39;s `match`, `no_match` or `undecided` — a term with what a row shows of it where it matched, what the item has where it failed, and the reason where it is undecided; at the basis the item was read at</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=answer">an answer, key by key</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=query">query</a></td><td>key</td><td>the text as understood, and its tree; a trade site search&#39;s report is `query.trade`, which the trade section explains</td></tr>
+<tr><td><a href="/<token>/describe?names=set_aside">set_aside</a></td><td>key</td><td>under the corpus context, the query typed beside it</td></tr>
+<tr><td><a href="/<token>/describe?names=scope">scope</a></td><td>key</td><td>what was searched</td></tr>
+<tr><td><a href="/<token>/describe?names=scope.never_fetched">scope.never_fetched</a></td><td>key</td><td>`never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many</td></tr>
+<tr><td><a href="/<token>/describe?names=scope.never_fetched_by_type">scope.never_fetched_by_type</a></td><td>key</td><td>`never_fetched_by_type` is the same by tab type, a character&#39;s `character`</td></tr>
+<tr><td><a href="/<token>/describe?names=scope.never_fetched_leagues">scope.never_fetched_leagues</a></td><td>key</td><td>`never_fetched_leagues` names the leagues holding a never-fetched tab, the most first; characters never fetched are counted by type under `never_fetched_by_type`</td></tr>
+<tr><td><a href="/<token>/describe?names=scope.tables_game">scope.tables_game</a></td><td>key</td><td>`tables_game` is the game the reference tables were exported from, as their header writes it (`3.30.0.2.2`); its release is its first two numbers, 3.30</td></tr>
+<tr><td><a href="/<token>/describe?names=scope.store_games">scope.store_games</a></td><td>key</td><td>`store_games` lists, for each realm of the scope the tables name, the newest release its live characters state, the only place GGG states its game</td></tr>
+<tr><td><a href="/<token>/describe?names=total">total</a></td><td>key</td><td>the matches</td></tr>
+<tr><td><a href="/<token>/describe?names=before">before</a></td><td>key</td><td>where a request is sent back with the `count` it was printed with, and the `counted_at` basis it came from</td></tr>
+<tr><td><a href="/<token>/describe?names=rows">rows</a></td><td>key</td><td>id, name, base, rarity, place by name and id — a tab&#39;s page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG&#39;s x and y, in a tab or an inventory) and when that place was last fetched (`place.fetched_at`, in words `place.fetched_at_age`), and under membership all and removed when the item left (`removed_at`, in words `removed_at_age`), and the lines each term touched with their values, the term named by its `path` in `terms`, never the item&#39;s body, which is `show`; and `values`, the item&#39;s number for each of `view.rows.values` in that order, what it is, or why it has none; under `item`, a line&#39;s `value` and each `number_fields` key are texts `sort` takes</td></tr>
+<tr><td><a href="/<token>/describe?names=view">view</a></td><td>key</td><td>the view as it ran</td></tr>
+<tr><td><a href="/<token>/describe?names=unmatched_leagues">unmatched_leagues</a></td><td>key</td><td>the leagues of `scope.leagues` no match is in, beside a counts table or a cross keyed by `league`</td></tr>
+<tr><td><a href="/<token>/describe?names=view.rows.next">view.rows.next</a></td><td>key</td><td>rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after</td></tr>
+<tr><td><a href="/<token>/describe?names=zero">zero</a></td><td>key</td><td>in place of rows when the total is zero</td></tr>
+<tr><td><a href="/<token>/describe?names=terms">terms</a></td><td>key</td><td>for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term&#39;s `resolved` is what it matched there, its `rest.denominator` `scope`</td></tr>
+<tr><td><a href="/<token>/describe?names=basis">basis</a></td><td>key</td><td>what the answer was computed from</td></tr>
+<tr><td><a href="/<token>/describe?names=snapshot_at_age">snapshot_at_age</a></td><td>key</td><td>when the facts the answer read were last written (`basis.snapshot.at`), in words at the answer&#39;s time</td></tr>
+<tr><td><a href="/<token>/describe?names=before_snapshot_at_age">before_snapshot_at_age</a></td><td>key</td><td>the same for a `before`&#39;s `counted_at`</td></tr>
+<tr><td><a href="/<token>/describe?names=request">request</a></td><td>key</td><td>a count holds the request that returns exactly its members where a next step hangs on it — what is undecided, what holds only together, what a key could not place (`none`, `undecided`), what an ambiguous trade clause&#39;s other reading adds or drops, and each term&#39;s matched where nothing matched — with `denominator`, what the request searches</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=categories">categories — the trade site&#39;s ids, as spelled</a></p>
+<table class="entries">
+<tr><th>Id</th><th>The site's text</th><th>What makes it hold</th></tr>
+<tr><td><a href="/<token>/describe?names=weapon">weapon</a></td><td>Any Weapon</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.one">weapon.one</a></td><td>One-Handed Weapon</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.onemelee">weapon.onemelee</a></td><td>One-Handed Melee Weapon</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.twomelee">weapon.twomelee</a></td><td>Two-Handed Melee Weapon</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.bow">weapon.bow</a></td><td>Bow</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.claw">weapon.claw</a></td><td>Claw</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.dagger">weapon.dagger</a></td><td>Any Dagger</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.basedagger">weapon.basedagger</a></td><td>Base Dagger</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.runedagger">weapon.runedagger</a></td><td>Rune Dagger</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.oneaxe">weapon.oneaxe</a></td><td>One-Handed Axe</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.onesword">weapon.onesword</a></td><td>Any One-Handed Sword</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.basesword">weapon.basesword</a></td><td>Base One-Handed Sword</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.rapier">weapon.rapier</a></td><td>Rapier</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.onemace">weapon.onemace</a></td><td>Any One-Handed Mace</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.basemace">weapon.basemace</a></td><td>Base One-Handed Mace</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.sceptre">weapon.sceptre</a></td><td>Sceptre</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.staff">weapon.staff</a></td><td>Any Staff</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.basestaff">weapon.basestaff</a></td><td>Base Staff</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.warstaff">weapon.warstaff</a></td><td>Warstaff</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.twoaxe">weapon.twoaxe</a></td><td>Two-Handed Axe</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.twomace">weapon.twomace</a></td><td>Two-Handed Mace</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.twosword">weapon.twosword</a></td><td>Two-Handed Sword</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.wand">weapon.wand</a></td><td>Wand</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=weapon.rod">weapon.rod</a></td><td>Fishing Rod</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=armour">armour</a></td><td>Any Armour</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=armour.chest">armour.chest</a></td><td>Body Armour</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=armour.boots">armour.boots</a></td><td>Boots</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=armour.gloves">armour.gloves</a></td><td>Gloves</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=armour.helmet">armour.helmet</a></td><td>Helmet</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=armour.shield">armour.shield</a></td><td>Shield</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=armour.quiver">armour.quiver</a></td><td>Quiver</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=accessory">accessory</a></td><td>Any Accessory</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=accessory.amulet">accessory.amulet</a></td><td>Amulet</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=accessory.belt">accessory.belt</a></td><td>Belt</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=accessory.ring">accessory.ring</a></td><td>Ring</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=accessory.trinket">accessory.trinket</a></td><td>Trinket</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=gem">gem</a></td><td>Any Gem</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=gem.activegem">gem.activegem</a></td><td>Skill Gem</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=gem.supportgem">gem.supportgem</a></td><td>Support Gem</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=gem.supportgemplus">gem.supportgemplus</a></td><td>Awakened Support Gem</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=jewel">jewel</a></td><td>Any Jewel</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=jewel.base">jewel.base</a></td><td>Base Jewel</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=jewel.abyss">jewel.abyss</a></td><td>Abyss Jewel</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=jewel.cluster">jewel.cluster</a></td><td>Cluster Jewel</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=flask">flask</a></td><td>Flask</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=map">map</a></td><td>Map</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=map.fragment">map.fragment</a></td><td>Map Fragment</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=map.breachstone">map.breachstone</a></td><td>Breachstone</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=map.invitation">map.invitation</a></td><td>Maven&#39;s Invitation</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=map.scarab">map.scarab</a></td><td>Scarab</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=leaguestone">leaguestone</a></td><td>Leaguestone</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=memoryline">memoryline</a></td><td>Memory Line</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=card">card</a></td><td>Divination Card</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=monster.beast">monster.beast</a></td><td>Captured Beast</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=monster.yellowbeast">monster.yellowbeast</a></td><td>Yellow Beast</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=monster.redbeast">monster.redbeast</a></td><td>Red Beast</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=heistequipment">heistequipment</a></td><td>Any Heist Equipment</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=heistequipment.heistweapon">heistequipment.heistweapon</a></td><td>Heist Gear</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=heistequipment.heisttool">heistequipment.heisttool</a></td><td>Heist Tool</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=heistequipment.heistutility">heistequipment.heistutility</a></td><td>Heist Cloak</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=heistequipment.heistreward">heistequipment.heistreward</a></td><td>Heist Brooch</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=heistmission">heistmission</a></td><td>Any Heist Mission</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=heistmission.contract">heistmission.contract</a></td><td>Heist Contract</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=heistmission.blueprint">heistmission.blueprint</a></td><td>Heist Blueprint</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=logbook">logbook</a></td><td>Any Expedition Logbook</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=sanctum.research">sanctum.research</a></td><td>Sanctum Research</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=sanctum.relic">sanctum.relic</a></td><td>Sanctum Relic</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=tincture">tincture</a></td><td>Any Tincture</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=corpse">corpse</a></td><td>Any Corpse</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=idol">idol</a></td><td>Any Idol</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=graft">graft</a></td><td>Any Graft</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=wombgift">wombgift</a></td><td>Any Wombgift</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=enshrouded">enshrouded</a></td><td>Any Enshrouded Item</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=chart">chart</a></td><td>Any Chart</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=viscera">viscera</a></td><td>Any Viscera</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=viscera.head">viscera.head</a></td><td>Head Viscera</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=viscera.arm">viscera.arm</a></td><td>Arm Viscera</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=viscera.body">viscera.body</a></td><td>Body Viscera</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=viscera.leg">viscera.leg</a></td><td>Leg Viscera</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=currency">currency</a></td><td>Any Currency</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=currency.piece">currency.piece</a></td><td>Unique Fragment</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=currency.resonator">currency.resonator</a></td><td>Resonator</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=currency.fossil">currency.fossil</a></td><td>Fossil</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=currency.incubator">currency.incubator</a></td><td>Incubator</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=currency.heistobjective">currency.heistobjective</a></td><td>Heist Target</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=currency.omen">currency.omen</a></td><td>Omen</td><td></td></tr>
+<tr><td><a href="/<token>/describe?names=currency.tattoo">currency.tattoo</a></td><td>Tattoo</td><td></td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=trade">trade</a> — each clause a site search can carry, 151 rows</p>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=not_built">not built, refused by name</a></p>
+<table class="entries">
+<tr><th>Name</th><th>When</th><th>What it would do</th></tr>
+<tr><td>rebind</td><td>waits for a consumer that asks</td><td>run another account&#39;s request deliberately</td></tr>
+<tr><td>show basis</td><td>waits for a consumer that asks</td><td>one item as a named basis held it</td></tr>
+</table>
+</section>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=limits">limits, as the search states them</a></p>
+<ul>
+<li>a veiled line is shown as the placeholder it is; a value query never matches it</li>
+<li>a line is matched as displayed text and value; which mods made it is not known and never guessed</li>
+<li>an item&#39;s class is a derivation the search owns — read from its base by the class table, never a fact GGG gives — and an item the table cannot class is undecided with its reason</li>
+<li>a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched</li>
+<li>league of origin is not a fact the search holds; a derivation from league-specific mods or first-seen is offered as a derivation, never as the answer</li>
+<li>legacy is the user&#39;s knowledge; the search finds what the user names and never says whether the game can still produce it</li>
+</ul>
+</section>
+</div>
+
+</main>
+
+GET describe?names=pseudo.total_life
+# holds "<td>total</td>"
+# holds "<code>pseudo.total_life&gt;=60</code>"
+# holds "a total leaves out a crucible node"
+# holds "The language&#39;s index: every entry by its name and one line</a>"
+<main>
+<h1>The language</h1>
+<div class="describe">
+<form class="names" method="get" action="describe"><label class="control">Names: an entry, a block, ~ and a pattern, or all <input type="text" name="names" aria-label="Names: an entry, a block, ~ and a pattern, or all"></label> <button type="submit">Describe</button></form>
+<p class="index"><a href="/<token>/describe">The language&#39;s index: every entry by its name and one line</a></p>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=computed">computed values</a> — totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats, by what the site answered of each or, for a row a patch reworded, by its stats (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at acquisition-qt@946a4f51; a total leaves out a crucible node&#39;s lines and a flask&#39;s own lines: the arrays `crucibleMods` and `utilityMods`, and no other array</p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=pseudo.total_life">pseudo.total_life</a></td><td>total</td><td>the trade site&#39;s pseudo_total_life (`+# total maximum Life`): the sum over the item&#39;s lines of 1 × arg1 of line(&quot;# to maximum Life&quot;) + 0.5 × arg1 of line(&quot;# to Strength&quot;) + 0.5 × arg1 of line(&quot;# to Strength and Dexterity&quot;) + 0.5 × arg1 of line(&quot;# to Strength and Intelligence&quot;) + 0.5 × arg1 of line(&quot;# to all Attributes&quot;); a total leaves out a crucible node&#39;s lines and a flask&#39;s own lines: the arrays `crucibleMods` and `utilityMods`, and no other array<br>e.g. <code>pseudo.total_life&gt;=60</code> <code>-has:pseudo.total_life</code> <code>undecided(pseudo.total_life)</code></td></tr>
+</table>
+</section>
+</div>
+
+</main>
+
+GET describe?names=linked
+# holds "describe?names=linked\">inside linked( … )</a>"
+# holds "one of: red, green, blue, white, abyssal"
+# holds "<code>linked(size&gt;=5 blue&gt;=2)</code>"
+<main>
+<h1>The language</h1>
+<div class="describe">
+<form class="names" method="get" action="describe"><label class="control">Names: an entry, a block, ~ and a pattern, or all <input type="text" name="names" aria-label="Names: an entry, a block, ~ and a pattern, or all"></label> <button type="submit">Describe</button></form>
+<p class="index"><a href="/<token>/describe">The language&#39;s index: every entry by its name and one line</a></p>
+<section class="block">
+<p class="head"><a href="/<token>/describe?names=linked">inside linked( … )</a></p>
+<table class="entries">
+<tr><th>Name</th><th>Kind</th><th>What it is</th></tr>
+<tr><td><a href="/<token>/describe?names=red%20green%20blue%20white%20abyssal">red green blue white abyssal</a></td><td>number</td><td>how many sockets of each word one link group holds, an abyssal socket a group of its own as GGG gives it; every count named holds together on one group<br>one of: red, green, blue, white, abyssal<br>e.g. <code>linked(red&gt;=3 green&gt;=1)</code> <code>linked(blue&gt;=2 or white&gt;=1)</code></td></tr>
+<tr><td><a href="/<token>/describe?names=size">size</a></td><td>number</td><td>how many sockets the link group holds; an item with no link group lacks every `linked( … )`<br>e.g. <code>linked(size&gt;=5 blue&gt;=2)</code> <code>-has:links</code></td></tr>
+</table>
+</section>
+</div>
+
+</main>
+
+GET describe?names=pseudo.total_lfe
+# holds "`pseudo.total_lfe` is nothing describe knows"
+# holds "    pseudo.total_life"
+--- status 400
+<main>
+<h1>The language</h1>
+<div class="refusal"><pre>
+`pseudo.total_lfe` is nothing describe knows: text, name, typeline, base, note, rarity, frame, class, category, ilvl, reqlevel, stack, sockets, links, priced, price.amount, price.currency, price.lot, price.side, league, tab, tab.type, tab.public, tab.remove_only, character, container, id, attacks_per_second, critical_strike_chance, chance_to_block, armour.q20, evasion_rating.q20, energy_shield.q20, ward.q20, armour, evasion_rating, energy_shield, ward, str, dex, int, map_tier, area_level, monster_pack_size, item_quantity, atlas_drops, item_rarity, memory_strands, wings_revealed, wings_revealed.of, escape_routes_revealed, escape_routes_revealed.of, reward_rooms_revealed, reward_rooms_revealed.of, lockpicking, brute_force, perception, demolition, counter_thaumaturgy, trap_disarmament, agility, deception, engineering, resolve, resolve.of, inspiration, aureus, quality, level, experience, stored_experience, sockets.&lt;word&gt;, is, has, template, source, is, red, green, blue, white, abyssal, size, line(P).&lt;slot&gt;, sum, and, or, not, -, (, ), holds, undecided, true(), false(), :, =, ~, &gt;, &gt;=, &lt;, &lt;=, arg1, arg2, low, high, avg, pseudo.total_cold_res, pseudo.total_fire_res, pseudo.total_lightning_res, pseudo.total_ele_res, pseudo.total_chaos_res, pseudo.total_res, pseudo.total_str, pseudo.total_dex, pseudo.total_int, pseudo.total_attack_speed, pseudo.total_cast_speed, pseudo.total_increased_phys, pseudo.total_spell_crit, pseudo.total_gem_levels, pseudo.total_elemental_gem_levels, pseudo.total_fire_gem_levels, pseudo.total_cold_gem_levels, pseudo.total_lightning_gem_levels, pseudo.total_chaos_gem_levels, pseudo.total_spell_gem_levels, pseudo.total_projectile_gem_levels, pseudo.total_bow_gem_levels, pseudo.total_melee_gem_levels, pseudo.total_minion_gem_levels, pseudo.total_strength_gem_levels, pseudo.total_dexterity_gem_levels, pseudo.total_intelligence_gem_levels, pseudo.total_aura_gem_levels, pseudo.total_movement_gem_levels, pseudo.total_curse_gem_levels, pseudo.total_vaal_gem_levels, pseudo.total_support_gem_levels, pseudo.total_skill_gem_levels, pseudo.total_warcry_gem_levels, pseudo.total_golem_gem_levels, pseudo.adds_physical, pseudo.adds_lightning, pseudo.adds_cold, pseudo.adds_fire, pseudo.adds_chaos, pseudo.adds_elemental, pseudo.adds_damage, pseudo.adds_physical_to_attacks, pseudo.adds_lightning_to_attacks, pseudo.adds_cold_to_attacks, pseudo.adds_fire_to_attacks, pseudo.adds_chaos_to_attacks, pseudo.adds_elemental_to_attacks, pseudo.adds_damage_to_attacks, pseudo.adds_physical_to_spells, pseudo.adds_lightning_to_spells, pseudo.adds_cold_to_spells, pseudo.adds_fire_to_spells, pseudo.adds_chaos_to_spells, pseudo.adds_elemental_to_spells, pseudo.adds_damage_to_spells, pseudo.total_life, pseudo.total_mana, pseudo.total_energy_shield, pseudo.total_increased_energy_shield, pseudo.increased_movement_speed, pseudo.global_crit_chance, pseudo.global_crit_multi, pseudo.increased_ele_damage, pseudo.increased_lightning_damage, pseudo.increased_cold_damage, pseudo.increased_fire_damage, pseudo.increased_spell_damage, pseudo.increased_lightning_spell_damage, pseudo.increased_cold_spell_damage, pseudo.increased_fire_spell_damage, pseudo.increased_lightning_attack_damage, pseudo.increased_cold_attack_damage, pseudo.increased_fire_attack_damage, pseudo.increased_ele_attack_damage, pseudo.increased_rarity, pseudo.increased_burning_damage, pseudo.life_regen, pseudo.life_regen_pct, pseudo.phys_attack_life_leech, pseudo.phys_attack_mana_leech, pseudo.increased_mana_regen, pseudo.count_res, pseudo.count_ele_res, pseudo.total_all_ele_res, pseudo.total_all_attributes, pseudo.dps, pseudo.pdps, pseudo.edps, pseudo.dps_q20, pseudo.pdps_q20, pseudo.defence_pct, count, line:, cross, sum, explain, context, show, against, query, set_aside, scope, scope.never_fetched, scope.never_fetched_by_type, scope.never_fetched_leagues, scope.tables_game, scope.store_games, total, before, rows, view, unmatched_leagues, view.rows.next, zero, terms, basis, snapshot_at_age, before_snapshot_at_age, request, fields, line, linked, values, composition, operators, slots, computed, totals, counts, explain, answer, categories, trade, not_built, limits, pseudo, all
+    pseudo.total_life
+    pseudo.total_res
+    pseudo
+</pre>
+</div>
+
+</main>
+
+GET describe?names=~qqqqq
+# holds "`~qqqqq` matches nothing describe holds"
+# holds "/describe\">the index, every entry by its name and one line</a>"
+--- status 400
+<main>
+<h1>The language</h1>
+<div class="refusal"><pre>
+`~qqqqq` matches nothing describe holds: a pattern reads each entry of the language by its name and its definition, and each category by its id, its text and what makes it hold
+</pre>
+<ul class="offers">
+<li><a href="/<token>/describe">the index, every entry by its name and one line</a></li>
+</ul>
+</div>
+
+</main>

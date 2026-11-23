@@ -70,7 +70,8 @@
 //!   the offer's words. A search is a link where the page asks it — its
 //!   text, or its site search as one word ([`Web::asked_by_the_form`]) —
 //!   and those fields fold back to the request offered; a league's plan, or its tabs, a link to
-//!   that page; the saved ways — the list, an opening, a write, a clear —
+//!   that page; the language described, a link to `describe` with its
+//!   names; the saved ways — the list, an opening, a write, a clear —
 //!   as the C168 section below spells them; any other way on is no page's,
 //!   and nothing on a page stands for it. The plan page prints no command
 //!   to type next: its Apply button is that way on. An answer's ways on are
@@ -124,7 +125,7 @@
 //!   page carries that page, and what answers it leads back to the page
 //!   holding what was sent. A route is a place (the search page, `tabs`,
 //!   `characters`, `saved`, `jobs`, an item's page) or a step (`plan`,
-//!   `saved/open`, the clear's ask, every POST): a place's `from` is
+//!   `saved/open`, the clear's ask, `describe`, every POST): a place's `from` is
 //!   itself, and one its URL carries is only its way back, drawn above its
 //!   body; a step hands on the `from` it was given. Every route takes
 //!   `from` out of its fields first, so no fold, verb or JSON answer meets
@@ -135,6 +136,20 @@
 //!   refused, the refusal in the shared words, then the save form as sent
 //!   where the write was a save and the refusal offers no write of its own,
 //!   then the way back ([`Web::failed`]).
+//! - **The language** (`roadmap/briefs/4-full-1-form-index.md`): `GET
+//!   describe` renders the search crate's `describe` document
+//!   ([`page::describe`]) for `names`, each field one list as one
+//!   `--describe` is, read by the CLI's one reader (`describe_list`): none
+//!   the index, entries and blocks by name, `all`, a pattern; its JSON is
+//!   the document. A name the search crate refuses is the page's refusal in
+//!   its words. The blocks' heads and their order are the CLI's one table
+//!   (`search_cmd::BLOCKS`), which the terminal's text reads too. It is a
+//!   step: its every link — an entry, a block, the index — and its names
+//!   box, the one GET form, hand on the `from` it was given, which each of
+//!   its pages draws as its way back. It is a way a page takes: a way on
+//!   to the language (`Way::Describe`) is a link to its names ([`Paged`]),
+//!   whose one producer is `describe`'s own refusal of a pattern that
+//!   matches nothing, offering the index.
 //! - **The filter**: `name` (words the name holds), `type` (a tab's type)
 //!   and `fetched` (`never`) are the places document's filter, read by it
 //!   and refused in its words. Its controls stand under the column heads in
@@ -584,6 +599,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/search"), get(search))
         .route(&at("/item/{id}"), get(item))
         .route(&at("/stats"), get(stats))
+        .route(&at("/describe"), get(describe))
         .route(&at("/count"), get(count))
         .route(&at("/rows"), get(rows))
         .route(&at("/tabs"), get(tabs).post(list_tabs))
@@ -986,14 +1002,18 @@ impl Web {
     /// `path` on this server with `fields` as its query: a link a page
     /// prints, the token first as every link's is (C138).
     fn link(&self, path: &str, fields: &[(&str, String)]) -> String {
-        let query: Vec<String> = fields
-            .iter()
-            .map(|(k, v)| format!("{}={}", enc(k), enc(v)))
-            .collect();
-        match query.is_empty() {
+        match fields.is_empty() {
             true => format!("/{}/{path}", self.token),
-            false => format!("/{}/{path}?{}", self.token, query.join("&")),
+            false => format!("/{}/{path}?{}", self.token, query_of(fields)),
         }
+    }
+
+    /// The language described for `names` (the index where none), each a
+    /// `names` field of its own, which `describe_list` reads as one list
+    /// item, carrying `from` (the route is a step): the one maker of a link
+    /// to `describe`, for its own page's links and a way on alike.
+    fn describing(&self, names: &[String], from: Option<&FromPage>) -> String {
+        from::onward(&self.link("describe", &describe_fields(names)), from)
     }
 
     /// A link a page writes, relative to the pages' token or absolute
@@ -1306,6 +1326,21 @@ impl Web {
     }
 }
 
+/// Fields as a link's query writes them, each percent-encoded.
+fn query_of(fields: &[(&str, String)]) -> String {
+    fields
+        .iter()
+        .map(|(k, v)| format!("{}={}", enc(k), enc(v)))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
+/// A list of names as `describe`'s fields: each a `names` field of its
+/// own, so a pattern's commas stay its own ([`Web::describing`]).
+fn describe_fields(names: &[String]) -> Vec<(&'static str, String)> {
+    names.iter().map(|n| ("names", n.clone())).collect()
+}
+
 /// A page's side of the one refusal shape (each surface spells its own
 /// ways on): its words the CLI's, and a way on a link to the page
 /// that takes it — a search the form can ask, its own fields; a league's
@@ -1314,10 +1349,11 @@ impl Web {
 /// opened — for the account this server serves; or, for a saved search's
 /// write or clear, a form: `{"post": <the route>, "fields": {…}}`, the
 /// fields that route takes as strings, `if_revision` `0` for a create at
-/// an id. A way no page takes is offered nowhere on a page: another
-/// account, a price or policy write, a job, `describe`, a search the form
-/// cannot ask, a saved search written at the revision read. A link to a
-/// step (a league's plan, a saved search opened) carries `from`, the
+/// an id; the language described for its names, the index where none.
+/// A way no page takes is offered nowhere on a page: another account, a
+/// price or policy write, a job, a search the form cannot ask, a saved
+/// search written at the revision read. A link to a step (a league's plan,
+/// a saved search opened, the language described) carries `from`, the
 /// page's, where the page renders it (the landing rule); none in a JSON
 /// answer.
 struct Paged<'a> {
@@ -1388,6 +1424,8 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
                 self.web.link("jobs", &[("job", id.to_string())]),
                 page::job_anchor(*id)
             ),
+            // the language's names, the index where none: a step
+            Way::Describe { names } => self.web.describing(names, self.from),
             Way::SavedSearches { expand: false } => self.web.link("saved", &[]),
             Way::SavedSearches { expand: true } | Way::SavedSearchShow { .. } => {
                 self.web.link("saved", &[("expand", "true".to_string())])
@@ -2654,6 +2692,64 @@ async fn stats(
         Ok(answered) => answered,
         Err(e) => web.failed("Stats", &Failure::from(e), &headers, &Here::none()),
     }
+}
+
+/// The title of `describe`'s pages, answered or refused.
+const LANGUAGE: &str = "The language";
+
+/// The names `describe`'s fields ask, read by the one reader of a list
+/// of names (`describe_list`), each field one list as one `--describe`
+/// is; a field sent empty, the names box left as it is, names nothing.
+fn names_sent(fields: Fields) -> Vec<String> {
+    let sent: Vec<String> = fields
+        .into_iter()
+        .map(|(_, value)| value)
+        .filter(|value| !value.is_empty())
+        .collect();
+    crate::search_cmd::describe_list(&sent)
+}
+
+/// The language's index on a page (`4-full-1-form-index.md`): `names`,
+/// each field one list as one `--describe` is read (`describe_list`, the
+/// one reader, which the CLI calls too), described by the search crate —
+/// none the index, `all` the whole, an entry, a block, a pattern — its
+/// document where JSON is asked, else [`page::describe`]; a field sent
+/// empty, the names box left as it is, names nothing. A name the search
+/// crate refuses is the page's refusal in its words, its offer of the index
+/// a link. A step (the landing rule): it hands on the `from` it was given,
+/// in its every link and its names box, and draws it as its way back.
+async fn describe(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Query(fields): Query<Vec<(String, String)>>,
+) -> Response {
+    let (fields, here) = match from::taken(fields) {
+        Ok((fields, given)) => (fields, Here::step(given)),
+        Err(failure) => return web.failed(LANGUAGE, &failure, &headers, &Here::none()),
+    };
+    if let Err(failure) = taken(&fields, &["names"], "the language's index") {
+        return web.failed(LANGUAGE, &failure, &headers, &here);
+    }
+    let names = names_sent(fields);
+    let described = match acquisition_search::describe(&names) {
+        Ok(described) => described,
+        Err(e) => return web.failed(LANGUAGE, &Failure::from(e), &headers, &here),
+    };
+    if wants_json(&headers) {
+        return document(&described);
+    }
+    let link = |name: Option<&str>| {
+        let names: Vec<String> = name.map(str::to_string).into_iter().collect();
+        web.describing(&names, here.onward())
+    };
+    let body = page::describe(
+        &described,
+        names.is_empty(),
+        crate::search_cmd::asks_totals(&names),
+        &link,
+        here.onward(),
+    );
+    web.page_at(LANGUAGE, Head::default(), &body, &here)
 }
 
 // ---- the place pages ----------------------------------------------------------------------------
@@ -4221,4 +4317,30 @@ async fn count_script() -> Response {
         COUNT,
     )
         .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A way on to the language round-trips through the link a page
+    /// writes: its names as fields, read back as the route reads them
+    /// (`names_sent`, through `describe_list`), are the list the way named, a pattern's commas
+    /// its own.
+    #[test]
+    fn a_describe_way_round_trips_through_its_link() {
+        for names in [
+            vec![],
+            vec!["fields".to_string(), "~a,b".to_string()],
+            vec!["~a,b".to_string(), "fields".to_string()],
+            vec!["> >= < <=".to_string(), "show against".to_string()],
+        ] {
+            let uri: axum::http::Uri = format!("/?{}", query_of(&describe_fields(&names)))
+                .parse()
+                .unwrap();
+            let Query(fields) = Query::<Fields>::try_from_uri(&uri).unwrap();
+            assert!(fields.iter().all(|(k, _)| k == "names"), "{fields:?}");
+            assert_eq!(names_sent(fields), names);
+        }
+    }
 }
