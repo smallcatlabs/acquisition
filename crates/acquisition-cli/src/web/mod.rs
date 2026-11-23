@@ -265,7 +265,9 @@
 //!   own, ended by its finder (`data-finder`): a box no form sends, which
 //!   asks the route its attribute names (`stats?q=`, written by the
 //!   server; the script appends the words) and puts the answer, HTML, in
-//!   its listbox, its first option marked (`aria-selected`). A finder is
+//!   its listbox, its first option marked (`aria-selected`). The listbox
+//!   is busy (`aria-busy`) from an ask until it is answered, fails or is
+//!   retired, so no answer is on its way to one not busy. A finder is
 //!   heard wherever it stands: its listeners are the document's. Arrows move the
 //!   mark; Enter clicks the marked option and never submits; Escape, and a
 //!   click on an option after its add, empty the finder, its box and its

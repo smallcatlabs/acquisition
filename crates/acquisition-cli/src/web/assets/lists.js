@@ -9,7 +9,9 @@
 // a box no form sends and a listbox, heard wherever it stands, its
 // listeners on the document: it asks the route its attribute names, the
 // server's, with the words typed appended, and puts the answer's options
-// in its list, the first marked (`aria-selected`); arrows move the mark,
+// in its list, the first marked (`aria-selected`); the list is busy
+// (`aria-busy`) from an ask until it is answered, fails or is retired, so
+// no answer is on its way to a list not busy; arrows move the mark,
 // Enter clicks the marked option and never submits, and Escape empties it.
 // What an option's click does is the option's own. The script names no
 // field and writes no word and no value a form sends: every row, group,
@@ -17,13 +19,15 @@
 (function () {
   const panes = Array.from(document.querySelectorAll('[data-list]'))
     .filter((el) => !el.parentElement.closest('[data-list]'));
-  // a finder's ask in flight, aborted when the finder is emptied or asks again
+  // a finder's ask in flight, aborted when the finder is emptied or asks
+  // again; its list is busy while it holds one
   const asking = new WeakMap();
 
   function retire(finder) {
     const ask = asking.get(finder);
     if (ask) ask.abort();
     asking.delete(finder);
+    finder.querySelector('[role=listbox]').removeAttribute('aria-busy');
   }
 
   // empties a finder, its box and its list, and retires its asks in
@@ -54,6 +58,7 @@
     if (words.length < 2) { list.replaceChildren(); return; }
     const mine = new AbortController();
     asking.set(finder, mine);
+    list.setAttribute('aria-busy', 'true');
     try {
       const res = await fetch(finder.dataset.finder + encodeURIComponent(words), { signal: mine.signal });
       const text = await res.text();
@@ -62,6 +67,10 @@
       mark(finder, list.querySelector('[role=option]'));
     } catch (e) {
       // aborted by a newer ask or an emptying, or failed: the list stands
+    } finally {
+      // answered or failed; an ask a newer one or an emptying retired has
+      // left the list to them
+      if (asking.get(finder) === mine) retire(finder);
     }
   }
 

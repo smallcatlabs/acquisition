@@ -6,7 +6,8 @@
 //! beside a form's button follows that form's fields and no other
 //! (`count.js`); the stat pane's rows and groups are added, picked by keys
 //! from a finder, changed and removed, and a search of two groups is run
-//! from them, the count following each step; and a finder's ask in flight
+//! from them, the count following each step; a finder's list is busy
+//! while an ask of it is in flight, and an ask in flight
 //! past an Escape or a pick fills nothing (`lists.js`); a value picked by
 //! name from "Add a column", on a place page and in the search form after
 //! an unsent edit, lands ordered by it with its head marked; and the table's
@@ -457,15 +458,18 @@ fn the_count_beside_the_button_follows_its_own_form() {
     }
     // a keystroke in a finder, a box no form sends, asks no count: the
     // number shown stays, never the dash a change puts in its place
-    page.cdp.click(&format!(
-        "{SEARCH_FORM}.querySelector('[data-finder] input')"
-    ));
+    let finder = format!("{SEARCH_FORM}.querySelector('[data-finder]')");
+    page.cdp.click(&format!("{finder}.querySelector('input')"));
     page.cdp.keys("li");
     assert_eq!(
         page.shown(SEARCH_FORM),
         json!(other),
         "a keystroke in a finder asked a count"
     );
+    // the finder's answer, landing, scrolls the page to its first option:
+    // the next click waits for it, or it is aimed before the scroll and
+    // lands after it
+    page.cdp.until(&at_rest(&finder, "li"));
     eprintln!("the search form {other}; the query box {totals:?}");
     assert_ne!(totals[0], totals[1], "the two queries must count apart");
     assert!(
@@ -692,10 +696,30 @@ fn listed_ids(finder: &str) -> String {
     )
 }
 
+/// The finder `finder` at rest on `words`: its box holds them and its
+/// list is not busy, so no answer is on its way to it (`lists.js`). The
+/// wait every pick makes before it reads the list or moves the mark: a
+/// list that is busy may show an earlier ask's options, the very ones the
+/// last ask will answer, and that answer, landing after an arrow, puts
+/// the mark back on its first.
+fn at_rest(finder: &str, words: &str) -> String {
+    format!(
+        "{finder}.querySelector('input').value === {} \
+         && {finder}.querySelector('[role=listbox]').getAttribute('aria-busy') === null",
+        json!(words)
+    )
+}
+
+/// Whether the finder's list is busy: an ask of it is in flight.
+fn busy(finder: &str) -> String {
+    format!("{finder}.querySelector('[role=listbox]').getAttribute('aria-busy') === 'true'")
+}
+
 /// A stat picked into `group` from its finder as a user's keys would: the
-/// finder's box clicked and `words` typed; once its list is the one the
-/// `stats` route answers for those words, the arrows move the mark from
-/// the first option to the stat `id`'s, and Enter picks it.
+/// finder's box clicked and `words` typed; once the finder is at rest its
+/// list is the one the `stats` route answers for those words, the arrows
+/// move the mark from the first option to the stat `id`'s, and Enter
+/// picks it.
 fn pick(page: &mut Page, web: &harness::WebUi, group: &str, words: &str, id: &str) {
     let finder = format!("{group}.querySelector('[data-finder]')");
     page.cdp.click(&format!("{finder}.querySelector('input')"));
@@ -707,11 +731,8 @@ fn pick(page: &mut Page, web: &harness::WebUi, group: &str, words: &str, id: &st
         .iter()
         .map(|e| e["id"].as_str().expect("an id"))
         .collect();
-    page.cdp.until(&format!(
-        "{} === {}",
-        listed_ids(&finder),
-        json!(ids.join(","))
-    ));
+    page.cdp.until(&at_rest(&finder, words));
+    assert_eq!(page.cdp.eval(&listed_ids(&finder)), json!(ids.join(",")));
     let at = ids
         .iter()
         .position(|listed| *listed == id)
@@ -1014,8 +1035,18 @@ fn a_finders_ask_held_past_an_escape_or_a_pick_fills_nothing() {
     page.cdp.click(&format!("{finder}.querySelector('input')"));
     page.cdp.keys("li");
     let held = page.cdp.event("Fetch.requestPaused");
+    assert_eq!(
+        page.cdp.eval(&busy(&finder)),
+        json!(true),
+        "a list whose ask is in flight is not busy"
+    );
     page.cdp.press("Escape");
     assert_eq!(page.cdp.eval(&emptied), json!(["", 0]));
+    assert_eq!(
+        page.cdp.eval(&busy(&finder)),
+        json!(false),
+        "an emptied finder's list is busy"
+    );
     release(&mut page, &held);
     assert_eq!(
         page.cdp.eval(&emptied),
@@ -1025,9 +1056,12 @@ fn a_finders_ask_held_past_an_escape_or_a_pick_fills_nothing() {
 
     // a pick from the list shown, with a later ask in flight
     page.cdp.keys("life");
-    page.cdp.until(&format!(
-        "{finder}.querySelector('[aria-selected=true]') !== null && {} === {}",
-        listed_ids(&finder),
+    page.cdp.until(&at_rest(&finder, "life"));
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "{finder}.querySelector('[aria-selected=true]') !== null && {}",
+            listed_ids(&finder)
+        )),
         json!(
             web.get_json("stats?q=life")["entries"]
                 .as_array()
@@ -1037,10 +1071,15 @@ fn a_finders_ask_held_past_an_escape_or_a_pick_fills_nothing() {
                 .collect::<Vec<_>>()
                 .join(",")
         )
-    ));
+    );
     hold(&mut page);
     page.cdp.keys(" max");
     let held = page.cdp.event("Fetch.requestPaused");
+    assert_eq!(
+        page.cdp.eval(&busy(&finder)),
+        json!(true),
+        "a list shown with a later ask in flight is not busy"
+    );
     page.cdp.keys("\r");
     assert_eq!(
         page.cdp
@@ -1063,10 +1102,11 @@ fn listed_values(finder: &str) -> String {
 }
 
 /// A value picked from the value finder `finder` ("Add a column") as a
-/// user's keys would: its box clicked and `words` typed; once its list is
-/// the one the `stats` route answers asked for values, the arrows move the
-/// mark from the first option to `value`'s, and Enter picks it, which
-/// sends the finder's form: the page loads again.
+/// user's keys would: its box clicked and `words` typed; once the finder
+/// is at rest its list is the one the `stats` route answers asked for
+/// values, the arrows move the mark from the first option to `value`'s,
+/// and Enter picks it, which sends the finder's form: the page loads
+/// again.
 fn pick_value(page: &mut Page, web: &harness::WebUi, finder: &str, words: &str, value: &str) {
     page.cdp.click(&format!("{finder}.querySelector('input')"));
     page.cdp.keys(words);
@@ -1080,11 +1120,11 @@ fn pick_value(page: &mut Page, web: &harness::WebUi, finder: &str, words: &str, 
         .iter()
         .map(|e| e["value"].as_str().expect("a value"))
         .collect();
-    page.cdp.until(&format!(
-        "{} === {}",
-        listed_values(finder),
+    page.cdp.until(&at_rest(finder, words));
+    assert_eq!(
+        page.cdp.eval(&listed_values(finder)),
         json!(values.join("\n"))
-    ));
+    );
     let at = values
         .iter()
         .position(|listed| *listed == value)
