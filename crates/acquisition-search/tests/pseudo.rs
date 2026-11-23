@@ -598,7 +598,7 @@ fn c92_c95_a_computed_value_sorts_and_sums() {
         .collect();
     assert_eq!(rows[0], ("sword", json!({ "value": 281.875 })));
     assert_eq!(rows[1], ("wand", json!({ "value": 76.3 })));
-    // the rest last, in the store's order: odd with what was readable
+    // the rest last, in the corpus's order: odd with what was readable
     // (nothing), the rings lacking the field
     assert_eq!(rows[2], ("odd", json!({ "status": "incomplete" })));
     assert!(
@@ -1757,10 +1757,10 @@ fn c93_a_reading_is_open_by_no_more_than_the_totals_it_reads() {
             ),
         ] {
             // the first rows of one order: the count compares one value
-            // and the holds none, so the store's order is asked of both
-            let in_store_order =
+            // and the holds none, so the order items lie in is asked of both
+            let as_they_lie =
                 |text: &str| view(&s, text, json!({ "rows": { "sort": "none" } })).unwrap();
-            let (count, held) = (in_store_order(&count), in_store_order(&held));
+            let (count, held) = (as_they_lie(&count), as_they_lie(&held));
             assert_eq!(ids(&count), ids(&held), "{}", count["query"]["text"]);
             let open = |a: &Value| -> Vec<String> {
                 members(&s, &a["total"]["undecided"])

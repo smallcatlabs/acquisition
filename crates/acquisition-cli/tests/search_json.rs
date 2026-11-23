@@ -10,6 +10,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Output, Stdio};
 
+use acquisition_search::answer::PLACE_ORDER_WORDS;
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
@@ -585,9 +586,9 @@ fn step_5_review_a_continuations_key_is_encoded_and_a_quoted_text_is_kept_whole(
 const LIFE: &str = r##""+# to maximum Life">=90"##;
 
 /// Values on rows at a terminal: the values a query compares are on each row,
-/// and the rows stand in the store's order, said so; `--value` names the
-/// values, in order, a sort outside them joining them; `--sort none` names the
-/// store's order, and `--desc` beside it is refused.
+/// and the rows stand as they lie in their place, said so; `--value` names the
+/// values, in order, a sort outside them joining them; `--sort none` names
+/// that order, and `--desc` beside it is refused.
 #[test]
 fn values_on_rows_at_a_terminal() {
     let scratch = harness::scratch("search-values");
@@ -605,12 +606,14 @@ fn values_on_rows_at_a_terminal() {
     let mut t = Transcript::offline(&base);
     t.run(
         &["search", "--realm", "pc", LIFE, "--limit", "1"],
-        &["in the store's order (no sort asked)"],
+        &[&format!("{PLACE_ORDER_WORDS} (no sort asked)")],
     );
     // every row shown: the order said still
     t.run(
         &["search", "--realm", "pc", &format!("{LIFE} ilvl>=1")],
-        &["order   rows 1–2 of 2 shown, in the store's order (no sort asked)"],
+        &[&format!(
+            "order   rows 1–2 of 2 shown, {PLACE_ORDER_WORDS} (no sort asked)"
+        )],
     );
     // the query's values past the twelve a row carries, counted
     let twelve: Vec<String> = ('a'..='l')
@@ -639,8 +642,11 @@ fn values_on_rows_at_a_terminal() {
         &[
             "search", "--realm", "pc", LIFE, "--sort", "none", "--limit", "1",
         ],
-        &["in the store's order, as asked"],
+        &[&format!("{PLACE_ORDER_WORDS}, as asked")],
     );
+    // `--sort`'s help says that order in the same words
+    let help = text(&acq(&base, &["search", "--help"]));
+    assert!(help.contains(PLACE_ORDER_WORDS), "{help}");
     t.run(
         &["search", "--realm", "pc", LIFE, "--sort", "none", "--desc"],
         &["`desc` puts a value's largest first"],
@@ -2122,7 +2128,7 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
         .unwrap_or_else(|| panic!("no more line:\n{shown}"));
     assert!(
         more.starts_with(&format!(
-            "more    rows 1–2 of {total} shown, in the store's order (no sort asked): acq search --account 'Alice#1234' --next acq1."
+            "more    rows 1–2 of {total} shown, {PLACE_ORDER_WORDS} (no sort asked): acq search --account 'Alice#1234' --next acq1."
         )),
         "{more}"
     );

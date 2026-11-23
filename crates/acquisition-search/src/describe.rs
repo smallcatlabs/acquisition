@@ -23,6 +23,7 @@
 
 use serde::Serialize;
 
+use crate::answer::PLACE_ORDER_WORDS;
 use crate::bind::{self, ITEM_FLAGS, Kind, LINE_FLAGS, NOT_BUILT, NotBuilt, SOURCES, Thing};
 use crate::error::{ErrorKind, LanguageError, Offered, SearchError};
 
@@ -269,7 +270,9 @@ pub fn answer_keys() -> Vec<Named> {
         ),
         key(
             "view",
-            "the view as it ran: rows, the default, ten where no limit is given, sorted by the value named, or in the store's order where none is (`none` names that order too) — each row carrying `values`, the ones named or the ones the query compares (`values_from_query`), at most 12 with the sort among them, the query's past them counted in `values_left_out`; counts, a table for each key and no rows, a sum's `value` over the items that have the value and its `lacking` counting the items without it, which add nothing; cross, one crossed table of two keys; explain, the total with one node forced true and forced false, the node named by its path as `terms[].path` gives it. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text; the counts section lists the keys. A sort's value is a field (reqlevel), a computed value (pseudo.total_res), a line's number (line(\"# to maximum Life\").arg1) or a sum of one (`sum(\"# to maximum Life\")`), spanning every source unless `source=` names one; an item that lacks it is last, ascending or descending",
+            &format!(
+                "the view as it ran: rows, the default, ten where no limit is given, sorted by the value named, or where none is {PLACE_ORDER_WORDS}, an item with no cell there after those with one, by id (`none` names that order too) — each row carrying `values`, the ones named or the ones the query compares (`values_from_query`), at most 12 with the sort among them, the query's past them counted in `values_left_out`; counts, a table for each key and no rows, a sum's `value` over the items that have the value and its `lacking` counting the items without it, which add nothing; cross, one crossed table of two keys; explain, the total with one node forced true and forced false, the node named by its path as `terms[].path` gives it. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text; the counts section lists the keys. A sort's value is a field (reqlevel), a computed value (pseudo.total_res), a line's number (line(\"# to maximum Life\").arg1) or a sum of one (`sum(\"# to maximum Life\")`), spanning every source unless `source=` names one; an item that lacks it is last, ascending or descending"
+            ),
         ),
         key(
             "unmatched_leagues",

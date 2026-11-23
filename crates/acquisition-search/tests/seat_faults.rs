@@ -312,7 +312,7 @@ fn v8_the_undecided_block_is_one_line_per_distinct_reason_with_an_example() {
         a["total"]
     );
     let reasons = a["total"]["undecided_reasons"].as_array().unwrap();
-    // in the store's order: the beast is met before the blade, so the
+    // in the corpus's order: the beast is met before the blade, so the
     // beasts' reason is first and the beast its example (rule 9)
     assert_eq!(reasons.len(), 2, "{reasons:?}");
     assert_eq!(reasons[0]["unread"], "the class: base not in the table");

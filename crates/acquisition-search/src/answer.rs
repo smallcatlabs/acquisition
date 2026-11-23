@@ -205,18 +205,20 @@
 //!   detail, V8, taken here): an answer shows its undecided items as one
 //!   line per distinct reason — by what was unread, the kind a count
 //!   tallies (C105) — each with one example item, the first met in the
-//!   store's order, then the one route to them all; after the rows,
+//!   corpus's order, then the one route to them all; after the rows,
 //!   before the routes; the first ten listed and the rest counted
 //!   (invariant 5). No item list and no count per reason: no term selects
 //!   a reason, so such a count would have no route. The JSON has the same
 //!   shape. A per-reason count and its selector wait for someone missing
 //!   the number. An item list of ten, each with every term's reason,
 //!   printed one reason eighteen times under eighteen `class:` terms.
-//! - **Rows** are the matching items in the store's stable order, or by
-//!   the sort scalar with items that have none last either way; past the
-//!   limit they are counted, and the way on is the answer's `next`. No
-//!   order comes from the query: where no sort is named the rows stand in
-//!   the store's order, and `sort: none` names that order too. A counts
+//! - **Rows** are the matching items in the corpus's order, as they lie
+//!   in their place ([`PLACE_ORDER_WORDS`]; `corpus.rs`, "The order"), or
+//!   by the sort scalar with items that have none last either way, ties
+//!   in the corpus's order; past the limit they are counted, and the way
+//!   on is the answer's `next`. No order comes from the query: where no
+//!   sort is named the rows stand as they lie, and `sort: none`
+//!   ([`PLACE_ORDER`]) names that order too. A counts
 //!   view shows none: the matches are handed to `counts.rs` instead, with
 //!   the one maker of a route (`Router`, private), so a bucket's route is
 //!   made as a term's is.
@@ -254,7 +256,7 @@
 //!   and the offer is the request from its start; without one a basis
 //!   is compared with nothing, since a route runs on any basis. No
 //!   answer is held between asks: the order is a function of the basis,
-//!   the store's stable order or a stable sort over it, so a place in
+//!   the corpus's total order or a stable sort over it, so a place in
 //!   it needs nothing kept; a facts file deleted and refetched, or
 //!   restored from a copy, to an id the basis already names is another
 //!   basis by when that response was recorded (`corpus.rs`). Rows alone
@@ -625,7 +627,7 @@ pub struct Rows {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<usize>,
     /// A value's text: a number field, `line(P).<slot>`, `sum( … )`; or
-    /// `none`, the store's order, as naming none gives.
+    /// `none`, the items as they lie in their place, as naming none gives.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
     /// The values each row carries, by their texts as `sort` takes one,
@@ -1082,8 +1084,8 @@ enum BoundView {
     Rows {
         sort: Option<(String, bind::SortKey)>,
         desc: bool,
-        /// `sort: none`: the store's order, named.
-        store_order: bool,
+        /// `sort: none`: the order items lie in their place, named.
+        place_order: bool,
         /// The values each row carries, by text, in order: as named, or
         /// the query's once [`BoundView::filled`] has run.
         values: Vec<(String, bind::SortKey)>,
@@ -1120,12 +1122,19 @@ struct ViewNamed {
 /// is a column its table shows.
 pub const VALUES: usize = 12;
 
-/// The sort word for the store's order, which naming no sort gives too:
-/// a second spelling of it, kept so a request that names it answers.
-pub const STORE_ORDER: &str = "none";
+/// The sort word for the order items lie in their places
+/// ([`PLACE_ORDER_WORDS`]), which naming no sort gives too: a second
+/// spelling of it, kept so a request that names it answers.
+pub const PLACE_ORDER: &str = "none";
 
-fn is_store_order(text: &str) -> bool {
-    text.trim().eq_ignore_ascii_case(STORE_ORDER)
+/// That order in words, held once: every text that says the order an
+/// answer's rows stand in unsorted embeds it (`corpus.rs`, "The
+/// order"). A text about the order of locations or of characters says
+/// its own.
+pub const PLACE_ORDER_WORDS: &str = "as they lie in their place, top row first and left to right";
+
+fn is_place_order(text: &str) -> bool {
+    text.trim().eq_ignore_ascii_case(PLACE_ORDER)
 }
 
 /// The values a request names, each by its canonical text and once;
@@ -1338,22 +1347,24 @@ impl Shape {
         Ok(match self {
             Shape::Rows(rows) => BoundView::Rows {
                 sort: match &rows.sort {
-                    Some(text) if !is_store_order(text) => {
+                    Some(text) if !is_place_order(text) => {
                         let value = parse::parse_value(text)?;
                         Some((print::print_value(&value), bind::bind_sort(&value)?))
                     }
                     _ => None,
                 },
-                desc: match rows.sort.as_deref().is_some_and(is_store_order) && rows.desc {
+                desc: match rows.sort.as_deref().is_some_and(is_place_order) && rows.desc {
                     true => {
                         return Err(LanguageError::new(
                             crate::error::ErrorKind::View,
-                            "`sort` `none` is the store's order, and `desc` puts a value's largest first: name the value to sort by",
+                            format!(
+                                "`sort` `none` stands the rows {PLACE_ORDER_WORDS}, and `desc` puts a value's largest first: name the value to sort by"
+                            ),
                         ));
                     }
                     false => rows.desc,
                 },
-                store_order: rows.sort.as_deref().is_some_and(is_store_order),
+                place_order: rows.sort.as_deref().is_some_and(is_place_order),
                 values: bound_values(&rows.values)?,
                 named: ViewNamed {
                     values: !rows.values.is_empty(),
@@ -1837,7 +1848,8 @@ pub struct Next {
 #[derive(Debug, Clone, Serialize)]
 pub struct RowsOut {
     /// The value the rows are ordered by, one of `values`; or `none`,
-    /// the store's order asked. Absent: the store's order, none named.
+    /// the items as they lie in their place, asked. Absent: that order,
+    /// none named.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -2151,7 +2163,8 @@ fn subject(corpus: &Corpus, at: impl Iterator<Item = usize>) -> (usize, Option<F
 
 /// The matches' order, each an index into `matches`: by `sort`, largest
 /// first where `desc`, an item lacking the value after every item that
-/// has it, ties in the corpus's order; with none, the corpus's order.
+/// has it, ties in the corpus's order; with none, the corpus's order, as
+/// items lie in their places (`corpus.rs`, "The order").
 fn ordered(
     corpus: &Corpus,
     matches: &[(usize, Vec<Outcome>)],
@@ -2674,7 +2687,7 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
     let left_out = total.matched.saturating_sub(after + rows.len());
     let view = match &view {
         BoundView::Rows {
-            store_order,
+            place_order,
             named,
             values_left_out,
             values_from_query,
@@ -2706,8 +2719,8 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
                     view: View {
                         shape: Shape::Rows(Rows {
                             limit: Some(limit),
-                            sort: match *store_order {
-                                true => Some(STORE_ORDER.to_string()),
+                            sort: match *place_order {
+                                true => Some(PLACE_ORDER.to_string()),
                                 false => sort.map(|(text, _)| text.clone()),
                             },
                             desc: named.sort && desc,
@@ -2730,8 +2743,8 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
                 };
                 Next { request }
             }),
-            sort: match *store_order {
-                true => Some(STORE_ORDER.to_string()),
+            sort: match *place_order {
+                true => Some(PLACE_ORDER.to_string()),
                 false => sort.map(|(text, _)| text.clone()),
             },
             desc,

@@ -943,7 +943,7 @@ pub fn sort_shuffled(sort: &Sort, seed: u64) -> Sort {
 /// group's own syntax — the slot check, the together bound, what its
 /// templates resolved to, the values the query compares and so the
 /// order it gives where no sort is named — so its answers are compared
-/// by [`said`], in the store's order where no sort is named.
+/// by [`said`], in the corpus's order where no sort is named.
 pub fn padded(q: &Q, seed: u64) -> Q {
     fn walk(q: &Q, rng: &mut Lcg) -> Q {
         let each = |children: &[Q], rng: &mut Lcg| -> Vec<Q> {
@@ -2559,7 +2559,7 @@ pub fn run(corpus: &Corpus, request: &Value) -> Result<Value, Value> {
 }
 
 /// What a row of an answer sorts by: the entry of its `values` the
-/// view's `sort` names, null where the rows are in the store's order.
+/// view's `sort` names, null where the rows stand as they lie.
 pub fn sort_of(answer: &Value, row: &Value) -> Value {
     let rows = &answer["view"]["rows"];
     rows["values"]

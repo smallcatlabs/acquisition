@@ -383,7 +383,7 @@ fn c92_the_sort_scalar_and_an_item_without_one_last_either_way() {
     };
     let down = sorted(true);
     let order: Vec<&str> = down.iter().map(|(id, _)| id.as_str()).collect();
-    // r3 100; r1 and r5 95 in the store's order; r2's largest is 75; r6's
+    // r3 100; r1 and r5 95 in the corpus's order; r2's largest is 75; r6's
     // 95 is no largest while its implicit array is unread; r7 has none
     assert_eq!(order, ["r3", "r1", "r5", "r2", "r6", "r7"]);
     // a row says what it sorts by: the occurrence whose slot is the

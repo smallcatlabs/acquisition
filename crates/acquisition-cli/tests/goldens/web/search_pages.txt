@@ -53,7 +53,7 @@ GET search?<the ring search>
 # holds " ago</a></p>"
 # holds "<a class=\"presentation\" href=\"search?"
 # holds ">as a table</a>"
-# holds "rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)"
+# holds "rows 1–2 of 2 shown, as they lie in their place, top row first and left to right (no sort asked)"
 # holds "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
@@ -110,7 +110,7 @@ GET search?<the ring search>
 </div>
 <p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)<br>category accessory.ring</p>
 </div>
-<p class="rows-shown">rows 1–2 of 2 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
+<p class="rows-shown">rows 1–2 of 2 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -132,7 +132,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </main>
 
 GET search?<the ring search as a table>
-# holds "<p class=\"rows-shown\">2 matching items in the table, in the store&#39;s order (no sort asked)"
+# holds "<p class=\"rows-shown\">2 matching items in the table, as they lie in their place, top row first and left to right (no sort asked)"
 # holds "<div class=\"window\" data-row-height=\"24\" data-block-rows=\"50\">"
 # holds "<span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class=\"head\" href=\"search?realm=pc&amp;league=Standard&amp;"
 # holds "/rows?next=acq1."
@@ -170,7 +170,7 @@ GET search?<the ring search as a table>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;group.type=and&amp;stat.id=explicit.stat_3299347043&amp;stat.min=70&amp;stat.id=&amp;view.limit=20&amp;view.sort=">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=league%3DStandard%20category%3D%22accessory.ring%22%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D70">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=league%3DStandard%20category%3D%22accessory.ring%22%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D70">by character</a></p>
 <form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="query.filters.type_filters.filters.category.option" value="accessory.ring"><input type="hidden" name="query.filters.type_filters.filters.rarity.option" value=""><input type="hidden" name="query.filters.misc_filters.filters.ilvl.min" value=""><input type="hidden" name="group.type" value="and"><input type="hidden" name="stat.id" value="explicit.stat_3299347043"><input type="hidden" name="stat.min" value="70"><input type="hidden" name="stat.id" value=""><input type="hidden" name="view.limit" value="20"><input type="hidden" name="view.sort" value=""><input type="hidden" name="view.fields" value="icon">
-<p class="rows-shown">2 matching items in the table, in the store&#39;s order (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
+<p class="rows-shown">2 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;group.type=and&amp;stat.id=explicit.stat_3299347043&amp;stat.min=70&amp;stat.id=&amp;view.limit=20&amp;view.fields=icon&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)</a></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="2" data-base="0"><div class="block" data-block="0">
@@ -238,7 +238,7 @@ GET search?<an edited text>
 </div>
 <p class="shows">line(&quot;# to maximum Life&quot;).arg1 95<br>+95 to maximum Life (explicit)<br>class Rings</p>
 </div>
-<p class="rows-shown">rows 1–1 of 1 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
+<p class="rows-shown">rows 1–1 of 1 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -342,7 +342,7 @@ GET search?<a trade site search's URL>
 </div>
 <p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</p>
 </div>
-<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
+<p class="rows-shown">rows 1–3 of 3 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -509,7 +509,7 @@ GET search?<the site's query JSON with its sort>
 </div>
 <p class="shows">category accessory.ring</p>
 </div>
-<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
+<p class="rows-shown">rows 1–3 of 3 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it</p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
@@ -606,7 +606,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </main>
 
 GET search?<every ring, one row shown>
-# holds "rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/"
+# holds "rows 1–1 of 3 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/"
 # holds "search?next=acq1."
 # holds "\">more</a>"
 # holds "data-way=\"/terms/0/undecided\" href="
@@ -644,7 +644,7 @@ GET search?<every ring, one row shown>
 </div>
 <p class="shows">class Rings</p>
 </div>
-<p class="rows-shown">rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
+<p class="rows-shown">rows 1–1 of 3 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
@@ -668,7 +668,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </main>
 
 GET search?<every ring, the second row>
-# holds "rows 2–2 of 3 shown, in the store&#39;s order (no sort asked)"
+# holds "rows 2–2 of 3 shown, as they lie in their place, top row first and left to right (no sort asked)"
 # holds "\">first rows</a>"
 # holds ">as a table</a>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
@@ -708,7 +708,7 @@ GET search?<every ring, the second row>
 </div>
 <p class="shows">class Rings</p>
 </div>
-<p class="rows-shown">rows 2–2 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a> · <a class="first" href="/<token>/search?realm=pc&amp;text=class%3Arings&amp;view.limit=1">first rows</a></p>
+<p class="rows-shown">rows 2–2 of 3 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a> · <a class="first" href="/<token>/search?realm=pc&amp;text=class%3Arings&amp;view.limit=1">first rows</a></p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
@@ -1019,7 +1019,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 
 GET search?realm=pc&text=class%3Arings&view.fields=icon
 # holds "<p class=\"save-note\">Saved without the table: a saved search is its query and its scope.</p>"
-# holds "3 matching items in the table, in the store&#39;s order (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>"
+# holds "3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Answer</h1>
@@ -1040,7 +1040,7 @@ GET search?realm=pc&text=class%3Arings&view.fields=icon
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=class%3Arings">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=class%3Arings">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=class%3Arings">by character</a></p>
 <form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value="class:rings"><input type="hidden" name="view.fields" value="icon">
-<p class="rows-shown">3 matching items in the table, in the store&#39;s order (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
+<p class="rows-shown">3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
@@ -1199,7 +1199,7 @@ GET search?<two stat groups, the second weighted>
 </div>
 <p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 500<br>+500 to maximum Life (explicit)<br>sum(line((&quot;# to maximum Life&quot; source=explicit) or (&quot;# to maximum Life&quot; source=implicit)).arg1) 500</p>
 </div>
-<p class="rows-shown">rows 1–1 of 1 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
+<p class="rows-shown">rows 1–1 of 1 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>

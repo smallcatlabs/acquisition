@@ -1762,7 +1762,7 @@ fn every_search_page_is_a_wording_golden() {
             ">as a table</a>",
             // the order the rows stand in, where no sort was asked: the
             // store's
-            "rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)",
+            "rows 1–2 of 2 shown, as they lie in their place, top row first and left to right (no sort asked)",
             // the query box's presentation, the big form's
             "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>",
         ],
@@ -1793,7 +1793,7 @@ fn every_search_page_is_a_wording_golden() {
         "GET search?<the ring search as a table>",
         &table,
         &[
-            "<p class=\"rows-shown\">2 matching items in the table, in the store&#39;s order (no sort asked)",
+            "<p class=\"rows-shown\">2 matching items in the table, as they lie in their place, top row first and left to right (no sort asked)",
             "<div class=\"window\" data-row-height=\"24\" data-block-rows=\"50\">",
             "<span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class=\"head\" href=\"search?realm=pc&amp;league=Standard&amp;",
             "/rows?next=acq1.",
@@ -1971,7 +1971,7 @@ fn every_search_page_is_a_wording_golden() {
         &first,
         &[
             // where no sort was asked, the way to one
-            "rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/",
+            "rows 1–1 of 3 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/",
             "search?next=acq1.",
             "\">more</a>",
             "data-way=\"/terms/0/undecided\" href=",
@@ -1994,7 +1994,7 @@ fn every_search_page_is_a_wording_golden() {
         "GET search?<every ring, the second row>",
         &more,
         &[
-            "rows 2–2 of 3 shown, in the store&#39;s order (no sort asked)",
+            "rows 2–2 of 3 shown, as they lie in their place, top row first and left to right (no sort asked)",
             "\">first rows</a>",
             ">as a table</a>",
         ],
@@ -2148,7 +2148,7 @@ fn every_search_page_is_a_wording_golden() {
             "search?realm=pc&text=class%3Arings&view.fields=icon",
             "Saved without the table: a saved search is its query and its scope.",
             // where no sort was asked, the way to one
-            "3 matching items in the table, in the store&#39;s order (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>",
+            "3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>",
         ),
     ] {
         let saving = web.get(path);
@@ -6758,14 +6758,14 @@ fn the_grouped_table_is_a_wording_golden() {
             "open=f1&amp;open=o1&amp;at=o-high#i-o-high\">",
         ],
     );
-    // a place open with no query: its items in the store's order, and the
+    // a place open with no query: its items as they lie, and the
     // way to order them said
     let plain = web.get("tabs?realm=pc&league=Standard&open=t1");
     pages.page(
         "GET tabs?<a place open, no query>",
         &plain,
         &[
-            "<p class=\"rows-shown\">Each place&#39;s items stand in the store&#39;s order: open one by its name and press a number on its card to order them by it.</p>",
+            "<p class=\"rows-shown\">Each place&#39;s items stand as they lie in their place, top row first and left to right: open one by its name and press a number on its card to order them by it.</p>",
         ],
     );
     page_golden(file!(), "grouped", &pages);

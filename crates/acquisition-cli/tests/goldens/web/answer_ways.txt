@@ -67,7 +67,7 @@ GET search?<every ring, tabs never fetched in two leagues>
 </div>
 <p class="shows">class Rings</p>
 </div>
-<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
+<p class="rows-shown">rows 1–3 of 3 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it</p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
@@ -300,7 +300,7 @@ GET search?<a name eleven items carry>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5&amp;at=k10#i-k10">pc · Standard / Kestrels · x 10, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–10 of 11 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
+<p class="rows-shown">rows 1–10 of 11 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -379,7 +379,7 @@ GET search?<a site search with an ambiguous clause>
 </div>
 <p class="shows">sum(line(&quot;#% increased Movement Speed&quot; source=explicit).arg1) 25<br>25% increased Movement Speed (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
 </div>
-<p class="rows-shown">rows 1–2 of 2 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
+<p class="rows-shown">rows 1–2 of 2 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -476,13 +476,13 @@ GET search?<a table of two values, priced three ways>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=name%3Aledger%20ilvl%3E%3D80%20line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D50%29">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=name%3Aledger%20ilvl%3E%3D80%20line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D50%29">by character</a></p>
 <form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value="name:ledger ilvl&gt;=80 &quot;# to maximum Life&quot;&gt;=50"><input type="hidden" name="view.fields" value="icon">
-<p class="rows-shown">3 matching items in the table, in the store&#39;s order (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
+<p class="rows-shown">3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50&amp;view.fields=icon&amp;view.sort=ilvl&amp;view.desc=true">ilvl</a><a class="head" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50&amp;view.fields=icon&amp;view.sort=line%28%22%23%20to%20maximum%20Life%22%29.arg1&amp;view.desc=true">line(&quot;# to maximum Life&quot;).arg1</a></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
-<div class="r" id="i-li" data-i="0" data-id="li"><button type="submit" class="name rarity-rare" name="toggle_item" value="li">Ledger Unread Iron Ring</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Ledger · x 11, y 0</span><span><age> ago</span><span>83</span><span>incomplete at 70</span></div>
+<div class="r" id="i-lp" data-i="0" data-id="lp"><button type="submit" class="name rarity-rare" name="toggle_item" value="lp">Ledger Priced Iron Ring</button><span>Iron Ring</span><span>5 chaos · game</span><span>Standard / Ledger · x 9, y 0</span><span><age> ago</span><span>81</span><span>90</span></div>
 <div class="r" id="i-lo" data-i="1" data-id="lo"><button type="submit" class="name rarity-rare" name="toggle_item" value="lo">Ledger Open Iron Ring</button><span>Iron Ring</span><span>undecided: the note cannot be read: it is no string, and a note would decide</span><span>Standard / Ledger · x 10, y 0</span><span><age> ago</span><span>82</span><span>60</span></div>
-<div class="r" id="i-lp" data-i="2" data-id="lp"><button type="submit" class="name rarity-rare" name="toggle_item" value="lp">Ledger Priced Iron Ring</button><span>Iron Ring</span><span>5 chaos · game</span><span>Standard / Ledger · x 9, y 0</span><span><age> ago</span><span>81</span><span>90</span></div>
+<div class="r" id="i-li" data-i="2" data-id="li"><button type="submit" class="name rarity-rare" name="toggle_item" value="li">Ledger Unread Iron Ring</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Ledger · x 11, y 0</span><span><age> ago</span><span>83</span><span>incomplete at 70</span></div>
 </div></div>
 </div>
 </form>
@@ -636,16 +636,16 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
-<p><span class="badge">unread — `frameTypeId` is a number, not a string</span> <span class="badge">unread — `implicitMods` is a string, not an array</span></p>
-<p><a class="name rarity-rare" href="item/li">Ledger Unread Iron Ring · rare</a></p>
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/lp">Ledger Priced Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">83</a></p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">81</a></p>
 <div class="mods">
-<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+70 to maximum Life</a> <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+90 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
-<p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=p9&amp;at=li#i-li">pc · Standard / Ledger · x 11, y 0 · fetched <age> ago</a></p>
+<p class="price">price 5 chaos · game</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=p9&amp;at=lp#i-lp">pc · Standard / Ledger · x 9, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -662,16 +662,16 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
-<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
-<p><a class="name rarity-rare" href="item/lp">Ledger Priced Iron Ring · rare</a></p>
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span> <span class="badge">unread — `implicitMods` is a string, not an array</span></p>
+<p><a class="name rarity-rare" href="item/li">Ledger Unread Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">81</a></p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">83</a></p>
 <div class="mods">
-<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+90 to maximum Life</a> <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+70 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
-<p class="price">price 5 chaos · game</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=p9&amp;at=lp#i-lp">pc · Standard / Ledger · x 9, y 0 · fetched <age> ago</a></p>
+<p class="price">price none (nothing applies)</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=p9&amp;at=li#i-li">pc · Standard / Ledger · x 11, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -731,7 +731,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="shows">class Rings</p>
 </div>
-<p class="rows-shown">rows 1–10 of 20 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
+<p class="rows-shown">rows 1–10 of 20 shown, as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>

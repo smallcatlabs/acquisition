@@ -403,8 +403,8 @@ fn c95_a_price_sorts_sums_and_counts_with_its_decimals_kept() {
             ("rowed", json!(12.5)),
             ("tied", json!(7)),
             ("noted", json!(5)),
-            // ties keep the store's order: characters before tabs, tabs by
-            // id, items by id
+            // ties keep the corpus's order: characters before tabs, tabs by
+            // id, items as they lie, here by id
             ("worn", json!(2)),
             ("bo", json!(2)),
             ("dumped", json!(1)),

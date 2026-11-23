@@ -583,7 +583,7 @@ impl Places {
             // the total alone: no row and no order
             own.view = View::from(Shape::Rows(Rows {
                 limit: Some(0),
-                sort: Some(crate::answer::STORE_ORDER.to_string()),
+                sort: Some(crate::answer::PLACE_ORDER.to_string()),
                 ..Rows::default()
             }));
             let answered = crate::answer::unaged(&asked.corpus, &own)?.aged(now);

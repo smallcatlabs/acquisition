@@ -23,7 +23,7 @@ rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
         Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago
             sum(line("# to maximum Life" source=explicit).arg1) 500 · +500 to maximum Life (explicit)
             id kaom
-order   rows 1–3 of 3 shown, in the store's order (no sort asked)
+order   rows 1–3 of 3 shown, as they lie in their place, top row first and left to right (no sort asked)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    league=Standard                                          5 matched
   1    sum(line("# to maximum Life" source=explicit).arg1)>=70  3 matched · 2 failed
@@ -63,5 +63,5 @@ rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
             id plain
         Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
             id r3
-order   rows 1–5 of 5 shown, in the store's order (no sort asked)
+order   rows 1–5 of 5 shown, as they lie in their place, top row first and left to right (no sort asked)
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

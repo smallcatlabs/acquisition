@@ -1498,12 +1498,125 @@ fn c140_a_row_carries_the_icon_when_the_view_names_it() {
     }
 }
 
+// ---- the order ----------------------------------------------------------
+
+/// With no sort asked, and at `sort: none`, a place's items stand as they
+/// lie in it (`corpus.rs`, "The order"): by row, then column, of the cell
+/// the place gives them, whatever their ids; a worn, a socketed and a
+/// cell-less item after, by id, though a worn or socketed body's `x`/`y`
+/// would sort it first. A location's items stand together, locations in
+/// the store's order (a character before a tab, tabs by id), and a
+/// continuation goes on in that order.
+#[test]
+fn a_places_items_stand_as_they_lie_with_no_sort_asked() {
+    let at =
+        |id: &str, x: i64, y: i64| item(id, id, "Iron Ring", "Rare", json!({ "x": x, "y": y }));
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([tab("t1", "First"), tab("t2", "Second")]),
+        10,
+    );
+    // ids against the cells: `a` lies last of the celled, `d` first
+    let mut cellless = item("b0", "b0", "Iron Ring", "Rare", json!({}));
+    cellless.as_object_mut().unwrap().shift_remove("x");
+    cellless.as_object_mut().unwrap().shift_remove("y");
+    let gem = json!({ "id": "a0", "typeLine": "Fireball", "baseType": "Fireball",
+        "frameTypeId": "Gem", "identified": true, "ilvl": 0, "x": 0, "y": 0, "socket": 0 });
+    let holder = item(
+        "d",
+        "d",
+        "Iron Ring",
+        "Rare",
+        json!({ "x": 3, "y": 0, "socketedItems": [gem] }),
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t1",
+        "First",
+        vec![
+            at("a", 2, 1),
+            at("b", 0, 1),
+            at("c", 5, 0),
+            cellless,
+            holder,
+        ],
+        20,
+    );
+    // a second tab whose ids fall among the first's
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t2",
+        "Second",
+        vec![at("bb", 1, 0), at("ab", 0, 0)],
+        21,
+    );
+    list_characters(
+        &mut s,
+        "pc",
+        json!([{ "id": "ch", "name": "Mover", "league": "Standard" }]),
+        30,
+    );
+    let mut worn = item(
+        "aw",
+        "aw",
+        "Iron Ring",
+        "Rare",
+        json!({ "inventoryId": "Ring" }),
+    );
+    worn["x"] = json!(0);
+    fetch_character(
+        &mut s,
+        "pc",
+        json!({ "id": "ch", "name": "Mover", "league": "Standard",
+            "equipment": [worn], "inventory": [at("zi", 4, 2), at("zj", 1, 2)] }),
+        31,
+    );
+    let corpus = load(&s, Some("pc"));
+    let lie = [
+        // the character, its inventory by cell, the worn after
+        "zj", "zi", "aw", // the first tab: row 0, then row 1, then the cell-less by id
+        "d", "c", "b", "a", "a0", "b0", // the second tab
+        "ab", "bb",
+    ];
+    let ask = |rows: Value| {
+        let request: Request =
+            serde_json::from_value(json!({ "query": { "text": "" }, "view": { "rows": rows } }))
+                .unwrap();
+        as_json(&answer(&corpus, &request).unwrap())
+    };
+    for rows in [
+        json!({ "limit": 100 }),
+        json!({ "limit": 100, "sort": "none" }),
+    ] {
+        assert_eq!(ids_in_order(&ask(rows.clone())), lie, "{rows}");
+    }
+    // three at a time, each page the continuation the one before named
+    let mut paged = Vec::new();
+    let mut a = ask(json!({ "limit": 3 }));
+    loop {
+        paged.extend(ids_in_order(&a));
+        let Some(next) = a["view"]["rows"].get("next") else {
+            break;
+        };
+        let request: Request = serde_json::from_value(next["request"].clone()).unwrap();
+        a = as_json(&answer(&corpus, &request).unwrap());
+    }
+    assert_eq!(paged, lie);
+}
+
 // ---- values on rows -----------------------------------------------------
 
 /// The values a query compares, in its order, each once (`values.rs`):
 /// columns, never an order. A row each, the query and the
 /// values the answer says it used; every answer names no sort and stands
-/// in the store's order, the order `none` names.
+/// as the items lie, the order `none` names.
 #[test]
 fn the_values_a_query_compares_are_columns_and_never_an_order() {
     let corpus = load(&worked(), Some("pc"));
@@ -1575,7 +1688,7 @@ fn the_values_a_query_compares_are_columns_and_never_an_order() {
         assert_eq!(
             ids_in_order(&a),
             ids_in_order(&ask(json!({ "sort": "none" }))),
-            "`{query}`: the store's order"
+            "`{query}`: as the items lie"
         );
         for row in a["rows"].as_array().unwrap() {
             let carried = row
@@ -1587,10 +1700,10 @@ fn the_values_a_query_compares_are_columns_and_never_an_order() {
     }
 }
 
-/// A query that filters on the explicit sum of rarity stands in the
-/// store's order, unnamed, and naming that sum orders the rows by it —
+/// A query that filters on the explicit sum of rarity stands as the
+/// items lie, unnamed, and naming that sum orders the rows by it —
 /// not by the sum over every source, which put a 41 explicit with 16
-/// implicit above a 51. `none` is the store's order, and `desc` beside it
+/// implicit above a 51. `none` is that order, and `desc` beside it
 /// is refused.
 #[test]
 fn issue_38_a_filtered_sum_orders_the_rows_where_it_is_named() {
@@ -1630,7 +1743,7 @@ fn issue_38_a_filtered_sum_orders_the_rows_where_it_is_named() {
         .unwrap();
         answer(&corpus, &request)
     };
-    // unnamed and `none` alike: the store's order, by id here
+    // unnamed and `none` alike: as they lie, by id here, each in one cell
     for rows in [json!({}), json!({ "sort": "None" })] {
         let b = as_json(&ask(rows.clone()).unwrap());
         assert_eq!(

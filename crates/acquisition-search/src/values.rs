@@ -1,6 +1,7 @@
 //! The values a query compares: what a rows view carries on each row
 //! where it names none. They are columns, never an order: rows stand
-//! in the store's order unless a sort is named.
+//! as they lie in their place unless a sort is named (`corpus.rs`, "The
+//! order").
 //!
 //! # As built
 //!

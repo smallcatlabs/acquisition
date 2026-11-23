@@ -26,8 +26,8 @@ use std::collections::HashMap;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::Classed;
 use acquisition_search::answer::{
-    Answer, Count, ExplainOut, QueryInput, Request, RowField, RowsOut, Shape, TradeOut, ViewOut,
-    Zero,
+    Answer, Count, ExplainOut, PLACE_ORDER_WORDS, QueryInput, Request, RowField, RowsOut, Shape,
+    TradeOut, ViewOut, Zero,
 };
 use acquisition_search::counts::{CrossOut, Table};
 use acquisition_search::places::{Counted, Filter as PlaceFilter, Holds, Kind, Place, Places, Row};
@@ -1841,7 +1841,7 @@ pub(crate) fn answer(
                 let mut line = esc(&search_cmd::rows_shown_words(a, rows));
                 if let Some(way) = order_way(rows, Presented::Cards).filter(|_| !a.rows.is_empty())
                 {
-                    line.push_str(&format!(" · {}", esc(way)));
+                    line.push_str(&format!(" · {}", esc(&way)));
                 }
                 if rows.left_out > 0 {
                     line.push_str(&match &rows.next {
@@ -2536,16 +2536,22 @@ enum Presented {
     Places,
 }
 
-/// Where rows stand in the store's order because no sort was asked, how a
-/// page orders them: a number on an item's card orders the rows by its
-/// value, and a table's or a place's item opens to its card by its name.
-/// Without it a reader meets no control that sorts until a query compares a
-/// value. None where a sort orders the rows, whose head flips it.
-fn order_way(rows: &RowsOut, shape: Presented) -> Option<&'static str> {
-    rows.sort.is_none().then_some(match shape {
-        Presented::Cards => "press a number on a card to order the rows by it",
-        Presented::Table => "open an item by its name and press a number on its card to order the rows by it",
-        Presented::Places => "Each place's items stand in the store's order: open one by its name and press a number on its card to order them by it.",
+/// Where rows stand as they lie in their place because no sort was asked,
+/// how a page orders them: a number on an item's card orders the rows by
+/// its value, and a table's or a place's item opens to its card by its
+/// name. Without it a reader meets no control that sorts until a query
+/// compares a value. None where a sort orders the rows, whose head flips
+/// it.
+fn order_way(rows: &RowsOut, shape: Presented) -> Option<String> {
+    rows.sort.is_none().then(|| match shape {
+        Presented::Cards => "press a number on a card to order the rows by it".to_string(),
+        Presented::Table => {
+            "open an item by its name and press a number on its card to order the rows by it"
+                .to_string()
+        }
+        Presented::Places => format!(
+            "Each place's items stand {PLACE_ORDER_WORDS}: open one by its name and press a number on its card to order them by it."
+        ),
     })
 }
 
@@ -3469,7 +3475,7 @@ pub(crate) fn places(view: &PlacesPage) -> String {
             format!(
                 "{}{}\n{}",
                 order_way(rows, Presented::Places)
-                    .map(|way| format!("<p class=\"rows-shown\">{}</p>\n", esc(way)))
+                    .map(|way| format!("<p class=\"rows-shown\">{}</p>\n", esc(&way)))
                     .unwrap_or_default(),
                 value_finder(),
                 item_heads(rows, &|value| (view.view_links)(rows, value))

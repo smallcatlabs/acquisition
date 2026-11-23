@@ -453,7 +453,7 @@ pub(crate) fn fold_count(form: &Form, fields: &[(String, String)]) -> Result<Fol
         .collect();
     Ok(Folded {
         limit: Some(0),
-        sort: Some(acquisition_search::answer::STORE_ORDER.to_string()),
+        sort: Some(acquisition_search::answer::PLACE_ORDER.to_string()),
         ..fold(form, &searched)?
     })
 }

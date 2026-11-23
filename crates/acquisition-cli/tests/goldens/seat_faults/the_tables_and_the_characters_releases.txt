@@ -13,7 +13,7 @@ rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
             id i-std
         Chaos Orb · Allflame / Gear · x 0, y 0 · fetched <age> ago
             id i-all
-order   rows 1–2 of 2 shown, in the store's order (no sort asked)
+order   rows 1–2 of 2 shown, as they lie in their place, top row first and left to right (no sort asked)
 basis   store <store> · build <build> · snapshot 11 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm xbox
@@ -50,5 +50,5 @@ rows    Chaos Orb · pc · Standard / Gear · x 0, y 0 · fetched <age> ago
             id i-std
         Chaos Orb · pc · Allflame / Gear · x 0, y 0 · fetched <age> ago
             id i-all
-order   rows 1–2 of 2 shown, in the store's order (no sort asked)
+order   rows 1–2 of 2 shown, as they lie in their place, top row first and left to right (no sort asked)
 basis   store <store> · build <build> · snapshot 11 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

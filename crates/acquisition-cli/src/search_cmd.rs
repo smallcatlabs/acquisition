@@ -56,8 +56,8 @@ use crate::printed::Printed as _;
 use std::io::Read as _;
 
 use acquisition_search::answer::{
-    Answer, Asked, ClauseOut, Context, Count, Membership, Request, RowField, Rows, Scope, Shape,
-    TradeOut, View, ViewOut,
+    Answer, Asked, ClauseOut, Context, Count, Membership, PLACE_ORDER_WORDS, Request, RowField,
+    Rows, Scope, Shape, TradeOut, View, ViewOut,
 };
 use acquisition_search::corpus::Realm;
 use acquisition_search::counts::{Bucket, CrossOut, Label, SumOf, Summed, Table};
@@ -128,8 +128,8 @@ pub struct SearchArgs {
     /// sum spans every source the line has — implicit and crafted with
     /// explicit — as the row's `sorts by` shows; one source's is its
     /// form, `'sum(line("T" source=explicit).arg1)'`, the filter's own.
-    /// None named, the rows stand in the store's order, which `none`
-    /// names too.
+    /// None named, the rows stand as they lie in their place, top row
+    /// first and left to right, which `none` names too.
     #[arg(long, value_name = "VALUE")]
     pub sort: Option<String>,
     /// Largest first.
@@ -1607,16 +1607,16 @@ pub(crate) fn rows_shown_words(a: &Answer, rows: &acquisition_search::answer::Ro
     )
 }
 
-/// The order rows stand in where no value orders them: the store's stable
-/// order (`answer.rs`, "Rows"), said so a reader does not look for one.
-/// None where a sort was named, which each row says it sorts by.
+/// The order rows stand in where no value orders them: as they lie in
+/// their place (`answer.rs`, "Rows"), said so a reader does not look for
+/// one. None where a sort was named, which each row says it sorts by.
 pub(crate) fn order_words(rows: &acquisition_search::answer::RowsOut) -> Option<String> {
     match rows.sort.as_deref() {
-        Some(sort) if sort == acquisition_search::answer::STORE_ORDER => {
-            Some("in the store's order, as asked".to_string())
+        Some(sort) if sort == acquisition_search::answer::PLACE_ORDER => {
+            Some(format!("{PLACE_ORDER_WORDS}, as asked"))
         }
         Some(_) => None,
-        None => Some("in the store's order (no sort asked)".to_string()),
+        None => Some(format!("{PLACE_ORDER_WORDS} (no sort asked)")),
     }
 }
 

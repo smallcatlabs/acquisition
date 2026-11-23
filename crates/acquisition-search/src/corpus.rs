@@ -70,6 +70,17 @@
 //!   items are the live ones, the removed counted beside them. Under `live` the corpus
 //!   keeps the ids the read left out, each with when it left, for an
 //!   `id:` term that matches nothing (`answer.rs`).
+//! - **The order**, made once here, is the one an answer's rows stand
+//!   in where no sort is named, at every door (`answer.rs`, "Rows"):
+//!   one stable sort of the items after the read, by their location,
+//!   locations in the order the store's read hands them over, then
+//!   within one as they lie in their place, by the cell [`celled`]
+//!   leaves on it, top row first and left to right, then by id. An
+//!   item with no cell there — worn, socketed, or with no cell in its
+//!   body — stands after those with one, by id: a worn or socketed
+//!   item's body names a cell of no place it sits in. Made after the
+//!   read, never in the store's SQL, whose order a body's cell is not
+//!   part of.
 //! - **Coverage is stated from the header**: a folder is a row no fetch
 //!   fills and is counted apart; a location never fetched is one no item
 //!   predicate supports a claim about (invariant 6 of the surface). The
@@ -708,6 +719,7 @@ impl Corpus {
                         });
                     }
                     name_sockets(&mut items);
+                    as_they_lie(&mut items);
                     // coverage and the listing states are the live locations':
                     // a retired one is in the header only to name what left
                     let locations: Vec<LocationRow> = header
@@ -977,6 +989,41 @@ pub(crate) fn tab_type_unread(place: &Place) -> Option<Unread> {
         name: None,
         socket: None,
     })
+}
+
+/// The corpus's order, the one an answer's rows stand in where no sort
+/// is named (the module doc, "The order"): by the item's location, in
+/// the order the store's read first hands it over, then by the cell its
+/// place gives it, row then column, an item with no cell after those
+/// with one, then by id. A total order, so a continuation's offset is a
+/// place in it (C98).
+fn as_they_lie(items: &mut Vec<Held>) {
+    // a location's index: where its first row stands in the read
+    let mut first: HashMap<(&str, &str, &str), usize> = HashMap::new();
+    let ranks: Vec<usize> = items
+        .iter()
+        .map(|held| {
+            let facts = &held.item.facts;
+            let seen = first.len();
+            *first
+                .entry((
+                    facts.realm.as_str(),
+                    facts.location_kind.as_str(),
+                    facts.location_id.as_str(),
+                ))
+                .or_insert(seen)
+        })
+        .collect();
+    let mut keyed: Vec<(usize, Held)> = ranks.into_iter().zip(items.drain(..)).collect();
+    keyed.sort_by(|(a_rank, a), (b_rank, b)| {
+        // no cell sorts after every cell
+        let cell = |held: &Held| match held.place.cell {
+            Some(cell) => (false, cell.y, cell.x),
+            None => (true, 0, 0),
+        };
+        (a_rank, cell(a), &a.item.facts.id).cmp(&(b_rank, cell(b), &b.item.facts.id))
+    });
+    items.extend(keyed.into_iter().map(|(_, held)| held));
 }
 
 /// What an item is socketed in, by the name it is found under.

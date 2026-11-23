@@ -65,7 +65,7 @@ fn pages(corpus: &Corpus, first: &Value) -> (Vec<Value>, usize) {
 
 /// The seven of the worked example three at a time: three asks, and the
 /// rows of the three in order are the rows of one ask at a limit past the
-/// total — unsorted, in the store's order, and sorted either way.
+/// total — unsorted, as the items lie, and sorted either way.
 #[test]
 fn the_pages_of_an_answer_are_the_answer_at_a_limit_past_the_total() {
     let s = worked();
@@ -116,9 +116,9 @@ fn the_pages_of_an_answer_are_the_answer_at_a_limit_past_the_total() {
 }
 
 /// Each id's index in a rows request's whole order: asked of `answer`
-/// with `after` that index and `limit` one, it is that row, in the
-/// store's order, under a sort either way, and with the query's values
-/// as columns, in the store's order still; an id outside the order has
+/// with `after` that index and `limit` one, it is that row, as the
+/// items lie, under a sort either way, and with the query's values as
+/// columns, as they lie still; an id outside the order has
 /// none, whatever the request's own `after` and `limit`.
 #[test]
 fn an_ids_index_is_the_place_answer_lists_its_row_at() {
