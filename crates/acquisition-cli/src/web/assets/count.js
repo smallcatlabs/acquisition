@@ -5,11 +5,19 @@
 // word is the server's, a refusal's its title. It keeps a timer, the ask
 // in flight and the fields it last asked, nothing else, and never
 // touches the answer's rows or the URL: Search is still how a count
-// becomes the page's answer.
+// becomes the page's answer. A form's outputs are found among its
+// elements, so a form whose controls stand in another's markup, owned by
+// `form=`, has its count there too; and the page's input is heard on the
+// document, each event counted for its target's form, or, for a target
+// that has none (the stat pane's notice that an item list changed), for
+// the form it stands in. So no form's count asks another's fields.
 (function () {
+  // each counted form's handler of a change
+  const counted = new Map();
   document.querySelectorAll('form[data-count]').forEach((form) => {
-    const matched = form.querySelector('output[data-count="matched"]');
-    const undecided = form.querySelector('output[data-count="undecided"]');
+    const elements = Array.from(form.elements);
+    const matched = elements.find((el) => el.matches('output[data-count="matched"]'));
+    const undecided = elements.find((el) => el.matches('output[data-count="undecided"]'));
     if (!matched || !undecided) return;
     const part = undecided.parentElement;
     let timer = null;
@@ -59,7 +67,14 @@
       clearTimeout(timer);
       timer = setTimeout(ask, 300);
     };
-    form.addEventListener('input', changed);
-    form.addEventListener('change', changed);
+    counted.set(form, changed);
   });
+  const heard = (event) => {
+    const target = event.target;
+    const form = target.form || (target.closest ? target.closest('form') : null);
+    const changed = form && counted.get(form);
+    if (changed) changed();
+  };
+  document.addEventListener('input', heard);
+  document.addEventListener('change', heard);
 })();

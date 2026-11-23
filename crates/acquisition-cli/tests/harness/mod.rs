@@ -1500,16 +1500,17 @@ pub fn no_state(reply: &Reply, token: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// The search form's panes and controls, from the panes' opening line to the
-/// form's close: the part of the page every golden of a page carrying the form
-/// would repeat whole (51 KB of the form page's 54 KB), whatever its realm. It
+/// The search form, from its bar's opening line to the form's close — the
+/// bar, the site box in it, the panes, the controls and Clear: the part of
+/// the page every golden of a page carrying the form would repeat whole,
+/// whatever its realm. It
 /// is cut from each page that carries it, which says so in one line, and pinned
 /// once, empty as the server's form page renders it, in the golden named here
 /// ([`panes_golden`]), so an edit to the form changes one golden. A page whose
 /// form is filled records, under that line, the lines of its panes the empty
 /// form's lack: what it was filled with, read in its own golden. That the
 /// form sends what it holds is the fill's pin (`web/fill.rs`).
-const FORM_PANES: (&str, &str, &str) = ("<div class=\"panes\">\n", "</form>\n", "search_form");
+const FORM_PANES: (&str, &str, &str) = ("<div class=\"search-bar\">\n", "</form>\n", "search_form");
 
 /// The pages of a golden (C122): each page as `GET <path>` or `POST
 /// <path>`, the facts it must hold as `# holds` lines — checked against
@@ -1700,9 +1701,9 @@ impl Pages {
                 .map(|line| format!("{line}\n"))
                 .collect();
             let cut = match filled.is_empty() {
-                true => format!("<the search form's panes and controls: golden web/{name}>\n"),
+                true => format!("<the search form from its bar: golden web/{name}>\n"),
                 false => format!(
-                    "<the search form's panes and controls: golden web/{name}, filled with these \
+                    "<the search form from its bar: golden web/{name}, filled with these \
                      lines>\n{filled}"
                 ),
             };
@@ -1768,8 +1769,8 @@ pub fn panes_golden(file: &str, name: &str, pages: &mut Pages) {
         stem,
         name,
         &format!(
-            "# golden {stem}/{name}: the search form's panes and controls, cut from every page \
-             golden whose page carries them, each page's facts checked in that page as served \
+            "# golden {stem}/{name}: the search form from its bar, cut from every page \
+             golden whose page carries it, each page's facts checked in that page as served \
              (C122). Regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.\n\n{}",
             pages.rules(panes)
         ),

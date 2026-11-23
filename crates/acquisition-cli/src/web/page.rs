@@ -656,7 +656,7 @@ impl Filled {
 
 /// The page's editors, filled (the one page, `4-full-1-form-design.md` §2):
 /// what the form's envelope holds and no control sends, named; the search
-/// form; the query box; the site box; the league list's fetch. The answer or
+/// form, the site box in its bar; the query box; the league list's fetch. The answer or
 /// the refusal stands under them, at [`ANSWER`].
 pub(crate) fn editor(form: &Form, filled: &Filled, leagues: Option<&[(String, bool)]>) -> String {
     // the form first, so its controls have taken what they hold
@@ -664,7 +664,6 @@ pub(crate) fn editor(form: &Form, filled: &Filled, leagues: Option<&[(String, bo
     let mut out = unsent(&filled.fill.left());
     out.push_str(&searched);
     out.push_str(&query_box(filled));
-    out.push_str(&trade_box(&filled.realm, &filled.trade));
     out.push_str(&fetch_leagues());
     out
 }
@@ -713,8 +712,9 @@ fn checked(ticked: bool) -> &'static str {
 
 /// The search form, in the trade site's organization (the owner's page save
 /// read for its order alone, nothing of GGG's copied): the search bar
-/// across the top — the item search on the left; the realm, the league and
-/// the status on the right — then two panes, the filter groups as panels in
+/// across the top — the item search on the left, then the site box, its
+/// own form's ([`trade_box`]); the realm, the league and the status on the
+/// right — then two panes, the filter groups as panels in
 /// the dump's order on the left and the stat groups on the
 /// right ([`stat_pane`]), then the controls with Search at the centre. A panel is a
 /// `details` group, open where the site shows the group open or where it
@@ -737,12 +737,13 @@ pub(crate) fn search_form(
     let fill = &filled.fill;
     let realm = filled.realm.as_str();
     let mut out = format!(
-        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search#{ANSWER}\" novalidate data-count>\n<div class=\"search-bar\">\n<div class=\"search-left\">"
+        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form id=\"{TRADE_FORM}\" method=\"get\" action=\"search#{ANSWER}\" data-count></form>\n<form id=\"{SEARCH_FORM}\" method=\"get\" action=\"search#{ANSWER}\" novalidate data-count>\n<div class=\"search-bar\">\n<div class=\"search-left\">"
     );
     out.push_str(&format!(
-        "<input class=\"item-search\" name=\"query.term\"{} placeholder=\"Search items\" aria-label=\"Search items\">{}</div>\n<div class=\"search-right\">",
+        "<input class=\"item-search\" name=\"query.term\"{} placeholder=\"Search items\" aria-label=\"Search items\">{}\n{}</div>\n<div class=\"search-right\">",
         valued(fill.text("query.term").as_deref()),
-        fate_span(form.fate("query.term"))
+        fate_span(form.fate("query.term")),
+        trade_box(realm, &filled.trade)
     ));
     out.push_str("<label class=\"control\">Realm <select name=\"realm\" form=\"realm-form\">");
     for r in ["pc", "xbox", "sony", "poe2"] {
@@ -1205,8 +1206,24 @@ pub(crate) fn stat_options(listed: &acquisition_search::trade::vocabulary::Vocab
 /// The count beside each search's button, on every form that submits to
 /// `search`, which carries `data-count`: the words are these, the server's;
 /// `count.js` writes the numbers alone, a dash until a change is answered,
-/// and shows the undecided part only where it is not zero.
+/// and shows the undecided part only where it is not zero. It finds a
+/// form's outputs among the form's elements, so the site box's stand in
+/// the search form's bar, owned by its own form ([`count_of`]).
 const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched\">\u{2013}</output><span hidden> \u{b7} <output data-count=\"undecided\">\u{2013}</output> undecided</span></span>";
+
+/// [`COUNT`], its outputs owned by the form `id` names (`form=`).
+fn count_of(id: &str) -> String {
+    COUNT.replace("<output ", &format!("<output form=\"{id}\" "))
+}
+
+/// The search form's id, which the switch at the page's foot names
+/// (`form=`).
+pub(crate) const SEARCH_FORM: &str = "search-form";
+
+/// The site box's form: empty, standing before the search form, its
+/// controls in the search form's bar owned by it through `form=`, as the
+/// realm's are by `realm-form`.
+const TRADE_FORM: &str = "trade-form";
 
 /// The query box: a query in the language, run as the user's own — the one
 /// place every field the language has is reachable from a page, so what the
@@ -1362,18 +1379,22 @@ impl BoxView {
     }
 }
 
-/// The trade site box (#188, its first half): a site search as the
+/// The trade site box (#188), in the search form's bar after the item
+/// search (`4-full-1-form-rides.md`, Decision 5): a site search as the
 /// CLI's `--trade` takes it, run as the CLI's trade answer is — the
 /// translation's fidelity and every clause above the rows, the site's sort
-/// reported and not applied. It carries the realm the page shows, which an
-/// id or the query JSON is searched in; a URL names its own, which wins.
-/// It holds `text` where a site search's decode refused it; one that
-/// decodes fills the form instead.
+/// reported and not applied. Each of its controls is owned by its own form
+/// ([`TRADE_FORM`], by `form=`), so the search form sends none of them and
+/// each form's count asks its own fields. It carries the realm the page
+/// shows, which an id or the query JSON is searched in; a URL names its
+/// own, which wins. It holds `text` where a site search's decode refused
+/// it; one that decodes fills the form instead.
 fn trade_box(realm: &str, text: &str) -> String {
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count><input type=\"hidden\" name=\"realm\" value=\"{}\"><label class=\"filter-title\" for=\"trade-text\">A trade site search: its URL, its id or its query JSON</label><textarea id=\"trade-text\" name=\"trade\" rows=\"2\">{}</textarea><button type=\"submit\">Run the site's search</button> {COUNT} <span class=\"fate\">translated here, sent nowhere; a URL's realm is the search's</span></form>\n",
+        "<span class=\"site-search\"><input type=\"hidden\" name=\"realm\" value=\"{}\" form=\"{TRADE_FORM}\"><textarea id=\"trade-text\" name=\"trade\" form=\"{TRADE_FORM}\" rows=\"1\" placeholder=\"A trade site search: its URL, its id or its query JSON\" aria-label=\"A trade site search: its URL, its id or its query JSON\">{}</textarea><button type=\"submit\" form=\"{TRADE_FORM}\">Run the site's search</button> {} <span class=\"fate\">translated here, sent nowhere; a URL's realm is the search's</span></span>",
         esc(realm),
-        esc(text)
+        esc(text),
+        count_of(TRADE_FORM)
     )
 }
 

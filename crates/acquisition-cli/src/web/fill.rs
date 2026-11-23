@@ -233,7 +233,7 @@ mod tests {
 
     /// The search form's opening tag.
     const SEARCH_FORM: &str =
-        "<form method=\"get\" action=\"search#answer\" novalidate data-count>";
+        "<form id=\"search-form\" method=\"get\" action=\"search#answer\" novalidate data-count>";
 
     /// The paths the page names as left out by a search from the form.
     fn named_left(html: &str) -> Vec<String> {

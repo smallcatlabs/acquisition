@@ -213,10 +213,14 @@
 //!   stands.
 //! - **The count**: every form that submits to `search` carries
 //!   `data-count` and, beside its button, the words "Matches:" and an
-//!   `<output>`, then a hidden undecided part with its own. `count.js` asks
-//!   `GET count` with the fields the form would send, 300 ms after the last
-//!   `input` or `change` within the form that leaves those fields other
-//!   than the ones it last asked (the page's own, at its load), a new ask
+//!   `<output>`, then a hidden undecided part with its own, found among
+//!   the form's elements, so the site box's, owned by its form through
+//!   `form=`, stand in the search form's bar. `count.js` hears the page's
+//!   `input` and `change` on the document, each for its target's form, or,
+//!   for a target with none (the stat pane's notice), the form it stands
+//!   in, and asks `GET count` with the fields the form would send, 300 ms
+//!   after the last such event that leaves those fields other than the
+//!   ones it last asked (the page's own, at its load), a new ask
 //!   aborting the one in flight, and writes the answer's two numbers alone,
 //!   a dash before and between; a refusal's words are the output's title. A
 //!   control no form sends, a finder's box, changes no field and asks
@@ -332,8 +336,9 @@
 //!   is the row the card stands under.
 //! - **One page** (`roadmap/briefs/4-full-1-form-design.md` §2): `.` and
 //!   `search` render the editors ([`page::editor`]) — what the form's
-//!   envelope holds and no control sends, named; the search form; the query
-//!   box; the site box — then the answer or the refusal at the anchor
+//!   envelope holds and no control sends, named; the search form, the site
+//!   box in its bar after the item search, its own form's by `form=`
+//!   (`4-full-1-form-rides.md`, Decision 5); the query box — then the answer or the refusal at the anchor
 //!   `answer`, which every form that submits to `search` names in its
 //!   action. The source says which editor is filled ([`Web::editors`]): a
 //!   site search, the form's own envelope among them, is decoded and fills

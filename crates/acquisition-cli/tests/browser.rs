@@ -348,10 +348,12 @@ impl Page {
         }
     }
 
-    /// The number shown beside `form`'s button.
+    /// The number shown beside `form`'s button: its count's output among
+    /// its elements, as `count.js` finds it (an output another form owns
+    /// may stand inside it).
     fn shown(&mut self, form: &str) -> Value {
         self.cdp.eval(&format!(
-            "{form}.querySelector('output[data-count=\"matched\"]').value"
+            "Array.from({form}.elements).find((el) => el.matches('output[data-count=\"matched\"]')).value"
         ))
     }
 
@@ -390,7 +392,7 @@ impl Page {
     fn follows(&mut self, web: &harness::WebUi, form: &str) -> String {
         let expected = self.answered(web, form);
         self.cdp.until(&format!(
-            "{form}.querySelector('output[data-count=\"matched\"]').value === {}",
+            "Array.from({form}.elements).find((el) => el.matches('output[data-count=\"matched\"]')).value === {}",
             json!(expected)
         ));
         expected
@@ -399,6 +401,9 @@ impl Page {
 
 const QUERY_BOX: &str = "document.getElementById('query-text').form";
 const SEARCH_FORM: &str = "document.querySelector('input.item-search').form";
+/// The site box's form, whose controls stand in the search form's bar
+/// (`form=`).
+const TRADE_BOX: &str = "document.getElementById('trade-text').form";
 
 fn profile_of(scratch: &harness::Scratch) -> PathBuf {
     let profile = scratch.0.join("browser-profile");
@@ -412,6 +417,8 @@ fn profile_of(scratch: &harness::Scratch) -> PathBuf {
 /// item box is typed first, for a number of its own; then two queries in
 /// the query box, the second in the first's place: their totals differ,
 /// the number shown follows each, and the search form's stays its own.
+/// Then the site box, in the search form's bar: neither form's count
+/// follows the other's edits, and the site search, run, fills the form.
 #[test]
 fn the_count_beside_the_button_follows_its_own_form() {
     let (scratch, web) = offline_web("browsercount");
@@ -462,6 +469,44 @@ fn the_count_beside_the_button_follows_its_own_form() {
     assert!(
         !totals.contains(&other),
         "the search form's total {other} must differ from the query box's {totals:?}"
+    );
+    // the site box, in the search form's bar and its own form's
+    // (`4-full-1-form-rides.md`, Decision 5): the search form's edits
+    // above asked nothing of it, and a site search typed there moves its
+    // count and not the search form's; run, it fills the search form
+    assert_eq!(
+        page.shown(TRADE_BOX),
+        json!("\u{2013}"),
+        "the search form's edits moved the site box's count"
+    );
+    page.cdp.click("document.getElementById('trade-text')");
+    let rings = r#"{"query": {"filters": {"type_filters": {"filters": {"category": {"option": "accessory.ring"}}}}}}"#;
+    page.cdp.eval(&format!(
+        "document.getElementById('trade-text').value = {}; true",
+        json!(rings)
+    ));
+    page.cdp.keys(" ");
+    let site = page.follows(&web, TRADE_BOX);
+    assert_eq!(
+        page.shown(SEARCH_FORM),
+        json!(other),
+        "the search form's number moved when the site box changed"
+    );
+    assert_ne!(
+        site, other,
+        "the site search must count apart from the form"
+    );
+    // its button, as its other controls, owned by its form through `form=`
+    page.cdp.click(&format!(
+        "Array.from({TRADE_BOX}.elements).find((el) => el.type === 'submit')"
+    ));
+    page.loaded_again();
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "{SEARCH_FORM}.elements['query.filters.type_filters.filters.category.option'].value"
+        )),
+        json!("accessory.ring"),
+        "the site search ran did not fill the form"
     );
 }
 

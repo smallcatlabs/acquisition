@@ -36,7 +36,10 @@ input.socket { width: 2.6rem; }
 
 /* the search bar across the top */
 .search-bar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; background: var(--panel); border: 1px solid var(--rule); padding: .6rem; margin: .75rem 0; }
-.search-left { flex: 1 1 22rem; display: flex; gap: .4rem; align-items: center; }
+.search-left { flex: 1 1 22rem; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+/* the site box, its own form's, after the item search */
+.site-search { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.site-search textarea { flex: 1 1 18rem; background: var(--page); color: var(--text); border: 1px solid var(--rule); font: 12.5px/1.35 ui-monospace, monospace; padding: .35rem; }
 .item-search { flex: 1; padding: .4rem .5rem; }
 .search-right { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .search-right .filter-title { min-width: 0; }

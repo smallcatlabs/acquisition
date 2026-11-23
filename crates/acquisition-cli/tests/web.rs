@@ -467,7 +467,8 @@ fn ring_search() -> Vec<(&'static str, &'static str)> {
 }
 
 /// The search form's opening tag on every page that carries it.
-const SEARCH_FORM: &str = "<form method=\"get\" action=\"search#answer\" novalidate data-count>";
+const SEARCH_FORM: &str =
+    "<form id=\"search-form\" method=\"get\" action=\"search#answer\" novalidate data-count>";
 
 /// The search route asked with a form's fields as a browser sends them.
 fn sent_path(fields: &[(String, String)]) -> String {
@@ -1076,7 +1077,7 @@ fn every_search_stands_under_its_editor_filled_with_what_was_asked() {
     assert_eq!(page.status, 400, "{}", page.body);
     assert!(
         page.body
-            .contains("name=\"trade\" rows=\"2\">not an id</textarea>"),
+            .contains("form=\"trade-form\" rows=\"1\" placeholder="),
         "{}",
         page.body
     );
@@ -1979,6 +1980,17 @@ fn every_search_page_is_a_wording_golden() {
             "<span class=\"fate\">explicit</span>",
             "<span class=\"fate\">explicit \u{b7} alone exact \u{b7} with a bound ambiguous</span>",
         ],
+    );
+    // a site search its decode refused stands as sent in the bar's site
+    // box (`4-full-1-form-rides.md`, Decision 5)
+    let undecoded = format!(
+        "search?{}",
+        query_string(&[("realm", "pc"), ("trade", "not an id")])
+    );
+    pages.page(
+        "GET search?<a site search the decode refuses>",
+        &web.get(&undecoded),
+        &["aria-label=\"A trade site search: its URL, its id or its query JSON\">not an id</textarea>"],
     );
     // a finder's listing: each option holding its row's template, the
     // vocabulary document where JSON is asked

@@ -1,5 +1,13 @@
-# golden web/search_form: the search form's panes and controls, cut from every page golden whose page carries them, each page's facts checked in that page as served (C122). Regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+# golden web/search_form: the search form from its bar, cut from every page golden whose page carries it, each page's facts checked in that page as served (C122). Regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
+<div class="search-bar">
+<div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items">
+<span class="site-search"><input type="hidden" name="realm" value="pc" form="trade-form"><textarea id="trade-text" name="trade" form="trade-form" rows="1" placeholder="A trade site search: its URL, its id or its query JSON" aria-label="A trade site search: its URL, its id or its query JSON"></textarea><button type="submit" form="trade-form">Run the site's search</button> <span class="count">Matches: <output form="trade-form" data-count="matched">–</output><span hidden> · <output form="trade-form" data-count="undecided">–</output> undecided</span></span> <span class="fate">translated here, sent nowhere; a URL's realm is the search's</span></span></div>
+<div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
+<input type="hidden" name="realm" value="pc"><label class="control">League <select name="league"><option value="">every league</option><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <div class="filter" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash."><span class="filter-title">Status</span> <select name="query.status.option" disabled><option value="available">Instant Buyout and In Person</option><option value="securable">Instant Buyout</option><option value="onlineleague">In Person (Online in League)</option><option value="online">In Person (Online)</option><option value="any">Any</option></select> <span class="fate fate-listing_only" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.">listing only</span></div>
+<label class="control">Membership <select name="membership"><option value="live" selected>live</option><option value="all">all</option><option value="removed">removed</option></select></label>
+</div>
+</div>
 <div class="panes">
 <div class="pane">
 <details class="panel" open><summary>Type Filters</summary>
