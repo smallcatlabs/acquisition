@@ -68,17 +68,19 @@ The design session's (C172, who designs), settled with the owner:
    carried from the index to an entry and back. `all` is no golden.
 
 ## Find first
-- `sed -n '/^fn describe_text/,/^}/p' crates/acquisition-cli/src/search_cmd.rs | grep -n 'block(\|push_str(&format!("[a-z]'`
-  and `git grep -n -F -e 'inside linked( … )' -e 'an answer, key by key' -e 'not built, refused by name' -- crates`:
-  every place a block's head or the blocks' order is written, and the
-  goldens holding them.
+- `sed -n '/^fn describe_text/,/^}/p' crates/acquisition-cli/src/search_cmd.rs`,
+  read whole: every head (a `block` call's, and each one `push_str`
+  prints) and their order; then `git grep -l -F -e 'inside line( … )' -e 'categories — the trade' -e 'limits, as the search states them' -- crates`:
+  the goldens holding them.
 - `git grep -n -e 'describe_list' -e 'acquisition_search::describe(' -e 'describe(&' -- crates/acquisition-cli/src crates/acquisition-mcp/src`:
   every reader of a list of names and every caller of `describe`.
 - `git grep -n -e 'Way::Describe' -e 'describing(' -e 'describe: Some' -- crates`:
-  every place a `describe` way is made, matched or left out (`Paged`'s
-  `_ =>` among them); the report lists each producer.
+  every place a `describe` way is made or matched; the report lists
+  each producer. `sed -n '/^    fn request(/,/^    }/p' crates/acquisition-cli/src/web/mod.rs`:
+  `Paged`'s `_ =>`, where it is left out.
 - `git grep -n -e 'const STEPS' -e 'a place or a step' -e '"saved/open"' -- crates/acquisition-cli`:
-  every list of the steps a `from` may not name, its tests among them.
+  every list of the steps a `from` may not name; `git grep -n -e 'never to a step' -e 'saved%2Fopen' -- crates/acquisition-cli`:
+  the tests that refuse one.
 - `git grep -n -i -e 'no page takes' -e 'offered nowhere' -e 'a job, .describe.' -- crates/acquisition-cli`:
   the docs and tests that hold `describe` as a way no page takes.
 - `git grep -l 'query-details' -- crates/acquisition-cli/tests/goldens`:
@@ -92,9 +94,11 @@ The design session's (C172, who designs), settled with the owner:
 - `describe_list` is the one reader, called by the CLI and the page;
   a way to `["fields", "~a,b"]` round-trips through the page's link
   (`tests/web.rs`).
-- The page's renderer destructures `Describe` with no `..`; the heads
-  and their order have one home, read by `describe_text` and the page;
-  `git grep` of each head's words finds it there alone, outside goldens.
+- The page's renderer destructures `Describe` with no `..`. The heads
+  a renderer prints over a block, and their order, are defined once and
+  read by `describe_text` and the page; `git grep -F` of each head of
+  more than one word (`inside line( … )`) finds its literal there alone,
+  outside goldens.
 - A golden `web/describe.txt` holds the index (each entry and head a
   link, the names box), one entry whole, one block, and an unknown
   name's refusal with its readings; its `# holds` lines name those
@@ -106,7 +110,10 @@ The design session's (C172, who designs), settled with the owner:
 - `search_form.txt` holds the query box's link to the index.
 - `Paged::request` spells `Way::Describe`; a refused search's page
   draws its `describe` way as a link, and its JSON as a page's other ways
-  (`tests/web.rs`). Each test or doc that held it as no page's way is
+  (`tests/web.rs`). No producer of such a way but `describe`'s own
+  stands at `3507969f` (Find first's third command): which refused
+  search carries one goes to the design session (C172) before this pin
+  is built, and the rest carries on. Each test or doc that held it as no page's way is
   changed, or retired by a `retired X; held by Y` line.
 - The web module's doc says `describe` is a step and a way a page takes;
   `README.md`'s `acq web` line names the index.
