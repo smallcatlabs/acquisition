@@ -3,9 +3,12 @@
 //! the test's scratch (`harness::start_browser`), spoken to over its
 //! debugging protocol by the loopback WebSocket client below, no crate
 //! added. It holds the script rules no other test reaches: the count
-//! beside a form's button follows that form and no other (`count.js`);
-//! the stat picker fills the first empty stat row and announces the
-//! write (`picker.js`); and the table's window shows, wherever the page
+//! beside a form's button follows that form's fields and no other
+//! (`count.js`); the stat pane's rows and groups are added, picked by keys
+//! from a finder, changed and removed, and a search of two groups is run
+//! from them, the count following each step; and a finder's ask in flight
+//! past an Escape or a pick fills nothing (`lists.js`); and the table's
+//! window shows, wherever the page
 //! is scrolled, the server's rows at their places and holds no more than
 //! a bound the table's length does not move, takes the server's first
 //! block without asking it again, and loads the page again when the
@@ -130,14 +133,21 @@ impl Cdp {
 
     /// One call, its result; events read meanwhile are kept.
     fn call(&mut self, method: &str, params: Value) -> Value {
+        let reply = self.reply(method, params);
+        assert!(reply.get("error").is_none(), "{method}: {reply}");
+        reply["result"].clone()
+    }
+
+    /// One call, its whole reply, an error among them; events read
+    /// meanwhile are kept.
+    fn reply(&mut self, method: &str, params: Value) -> Value {
         self.next += 1;
         let id = self.next;
         self.send(&json!({ "id": id, "method": method, "params": params }).to_string());
         loop {
             let reply = self.receive();
             if reply["id"] == id {
-                assert!(reply.get("error").is_none(), "{method}: {reply}");
-                return reply["result"].clone();
+                return reply;
             }
             if reply.get("method").is_some() {
                 self.events.push_back(reply);
@@ -202,6 +212,45 @@ impl Cdp {
                 json!({ "type": "keyUp", "key": key }),
             );
         }
+    }
+
+    /// A key that writes no text, as a user's would: `ArrowDown`,
+    /// `ArrowUp`, `Escape` or `Tab`.
+    fn press(&mut self, key: &str) {
+        let code = match key {
+            "ArrowDown" => 40,
+            "ArrowUp" => 38,
+            "Escape" => 27,
+            "Tab" => 9,
+            other => panic!("no key {other}"),
+        };
+        for kind in ["rawKeyDown", "keyUp"] {
+            self.call(
+                "Input.dispatchKeyEvent",
+                json!({ "type": kind, "key": key, "code": key, "windowsVirtualKeyCode": code }),
+            );
+        }
+    }
+
+    /// A letter typed at a focused select, as a user's key would: the key
+    /// down, its character, the key up; the select takes the first option
+    /// its text begins with (its type-ahead, which a blur starts again).
+    fn type_ahead(&mut self, letter: char) {
+        let key = letter.to_string();
+        let code = format!("Key{}", letter.to_ascii_uppercase());
+        let vk = u32::from(letter.to_ascii_uppercase());
+        self.call(
+            "Input.dispatchKeyEvent",
+            json!({ "type": "rawKeyDown", "key": key, "code": code, "windowsVirtualKeyCode": vk }),
+        );
+        self.call(
+            "Input.dispatchKeyEvent",
+            json!({ "type": "char", "key": key, "text": key }),
+        );
+        self.call(
+            "Input.dispatchKeyEvent",
+            json!({ "type": "keyUp", "key": key, "code": code, "windowsVirtualKeyCode": vk }),
+        );
     }
 
     /// A click as a user's pointer would: on the middle of the element
@@ -333,7 +382,7 @@ impl Page {
 }
 
 const QUERY_BOX: &str = "document.getElementById('query-text').form";
-const SEARCH_FORM: &str = "document.getElementById('stat-find').form";
+const SEARCH_FORM: &str = "document.querySelector('input.item-search').form";
 
 fn profile_of(scratch: &harness::Scratch) -> PathBuf {
     let profile = scratch.0.join("browser-profile");
@@ -381,6 +430,17 @@ fn the_count_beside_the_button_follows_its_own_form() {
             "the search form's number moved when the query box changed"
         );
     }
+    // a keystroke in a finder, a box no form sends, asks no count: the
+    // number shown stays, never the dash a change puts in its place
+    page.cdp.click(&format!(
+        "{SEARCH_FORM}.querySelector('[data-finder] input')"
+    ));
+    page.cdp.keys("li");
+    assert_eq!(
+        page.shown(SEARCH_FORM),
+        json!(other),
+        "a keystroke in a finder asked a count"
+    );
     eprintln!("the search form {other}; the query box {totals:?}");
     assert_ne!(totals[0], totals[1], "the two queries must count apart");
     assert!(
@@ -436,85 +496,373 @@ fn an_answers_form_edited_and_sent_asks_the_edit_and_stands_refilled() {
     );
 }
 
-/// The picker's rule (`picker.js`): a pick fills the first empty stat
-/// row, never a row already written, and announces the write as typing
-/// would, so the count follows the pick with no other input. The query
-/// box is typed first, for a number of its own that no pick moves. The
-/// search form's item box is typed, and its total shown, before the
-/// first pick; the pick changes the server's total, and the new one is
-/// shown. A second pick takes the second row and leaves the first; with
-/// the last rows written by hand, a third pick writes nothing.
+/// The n-th stat group of the search form, as the page holds it.
+fn group(n: usize) -> String {
+    format!("document.querySelectorAll('.stat-group')[{n}]")
+}
+
+/// The m-th row of a group.
+fn row(group: &str, m: usize) -> String {
+    format!("{group}.querySelectorAll('.stat-row')[{m}]")
+}
+
+/// Whether an element shows: no rule of the stylesheet hides it.
+fn shows(page: &mut Page, element: &str) -> bool {
+    page.cdp
+        .eval(&format!("getComputedStyle({element}).display !== 'none'"))
+        .as_bool()
+        .expect("a display")
+}
+
+/// The ids a finder's options carry, each its row's `stat.id`, joined.
+fn listed_ids(finder: &str) -> String {
+    format!(
+        "Array.from({finder}.querySelectorAll('[role=option] > template'), \
+         (t) => t.content.firstElementChild.querySelector('input').value).join(',')"
+    )
+}
+
+/// A stat picked into `group` from its finder as a user's keys would: the
+/// finder's box clicked and `words` typed; once its list is the one the
+/// `stats` route answers for those words, the arrows move the mark from
+/// the first option to the stat `id`'s, and Enter picks it.
+fn pick(page: &mut Page, web: &harness::WebUi, group: &str, words: &str, id: &str) {
+    let finder = format!("{group}.querySelector('[data-finder]')");
+    page.cdp.click(&format!("{finder}.querySelector('input')"));
+    page.cdp.keys(words);
+    let answered = web.get_json(&format!("stats?q={}", harness::form_encoded(words)));
+    let ids: Vec<&str> = answered["entries"]
+        .as_array()
+        .expect("the entries")
+        .iter()
+        .map(|e| e["id"].as_str().expect("an id"))
+        .collect();
+    page.cdp.until(&format!(
+        "{} === {}",
+        listed_ids(&finder),
+        json!(ids.join(","))
+    ));
+    let at = ids
+        .iter()
+        .position(|listed| *listed == id)
+        .unwrap_or_else(|| panic!("{id} is not listed for {words:?}: {ids:?}"));
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "{finder}.querySelector('[aria-selected=true]') === {finder}.querySelector('[role=option]')"
+        )),
+        json!(true),
+        "the first option is not marked"
+    );
+    for _ in 0..at {
+        page.cdp.press("ArrowDown");
+    }
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "{finder}.querySelector('[aria-selected=true] > template').content.firstElementChild.querySelector('input').value"
+        )),
+        json!(id)
+    );
+    page.cdp.keys("\r");
+}
+
+/// Rows and groups (`lists.js`, `4-full-1-form-rows.md`), by keys and
+/// pointer, the count following each step with no other input. On an
+/// empty form a stat is picked from the first group's finder with the
+/// arrows and Enter, the form not submitted, and its min typed where the
+/// focus stands; "Add Stat Group" adds a weighted sum, whose bound and
+/// weight boxes show while the `and` group's do not; two stats are picked
+/// into it with their weights and its min, a weighted sum the translation
+/// runs. The first group's type is changed to a weighted sum and back, its
+/// weight box showing then hiding. Search answers the server's total for
+/// the same fields, which differs from the first group's alone; its report
+/// drops neither group, and the form stands filled with both, their rows,
+/// weights and bound. Then a row and a group are removed.
 #[test]
-fn a_pick_fills_the_first_empty_stat_row_and_the_count_follows() {
-    let (scratch, web) = offline_web("browserpicker");
+fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
+    let (scratch, web) = offline_web("browserrows");
     let mut page = Page::open(&profile_of(&scratch), &web.url);
-    let row = |n: usize| format!("document.getElementById('stat-{n}').value");
-
-    page.cdp.click("document.getElementById('query-text')");
-    page.cdp.keys("rarity=unique");
-    page.cdp
-        .click(&format!("{SEARCH_FORM}.querySelector('input.item-search')"));
-    // leaving a field is a `change`, which asks once more: each number is
-    // read once that ask is answered, so no ask is pending at the pick
-    // and only the pick's own announcement can move the number after it
-    let other = page.follows(&web, QUERY_BOX);
-    page.cdp.keys("Two-Stone Ring");
-    page.cdp.click("document.getElementById('stat-find')");
-    let before = page.follows(&web, SEARCH_FORM);
-
-    page.cdp.keys("maximum Life");
-    page.cdp
-        .until("document.querySelector('#stat-list button') !== null");
-    let pick = "document.querySelector('#stat-list button')";
-
-    page.cdp.click(pick);
-    page.cdp.until(&format!("{} !== ''", row(0)));
-    let picked = page.cdp.eval(&row(0));
-    for n in 1..4 {
-        assert_eq!(
-            page.cdp.eval(&row(n)),
-            json!(""),
-            "row {n} after the first pick"
-        );
-    }
-    let after = page.answered(&web, SEARCH_FORM);
-    assert_ne!(
-        before, after,
-        "the pick must change the search form's total"
-    );
-    // no input but the pick's own: the number follows the announced write
-    page.follows(&web, SEARCH_FORM);
+    let first = group(0);
+    let second = group(1);
+    let life = "explicit.stat_3299347043";
+    let implicit = "implicit.stat_3299347043";
+    let field = |of: &str, name: &str| format!("{of}.querySelector('[name=\"{name}\"]')");
+    page.cdp.eval(&format!(
+        "window.submitted = false; {SEARCH_FORM}.addEventListener('submit', () => window.submitted = true); true"
+    ));
     assert_eq!(
-        page.shown(QUERY_BOX),
-        json!(other),
-        "the query box's number moved when the search form changed"
-    );
-    assert!(
-        ![before.as_str(), after.as_str()].contains(&other.as_str()),
-        "the query box's total {other} must differ from the search form's {before} and {after}"
-    );
-
-    eprintln!("the query box {other}; the search form {before}, then {after} after the pick");
-
-    page.cdp.click(pick);
-    page.cdp.until(&format!("{} !== ''", row(1)));
-    assert_eq!(
-        page.cdp.eval(&row(0)),
-        picked,
-        "the second pick moved the first row"
-    );
-
-    for n in 2..4 {
         page.cdp
-            .click(&format!("document.getElementById('stat-{n}')"));
-        page.cdp.keys(&format!("written-{n}"));
-    }
-    let written: Vec<Value> = (0..4).map(|n| page.cdp.eval(&row(n))).collect();
-    page.cdp.click(pick);
+            .eval("document.querySelectorAll('.stat-group').length"),
+        json!(1)
+    );
+    assert_eq!(
+        page.cdp
+            .eval(&format!("{first}.querySelectorAll('.stat-row').length")),
+        json!(0),
+        "the empty form's group holds a row"
+    );
+
+    // a pick by arrows and Enter, which submits nothing; the min typed
+    // where the focus stands
+    pick(&mut page, &web, &first, "to maximum life", life);
+    assert_eq!(page.cdp.eval("window.submitted"), json!(false));
+    let row0 = row(&first, 0);
+    assert_eq!(
+        page.cdp.eval(&format!("{}.value", field(&row0, "stat.id"))),
+        json!(life)
+    );
+    page.cdp.until(&format!(
+        "document.activeElement === {}",
+        field(&row0, "stat.min")
+    ));
+    let finder = format!("{first}.querySelector('[data-finder]')");
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "[{finder}.querySelector('input').value, {finder}.querySelector('[role=listbox]').children.length]"
+        )),
+        json!(["", 0]),
+        "the finder is not emptied by its pick"
+    );
+    page.cdp.keys("70");
+    assert_eq!(
+        page.cdp
+            .eval(&format!("{}.value", field(&row0, "stat.min"))),
+        json!("70")
+    );
+    assert!(!shows(&mut page, &field(&row0, "stat.weight")));
+    assert!(!shows(&mut page, &field(&first, "group.min")));
+    let alone = page.follows(&web, SEARCH_FORM);
+
+    // a weighted sum added from the menu: its bound shows, the `and`
+    // group's does not
     page.cdp
-        .until("document.getElementById('stat-said').textContent !== ''");
-    let now: Vec<Value> = (0..4).map(|n| page.cdp.eval(&row(n))).collect();
-    assert_eq!(now, written, "a pick with every row written changed a row");
+        .click("document.querySelector('.add-group > summary')");
+    page.cdp.click(
+        "Array.from(document.querySelectorAll('.add-group button')).find((b) => b.textContent === 'Weighted Sum')",
+    );
+    assert_eq!(
+        page.cdp.eval("document.querySelector('.add-group').open"),
+        json!(false)
+    );
+    assert_eq!(
+        page.cdp
+            .eval("document.querySelectorAll('.stat-group').length"),
+        json!(2)
+    );
+    assert_eq!(
+        page.cdp
+            .eval(&format!("{}.value", field(&second, "group.type"))),
+        json!("weight")
+    );
+    page.cdp.until(&format!(
+        "document.activeElement === {second}.querySelector('[data-finder] input')"
+    ));
+    assert!(shows(&mut page, &field(&second, "group.min")));
+    assert!(!shows(&mut page, &field(&first, "group.min")));
+    page.follows(&web, SEARCH_FORM);
+
+    // two stats picked into it, each with its weight, and its min
+    for (m, id) in [life, implicit].into_iter().enumerate() {
+        pick(&mut page, &web, &second, "to maximum life", id);
+        let added = row(&second, m);
+        page.cdp.until(&format!(
+            "document.activeElement === {}",
+            field(&added, "stat.min")
+        ));
+        assert!(shows(&mut page, &field(&added, "stat.weight")));
+        page.cdp.click(&field(&added, "stat.weight"));
+        page.cdp.keys("1");
+        page.follows(&web, SEARCH_FORM);
+    }
+    page.cdp.click(&field(&second, "group.min"));
+    page.cdp.keys("100");
+    assert!(!shows(&mut page, &field(&row0, "stat.weight")));
+    let both = page.follows(&web, SEARCH_FORM);
+    assert_ne!(both, alone, "the weighted group must change the total");
+
+    // the first group's type changed to a weighted sum and back, by the
+    // keys at its select, which the pointer reaches from its title
+    let title = format!("{first}.querySelector('.filter-title')");
+    let kind = format!("{}.value", field(&first, "group.type"));
+    for (letter, to, weighted) in [('W', "weight", true), ('A', "and", false)] {
+        page.cdp.click(&title);
+        page.cdp.press("Tab");
+        page.cdp.type_ahead(letter);
+        page.cdp.until(&format!("{kind} === {}", json!(to)));
+        assert_eq!(
+            shows(&mut page, &field(&row0, "stat.weight")),
+            weighted,
+            "{to}"
+        );
+        assert_eq!(
+            shows(&mut page, &field(&first, "group.min")),
+            weighted,
+            "{to}"
+        );
+        page.follows(&web, SEARCH_FORM);
+    }
+
+    // Search: the server's total for the same fields, the report dropping
+    // neither group, the form refilled with both
+    let fields = page.cdp.eval(&format!(
+        "new URLSearchParams(new FormData({SEARCH_FORM})).toString()"
+    ));
+    let fields = fields.as_str().expect("the form's fields").to_string();
+    let answer = web.get_json(&format!("search?{fields}"));
+    let total = answer["total"]["matched"]
+        .as_u64()
+        .expect("a matched total");
+    assert_eq!(total.to_string(), both);
+    page.cdp
+        .click(&format!("{SEARCH_FORM}.querySelector('button.search-btn')"));
+    page.loaded_again();
+    let counted = match total {
+        1 => "1 match".to_string(),
+        n => format!("{n} matches"),
+    };
+    assert_eq!(
+        page.cdp
+            .eval("document.querySelector('#answer p.count').textContent"),
+        json!(counted)
+    );
+    let report = page
+        .cdp
+        .eval("document.getElementById('answer').textContent");
+    let report = report.as_str().expect("the answer's text");
+    assert!(!report.contains("NOT RUN"), "{report}");
+    assert_eq!(
+        page.cdp.eval("document.querySelector('.left-out')"),
+        Value::Null
+    );
+    let filled = page.cdp.eval(
+        "Array.from(document.querySelectorAll('.stat-group'), (g) => ({ \
+           type: g.querySelector('[name=\"group.type\"]').value, \
+           min: g.querySelector('[name=\"group.min\"]').value, \
+           rows: Array.from(g.querySelectorAll('.stat-row'), (r) => [ \
+             r.querySelector('[name=\"stat.id\"]').value, \
+             r.querySelector('[name=\"stat.min\"]').value, \
+             r.querySelector('[name=\"stat.weight\"]').value]) }))",
+    );
+    assert_eq!(
+        filled,
+        json!([
+            { "type": "and", "min": "", "rows": [[life, "70", ""]] },
+            { "type": "weight", "min": "100", "rows": [[life, "", "1"], [implicit, "", "1"]] },
+        ])
+    );
+    // the refilled form's fields are the ones searched
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "new URLSearchParams(new FormData({SEARCH_FORM})).toString()"
+        )),
+        json!(fields)
+    );
+
+    // a row removed, then a group: the count follows each
+    page.cdp.click(&format!(
+        "{}.querySelector('[data-remove]')",
+        row(&second, 1)
+    ));
+    assert_eq!(
+        page.cdp
+            .eval(&format!("{second}.querySelectorAll('.stat-row').length")),
+        json!(1)
+    );
+    let fewer = page.follows(&web, SEARCH_FORM);
+    page.cdp
+        .click(&format!("{first}.querySelector('.filter [data-remove]')"));
+    assert_eq!(
+        page.cdp
+            .eval("document.querySelectorAll('.stat-group').length"),
+        json!(1)
+    );
+    assert_eq!(
+        page.cdp
+            .eval(&format!("{}.value", field(&first, "group.type"))),
+        json!("weight")
+    );
+    let last = page.follows(&web, SEARCH_FORM);
+    eprintln!("first group alone {alone}; both {both}; a row less {fewer}; a group less {last}");
+}
+
+/// A finder's ask in flight fills nothing once the finder is emptied
+/// (`lists.js`): an ask held by the debugging protocol's `Fetch` domain
+/// and released after Escape, and one held and released after a pick
+/// from the list already shown, leave the box and the list empty once
+/// the page's own later ask of the same route is answered.
+#[test]
+fn a_finders_ask_held_past_an_escape_or_a_pick_fills_nothing() {
+    let (scratch, web) = offline_web("browserfinder");
+    let mut page = Page::open(&profile_of(&scratch), &web.url);
+    let first = group(0);
+    let finder = format!("{first}.querySelector('[data-finder]')");
+    let emptied = format!(
+        "[{finder}.querySelector('input').value, {finder}.querySelector('[role=listbox]').children.length]"
+    );
+    let hold = |page: &mut Page| {
+        page.cdp.call(
+            "Fetch.enable",
+            json!({ "patterns": [{ "urlPattern": "*/stats?q=*", "requestStage": "Request" }] }),
+        );
+    };
+    // released: the held ask goes on, or is refused as one the page
+    // dropped; then the page's own ask of the route, unheld, is answered,
+    // the held one's reply before it
+    let release = |page: &mut Page, held: &Value| {
+        page.cdp.reply(
+            "Fetch.continueRequest",
+            json!({ "requestId": held["params"]["requestId"] }),
+        );
+        page.cdp.call("Fetch.disable", json!({}));
+        page.cdp
+            .eval("fetch('stats?q=life').then((r) => r.text()).then(() => true)");
+    };
+
+    // Escape over an ask in flight
+    hold(&mut page);
+    page.cdp.click(&format!("{finder}.querySelector('input')"));
+    page.cdp.keys("li");
+    let held = page.cdp.event("Fetch.requestPaused");
+    page.cdp.press("Escape");
+    assert_eq!(page.cdp.eval(&emptied), json!(["", 0]));
+    release(&mut page, &held);
+    assert_eq!(
+        page.cdp.eval(&emptied),
+        json!(["", 0]),
+        "a reply after Escape filled the finder"
+    );
+
+    // a pick from the list shown, with a later ask in flight
+    page.cdp.keys("life");
+    page.cdp.until(&format!(
+        "{finder}.querySelector('[aria-selected=true]') !== null && {} === {}",
+        listed_ids(&finder),
+        json!(
+            web.get_json("stats?q=life")["entries"]
+                .as_array()
+                .expect("the entries")
+                .iter()
+                .map(|e| e["id"].as_str().expect("an id"))
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    ));
+    hold(&mut page);
+    page.cdp.keys(" max");
+    let held = page.cdp.event("Fetch.requestPaused");
+    page.cdp.keys("\r");
+    assert_eq!(
+        page.cdp
+            .eval(&format!("{first}.querySelectorAll('.stat-row').length")),
+        json!(1),
+        "Enter picked nothing"
+    );
+    assert_eq!(page.cdp.eval(&emptied), json!(["", 0]));
+    release(&mut page, &held);
+    assert_eq!(
+        page.cdp.eval(&emptied),
+        json!(["", 0]),
+        "a reply after a pick filled the finder"
+    );
 }
 
 /// What the table's window shows now, as drawn: the table's row height

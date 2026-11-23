@@ -37,7 +37,7 @@ use acquisition_verbs::refusal::Way;
 use acquisition_verbs::saved::{ReadRow, SavedSearches};
 
 use super::fill::Fill;
-use super::form::{Fate, Filter, Form, LIMITS, STAT_ROWS};
+use super::form::{Fate, Filter, Form, LIMITS};
 use crate::search_cmd::{self, ItemParts, RowPiece};
 use serde_json::Value;
 
@@ -82,8 +82,9 @@ pub(crate) struct Head {
     /// Seconds before the page reloads itself: the jobs page while a job
     /// runs, the whole of 4-lite's liveness.
     pub refresh: Option<u32>,
-    /// The stat picker's script.
-    pub picker: bool,
+    /// The stat pane's script: its rows and groups added and removed,
+    /// and its finders (`assets/lists.js`).
+    pub lists: bool,
     /// The count's script: the number beside each form that submits a
     /// search ([`COUNT`]).
     pub count: bool,
@@ -135,7 +136,7 @@ pub(crate) fn page(
         .map(|s| format!("<meta http-equiv=\"refresh\" content=\"{s}\">\n"))
         .unwrap_or_default();
     let script: String = [
-        (head.picker, "picker"),
+        (head.lists, "lists"),
         (head.count, "count"),
         (head.window, "window"),
     ]
@@ -711,8 +712,8 @@ fn checked(ticked: bool) -> &'static str {
 /// read for its order alone, nothing of GGG's copied): the search bar
 /// across the top — the item search on the left; the realm, the league and
 /// the status on the right — then two panes, the filter groups as panels in
-/// the dump's order on the left and the stat groups with the picker on the
-/// right, then the controls with Search at the centre. A panel is a
+/// the dump's order on the left and the stat groups on the
+/// right ([`stat_pane`]), then the controls with Search at the centre. A panel is a
 /// `details` group, open where the site shows the group open or where it
 /// holds a value. Each control reads its value at its path from the fill
 /// ([`Fill`]); a listing control shows it and sends nothing.
@@ -776,10 +777,14 @@ pub(crate) fn search_form(
         // sent with its `disabled` field and its values stand; the panel's
         // own toggle is open and close alone
         out.push_str(&format!(
-            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"{at}.disabled\" value=\"true\"{}> disable this group</label></div>\n",
+            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\">{}</div>\n",
             if !group.hidden || fill.holds_under(&at) { " open" } else { "" },
             esc(title),
-            checked(fill.ticked(&format!("{at}.disabled"), "true")),
+            on_box(
+                &format!("{at}.disabled"),
+                !fill.ticked(&format!("{at}.disabled"), "true"),
+                "group on"
+            ),
         ));
         for filter in &group.filters {
             let path = super::form::filter_path(&group.id, &filter.id);
@@ -796,9 +801,9 @@ pub(crate) fn search_form(
         }
         out.push_str("</div>\n</details>\n");
     }
-    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n");
-    out.push_str(&stat_groups(form, fill));
-    out.push_str("<div class=\"filter\"><label class=\"filter-title\" for=\"stat-find\">Find a stat</label> <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></div>\n<span id=\"stat-said\" class=\"fate\"></span>\n<ul id=\"stat-list\"></ul>\n</div>\n</details>\n</div>\n</div>\n");
+    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n");
+    out.push_str(&stat_pane(form, fill));
+    out.push_str("</details>\n</div>\n</div>\n");
     // the view, as the query box carries it: the rows' number, the way they
     // show, a count's keys; and hidden, the order and the values the URL
     // named, which no control writes
@@ -895,13 +900,157 @@ fn view_hidden(view: &BoxView, count: bool) -> String {
     out
 }
 
-/// The stat groups, from the envelope's `query.stats` where the fill renders
-/// it ([`Fill::stats`]), else one `and` group: each group's type, its off
-/// box and its count's bound, positional (`form.rs`, the stat fields), then
-/// its rows, each with its stat's text and fate as the vocabulary gives
-/// them; the last group topped up with empty typed rows to [`STAT_ROWS`],
-/// at least one, for the picker to write into.
-fn stat_groups(form: &Form, fill: &Fill) -> String {
+/// An on box (`4-full-1-form-rows.md`, Decision 8), the one maker of
+/// every `disabled` field of the form: a hidden `disabled=true`, then the
+/// box, ticked for on, sending `disabled=false`. The fold reads the last
+/// sent, so a box ticked is on and one left unticked sends the hidden
+/// `true` alone.
+fn on_box(name: &str, on: bool, words: &str) -> String {
+    format!(
+        "<input type=\"hidden\" name=\"{name}\" value=\"true\"><label><input type=\"checkbox\" name=\"{name}\" value=\"false\"{}> {words}</label>",
+        checked(on)
+    )
+}
+
+/// A status as a stat's fate says it.
+fn status_words(status: Status) -> String {
+    serde_json::to_value(status)
+        .ok()
+        .and_then(|v| v.as_str().map(|s| s.replace('_', " ")))
+        .unwrap_or_default()
+}
+
+/// What a stat row's boxes hold, each as its box renders it: none, an
+/// empty box. `option` is the option box where the row holds one, with
+/// the value it takes, if any.
+#[derive(Default)]
+pub(crate) struct RowValues {
+    pub off: bool,
+    pub min: Option<String>,
+    pub max: Option<String>,
+    pub weight: Option<String>,
+    pub option: Option<Option<String>>,
+}
+
+/// The one maker of a stat row (`4-full-1-form-rows.md`, Decision 1), the
+/// filled form's and the finder's listing's: the stat's id a hidden
+/// `stat.id`, which begins the row (`form.rs`, the stat fields), then its
+/// on box, its texts (the id itself where no table holds it), its min,
+/// max and weight, an option box where the row holds one, its fate as the
+/// vocabulary gives it and its remove control. Every row renders a weight
+/// box: what its group's type shows is the stylesheet's ([`type_takes`]).
+/// The row is an item of its group's list (`assets/lists.js`), and its
+/// min takes the focus when a pick adds it.
+pub(crate) fn stat_row(
+    id: &str,
+    entry: Option<&acquisition_search::trade::vocabulary::Entry>,
+    values: &RowValues,
+) -> String {
+    let (texts, fate) = match entry {
+        Some(e) => (
+            e.texts.join(" / "),
+            format!(
+                "{} \u{b7} alone {} \u{b7} with a bound {}",
+                e.group,
+                status_words(e.alone),
+                status_words(e.bounded)
+            ),
+        ),
+        None => (
+            id.to_string(),
+            "no stat this build's tables hold".to_string(),
+        ),
+    };
+    let option = match &values.option {
+        Some(value) => format!(
+            " <input name=\"stat.option\"{} size=\"10\" placeholder=\"option\" aria-label=\"option\">",
+            valued(value.as_deref())
+        ),
+        None => String::new(),
+    };
+    format!(
+        "<div class=\"filter stat-row\" data-item><input type=\"hidden\" name=\"stat.id\" value=\"{}\">{} <span class=\"stat-text\">{}</span> <input type=\"number\" step=\"any\" name=\"stat.min\"{} placeholder=\"min\" aria-label=\"min\" data-focus> <input type=\"number\" step=\"any\" name=\"stat.max\"{} placeholder=\"max\" aria-label=\"max\"> <input type=\"number\" step=\"any\" name=\"stat.weight\"{} placeholder=\"weight\" aria-label=\"weight\">{option} <span class=\"fate\">{}</span> <button type=\"button\" data-remove>Remove</button></div>\n",
+        esc(id),
+        on_box("stat.disabled", !values.off, "on"),
+        esc(&texts),
+        valued(values.min.as_deref()),
+        valued(values.max.as_deref()),
+        valued(values.weight.as_deref()),
+        esc(&fate),
+    )
+}
+
+/// The positional fields a group of `kind` takes, as its type's option
+/// lists them for the stylesheet (`4-full-1-form-rows.md`, Decision 5):
+/// its bound's, by the translation's `group_value_keys`, and its rows',
+/// by `stat_value_keys`, never restated here.
+pub(crate) fn type_takes(kind: &str) -> Vec<String> {
+    use acquisition_search::trade::translate::{group_value_keys, stat_value_keys};
+    group_value_keys(kind)
+        .iter()
+        .map(|k| format!("group.{k}"))
+        .chain(stat_value_keys(kind).iter().map(|k| format!("stat.{k}")))
+        .collect()
+}
+
+/// A stat group: its type, each option listing the fields it takes
+/// ([`type_takes`]), an empty `no type` first where `kind` is none of
+/// them; its on box; its count's bound, rendered for every type; its
+/// remove control; then its rows, an item list, and its finder, a box no
+/// form sends and its list. The group is an item of the pane's list and a
+/// list of its own, whose add controls are its finder's options.
+fn stat_group(
+    form: &Form,
+    kind: &str,
+    off: bool,
+    bound: (Option<String>, Option<String>),
+    rows: &str,
+) -> String {
+    let mut out = String::from(
+        "<div class=\"stat-group\" data-item data-list>\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"group.type\">",
+    );
+    if !form.stat_types.iter().any(|(k, _, _)| k == kind) {
+        out.push_str(&format!(
+            "<option value=\"\" data-takes=\"{}\" selected>no type</option>",
+            type_takes("").join(" ")
+        ));
+    }
+    for (k, text, fate) in &form.stat_types {
+        out.push_str(&format!(
+            "<option value=\"{}\" data-takes=\"{}\"{}>{} ({})</option>",
+            esc(k),
+            type_takes(k).join(" "),
+            if k == kind { " selected" } else { "" },
+            esc(text.as_deref().unwrap_or(k)),
+            esc(&fate.status.replace('_', " "))
+        ));
+    }
+    out.push_str(&format!(
+        "</select> {} <input type=\"number\" step=\"any\" name=\"group.min\"{} placeholder=\"min\" aria-label=\"group min\"> <input type=\"number\" step=\"any\" name=\"group.max\"{} placeholder=\"max\" aria-label=\"group max\"> <button type=\"button\" data-remove>Remove group</button></div>\n<div class=\"stat-rows\" data-items>\n{rows}</div>\n<div class=\"filter\" data-finder><input type=\"search\" placeholder=\"+ Add Stat Filter\" aria-label=\"Add Stat Filter\" autocomplete=\"off\" data-focus><ul class=\"finder-list\" role=\"listbox\"></ul></div>\n</div>\n",
+        on_box("group.disabled", !off, "group on"),
+        valued(bound.0.as_deref()),
+        valued(bound.1.as_deref()),
+    ));
+    out
+}
+
+/// The template id of a group of `kind`, which an "Add Stat Group" control
+/// names.
+fn group_template(kind: &str) -> String {
+    format!("stat-group-{}", esc(kind))
+}
+
+/// The stat pane: the stat groups from the envelope's `query.stats` where
+/// the fill renders it ([`Fill::stats`]), else one `and` group with no
+/// row; each group's type, its on box and its count's bound, positional
+/// (`form.rs`, the stat fields), then its rows ([`stat_row`]), each with
+/// its stat's text and fate as the vocabulary gives them, a box given a
+/// value only where the group's type takes it. After the last group, "Add
+/// Stat Group": a menu of add controls, one a type, each naming the
+/// `<template>` of an empty group of its type, which the pane carries and
+/// no form sends. The script copies and removes what is rendered here
+/// (`assets/lists.js`) and writes nothing of its own.
+fn stat_pane(form: &Form, fill: &Fill) -> String {
     use acquisition_search::trade::translate::{group_value_keys, stat_value_keys};
     let groups = fill.stats();
     let ids: Vec<&str> = groups
@@ -916,110 +1065,104 @@ fn stat_groups(form: &Form, fill: &Fill) -> String {
             .flatten()
             .map(|e| (e.id.clone(), e))
             .collect();
-    let status = |s: Status| {
-        serde_json::to_value(s)
-            .ok()
-            .and_then(|v| v.as_str().map(|s| s.replace('_', " ")))
-            .unwrap_or_default()
-    };
-    let mut out = String::new();
-    let mut n = 0;
-    let count = groups.len().max(1);
-    for g in 0..count {
+    let mut out = String::from(
+        "<div class=\"panel-body\" data-list>\n<div class=\"stat-groups\" data-items>\n",
+    );
+    if groups.is_empty() {
+        out.push_str(&stat_group(form, "and", false, (None, None), ""));
+    }
+    for (g, group) in groups.iter().enumerate() {
         let at = format!("query.stats[{g}]");
-        let filled = g < groups.len();
-        let chosen = filled
-            .then(|| {
-                fill.option(&format!("{at}.type"), |kind| {
-                    form.stat_types.iter().any(|(k, _, _)| k == kind)
-                })
-            })
-            .flatten();
-        // a filled group whose type no option names sends none
-        let kind = match (&chosen, filled) {
-            (Some(kind), _) => kind.as_str(),
-            (None, false) => "and",
-            (None, true) => "",
-        };
+        let chosen = fill.option(&format!("{at}.type"), |kind| {
+            form.stat_types.iter().any(|(k, _, _)| k == kind)
+        });
+        // a group whose type no option names sends none
+        let kind = chosen.as_deref().unwrap_or("");
         // a group's bound where its type takes one, as the fold keeps it
         let bound = |key: &str| {
-            (filled && group_value_keys(kind).contains(&key))
+            group_value_keys(kind)
+                .contains(&key)
                 .then(|| fill.number(&format!("{at}.value.{key}")))
                 .flatten()
         };
-        out.push_str("<div class=\"stat-group\">\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"group.type\">");
-        if kind.is_empty() {
-            out.push_str("<option value=\"\" selected>no type</option>");
-        }
-        for (k, text, fate) in &form.stat_types {
-            out.push_str(&format!(
-                "<option value=\"{}\"{}>{} ({})</option>",
-                esc(k),
-                if k == kind { " selected" } else { "" },
-                esc(text.as_deref().unwrap_or(k)),
-                esc(&fate.status.replace('_', " "))
-            ));
-        }
-        out.push_str(&format!(
-            "</select> <label><input type=\"checkbox\" name=\"group.disabled\" value=\"true\"{}> disable this group</label> <input type=\"number\" step=\"any\" name=\"group.min\"{} placeholder=\"min\" aria-label=\"group min\"> <input type=\"number\" step=\"any\" name=\"group.max\"{} placeholder=\"max\" aria-label=\"group max\"></div>\n",
-            checked(filled && fill.ticked(&format!("{at}.disabled"), "true")),
-            valued(bound("min").as_deref()),
-            valued(bound("max").as_deref()),
-        ));
-        let weighted = stat_value_keys(kind).contains(&"weight");
-        let rows = match filled {
-            true => groups[g]["filters"].as_array().map_or(0, Vec::len),
-            false => 0,
-        };
-        let empty = if g + 1 == count {
-            STAT_ROWS.saturating_sub(rows).max(1)
-        } else {
-            0
-        };
-        for r in 0..rows + empty {
+        let takes = stat_value_keys(kind);
+        let mut rows = String::new();
+        for r in 0..group["filters"].as_array().map_or(0, Vec::len) {
             let row = format!("{at}.filters[{r}]");
-            let id = (r < rows)
-                .then(|| fill.text(&format!("{row}.id")))
-                .flatten();
-            let said = match id.as_deref().map(|id| entries.get(id)) {
-                Some(Some(e)) => format!(
-                    "{} · {} · alone {} · with a bound {}",
-                    e.texts.join(" / "),
-                    e.group,
-                    status(e.alone),
-                    status(e.bounded)
-                ),
-                Some(None) => "no stat this build's tables hold".to_string(),
-                None => String::new(),
+            let id = fill.text(&format!("{row}.id")).unwrap_or_default();
+            let value = |key: &str| {
+                takes
+                    .contains(&key)
+                    .then(|| fill.number(&format!("{row}.value.{key}")))
+                    .flatten()
             };
-            let option = if r < rows && fill.holds_under(&format!("{row}.value.option")) {
-                format!(
-                    " <input name=\"stat.option\"{} size=\"10\" placeholder=\"option\" aria-label=\"option\">",
-                    valued(fill.text(&format!("{row}.value.option")).as_deref())
-                )
-            } else {
-                String::new()
-            };
-            let weight = if weighted {
-                format!(
-                    " <input type=\"number\" step=\"any\" name=\"stat.weight\"{} placeholder=\"weight\" aria-label=\"weight\">",
-                    valued(fill.number(&format!("{row}.value.weight")).as_deref())
-                )
-            } else {
-                String::new()
-            };
-            out.push_str(&format!(
-                "<div class=\"filter\"><input class=\"stat-id\" id=\"stat-{n}\" name=\"stat.id\"{} size=\"28\" placeholder=\"stat\" aria-label=\"stat {}\"> <label><input type=\"checkbox\" name=\"stat.disabled\" value=\"true\"{}> disable</label> <input type=\"number\" step=\"any\" name=\"stat.min\"{} placeholder=\"min\" aria-label=\"min\"> <input type=\"number\" step=\"any\" name=\"stat.max\"{} placeholder=\"max\" aria-label=\"max\">{weight}{option} <span id=\"stat-{n}-text\" class=\"fate\">{}</span></div>\n",
-                valued(id.as_deref()),
-                n + 1,
-                checked(r < rows && fill.ticked(&format!("{row}.disabled"), "true")),
-                valued((r < rows).then(|| fill.number(&format!("{row}.value.min"))).flatten().as_deref()),
-                valued((r < rows).then(|| fill.number(&format!("{row}.value.max"))).flatten().as_deref()),
-                esc(&said),
+            let option = (takes.contains(&"option")
+                && fill.holds_under(&format!("{row}.value.option")))
+            .then(|| fill.text(&format!("{row}.value.option")));
+            rows.push_str(&stat_row(
+                &id,
+                entries.get(&id),
+                &RowValues {
+                    off: fill.ticked(&format!("{row}.disabled"), "true"),
+                    min: value("min"),
+                    max: value("max"),
+                    weight: value("weight"),
+                    option,
+                },
             ));
-            n += 1;
         }
-        out.push_str("</div>\n");
+        out.push_str(&stat_group(
+            form,
+            kind,
+            fill.ticked(&format!("{at}.disabled"), "true"),
+            (bound("min"), bound("max")),
+            &rows,
+        ));
+    }
+    out.push_str("</div>\n<details class=\"add-group\"><summary>Add Stat Group</summary><div class=\"filter\">");
+    for (k, text, _) in &form.stat_types {
+        out.push_str(&format!(
+            "<button type=\"button\" data-add=\"{}\">{}</button>",
+            group_template(k),
+            esc(text.as_deref().unwrap_or(k)),
+        ));
+    }
+    out.push_str("</div></details>\n");
+    for (k, _, _) in &form.stat_types {
+        out.push_str(&format!(
+            "<template id=\"{}\">{}</template>\n",
+            group_template(k),
+            stat_group(form, k, false, (None, None), "")
+        ));
+    }
+    out.push_str("</div>\n");
+    out
+}
+
+/// The finder's listing (`stats` asked for HTML): each entry an option
+/// whose add control is the option itself, holding the `<template>` of
+/// its row as the form renders a row of that id alone ([`stat_row`]);
+/// then the entries left out, or that none holds the words, in the
+/// server's words.
+pub(crate) fn stat_options(listed: &acquisition_search::trade::vocabulary::Vocabulary) -> String {
+    let mut out = String::new();
+    for e in &listed.entries {
+        out.push_str(&format!(
+            "<li role=\"option\" data-add>{} <span class=\"fate\">{} \u{b7} alone {} \u{b7} with a bound {}</span><template>{}</template></li>\n",
+            esc(&e.texts.join(" / ")),
+            esc(e.group),
+            status_words(e.alone),
+            status_words(e.bounded),
+            stat_row(&e.id, Some(e), &RowValues::default()),
+        ));
+    }
+    if listed.left_out > 0 {
+        out.push_str(&format!(
+            "<li class=\"fate\">{} more match: add a word</li>\n",
+            listed.left_out
+        ));
+    } else if listed.entries.is_empty() {
+        out.push_str("<li class=\"fate\">no stat holds every word asked</li>\n");
     }
     out
 }
@@ -4589,6 +4732,63 @@ fn rails_words(rails: &acquisition_protocol::status::RailsStatus, now: i64) -> S
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What a group's type shows is the stylesheet's (`4-full-1-form-rows.md`,
+    /// Decision 5): each positional field some group type does not take, by
+    /// the translation's two key lists, has its one hide rule, over the
+    /// group's checked option; no other field has one; and neither the
+    /// stylesheet nor a script names a group type.
+    #[test]
+    fn each_field_a_type_does_not_take_has_its_hide_rule_and_no_type_is_named() {
+        let css = include_str!("assets/page.css");
+        let form = Form::load().unwrap();
+        let every: std::collections::BTreeSet<String> = form
+            .stat_types
+            .iter()
+            .flat_map(|(k, _, _)| type_takes(k))
+            .chain(
+                super::super::form::GROUP_FIELDS
+                    .iter()
+                    .chain(super::super::form::ROW_FIELDS.iter())
+                    .filter(|f| !f.ends_with(".type") && !f.ends_with(".id"))
+                    .filter(|f| !f.ends_with(".disabled"))
+                    .map(|f| f.to_string()),
+            )
+            .collect();
+        let hidden: Vec<&String> = every
+            .iter()
+            .filter(|field| {
+                form.stat_types
+                    .iter()
+                    .any(|(k, _, _)| !type_takes(k).contains(field))
+            })
+            .collect();
+        assert!(hidden.iter().any(|f| *f == "stat.weight"), "{hidden:?}");
+        for field in &hidden {
+            let rule = format!(
+                ".stat-group:has(> .filter > select > option:checked:not([data-takes~=\"{field}\"])) [name=\"{field}\"] {{ display: none; }}"
+            );
+            assert!(css.contains(&rule), "no hide rule for {field}: {rule}");
+        }
+        assert_eq!(
+            css.matches("option:checked:not(").count(),
+            hidden.len(),
+            "a hide rule for a field every type takes"
+        );
+        let scripts = [
+            include_str!("assets/lists.js"),
+            include_str!("assets/count.js"),
+            include_str!("assets/window.js"),
+        ];
+        for (k, _, _) in &form.stat_types {
+            for named in [format!("\"{k}\""), format!("'{k}'"), format!("={k}]")] {
+                assert!(!css.contains(&named), "the stylesheet names the type {k}");
+                for script in scripts {
+                    assert!(!script.contains(&named), "a script names the type {k}");
+                }
+            }
+        }
+    }
 
     /// The planner says a character's listed experience differs from its
     /// last fetch's in either direction, so the page says it differs, never

@@ -64,7 +64,8 @@ fn html_number(text: &str) -> bool {
 
 /// A form's fields as a browser submits it, in the page's order: the
 /// first form whose opening tag is `form`, an element another form owns
-/// left out, a disabled control and an unticked box sending
+/// left out, a `<template>`'s content (inert, owned by no form), a
+/// disabled control and an unticked box sending
 /// nothing, a select its selected option or else its first, a number
 /// box its value only where it reads as a number, a text box its value
 /// with its line breaks stripped.
@@ -84,7 +85,30 @@ pub fn submitted(html: &str, form: &str) -> Vec<(String, String)> {
         let owned = attribute(&attrs, "form").is_none();
         let on = attribute(&attrs, "disabled").is_none();
         let name = attribute(&attrs, "name").map(str::to_string);
-        if tag.starts_with("<input") {
+        if tag.starts_with("<template") {
+            // a template's content is no element of the form: skip to its
+            // close, a template within it counted
+            let mut depth = 0;
+            let mut at = 0;
+            loop {
+                let next = body[at..].find("<template").map(|n| at + n);
+                let shut = at + body[at..].find("</template>").expect("a closed template");
+                match next {
+                    Some(n) if n < shut => {
+                        depth += 1;
+                        at = n + 1;
+                    }
+                    _ => {
+                        depth -= 1;
+                        at = shut + 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                }
+            }
+            body = &body[at..];
+        } else if tag.starts_with("<input") {
             let kind = attribute(&attrs, "type").unwrap_or("text");
             let value = attribute(&attrs, "value").unwrap_or("").to_string();
             if let (Some(name), true, true) = (name, owned, on) {

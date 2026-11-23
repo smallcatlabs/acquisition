@@ -52,8 +52,22 @@ input.socket { width: 2.6rem; }
 .controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin: .75rem 0; }
 .controls-center { flex: 1; text-align: center; }
 .search-btn { padding: .45rem 2.5rem; background: var(--accent); color: #1a1408; font-weight: 600; border: 0; }
-#stat-list { list-style: none; padding: 0; max-height: 18rem; overflow: auto; }
-#stat-list button { all: unset; cursor: pointer; text-decoration: underline; }
+
+/* the stat pane: groups of rows, each group ending with its finder; a
+   finder's options, the marked one the one Enter picks */
+.stat-group { border-top: 1px solid var(--rule); padding: .3rem 0; }
+.stat-text { flex: 1 1 12rem; }
+[data-finder] { position: relative; }
+.finder-list { list-style: none; padding: 0; margin: 0; max-height: 18rem; overflow: auto; width: 100%; }
+.finder-list [role=option] { cursor: pointer; padding: .15rem .3rem; }
+.finder-list [role=option][aria-selected=true] { background: var(--head); outline: 1px solid var(--accent); }
+.add-group > summary { cursor: pointer; padding: .3rem 0; color: var(--accent); }
+/* what a group's type shows: a field its checked type does not list as
+   one it takes is hidden, one rule a field; the browser still sends it,
+   and the fold drops it */
+.stat-group:has(> .filter > select > option:checked:not([data-takes~="group.min"])) [name="group.min"] { display: none; }
+.stat-group:has(> .filter > select > option:checked:not([data-takes~="group.max"])) [name="group.max"] { display: none; }
+.stat-group:has(> .filter > select > option:checked:not([data-takes~="stat.weight"])) [name="stat.weight"] { display: none; }
 
 /* the query box: the language, typed */
 .query-box { display: flex; flex-direction: column; gap: .35rem; background: var(--panel); border: 1px solid var(--rule); padding: .6rem; margin: .75rem 0; }

@@ -454,6 +454,50 @@ mod tests {
         assert_eq!(rendered, form.names().clone());
     }
 
+    /// The one row maker (`4-full-1-form-rows.md`, Decision 1): the row
+    /// each option of a finder's listing carries is, byte for byte, the row
+    /// the form renders from an envelope holding that id alone; and copied
+    /// into an `and` group as the page's own template renders one, it is
+    /// sent as a browser sends it and folds to that envelope.
+    #[test]
+    fn a_finders_row_is_the_forms_row_of_that_id_alone_and_folds_to_it() {
+        let form = Form::load().unwrap();
+        let listed = acquisition_search::trade::vocabulary::vocabulary("maximum life", 50).unwrap();
+        assert!(
+            listed.entries.iter().any(|e| e.group == "pseudo"),
+            "{listed:?}"
+        );
+        assert!(
+            listed.entries.iter().any(|e| e.group != "pseudo"),
+            "{listed:?}"
+        );
+        let options = page::stat_options(&listed);
+        let carried: Vec<&str> = options
+            .split("<template>")
+            .skip(1)
+            .map(|part| &part[..part.find("</template>").unwrap()])
+            .collect();
+        assert_eq!(carried.len(), listed.entries.len(), "{options}");
+        let items = "<div class=\"stat-rows\" data-items>\n";
+        for (entry, row) in listed.entries.iter().zip(carried) {
+            let envelope = json!({ "query": { "stats": [
+                { "type": "and", "filters": [{ "id": entry.id }] }] } });
+            let (html, _) = filled_page(&form, Fill::of(&envelope));
+            let rows = &html[html.find(items).unwrap() + items.len()..];
+            let rows = &rows[..rows
+                .find("</div>\n<div class=\"filter\" data-finder>")
+                .unwrap()];
+            assert_eq!(rows, row, "{}", entry.id);
+            let open = "<template id=\"stat-group-and\">";
+            let group = &html[html.find(open).unwrap() + open.len()..];
+            let group = &group[..group.find("</template>").unwrap()];
+            let grouped = group.replacen(items, &format!("{items}{row}"), 1);
+            let sent = submitted(&format!("{SEARCH_FORM}{grouped}</form>"), SEARCH_FORM);
+            let folded = form::fold(&form, &sent).unwrap();
+            assert_eq!(folded.envelope, envelope, "{}: {sent:?}", entry.id);
+        }
+    }
+
     /// An envelope filling every control of the form with a value it takes,
     /// and the paths of the listing controls' values among them.
     fn every_control(form: &Form) -> (Value, BTreeSet<String>) {

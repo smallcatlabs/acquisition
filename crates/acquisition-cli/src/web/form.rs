@@ -30,6 +30,11 @@
 //!   hidden field keeps its fields' order. A value key a group's type does
 //!   not take is dropped, asked of the translation's own lists
 //!   (`stat_value_keys`, `group_value_keys`), never restated here.
+//! - **A `disabled` field is an on box** (`page.rs`, `on_box`): a hidden
+//!   `disabled=true`, then a box ticked for on that sends
+//!   `disabled=false`. Every field is read in the order sent and the last
+//!   stands, so a box ticked is on, and a `disabled` of false is dropped
+//!   as the normal form drops it.
 //! - **Other names are no path** and go elsewhere: `realm` and `membership` to the request's scope (the
 //!   membership as the word typed, which the request's reader reads or
 //!   refuses in the search's words), `league` and
@@ -84,9 +89,6 @@ use serde_json::{Map, Value};
 /// The dump this build's form is generated from, as the search crate
 /// ships it.
 const FILTERS: &str = acquisition_search::trade::catalogue::FILTERS_JSON;
-
-/// How many stat rows the form offers; more is a refinement.
-pub(crate) const STAT_ROWS: usize = 4;
 
 /// The rows view's limits a form offers, the first the default.
 pub(crate) const LIMITS: [usize; 4] = [20, 50, 100, 200];
@@ -549,6 +551,9 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
             Value::Array(stats),
         );
     }
+    // an on box sends `disabled=false` after its hidden `true`: the last
+    // sent stands, and a `false` is dropped as the normal form drops it
+    let mut query = strip(&query);
     prune(&mut query);
     drop_empty_stat_groups(&mut query);
     let mut envelope = Map::new();
@@ -646,33 +651,36 @@ fn put_keys(at: &mut Value, keys: &[&str], value: &str) {
 /// `disabled` of false dropped at every depth, then what is left empty,
 /// then a stat group with no filter. What the fold writes is in it.
 pub(crate) fn normal(envelope: &Value) -> Value {
-    fn strip(value: &Value) -> Value {
-        match value {
-            Value::Object(o) => Value::Object(
-                o.iter()
-                    .filter(|(k, v)| {
-                        !(v.is_null()
-                            || v.as_str() == Some("")
-                            || (k.as_str() == "disabled" && *v == &Value::Bool(false)))
-                    })
-                    .map(|(k, v)| (k.clone(), strip(v)))
-                    .collect(),
-            ),
-            Value::Array(a) => Value::Array(
-                a.iter()
-                    .filter(|v| !(v.is_null() || v.as_str() == Some("")))
-                    .map(strip)
-                    .collect(),
-            ),
-            other => other.clone(),
-        }
-    }
     let mut out = strip(envelope);
     prune(&mut out);
     if let Some(query) = out.get_mut("query") {
         drop_empty_stat_groups(query);
     }
     out
+}
+
+/// A null, an empty string and a `disabled` of false dropped at every
+/// depth: the first move of the normal form ([`normal`]).
+fn strip(value: &Value) -> Value {
+    match value {
+        Value::Object(o) => Value::Object(
+            o.iter()
+                .filter(|(k, v)| {
+                    !(v.is_null()
+                        || v.as_str() == Some("")
+                        || (k.as_str() == "disabled" && *v == &Value::Bool(false)))
+                })
+                .map(|(k, v)| (k.clone(), strip(v)))
+                .collect(),
+        ),
+        Value::Array(a) => Value::Array(
+            a.iter()
+                .filter(|v| !(v.is_null() || v.as_str() == Some("")))
+                .map(strip)
+                .collect(),
+        ),
+        other => other.clone(),
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -936,6 +944,36 @@ mod tests {
             json!([{ "type": "and", "disabled": true, "filters": [
                 { "id": "explicit.stat_3299347043", "value": { "min": 40 } }
             ] }])
+        );
+        // an on box ticked sends `false` after its hidden `true`: the last
+        // stands, and a `false` is dropped; left unticked, the hidden
+        // `true` alone
+        let folded = fold(
+            &form,
+            &fields(&[
+                ("query.filters.misc_filters.disabled", "true"),
+                ("query.filters.misc_filters.disabled", "false"),
+                ("query.filters.misc_filters.filters.ilvl.min", "75"),
+                ("group.type", "and"),
+                ("group.disabled", "true"),
+                ("group.disabled", "false"),
+                ("stat.id", "explicit.stat_3299347043"),
+                ("stat.disabled", "true"),
+                ("stat.id", "explicit.stat_3372524247"),
+                ("stat.disabled", "true"),
+                ("stat.disabled", "false"),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(
+            folded.envelope["query"],
+            json!({
+                "filters": { "misc_filters": { "filters": { "ilvl": { "min": 75 } } } },
+                "stats": [{ "type": "and", "filters": [
+                    { "id": "explicit.stat_3299347043", "disabled": true },
+                    { "id": "explicit.stat_3372524247" },
+                ] }],
+            })
         );
         assert!(fold(&form, &fields(&[("scope.realm", "pc")])).is_err());
         // an indexed path is no name of the form: the stat fields are

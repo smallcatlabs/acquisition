@@ -1414,11 +1414,13 @@ fn every_search_page_is_a_wording_golden() {
             "disabled",
             "The seller&#39;s account is the listing&#39;s",
             "fate fate-exact",
-            "Find a stat",
+            "placeholder=\"+ Add Stat Filter\"",
+            "<summary>Add Stat Group</summary>",
+            "<template id=\"stat-group-weight\">",
             "<summary>Type Filters</summary>",
             "name=\"defences\" value=\"displayed\"",
-            "name=\"query.filters.armour_filters.disabled\" value=\"true\"",
-            "name=\"group.disabled\" value=\"true\"",
+            "<input type=\"hidden\" name=\"query.filters.armour_filters.disabled\" value=\"true\"><label><input type=\"checkbox\" name=\"query.filters.armour_filters.disabled\" value=\"false\" checked> group on</label>",
+            "<input type=\"hidden\" name=\"group.disabled\" value=\"true\"><label><input type=\"checkbox\" name=\"group.disabled\" value=\"false\" checked> group on</label>",
             "<summary>Stat Filters</summary>",
             "placeholder=\"Search items\"",
             "class=\"search-btn\"",
@@ -1930,6 +1932,46 @@ fn every_search_page_is_a_wording_golden() {
             "<td>nothing</td><td>stats.0.0</td><td>its minimum 5 is above its maximum 0",
         ],
     );
+    // two stat groups from the form, the second a weighted sum with its
+    // bound: the page stands filled with both, their rows, the weights and
+    // the bound (`4-full-1-form-rows.md`)
+    let grouped = "search?realm=pc&league=Standard\
+        &group.type=and&stat.id=explicit.stat_3299347043&stat.min=40\
+        &group.type=weight&group.min=100&stat.id=explicit.stat_3299347043&stat.weight=1\
+        &stat.id=implicit.stat_3299347043&stat.weight=1";
+    let two = web.get(grouped);
+    assert_eq!(two.status, 200, "{}", two.body);
+    pages.page(
+        "GET search?<two stat groups, the second weighted>",
+        &two,
+        &[
+            "<option value=\"weight\" data-takes=\"group.min group.max stat.min stat.max stat.option stat.weight\" selected>",
+            "name=\"group.min\" value=\"100\"",
+            "name=\"stat.weight\" value=\"1\"",
+            "name=\"stat.min\" value=\"40\"",
+            "<p class=\"count\">1 match</p>",
+        ],
+    );
+    // a finder's listing: each option holding its row's template, the
+    // vocabulary document where JSON is asked
+    let listing = web.get("stats?q=pseudo+maximum+life");
+    assert_eq!(listing.status, 200, "{}", listing.body);
+    pages.page(
+        "GET stats?q=pseudo maximum life",
+        &listing,
+        &[
+            "<li role=\"option\" data-add>+# total maximum Life",
+            "<template><div class=\"filter stat-row\" data-item><input type=\"hidden\" name=\"stat.id\" value=\"pseudo.pseudo_total_life\">",
+        ],
+    );
+    let vocabulary = web.get_json("stats?q=pseudo+maximum+life");
+    assert!(vocabulary["stats"].is_string(), "{vocabulary}");
+    assert_eq!(vocabulary["left_out"], 0, "{vocabulary}");
+    let entry = &vocabulary["entries"][0];
+    assert_eq!(entry["id"], "pseudo.pseudo_total_life", "{vocabulary}");
+    for key in ["texts", "group", "alone", "bounded"] {
+        assert!(entry.get(key).is_some(), "{key}: {vocabulary}");
+    }
     panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "search_pages", &pages);
 }
@@ -4807,19 +4849,55 @@ fn state_words(script: &str) -> Vec<&'static str> {
         .collect()
 }
 
+/// The prefixes of the search form's field names (`form.rs`): a script
+/// that names one fills or composes what a form sends, which is the
+/// server's (C46; `4-full-1-form-rows.md`, Decision 3).
+const FIELD_PREFIXES: [&str; 4] = ["stat.", "group.", "query.", "view."];
+
+/// The form's field names a script's text holds: a prefix standing as a
+/// word's start and a letter after its dot, so a sentence ending in
+/// "group." is none.
+fn field_names(script: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for prefix in FIELD_PREFIXES {
+        for (at, _) in script.match_indices(prefix) {
+            let before = script[..at].chars().next_back();
+            let after = script[at + prefix.len()..].chars().next();
+            if !before.is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '.')
+                && after.is_some_and(|c| c.is_ascii_lowercase())
+            {
+                let end = script[at..]
+                    .find(|c: char| !(c.is_alphanumeric() || c == '.' || c == '_'))
+                    .map_or(script.len(), |n| at + n);
+                out.push(script[at..end].to_string());
+            }
+        }
+    }
+    out
+}
+
 /// C16's state sentence, as far as a lexical scan holds it: every page a
 /// golden records passes the harness's seam (`harness::no_state`: no
 /// cookie set, no script named off `harness::SCRIPTS`), and each script
 /// on that list, fetched as a page fetches it, names no storage, cookie
-/// or history API. The breakers: each word in a script's text is refused,
-/// and the seam refuses a reply that sets a cookie and one naming a
-/// script off the list. What another spelling reaches is the review's
-/// (`REVIEW-CHECKLIST.md`).
+/// or history API, and no field of the search form ([`field_names`]). The
+/// breakers: each word in a script's text is refused, a field of each
+/// prefix is, and the seam refuses a reply that sets a cookie and one
+/// naming a script off the list. What another spelling reaches is the
+/// review's (`REVIEW-CHECKLIST.md`).
 #[test]
 fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
     for word in NO_STATE {
         let broken = format!("(function () {{ const x = window.{word}; }})();");
         assert_eq!(state_words(&broken), vec![word], "the scan misses {word}");
+    }
+    for prefix in FIELD_PREFIXES {
+        let broken = format!("(function () {{ el.name = '{prefix}min'; }})(); // a group. Then");
+        assert_eq!(
+            field_names(&broken),
+            vec![format!("{prefix}min")],
+            "the scan misses {prefix}"
+        );
     }
     let (_scratch, web) = offline_web("webscan");
     let token = web.token.clone();
@@ -4831,7 +4909,7 @@ fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
             .collect(),
         body,
     };
-    let listed = format!("<script src=\"/{token}/assets/picker.js\"></script>");
+    let listed = format!("<script src=\"/{token}/assets/lists.js\"></script>");
     assert_eq!(
         harness::no_state(&reply(vec![], listed.clone()), &token),
         Ok(())
@@ -4852,7 +4930,7 @@ fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
     // the form page names the listed script, so the list is the pages' own
     let form = web.get("");
     assert_eq!(harness::no_state(&form, &token), Ok(()));
-    assert!(form.body.contains("/assets/picker.js\""), "{}", form.body);
+    assert!(form.body.contains("/assets/lists.js\""), "{}", form.body);
     // the count's script is on every page with a form that submits a
     // search: the form and an answer
     assert!(form.body.contains("/assets/count.js\""), "{}", form.body);
@@ -4872,6 +4950,11 @@ fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
             state_words(&script.body),
             Vec::<&str>::new(),
             "{path} names a storage, cookie or history API"
+        );
+        assert_eq!(
+            field_names(&script.body),
+            Vec::<String>::new(),
+            "{path} names a field of the search form"
         );
     }
 }

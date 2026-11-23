@@ -158,7 +158,7 @@
 //!   tabs link names `fetched=never`.
 //! - **C16, what a page holds** (the owner's reading of the ruling's word
 //!   "state"): document state is what a page shows, rebuilt from its URL;
-//!   transient state — input not yet sent, the picker's asks in flight, the
+//!   transient state — input not yet sent, a finder's asks in flight, the
 //!   count beside a search's button and its ask in flight — is discarded by
 //!   a reload and labels nothing. A page holds no browser storage, no
 //!   cookie, no history entry of its own and no value computed from a
@@ -215,12 +215,37 @@
 //!   `data-count` and, beside its button, the words "Matches:" and an
 //!   `<output>`, then a hidden undecided part with its own. `count.js` asks
 //!   `GET count` with the fields the form would send, 300 ms after the last
-//!   change, a new ask aborting the one in flight, and writes the answer's
-//!   two numbers alone, a dash before and between; a refusal's words are
-//!   the output's title. `count` folds as `search` does and answers the
-//!   answer document with no row and no order ([`count`]), so its number is
-//!   the one Search would give now. The picker announces its write with a
-//!   bubbling `input`; neither script names the other.
+//!   `input` or `change` within the form that leaves those fields other
+//!   than the ones it last asked (the page's own, at its load), a new ask
+//!   aborting the one in flight, and writes the answer's two numbers alone,
+//!   a dash before and between; a refusal's words are the output's title. A
+//!   control no form sends, a finder's box, changes no field and asks
+//!   nothing. `count` folds as `search` does and answers the answer
+//!   document with no row and no order ([`count`]), so its number is the
+//!   one Search would give now. The stat pane's script announces an add or
+//!   a remove with a bubbling `change`; neither script names the other.
+//! - **Rows and groups** (`roadmap/briefs/4-full-1-form-rows.md`): the stat
+//!   pane is lists of items the server rendered, each row by one maker
+//!   ([`page::stat_row`]), and `assets/lists.js` copies and removes them
+//!   with one click listener on the pane: an add control (`data-add`)
+//!   copies the `<template>` it holds, or the one its attribute names, into
+//!   the item list (`data-items`) of its nearest list (`data-list`); a
+//!   remove control (`data-remove`) removes its nearest item
+//!   (`data-item`). The item list that changed announces it with a bubbling
+//!   `change`, and an add's copy gives the focus to its element marked
+//!   `data-focus`. A group is an item of the pane's list and a list of its
+//!   own, ended by its finder (`data-finder`): a box no form sends, which
+//!   asks `GET stats?q=` for its words and puts the answer, HTML, in its
+//!   listbox, its first option marked (`aria-selected`). Arrows move the
+//!   mark; Enter clicks the marked option and never submits; Escape, and a
+//!   click on an option after its add, empty the finder, its box and its
+//!   list, and abort its ask in flight. `stats` answers the vocabulary
+//!   document as JSON and otherwise the finder's options
+//!   ([`page::stat_options`]), each an add control holding its row's
+//!   template. What a group's type shows of its bound and its rows'
+//!   weights is the stylesheet's, over the type's checked option, which
+//!   lists the fields the type takes ([`page::type_takes`]). The script
+//!   names no field and writes no word or value a form sends (C46).
 //! - **The table**: an answer asked as a table (`view.fields=icon`) is
 //!   every matching row in one scrolling page at one row height, the height
 //!   and the block's rows written on the table ([`page::ROW_HEIGHT`],
@@ -365,14 +390,14 @@ use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, refusal};
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
 
-/// The stylesheet, the picker's script, the count's and the table's
+/// The stylesheet, the stat pane's script, the count's and the table's
 /// window, served as written.
 const CSS: &str = include_str!("assets/page.css");
-const PICKER: &str = include_str!("assets/picker.js");
+const LISTS: &str = include_str!("assets/lists.js");
 const COUNT: &str = include_str!("assets/count.js");
 const WINDOW: &str = include_str!("assets/window.js");
 
-/// How many stats the picker lists for one ask; the rest are counted.
+/// How many stats a finder lists for one ask; the rest are counted.
 const PICKED: usize = 50;
 
 /// How often the jobs page reloads itself while a job is not done.
@@ -500,7 +525,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
             with_account,
         ))
         .route(&at("/assets/page.css"), get(css))
-        .route(&at("/assets/picker.js"), get(picker))
+        .route(&at("/assets/lists.js"), get(lists_script))
         .route(&at("/assets/count.js"), get(count_script))
         .route(&at("/assets/window.js"), get(window_script))
         .fallback(no_such_page)
@@ -711,7 +736,7 @@ impl Web {
                 title,
                 self.account_name(),
                 Head {
-                    picker: true,
+                    lists: true,
                     count: true,
                     ..Head::default()
                 },
@@ -1402,7 +1427,7 @@ async fn home(
     web.page(
         "Search",
         Head {
-            picker: true,
+            lists: true,
             count: true,
             ..Head::default()
         },
@@ -1572,7 +1597,7 @@ async fn search(
                 .chain(kept.into_iter().map(|id| ("item".to_string(), id)))
                 .collect();
             let mut head = Head {
-                picker: true,
+                lists: true,
                 count: true,
                 window: window.is_some(),
                 ..Head::default()
@@ -2298,7 +2323,9 @@ async fn count(State(web): State<Arc<Web>>, Query(fields): Query<Fields>) -> Res
     }
 }
 
-/// The picker's listing: the stat vocabulary for the words asked.
+/// A finder's listing: the stat vocabulary for the words asked, the
+/// vocabulary document where JSON is asked, else the finder's options as
+/// HTML, each holding the template of its row ([`page::stat_options`]).
 async fn stats(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -2310,7 +2337,8 @@ async fn stats(
     })
     .await
     {
-        Ok(listed) => document(&listed),
+        Ok(listed) if wants_json(&headers) => document(&listed),
+        Ok(listed) => html(StatusCode::OK, page::stat_options(&listed)),
         Err(e) => web.failed("Stats", &Failure::from(e), &headers),
     }
 }
@@ -3630,10 +3658,10 @@ async fn css() -> Response {
     ([(header::CONTENT_TYPE, "text/css; charset=utf-8")], CSS).into_response()
 }
 
-async fn picker() -> Response {
+async fn lists_script() -> Response {
     (
         [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
-        PICKER,
+        LISTS,
     )
         .into_response()
 }
