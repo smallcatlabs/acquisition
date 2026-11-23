@@ -448,9 +448,10 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     }
 }
 
-/// #185: the sitting of 2026-11-23 asked the abyssal sockets — the
-/// Sockets and Link Groups filters' `a`, a Sockets `max` of 0, and the
-/// stat `Has # Abyssal Sockets` under implicit and explicit. Each of zb01
+/// #185: the abyssal sockets as the site reads them (T36 to T38 in
+/// `docs/design/trade-ground-truth.md`) — the Sockets and Link Groups
+/// filters' `a`, a Sockets `max` of 0, and the stat `Has # Abyssal
+/// Sockets` under implicit and explicit. Each of zb01
 /// to zb14, zc01 and zc02 translates with no remainder, those with no
 /// item among them, and every item the site fetched for one matches its
 /// text; zc03's ten, a range's `max` of 0, are the `quality-max-zero`
@@ -489,7 +490,8 @@ fn abyssal_sockets_each_search_of_the_sitting_runs_and_its_items_match() {
         );
         fetched += search.bodies.len();
     }
-    // zb02, zb03, zb09 and zb13 found nothing; thirteen fetched ten each
+    // zb02, zb03, zb09 and zb13 found nothing; the twelve others fetched
+    // ten each (zc03, the thirteenth, is the finding's)
     let empty: Vec<&str> = searches
         .iter()
         .filter(|s| s.bodies.is_empty())

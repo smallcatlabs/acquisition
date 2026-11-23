@@ -230,7 +230,7 @@ found 1,370, each fetched with one socket (zc01). Link Groups `a` 1
 found belts and none on a Leather Belt (zb08, zb09), and Link Groups
 `min` 1 found belts whose one socket is `A` (zb10). GGG gives each
 abyssal socket a `group` of its own on every item fetched. Every
-total but zc01's is at the site's cap of 10,000. The captures are
+search that found items but zc01 is at the site's cap of 10,000. The captures are
 `search/pseudo-stats/raw/searches/` (its manifest, rounds zb and zc).
 The trade catalogue's two socket rows read `a` (#185); `d`, a
 resonator's count, was not asked.
