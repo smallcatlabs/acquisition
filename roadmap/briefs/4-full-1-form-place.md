@@ -18,8 +18,8 @@ the CLI and the page share. Closes #296.
   C53 (a JSON name is the contract). #293's cut 3
   (`audits/assessment-6-5/README.md`) left the corpus's order the one
   default order.
-- Code: the store's two `ORDER BY`s (`acquisition-store/src/corpus.rs`,
-  read only); the search crate's `corpus.rs` (`Corpus::read`,
+- Code: the store's `ITEMS_SQL` and `ALL_ITEMS_SQL` and their
+  `ORDER BY` (`acquisition-store/src/corpus.rs`, read only); the search crate's `corpus.rs` (`Corpus::read`,
   `celled`), `answer.rs` (`ordered`, `BoundView::filled`, `unaged`,
   `RowsOut`, `VALUES`, `STORE_ORDER`), `values.rs`, `describe.rs`; the
   CLI's `search_cmd.rs` (`row_text`, `title`, `place_words`,
@@ -35,7 +35,7 @@ The design session's (C172, who designs), each settled:
    corpus**: in `Corpus::read`, after its loop, one stable sort of
    `items` by (the index of the item's location's first row in the
    read, then its place's cell as `celled` leaves it: row, then
-   column; an item with none after those with one). The store hands
+   column; an item with none after those with one, by id). The store hands
    rows grouped by location and by id within one, so a location's
    items stay together, locations keep the store's order, and id breaks
    every tie: a total order, which a continuation's offset needs. The
@@ -71,13 +71,15 @@ The design session's (C172, who designs), each settled:
    leaves out is named there with why. The page shows the rarity's
    word in the Item cell after the name, as the CLI's head joins it;
    no new head. The CLI's head keeps what it prints: its title holds
-   the base, the item under `item` its price, `row_shows` its values.
+   the base, the item under `item` its price, `row_shows` its values,
+   and a row carrying the item keeps `shown_title` (its frame with it)
+   as its name, a part of the maker.
 5. **Each is pinned at the lowest crate that holds it** (C122): the
    order and the default list in the search crate's tests; the maker
    in the CLI crate, its goldens regenerated.
 
 ## Find first
-- `git grep -n "store's order\|STORE_ORDER\|corpus's order" -- crates ':!*/goldens/*'`:
+- `git grep -n "store's \(stable \)\?order\|STORE_ORDER\|corpus's order" -- crates ':!*/goldens/*'`:
   each text and test of the old order; sort them into an answer's
   rows' (changed) and locations' or characters' (kept).
 - `git grep -ln "store's order" -- '*.md' crates/acquisition-cli/tests/goldens`:
@@ -91,15 +93,17 @@ The design session's (C172, who designs), each settled:
 - `git grep -n "FIRST_TURN\|DESCRIPTION\|PARAMETER" crates/acquisition-mcp/tests/surface_size.rs`:
   the MCP's bounds a changed text meets.
 - With Decision 1 alone built, `cargo nextest run --workspace --no-fail-fast 2>&1 | grep -E '^ +FAIL'`:
-  the tests and goldens that held rows in the old order, the
-  generated oracle (`tests/common/generated.rs`) among them.
+  the tests and goldens that held rows in the old order.
 
 ## Done when
 - In the search crate, over a seeded tab whose ids and cells disagree,
-  with a cell-less item: unsorted and at `sort: none`, rows by row,
-  then column, the cell-less after, ties by id; a second location's
-  items together, locations in the store's order; a continuation
-  continues that order. The generated oracle orders as the corpus does.
+  with a cell-less item and a socketed one whose body's `x`/`y` would
+  sort it first, and a character with a worn item whose body's would:
+  unsorted and at `sort: none`, rows by row, then column, the worn,
+  socketed and cell-less after by id; a second location's items
+  together, locations in the store's order; a continuation continues
+  that order. The generated tests (`tests/generated_*.rs`) pass, each
+  change named.
 - There too: no values named and a match with a stack gives `values`
   `["stack"]`, `values_from_query` true; after a query's values, at the
   end; named values, a full list, or no match with a stack, none; a
@@ -109,7 +113,8 @@ The design session's (C172, who designs), each settled:
 - Goldens, each diff read: a currency tab's place page and `acq search`
   over it, rows in cell order with a `stack` column of counts and the
   rarity's word on a gear row; a page's box after an answer whose list
-  is `stack` alone carries no values.
+  is `stack` alone carries no values; a row carrying the item at
+  `acq search` titled as before, its frame with it.
 - The first Find-first command finds no text saying an answer's rows
   stand in the store's order. `describe`, the module docs of `values.rs`
   and `answer.rs` and `window_rows`'s doc say what is built; the
