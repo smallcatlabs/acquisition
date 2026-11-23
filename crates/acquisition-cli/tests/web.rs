@@ -1799,7 +1799,7 @@ fn every_search_page_is_a_wording_golden() {
             "/rows?next=acq1.",
             "data-count=\"2\"",
             "<div class=\"block\" data-block=\"0\">",
-            "data-i=\"0\" data-id=\"r1\"><button type=\"submit\" class=\"name rarity-rare\" name=\"toggle_item\" value=\"r1\">Doom Loop Two-Stone Ring</button>",
+            "data-i=\"0\" data-id=\"r1\"><button type=\"submit\" class=\"name rarity-rare\" name=\"toggle_item\" value=\"r1\">Doom Loop Two-Stone Ring · rare</button>",
             "<span>none (",
             "<span>Standard / Rings · x 0, y 0</span>",
             "<span>95</span>",
@@ -3046,7 +3046,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         ),
         &[
             "<span class=\"mark\" aria-hidden=\"true\">▲</span>sum(line(template:spirit).arg1)<span class=\"sr\">, ordered smallest first</span></a></div>",
-            "value=\"many\">Many Loop Iron Ring</button>",
+            "value=\"many\">Many Loop Iron Ring · rare</button>",
             "<span>36</span></div>",
         ],
     );
@@ -3113,8 +3113,8 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         &[
             "<span>Fetched</span><a class=\"head\" href=\"search?",
             "view.sort=ilvl&amp;view.desc=true\">ilvl</a><a class=\"head\" href=\"search?",
-            "value=\"lp\">Ledger Priced Iron Ring</button><span>Iron Ring</span><span>5 chaos",
-            "value=\"lo\">Ledger Open Iron Ring</button><span>Iron Ring</span><span>undecided: the note cannot be read",
+            "value=\"lp\">Ledger Priced Iron Ring · rare</button><span>Iron Ring</span><span>5 chaos",
+            "value=\"lo\">Ledger Open Iron Ring · rare</button><span>Iron Ring</span><span>undecided: the note cannot be read",
             "<span>incomplete at 70</span>",
             "<span>none (",
         ],

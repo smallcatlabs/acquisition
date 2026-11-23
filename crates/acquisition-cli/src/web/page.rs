@@ -2578,12 +2578,15 @@ fn item_heads(rows: &RowsOut, view: ViewLinks) -> String {
     )
 }
 
-/// A window's rows, each a line of the table at its index in the order:
-/// the name in its rarity's colour, a link to the item; its base; its
-/// price in the card's words, so one that is open or absent says so; its
-/// location and, where it left, when; the location's age; then each
-/// value's cell ([`search_cmd::value_cell`]), empty where the item lacks
-/// it. A cell is one line, cut where it overflows.
+/// A window's rows, each a line of the table at its index in the order,
+/// made from the row's one line ([`search_cmd::Line`]), the CLI's row's
+/// too: the name in its rarity's colour, a link to the item, its rarity
+/// in words after it as the CLI's head joins it; its base; its price in
+/// the card's words, so one that is open or absent says so; its location
+/// and, where it left, when; the location's age; then each value's cell,
+/// empty where the item lacks it — `stack`, a stack's count, among them
+/// wherever the default list carries it. A cell is one line, cut where it
+/// overflows.
 pub(crate) fn window_rows(a: &Answer, now: i64) -> String {
     let after = match &a.view {
         ViewOut::Rows(rows) => rows.after,
@@ -2591,43 +2594,42 @@ pub(crate) fn window_rows(a: &Answer, now: i64) -> String {
     };
     let mut out = String::new();
     for (n, row) in a.rows.iter().enumerate() {
-        let name = search_cmd::title(row.name.as_deref(), row.typeline.as_deref());
-        let price = row
-            .shown
-            .as_ref()
-            .map(|shown| search_cmd::price_words(&row.id, &shown.price))
-            .unwrap_or_default();
-        let mut place = search_cmd::place_words(&row.place);
-        if let Some(removed_at) = row.removed_at {
-            place.push_str(&format!(
-                " · removed {}",
-                crate::store_cmd::ago(now, Some(removed_at))
-            ));
+        let search_cmd::Line {
+            name,
+            rarity,
+            // `show`'s, on the item's card
+            frame: _,
+            base,
+            price,
+            mut place,
+            removed,
+            fetched,
+            values,
+        } = search_cmd::Line::of(row, now);
+        let item = match &rarity {
+            Some(word) => format!("{name} · {word}"),
+            None => name,
+        };
+        if let Some(removed) = removed {
+            place.push_str(&format!(" · removed {removed}"));
         }
-        let values: String = row
-            .values
+        let values: String = values
             .iter()
-            .map(|valued| {
-                let cell = match search_cmd::lacks(valued) {
-                    true => String::new(),
-                    false => search_cmd::value_cell(valued),
-                };
-                format!("<span>{}</span>", esc(&cell))
-            })
+            .map(|cell| format!("<span>{}</span>", esc(cell)))
             .collect();
-        let rarity = row.rarity.as_deref().unwrap_or("").to_lowercase();
         out.push_str(&format!(
             "<div class=\"r\" id=\"{}\" data-i=\"{}\" data-id=\"{}\"><button type=\"submit\" class=\"name rarity-{}\" name=\"toggle_item\" value=\"{}\">{}</button><span>{}</span><span>{}</span><span>{}</span><span>{}</span>{values}</div>\n",
             esc(&row_anchor(&row.id)),
             after + n,
             esc(&row.id),
-            esc(&rarity),
+            esc(rarity.as_deref().unwrap_or("")),
             esc(&row.id),
-            esc(&name),
-            esc(row.base.as_deref().unwrap_or("")),
-            esc(&price),
+            esc(&item),
+            esc(base.as_deref().unwrap_or("")),
+            esc(price.as_deref().unwrap_or("")),
             esc(&place),
-            esc(&crate::store_cmd::ago(now, row.place.fetched_at)),
+            // an age's words where there is no time to age
+            esc(&fetched.unwrap_or_else(|| crate::store_cmd::ago(now, None))),
         ));
     }
     out

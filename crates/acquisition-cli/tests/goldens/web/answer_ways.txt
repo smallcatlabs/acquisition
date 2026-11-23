@@ -401,7 +401,7 @@ basis   store <store> · build <build> · snapshot 14 · facts v9 · prices and 
 
 GET search?<a row that leaves lines out>
 # holds "<span class=\"mark\" aria-hidden=\"true\">▲</span>sum(line(template:spirit).arg1)<span class=\"sr\">, ordered smallest first</span></a></div>"
-# holds "value=\"many\">Many Loop Iron Ring</button>"
+# holds "value=\"many\">Many Loop Iron Ring · rare</button>"
 # holds "<span>36</span></div>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:16,&quot;at&quot;:101,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
@@ -427,7 +427,7 @@ GET search?<a row that leaves lines out>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="search?realm=pc&amp;text=line%28template%3Aspirit%29&amp;view.fields=icon&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29&amp;view.desc=true"><span class="mark" aria-hidden="true">▲</span>sum(line(template:spirit).arg1)<span class="sr">, ordered smallest first</span></a></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="1" data-base="0"><div class="block" data-block="0">
-<div class="r" id="i-many" data-i="0" data-id="many"><button type="submit" class="name rarity-rare" name="toggle_item" value="many">Many Loop Iron Ring</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Spirit · x 0, y 0</span><span><age> ago</span><span>36</span></div>
+<div class="r" id="i-many" data-i="0" data-id="many"><button type="submit" class="name rarity-rare" name="toggle_item" value="many">Many Loop Iron Ring · rare</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Spirit · x 0, y 0</span><span><age> ago</span><span>36</span></div>
 </div></div>
 </div>
 </form>
@@ -453,8 +453,8 @@ basis   store <store> · build <build> · snapshot 16 · facts v9 · prices and 
 GET search?<a table of two values, priced three ways>
 # holds "<span>Fetched</span><a class=\"head\" href=\"search?"
 # holds "view.sort=ilvl&amp;view.desc=true\">ilvl</a><a class=\"head\" href=\"search?"
-# holds "value=\"lp\">Ledger Priced Iron Ring</button><span>Iron Ring</span><span>5 chaos"
-# holds "value=\"lo\">Ledger Open Iron Ring</button><span>Iron Ring</span><span>undecided: the note cannot be read"
+# holds "value=\"lp\">Ledger Priced Iron Ring · rare</button><span>Iron Ring</span><span>5 chaos"
+# holds "value=\"lo\">Ledger Open Iron Ring · rare</button><span>Iron Ring</span><span>undecided: the note cannot be read"
 # holds "<span>incomplete at 70</span>"
 # holds "<span>none ("
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:18,&quot;at&quot;:111,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
@@ -480,9 +480,9 @@ GET search?<a table of two values, priced three ways>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50&amp;view.fields=icon&amp;view.sort=ilvl&amp;view.desc=true">ilvl</a><a class="head" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50&amp;view.fields=icon&amp;view.sort=line%28%22%23%20to%20maximum%20Life%22%29.arg1&amp;view.desc=true">line(&quot;# to maximum Life&quot;).arg1</a></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
-<div class="r" id="i-lp" data-i="0" data-id="lp"><button type="submit" class="name rarity-rare" name="toggle_item" value="lp">Ledger Priced Iron Ring</button><span>Iron Ring</span><span>5 chaos · game</span><span>Standard / Ledger · x 9, y 0</span><span><age> ago</span><span>81</span><span>90</span></div>
-<div class="r" id="i-lo" data-i="1" data-id="lo"><button type="submit" class="name rarity-rare" name="toggle_item" value="lo">Ledger Open Iron Ring</button><span>Iron Ring</span><span>undecided: the note cannot be read: it is no string, and a note would decide</span><span>Standard / Ledger · x 10, y 0</span><span><age> ago</span><span>82</span><span>60</span></div>
-<div class="r" id="i-li" data-i="2" data-id="li"><button type="submit" class="name rarity-rare" name="toggle_item" value="li">Ledger Unread Iron Ring</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Ledger · x 11, y 0</span><span><age> ago</span><span>83</span><span>incomplete at 70</span></div>
+<div class="r" id="i-lp" data-i="0" data-id="lp"><button type="submit" class="name rarity-rare" name="toggle_item" value="lp">Ledger Priced Iron Ring · rare</button><span>Iron Ring</span><span>5 chaos · game</span><span>Standard / Ledger · x 9, y 0</span><span><age> ago</span><span>81</span><span>90</span></div>
+<div class="r" id="i-lo" data-i="1" data-id="lo"><button type="submit" class="name rarity-rare" name="toggle_item" value="lo">Ledger Open Iron Ring · rare</button><span>Iron Ring</span><span>undecided: the note cannot be read: it is no string, and a note would decide</span><span>Standard / Ledger · x 10, y 0</span><span><age> ago</span><span>82</span><span>60</span></div>
+<div class="r" id="i-li" data-i="2" data-id="li"><button type="submit" class="name rarity-rare" name="toggle_item" value="li">Ledger Unread Iron Ring · rare</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Ledger · x 11, y 0</span><span><age> ago</span><span>83</span><span>incomplete at 70</span></div>
 </div></div>
 </div>
 </form>

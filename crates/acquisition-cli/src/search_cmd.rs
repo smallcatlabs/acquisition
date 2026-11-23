@@ -834,13 +834,20 @@ fn never_fetched_text(by_type: &[acquisition_search::tabs::TabType]) -> String {
 const NEVER_FETCHED_SPAN: &str = "counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown";
 
 pub(crate) fn place_text(place: &acquisition_search::corpus::Place, now: i64) -> String {
-    // how old the place is, as `tabs` says a tab's age (C118: "where do I
-    // pick it up" asks it)
-    let age = match place.fetched_at {
-        Some(at) => format!("fetched {}", ago(now, Some(at))),
+    format!(
+        "{} · {}",
+        place_words(place),
+        fetched_words(place.fetched_at.map(|at| ago(now, Some(at))))
+    )
+}
+
+/// How old a place is, from its fetch's age, as `tabs` says a tab's age
+/// (C118: "where do I pick it up" asks it).
+fn fetched_words(age: Option<String>) -> String {
+    match age {
+        Some(age) => format!("fetched {age}"),
         None => "never fetched".to_string(),
-    };
-    format!("{} · {age}", place_words(place))
+    }
 }
 
 /// Where an item lies, without how old that is: its league, its tab or
@@ -1303,6 +1310,63 @@ pub(crate) fn span_words(
     }
 }
 
+/// A row's line in its parts, each in words: the one maker of what the
+/// CLI's row and the page's table row say of an answer's row, so a part
+/// one door adds the other has (#296). Each door destructures it whole,
+/// and a part it leaves out is named there with why.
+pub(crate) struct Line {
+    /// The name and the type line as the game shows them together.
+    pub name: String,
+    /// The rarity in words (`rare`), where the item has one: currency
+    /// has none.
+    pub rarity: Option<String>,
+    /// The frame in words, where the row carries the item (`--fields
+    /// item`), as `show`'s title says it after the rarity.
+    pub frame: Option<String>,
+    pub base: Option<String>,
+    /// The price in the card's words, where the row carries the item.
+    pub price: Option<String>,
+    /// Where it lies ([`place_words`]), without how old that is.
+    pub place: String,
+    /// When it left, as an age, where it was removed.
+    pub removed: Option<String>,
+    /// How long ago its place was fetched, as an age; none where never.
+    pub fetched: Option<String>,
+    /// Each value's cell ([`value_cell`]), in `view.rows.values`' order:
+    /// empty where the item lacks it ([`lacks`]).
+    pub values: Vec<String>,
+}
+
+impl Line {
+    pub(crate) fn of(row: &acquisition_search::answer::Row, now: i64) -> Line {
+        Line {
+            name: title(row.name.as_deref(), row.typeline.as_deref()),
+            rarity: row.rarity.as_deref().map(str::to_lowercase),
+            frame: row
+                .shown
+                .as_ref()
+                .and_then(|shown| shown.item.frame.as_deref())
+                .map(str::to_lowercase),
+            base: row.base.clone(),
+            price: row
+                .shown
+                .as_ref()
+                .map(|shown| price_words(&row.id, &shown.price)),
+            place: place_words(&row.place),
+            removed: row.removed_at.map(|at| ago(now, Some(at))),
+            fetched: row.place.fetched_at.map(|at| ago(now, Some(at))),
+            values: row
+                .values
+                .iter()
+                .map(|valued| match lacks(valued) {
+                    true => String::new(),
+                    false => value_cell(valued),
+                })
+                .collect(),
+        }
+    }
+}
+
 /// One row as the text prints it: the title, the place, what each part
 /// showed and the id.
 fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now: i64) -> String {
@@ -1311,26 +1375,36 @@ fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now:
         out.push_str(s.trim_end());
         out.push('\n');
     };
+    let Line {
+        name,
+        rarity,
+        frame,
+        // the title holds the base, as its type line
+        base: _,
+        // the item under `item` prints it, after the head
+        price: _,
+        place,
+        removed,
+        fetched,
+        // `row_shows` says each value with what it is, below the head
+        values: _,
+    } = Line::of(row, now);
     // under `item` the row is titled as `show` titles the item, its
     // frame with it
-    let mut head = match &row.shown {
-        Some(shown) => shown_title(&shown.item),
-        None => {
-            let mut head = title(row.name.as_deref(), row.typeline.as_deref());
-            if let Some(rarity) = &row.rarity {
-                head.push_str(&format!(" · {}", rarity.to_lowercase()));
-            }
-            head
+    let mut head = name;
+    for (label, word) in [("", rarity), ("frame ", frame)] {
+        if let Some(word) = word {
+            head.push_str(&format!(" · {label}{word}"));
         }
-    };
+    }
     // a scope that spans realms says which one each item is in, as
     // `show` does; under one realm the scope line has said it
     if a.scope.realm == Realm::All {
         head.push_str(&format!(" · {}", row.place.realm));
     }
-    head.push_str(&format!(" · {}", place_text(&row.place, now)));
-    if let Some(removed_at) = row.removed_at {
-        head.push_str(&format!(" · removed {}", ago(now, Some(removed_at))));
+    head.push_str(&format!(" · {place} · {}", fetched_words(fetched)));
+    if let Some(removed) = removed {
+        head.push_str(&format!(" · removed {removed}"));
     }
     line(format!(
         "{}{head}",
