@@ -3,8 +3,7 @@
 ## Goal
 A tab opened with no query is ordered by a value picked by name
 (`4-full-1-form-design.md` §8 step 6): "Add a column" finds a stat or
-a number field by the site's words, and a pick lands on the page
-ordered by its value, its column added. The owner could not fill the
+a number field by the site's words; a pick lands ordered by it. The owner could not fill the
 sort box and wanted a stat selector (`audits/web-2026-11/sitting/`,
 stops 3, 4, 9); the page seat's fault was a sort by values a player
 names.
@@ -18,8 +17,8 @@ names.
   rule has a browser-driven check), C154 (a retirement names its
   holder).
 - Code: `web/mod.rs` (`search`, `places`, `view_link`, `view_change`,
-  `switched`, `stats`); `web/page.rs` (`ViewLink`, `stat_options`,
-  `view_hidden`, `item_heads`); `assets/lists.js`, `assets/count.js`;
+  `stats`); `web/page.rs` (`stat_options`, `view_hidden`,
+  `item_heads`); `assets/lists.js`, `assets/count.js`;
   the search crate's `show.rs` (`trade_value`), `values.rs`,
   `trade/vocabulary.rs`, `trade/catalogue.rs`, `answer.rs` (`VALUES`).
 - CI (`gh run list --branch main --workflow "Gate (Linux)" --limit 1`,
@@ -75,8 +74,8 @@ The design session's (C172, who designs), each settled:
    (`data-finder="stats?q="`; the script appends the words), and a
    finder is heard wherever it stands, its listeners on the document
    as `count.js`'s are.
-7. **The control reads "Add a column"**, on the search page and on
-   each place page.
+7. **The control reads "Add a column"**, in each editor of the
+   search page and on a place page where its item heads stand.
 
 ## Find first
 - `git grep -n 'trade_value\|fn compared\|pub fn vocabulary' crates/acquisition-search/src/`:
@@ -88,7 +87,7 @@ The design session's (C172, who designs), each settled:
 - `git grep -n 'data-finder\|stats?q=\|addEventListener' -- crates/acquisition-cli/src/web/ crates/acquisition-cli/tests/ ':!*/goldens/*'`:
   the finder's markup, its fixed route, its listeners, the tests that
   drive it.
-- `git grep -ln 'data-finder\|view\.sort' crates/acquisition-cli/tests/goldens/web/`:
+- `git grep -ln 'data-finder\|view\.sort\|class="query-box"' crates/acquisition-cli/tests/goldens/web/`:
   the goldens the finder changes.
 - `grep -n -B3 'shape = "minmax\|shape = "sockets"' crates/acquisition-search/reference/trade-catalogue-v1.toml`:
   the number boxes the listing puts to the function.
@@ -108,8 +107,8 @@ The design session's (C172, who designs), each settled:
   the catalogue, is taken by the search as an order (read as a
   request's `view.sort`, refused by none); and the listing, before
   its limit, is exactly the entries the function answers a value for
-  (both ways), a pseudo total (the sitting's total elemental
-  resistance) and a stat with no value among the named cases.
+  (both ways); named cases pin the function itself: Item Level to
+  `ilvl`, the sitting's total elemental resistance, a stat with none.
 - `tests/web.rs`: `view.by` on the search page and a place page
   answers `303` to the head link's URL; beside a count, to the page
   less it; past a full list, the search's refusal; on a place page
