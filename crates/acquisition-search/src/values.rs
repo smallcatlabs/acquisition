@@ -34,11 +34,19 @@
 //!   (#294). A sort named beside the query's values joins them, and
 //!   named values are kept once, by the same text.
 //! - **Every branch contributes**: of an and, an or, a `holds`, a `not`.
-//! - **The list is a pure function of the canonical query and the
-//!   build**: nothing of the corpus, the request's other fields or any
-//!   answer before enters it. So a continuation carries only what its
-//!   request named, and the same continuation re-derives the same list at
-//!   the basis it names, whose build is part of it (C98).
+//! - **What the query compares is a pure function of the canonical
+//!   query and the build**: nothing of the corpus, the request's other
+//!   fields or any answer before enters it.
+//! - **The default list** is what a rows view carries where it names no
+//!   values: what the query compares, then `stack` where some match
+//!   carries a stack and the list has room for it (`answer.rs`,
+//!   `BoundView::stacked`), so a currency tab shows its counts wherever
+//!   it is searched. Whether one does is asked over every match, never
+//!   over the rows a window shows, so a window's columns do not change as
+//!   it scrolls. The list is then a function of the canonical query, the
+//!   build and the matches: a continuation carries only what its request
+//!   named, and re-derives the same list at the basis it names, which
+//!   fixes the build and the facts the matches are drawn from (C98).
 
 use crate::tree::{Collection, Node, Op, Value, ValueRef};
 

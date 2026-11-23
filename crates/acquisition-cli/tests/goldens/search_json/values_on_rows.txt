@@ -177,3 +177,29 @@ $ acq search --realm pc '"+# to maximum Life">=90' --sort none --desc
 --- stderr
 Error: `sort` `none` stands the rows as they lie in their place, top row first and left to right, and `desc` puts a value's largest first: name the value to sort by
 --- exit 1
+
+$ acq search --realm pc tab:Currency
+# holds "Chaos Orb · Standard / Currency · x 0, y 0"
+# holds "stack 40"
+# holds "Exalted Orb · Standard / Currency · x 1, y 0"
+# holds "Pyre Coil Two-Stone Ring · rare · Standard / Currency · x 0, y 1"
+--- stdout
+query   tab:Currency
+scope   account Alice#1234 · pc · live · 8 items · 3 locations fetched
+        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   3 matches (fetched <age> ago, pc · Standard / Currency)
+            1 location was never fetched: nothing here says what it holds
+rows    Chaos Orb · Standard / Currency · x 0, y 0 · fetched <age> ago
+            stack 40
+            id c-z
+        Exalted Orb · Standard / Currency · x 1, y 0 · fetched <age> ago
+            stack 3
+            id c-b
+        Pyre Coil Two-Stone Ring · rare · Standard / Currency · x 0, y 1 · fetched <age> ago
+            id c-a
+order   rows 1–3 of 3 shown, as they lie in their place, top row first and left to right (no sort asked)
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    tab:Currency  3 matched · 5 failed
+       → Currency (3)
+routes  each returns exactly the members counted (2 more: --routes)
+basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

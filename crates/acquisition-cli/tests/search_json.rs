@@ -651,7 +651,68 @@ fn values_on_rows_at_a_terminal() {
         &["search", "--realm", "pc", LIFE, "--sort", "none", "--desc"],
         &["`desc` puts a value's largest first"],
     );
+    // a currency tab, its ids against its cells: its items as they lie,
+    // each stack's count the value `stack`, and the gear row's rarity
+    currency_tab(&base);
+    t.run(
+        &["search", "--realm", "pc", "tab:Currency"],
+        &[
+            "Chaos Orb · Standard / Currency · x 0, y 0",
+            "stack 40",
+            "Exalted Orb · Standard / Currency · x 1, y 0",
+            "Pyre Coil Two-Stone Ring · rare · Standard / Currency · x 0, y 1",
+        ],
+    );
     golden(file!(), "values_on_rows", &t);
+}
+
+/// A currency tab beside the seeded ones, its ids against its cells: a
+/// stack of chaos at the first cell, exalts beside it, and a rare ring on
+/// the row below.
+fn currency_tab(base: &Path) {
+    let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
+    let mut record = |ep: Endpoint, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "pc", "league": "Standard" }),
+                200,
+                &body,
+                at,
+            )
+            .unwrap();
+    };
+    record(
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        json!({ "stashes": [
+            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+            { "id": "t2", "name": "Dump", "type": "PremiumStash" },
+            { "id": "t3", "name": "Never", "type": "PremiumStash" },
+            { "id": "c1", "name": "Currency", "type": "CurrencyStash" } ] }),
+        70,
+    );
+    let orb = |id: &str, base: &str, stack: i64, x: i64| {
+        json!({ "id": id, "name": "", "typeLine": base, "baseType": base, "frameTypeId": "Currency",
+                "identified": true, "ilvl": 0, "stackSize": stack, "x": x, "y": 0 })
+    };
+    record(
+        Endpoint::Stash {
+            realm: "pc".into(),
+            league: "Standard".into(),
+            id: "c1".into(),
+            sub: None,
+        },
+        json!({ "stash": { "id": "c1", "name": "Currency", "type": "CurrencyStash", "items": [
+            json!({ "id": "c-a", "name": "Pyre Coil", "typeLine": "Two-Stone Ring", "baseType": "Two-Stone Ring",
+                    "rarity": "Rare", "frameTypeId": "Rare", "identified": true, "ilvl": 84, "x": 0, "y": 1 }),
+            orb("c-b", "Exalted Orb", 3, 1),
+            orb("c-z", "Chaos Orb", 40, 0),
+        ] } }),
+        71,
+    );
 }
 
 #[test]

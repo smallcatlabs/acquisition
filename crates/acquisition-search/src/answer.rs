@@ -223,17 +223,18 @@
 //!   the one maker of a route (`Router`, private), so a bucket's route is
 //!   made as a term's is.
 //! - **A row carries values**: those the view names, or with none named
-//!   those the query compares (`values.rs`), at most [`VALUES`] with the
-//!   sort among them, the sort joining them at their end where they lack
-//!   it (a full list of the query's gives it its last place, the value
-//!   displaced counted; a full list named, which a named sort would push
-//!   past the bound, is refused); each in the shape a sort's number had,
-//!   said once, so a row's sort is the entry `view.rows.sort` names. A
-//!   continuation names what its request named — a sort, `none`, values —
-//!   and names the values the query gave by the query it carries (C100):
-//!   they are a pure function of the canonical query and the build, which
-//!   its basis names (C98), so it fills them again the same and every
-//!   page says them as from the query.
+//!   the default list, those the query compares (`values.rs`) with
+//!   [`STACK`] after them where a match carries a stack; at most
+//!   [`VALUES`] with the sort among them, the sort joining them at their
+//!   end where they lack it (a full list of the query's gives it its last
+//!   place, the value displaced counted; a full list named, which a named
+//!   sort would push past the bound, is refused); each in the shape a
+//!   sort's number had, said once, so a row's sort is the entry
+//!   `view.rows.sort` names. A continuation names what its request named
+//!   — a sort, `none`, values — and names the default list by the query
+//!   it carries (C100): it is a function of the canonical query, the
+//!   build and the matches, which its basis fixes (C98), so it fills the
+//!   list again the same and every page says it as the default.
 //! - **A row is compact unless its view names fields** (C100: the caller
 //!   may name fields): `icon`, the URL of the item's art, and `item`, the
 //!   item as `show` gives it — five keys flat after the row's own,
@@ -1122,6 +1123,10 @@ struct ViewNamed {
 /// is a column its table shows.
 pub const VALUES: usize = 12;
 
+/// The value a stackable item's count is: the default list carries it
+/// wherever a match has one ([`BoundView::stacked`]).
+pub const STACK: &str = "stack";
+
 /// The sort word for the order items lie in their places
 /// ([`PLACE_ORDER_WORDS`]), which naming no sort gives too: a second
 /// spelling of it, kept so a request that names it answers.
@@ -1217,6 +1222,38 @@ impl BoundView {
                     .iter()
                     .filter(|one| !values.iter().any(|(seen, _)| *seen == one.text))
                     .count();
+            }
+        }
+        Ok(self)
+    }
+
+    /// A rows view's default list with `stack` at its end ([`STACK`];
+    /// `values.rs`, "The default list"): where the request named no
+    /// values, the list has room under [`VALUES`] and lacks it, and some
+    /// match carries a stack (`carries`, asked over every match and
+    /// never over the rows shown, so a window's columns do not change as
+    /// it scrolls). The list is then the default one,
+    /// `values_from_query`, though `stack` alone stands in it. A
+    /// continuation names no values and comes to the same list: the
+    /// matches are its basis's.
+    fn stacked(
+        mut self,
+        carries: impl FnOnce(&bind::SortKey) -> bool,
+    ) -> Result<BoundView, LanguageError> {
+        if let BoundView::Rows {
+            values,
+            named,
+            values_from_query,
+            ..
+        } = &mut self
+            && !named.values
+            && values.len() < VALUES
+            && !values.iter().any(|(text, _)| text == STACK)
+        {
+            let key = bind::bind_sort(&parse::parse_value(STACK)?)?;
+            if carries(&key) {
+                values.push((STACK.to_string(), key));
+                *values_from_query = true;
             }
         }
         Ok(self)
@@ -1855,12 +1892,13 @@ pub struct RowsOut {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub desc: bool,
     /// The values each row carries, in this order, by text: as named, or
-    /// the ones the query compares; the sort among them. Absent where
-    /// none.
+    /// the default list, the ones the query compares and `stack` where a
+    /// match carries one; the sort among them. Absent where none.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub values: Vec<String>,
-    /// The values are the ones the query compares, none having been
-    /// named.
+    /// The values are the default list, none having been named: the
+    /// ones the query compares and `stack` where a match carries one,
+    /// though `stack` stands alone in it.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub values_from_query: bool,
     /// The query's values past the most a row carries ([`VALUES`]).
@@ -2482,6 +2520,11 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
         truths,
         part_matched,
     } = matching(corpus, &query);
+    let view = view.stacked(|key| {
+        matches
+            .iter()
+            .any(|(at, _)| matches!(eval::scalar(key, &corpus.items[*at]), Scalar::Value(_)))
+    })?;
 
     let terms: Vec<TermOut> = query
         .terms
@@ -2713,9 +2756,9 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
                     // the routes asked of it too. It names the order it
                     // continues (C100) by what its request named — a sort,
                     // `none`, values — and, for the values the request left
-                    // to the query, by the query itself: they are a pure
-                    // function of the canonical query and the build
-                    // (`values.rs`), and the basis names the build (C98)
+                    // to the query, by the query itself: they are a
+                    // function of the canonical query, the build and the
+                    // matches (`values.rs`), which the basis fixes (C98)
                     view: View {
                         shape: Shape::Rows(Rows {
                             limit: Some(limit),

@@ -1771,6 +1771,103 @@ fn issue_38_a_filtered_sum_orders_the_rows_where_it_is_named() {
     assert_eq!(refused.unwrap_err().to_json()["kind"], "view");
 }
 
+/// A stack's count is the value `stack` in the default list (`values.rs`):
+/// where no values are named and some match carries a stack, `stack`
+/// joins the list at its end, the list still the default one; decided
+/// over every match, so a window whose one row has no stack still
+/// carries it. Named values, a full list, or no match with a stack, and
+/// it does not join; a sort `stack` is in the list once.
+#[test]
+fn a_stacks_count_joins_the_default_list_where_a_match_carries_one() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("t1", "Mixed")]), 10);
+    let chaos = json!({ "id": "cu", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+        "frameTypeId": "Currency", "identified": true, "ilvl": 0, "stackSize": 40, "x": 1, "y": 0 });
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t1",
+        "Mixed",
+        vec![item("ring", "Ring", "Iron Ring", "Rare", json!({})), chaos],
+        20,
+    );
+    let corpus = load(&s, Some("pc"));
+    let ask = |text: &str, rows: Value| {
+        let request: Request =
+            serde_json::from_value(json!({ "query": { "text": text }, "view": { "rows": rows } }))
+                .unwrap();
+        as_json(&answer(&corpus, &request).unwrap())
+    };
+    let twelve: Vec<String> = ('a'..='l')
+        .map(|word| format!("sum(\"# to maximum {word}\")>=0"))
+        .collect();
+    let full = format!("ilvl>=1 or has:stack or ({})", twelve.join(" "));
+    let values_of = |view: &Value| -> Vec<String> {
+        view["values"]
+            .as_array()
+            .map(|v| v.iter().map(|t| t.as_str().unwrap().to_string()).collect())
+            .unwrap_or_default()
+    };
+    // each ask, the list it carries, and whether that is the default list
+    let table: Vec<(&str, Value, Vec<&str>, bool)> = vec![
+        // no values named: `stack` alone, or after the query's
+        ("", json!({}), vec!["stack"], true),
+        (
+            "ilvl>=1 or has:stack",
+            json!({}),
+            vec!["ilvl", "stack"],
+            true,
+        ),
+        // the ring lies first and has no stack: the window still carries it
+        ("", json!({ "limit": 1 }), vec!["stack"], true),
+        // after a sort that joined the list
+        ("", json!({ "sort": "ilvl" }), vec!["ilvl", "stack"], true),
+        // a sort `stack`: once
+        (
+            "ilvl>=1 or has:stack",
+            json!({ "sort": "stack" }),
+            vec!["ilvl", "stack"],
+            true,
+        ),
+        // named values: none joins
+        ("", json!({ "values": ["ilvl"] }), vec!["ilvl"], false),
+        // no match carries a stack
+        ("rarity=rare", json!({}), vec![], false),
+    ];
+    for (text, rows, joined, default) in table {
+        let a = ask(text, rows.clone());
+        let view = &a["view"]["rows"];
+        assert_eq!(values_of(view), joined, "`{text}` {rows}: {view}");
+        assert_eq!(
+            view.get("values_from_query").is_some(),
+            default,
+            "`{text}` {rows}: {view}"
+        );
+        for row in a["rows"].as_array().unwrap() {
+            let carried = row
+                .get("values")
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len);
+            assert_eq!(carried, joined.len(), "{row}");
+        }
+    }
+    // a full list of the query's: none joins
+    let a = ask(&full, json!({}));
+    let values = values_of(&a["view"]["rows"]);
+    assert_eq!(values.len(), 12, "{values:?}");
+    assert!(!values.iter().any(|v| v == "stack"), "{values:?}");
+    // the count, on the row that has one
+    let a = ask("", json!({}));
+    let chaos = a["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == "cu")
+        .unwrap();
+    assert_eq!(chaos["values"][0]["value"], 40, "{chaos}");
+}
+
 /// Values named: each row carries them in the order named, each once; a
 /// sort the list lacks joins it at the end; and more than the bound is
 /// refused naming it.

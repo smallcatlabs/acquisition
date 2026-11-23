@@ -221,3 +221,96 @@ GET tabs?<a place open, no query>
 </form>
 
 </main>
+
+GET tabs?<the currency tab open, no query>
+# holds ">stack</a></div>"
+# holds ">Chaos Orb</button>"
+# holds "<span>40</span></div>"
+# holds "<span>3</span></div>"
+# holds "<span></span></div>"
+<meta name="basis" content="{&quot;rows&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:15,&quot;at&quot;:71,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
+<main>
+<h1>Stash tabs</h1>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
+<div class="actions"><form class="write" method="post" action="leagues"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;open=c1"><button type="submit">Fetch the league list</button></form>
+<form class="write" method="post" action="tabs"><input type="hidden" name="from" value="tabs?realm=pc&amp;league=Standard&amp;open=c1"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+</div>
+<p class="counts">9 tabs in Standard: 6 fetched, 2 never fetched, 1 folder (never fetched); 12 items in tabs (characters apart); facts: 8 tabs, 6 fetched (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Currency); stash listing <age> ago</p>
+<form method="get" action="tabs">
+<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="c1">
+<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" name="refresh" value="ticked">Refresh ticked</button></p>
+<label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
+<details class="list" open><summary>Stash tabs</summary>
+<div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>
+<div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>CurrencyStash</option><option>MapStash</option><option>Folder</option></select></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
+<div class="window" data-row-height="24" data-block-rows="50">
+<p class="rows-shown">Each place&#39;s items stand as they lie in their place, top row first and left to right: open one by its name and press a number on its card to order them by it.</p>
+<div class="filter value-finder" data-finder="stats?values=true&amp;q="><input type="search" placeholder="Add a column" aria-label="Add a column" autocomplete="off"><ul class="finder-list" role="listbox"></ul></div>
+<div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;view.sort=stack&amp;view.desc=true&amp;open=c1">stack</a></div>
+<div class="p row depth-0" id="p-t1"><span><input type="checkbox" aria-label="Rings" name="tab" value="t1"></span><span><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3At1%20league%3DStandard&amp;view.fields=icon">Rings</a> <button type="submit" name="toggle" value="t1">Open</button></span><span>PremiumStash</span><span>3</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-t2"><span><input type="checkbox" aria-label="Launch" name="tab" value="t2"></span><span><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3At2%20league%3DStandard&amp;view.fields=icon">Launch</a> <button type="submit" name="toggle" value="t2">Open</button></span><span>PremiumStash</span><span>2</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-f1"><span></span><span>Old <span class="holds-said">1 tab</span> <button type="submit" name="toggle" value="f1">Open</button></span><span>Folder</span><span></span><span></span></div>
+<div class="p row depth-0" id="p-m1"><span><input type="checkbox" aria-label="Maps" name="tab" value="m1"></span><span><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Am1%20league%3DStandard&amp;view.fields=icon">Maps</a> <span class="holds-said">2 pages, 1 never fetched</span> <button type="submit" name="toggle" value="m1">Open</button></span><span>MapStash</span><span>1</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-t3"><span><input type="checkbox" aria-label="Never" name="tab" value="t3"></span><span><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3At3%20league%3DStandard&amp;view.fields=icon">Never</a></span><span>PremiumStash</span><span>-</span><span>never</span></div>
+<div class="p row depth-0" id="p-c1"><span><input type="checkbox" aria-label="Currency" name="tab" value="c1"></span><span><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Ac1%20league%3DStandard&amp;view.fields=icon">Currency</a> <button type="submit" name="toggle" value="c1">Close</button></span><span>CurrencyStash</span><span>3</span><span><age> ago</span></div>
+<div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
+<div class="r" id="i-c-z" data-i="0" data-id="c-z"><button type="submit" class="name rarity-" name="toggle_item" value="c-z">Chaos Orb</button><span>Chaos Orb</span><span>none (nothing applies)</span><span>Standard / Currency · x 0, y 0</span><span><age> ago</span><span>40</span></div>
+<div class="r" id="i-c-b" data-i="1" data-id="c-b"><button type="submit" class="name rarity-" name="toggle_item" value="c-b">Exalted Orb</button><span>Exalted Orb</span><span>none (nothing applies)</span><span>Standard / Currency · x 1, y 0</span><span><age> ago</span><span>3</span></div>
+<div class="r" id="i-c-a" data-i="2" data-id="c-a"><button type="submit" class="name rarity-rare" name="toggle_item" value="c-a">Pyre Coil Two-Stone Ring</button><span>Two-Stone Ring</span><span>none (nothing applies)</span><span>Standard / Currency · x 0, y 1</span><span><age> ago</span><span></span></div>
+</div></div>
+</div>
+</details>
+</form>
+
+</main>
+
+GET search?<the currency tab searched>
+# holds ">stack</a></div>"
+# holds "<span>40</span></div>"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:15,&quot;at&quot;:71,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
+<main>
+<h1>Answer</h1>
+<form id="realm-form" method="get" action="."></form>
+<form id="trade-form" method="get" action="search#answer" data-count></form>
+<form id="search-form" method="get" action="search#answer" novalidate data-count>
+<the search form from its bar: golden web/search_form, filled with these lines>
+<div class="controls-left"><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <label class="control">Or count by <input name="view.count" placeholder="rarity"></label> <span class="fate">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>
+<details class="query-details" open><summary>The query, in the language</summary><form class="query-box" method="get" action="search#answer" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><textarea id="query-text" aria-label="the query, in the language" name="text" rows="3">tab:Currency</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span><div class="filter value-finder" data-finder="stats?values=true&amp;q="><input type="search" placeholder="Add a column" aria-label="Add a column" autocomplete="off"><ul class="finder-list" role="listbox"></ul></div></form></details>
+<form class="write" method="post" action="leagues"><input type="hidden" name="from" value="search?realm=pc&amp;text=tab%3ACurrency&amp;view.fields=icon"><button type="submit">Fetch the league list</button></form>
+<div id="answer">
+<p class="count">3 matches</p>
+<table class="opening">
+<tr><th>Query</th><td>tab:Currency</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 13 items · 7 locations fetched<br>3 locations never fetched: MapStash 1 of 3, PremiumStash 1 of 4, character 1 of 2 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;fetched=never">each tab of Standard never fetched</a></td></tr>
+<tr><th>Total</th><td>3 matches (fetched <age> ago, pc · Standard / Currency)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
+</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=tab%3ACurrency">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=tab%3ACurrency">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=tab%3ACurrency">by character</a></p>
+<form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value="tab:Currency"><input type="hidden" name="view.fields" value="icon">
+<p class="rows-shown">3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
+<div class="window" data-row-height="24" data-block-rows="50">
+<div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="search?realm=pc&amp;text=tab%3ACurrency&amp;view.fields=icon&amp;view.sort=stack&amp;view.desc=true">stack</a></div>
+<div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
+<div class="r" id="i-c-z" data-i="0" data-id="c-z"><button type="submit" class="name rarity-" name="toggle_item" value="c-z">Chaos Orb</button><span>Chaos Orb</span><span>none (nothing applies)</span><span>Standard / Currency · x 0, y 0</span><span><age> ago</span><span>40</span></div>
+<div class="r" id="i-c-b" data-i="1" data-id="c-b"><button type="submit" class="name rarity-" name="toggle_item" value="c-b">Exalted Orb</button><span>Exalted Orb</span><span>none (nothing applies)</span><span>Standard / Currency · x 1, y 0</span><span><age> ago</span><span>3</span></div>
+<div class="r" id="i-c-a" data-i="2" data-id="c-a"><button type="submit" class="name rarity-rare" name="toggle_item" value="c-a">Pyre Coil Two-Stone Ring</button><span>Two-Stone Ring</span><span>none (nothing applies)</span><span>Standard / Currency · x 0, y 1</span><span><age> ago</span><span></span></div>
+</div></div>
+</div>
+</form>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>tab:Currency</td><td>3</td><td>9</td><td>1</td><td>0</td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Currency (3)</td></tr>
+</table>
+<p class="unrouted">3 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 15 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<div class="save">
+<p class="save-note">Saved without the table: a saved search is its query and its scope.</p>
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=tab%3ACurrency&amp;view.fields=icon"><input type="hidden" name="text" value="tab:Currency"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+</div>
+<p class="switch"><label><input type="checkbox" id="all-fields" name="all_fields" value="true" form="search-form" data-page> Show the fields this search does not run</label> <span class="fate">A field with no mark runs as the trade site's; a mark says it is read differently here, or not run.</span></p>
+
+</main>

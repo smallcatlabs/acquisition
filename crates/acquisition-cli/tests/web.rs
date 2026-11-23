@@ -6768,7 +6768,6 @@ fn the_grouped_table_is_a_wording_golden() {
             "<p class=\"rows-shown\">Each place&#39;s items stand as they lie in their place, top row first and left to right: open one by its name and press a number on its card to order them by it.</p>",
         ],
     );
-    page_golden(file!(), "grouped", &pages);
 
     // a card's place, followed: its page with the place and each holding
     // it open, no query, its items listed, landing at the card's own row,
@@ -6943,6 +6942,86 @@ fn the_grouped_table_is_a_wording_golden() {
     ] {
         assert_eq!(by(path), Vec::<String>::new(), "{path}");
     }
+    // a currency tab open, its ids against its cells: its items as they
+    // lie, the Stack column the value `stack`, empty on the gear row
+    let mut store = Store::open(&account_path(&scratch.0.join("mock"), USER)).unwrap();
+    let mut record = |ep: Endpoint, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "pc", "league": "Standard" }),
+                200,
+                &body,
+                at,
+            )
+            .unwrap();
+    };
+    record(
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        json!({ "stashes": [
+            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+            { "id": "t2", "name": "Launch", "type": "PremiumStash" },
+            { "id": "f1", "name": "Old", "type": "Folder", "children": [
+                { "id": "o1", "name": "Old rings", "type": "PremiumStash" } ] },
+            { "id": "m1", "name": "Maps", "type": "MapStash" },
+            { "id": "t3", "name": "Never", "type": "PremiumStash" },
+            { "id": "c1", "name": "Currency", "type": "CurrencyStash" } ] }),
+        70,
+    );
+    let orb = |id: &str, base: &str, stack: i64, x: i64| {
+        json!({ "id": id, "name": "", "typeLine": base, "baseType": base, "frameTypeId": "Currency",
+                "identified": true, "ilvl": 0, "stackSize": stack, "x": x, "y": 0 })
+    };
+    record(
+        stash("c1", None),
+        json!({ "stash": { "id": "c1", "name": "Currency", "type": "CurrencyStash", "items": [
+            json!({ "id": "c-a", "name": "Pyre Coil", "typeLine": "Two-Stone Ring", "baseType": "Two-Stone Ring",
+                    "rarity": "Rare", "frameTypeId": 2, "identified": true, "ilvl": 84, "x": 0, "y": 1 }),
+            orb("c-b", "Exalted Orb", 3, 1),
+            orb("c-z", "Chaos Orb", 40, 0),
+        ] } }),
+        71,
+    );
+    drop(store);
+    let currency = web.get("tabs?realm=pc&league=Standard&open=c1");
+    let rows: Vec<&str> = currency
+        .body
+        .split("\" data-id=\"")
+        .skip(1)
+        .map(|rest| &rest[..rest.find('"').unwrap()])
+        .collect();
+    assert_eq!(rows, ["c-z", "c-b", "c-a"], "{}", currency.body);
+    pages.page(
+        "GET tabs?<the currency tab open, no query>",
+        &currency,
+        &[
+            ">stack</a></div>",
+            ">Chaos Orb</button>",
+            "<span>40</span></div>",
+            "<span>3</span></div>",
+            "<span></span></div>",
+        ],
+    );
+    // searched, its list `stack` alone: the default list, so the box
+    // carries no value back as named
+    let searched = web.get("search?realm=pc&text=tab%3ACurrency&view.fields=icon");
+    assert!(
+        !box_fields(&searched.body)
+            .iter()
+            .any(|(name, _)| name == "view.value"),
+        "{:?}",
+        box_fields(&searched.body)
+    );
+    pages.page(
+        "GET search?<the currency tab searched>",
+        &searched,
+        &[">stack</a></div>", "<span>40</span></div>"],
+    );
+    panes_golden(file!(), "search_form", &mut pages);
+    page_golden(file!(), "grouped", &pages);
 }
 
 // ---- the landing rule (`roadmap/briefs/4-full-1-form-landing.md`) ------------------------------
