@@ -24,9 +24,9 @@ the sitting of 2026-11-23 lands. Closes #185.
   `lacked`), `reference/trade-catalogue-v1.toml` (its header, the two
   socket rows); the CLI's `web/form.rs`, `web/page.rs`, `web/fill.rs`.
 - The sitting: the recorder's files in `~/Downloads/acq-sitting`,
-  copied to `search/pseudo-stats/raw/searches/zb-fragments/` (24 files,
-  386128 bytes) and `zc-fragments/` (6 files, 112479 bytes), each
-  folder's `shasum -a 256 * | awk '{print $1}' | sort | shasum -a 256`
+  copied to `search/pseudo-stats/raw/searches/zb-fragments/` and
+  `zc-fragments/`, each folder's
+  `shasum -a 256 * | awk '{print $1}' | sort | shasum -a 256`
   `c35e62ff61ca50cab596a78d579eaf3e53e7ecf835cf3191b6a1a754aaf78ff6`
   and `c507299b909f45f61511e719100f7a9bd7fac276fa42f48321c13c4bd88df53c`; the sheet at
   `9594b66a` (zb) and `48bcfa0e` (zc); the site-sitting skill's steps
@@ -66,14 +66,16 @@ The design session's (C172, who designs), each settled with the owner:
 6. **The sitting lands here.** Once `a` is read and the `max` dropped,
    zb01, zb05, zb06, zb08 run and zb14's and zc02's items match; zc03's
    ten stand as a `sitting` finding under `misc_filters.quality`, its
-   `asks` #309's first two questions. The three count pins hold what
-   the tests then measure.
+   `asks` #309's first two questions. Each test that pins a count over
+   the captures holds what it then measures.
 
 ## Find first
-- `git grep -n 'COLOURS\|colour_words\|sockets::letter\|"r", "g", "b", "w"\|"R", "G"\|"red", "green"' -- crates ':!*/goldens/*'`:
-  each list of the words, letters or keys, each to read the table.
-- `git grep -n -i 'colour' -- crates/acquisition-search/src crates/acquisition-cli/src crates/acquisition-mcp/src`:
-  each text a user reads that calls a socket word a colour.
+- `git grep -n -E 'COLOURS|colour_words|sockets::letter|SocketColour|sockets\.(red|green|blue|white)|"[rgbw]", "[rgbw]"|"R", "G"|red,? green,? blue' -- crates ':!*/goldens/*'`:
+  each list of the words, letters or keys (a dotted field, a word list
+  in a string), each to read the table.
+- `git grep -n -i 'colour' -- crates/acquisition-search/src crates/acquisition-search/reference/trade-catalogue-v1.toml crates/acquisition-cli/src crates/acquisition-mcp/src`:
+  each text a user reads that calls a socket word a colour, a row's
+  `says` among them.
 - `git grep -n -i 'abyssal\|no colour word\|which no word names' -- crates ':!*/reference/*'`:
   the tests and texts holding that an abyssal socket has no word (the
   generated model's `LETTERS` among them).
@@ -99,10 +101,12 @@ The design session's (C172, who designs), each settled with the owner:
   inventory; `captures.json` and what steps 7 to 10 write; a
   `MANIFEST.md` paragraph and two rows as rounds y, z, za have; the
   site's answers in `docs/design/trade-ground-truth.md` as
-  `393024b8`'s were. zb01 to zb14 and zc01, zc02 run with no remainder,
-  none partial; zc03's items the finding's rows; the oracle's counts
-  in `trade_oracle.rs` and `trade-oracle.toml`'s header, and the two
-  other pins, measured by the tests, each move said in the commit.
+  `393024b8`'s were. A case in `trade_oracle.rs` translates each of
+  zb01 to zb14, zc01 and zc02, those with no items among them, and
+  holds that none has a remainder; their fetched items match; zc03's
+  are the finding's rows; every count pin the last Find-first command
+  finds, `trade-oracle.toml`'s header among them, holds what the tests
+  measure, each move said in the commit.
 - Web: `search_form.txt` holds both rows' A boxes empty and filled; a
   `web.rs` case finds `stat_3527617737` by `stats?q=` and runs a form
   row of it over a mock world with an abyssal belt.
