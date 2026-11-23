@@ -2,7 +2,8 @@
 //! as pseudo stats, then the stat table's entries, those that hold every
 //! word asked, each with what the translation makes of it alone and
 //! with a bound — so a page that offers a stat says its fate before it
-//! is chosen, and never reads the captured JSON.
+//! is chosen, and never reads the captured JSON. Beside it, the values a
+//! column can be added by, found by the same words.
 //!
 //! # As built
 //!
@@ -26,6 +27,18 @@
 //!   as the translation's own test of every stat does, and each filter's
 //!   clause status is read back. Only the listed entries are translated,
 //!   so the cost is the limit's, never the table's.
+//! - **The value listing** ([`values`], the finder's "Add a column") lists
+//!   what a column can be added by, by the same words: the number fields
+//!   first, each catalogue row the form renders as a number box by its
+//!   label, under `filter`, then the stats in the order above. An entry is
+//!   listed exactly where [`value_of`] answers a value for it: the value
+//!   the translation compares for a bounded filter on that entry alone, of
+//!   any kind, made once per entry in a process and held. A line's value
+//!   (`show.rs`, `trade_value`) is made by the same function, keeping its
+//!   own rule: a sum over the stat's lines, whose slot the line reads. No
+//!   shape decides what is listed. Only the entries the words match are put
+//!   to it; the first `limit` with a value are listed and the rest with one
+//!   counted.
 
 use serde::Serialize;
 use serde_json::{Value as Json, json};
@@ -82,9 +95,7 @@ pub struct Entry {
 pub fn vocabulary(ask: &str, limit: usize) -> Result<Vocabulary, LanguageError> {
     let table = stats::table().map_err(|e| defect(e.to_string()))?;
     let totals = totals::table().map_err(|e| defect(e.to_string()))?;
-    let ask = ask.trim_start();
-    let ask = ask.strip_prefix('~').unwrap_or(ask);
-    let words: Vec<String> = ask.split_whitespace().map(str::to_lowercase).collect();
+    let words = words(ask);
     let limit = limit.min(MAX_LISTED);
     let mut listed = Vec::new();
     let mut left_out = 0;
@@ -102,13 +113,7 @@ pub fn vocabulary(ask: &str, limit: usize) -> Result<Vocabulary, LanguageError> 
         .chain(totals.readings().iter().map(|r| (&r.site, &r.text)))
         .filter_map(|(site, text)| named(site, text));
     for (group, id, texts) in pseudo.chain(table.entries()) {
-        let held = words.iter().all(|word| {
-            group.contains(word.as_str())
-                || texts
-                    .iter()
-                    .any(|text| text.to_lowercase().contains(word.as_str()))
-        });
-        if !held {
+        if !holds(&words, group, texts) {
             continue;
         }
         if listed.len() < limit {
@@ -215,6 +220,226 @@ fn statuses(
                 .ok_or_else(|| defect(format!("the translation reported no clause at `{at}`")))
         })
         .collect()
+}
+
+/// An entry a value is asked of: a stat as a query names it
+/// (`<category>.<id>`, a pseudo total's among them), or a number field by
+/// its catalogue key (`<group>.<field>`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Valued<'a> {
+    Stat(&'a str),
+    Field(&'a str),
+}
+
+impl Valued<'_> {
+    /// The site's query holding one filter on the entry, bounded by a
+    /// minimum of 1, as the site sends a filled box.
+    fn bounded(self) -> Option<Json> {
+        Some(match self {
+            Valued::Stat(id) => json!({ "stats": [{ "type": "and", "filters": [
+                { "id": id, "value": { "min": 1 } } ] }] }),
+            Valued::Field(key) => {
+                let (group, field) = key.split_once('.')?;
+                json!({ "filters": { group: { "filters": { field: { "min": 1 } } } } })
+            }
+        })
+    }
+
+    fn key(self) -> &'static str {
+        match self {
+            Valued::Stat(_) => "stat",
+            Valued::Field(_) => "field",
+        }
+    }
+}
+
+/// The value the translation compares for a bounded filter on one entry,
+/// a stat's or a number field's, by its canonical text: the first value
+/// (`values.rs`) of the translation of that filter alone, of any kind, a
+/// pseudo total's computed value and a field among them. None where the
+/// translation compares no value of it: a stat with no number, a clause
+/// that does not run, an entry no table holds. What a line's value is
+/// made from (`show.rs`, `trade_value`), and what the value listing
+/// ([`values`]) lists by.
+pub fn value_of(entry: Valued) -> Option<String> {
+    compared_of(entry).map(|one| one.text)
+}
+
+/// [`value_of`] with the value itself. Asked once per entry in a process
+/// and held: the translation is a pure function of the build's tables.
+pub(crate) fn compared_of(entry: Valued) -> Option<crate::values::Compared> {
+    use std::collections::HashMap;
+    use std::sync::{LazyLock, Mutex};
+    type Held = HashMap<(&'static str, String), Option<crate::values::Compared>>;
+    static ASKED: LazyLock<Mutex<Held>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+    let id = match entry {
+        Valued::Stat(id) | Valued::Field(id) => id,
+    };
+    let key = (entry.key(), id.to_string());
+    if let Some(held) = ASKED.lock().ok().and_then(|held| held.get(&key).cloned()) {
+        return held;
+    }
+    let compared = entry.bounded().and_then(|query| {
+        let decoded = Decoded {
+            source: Source::Json,
+            realm: None,
+            league: None,
+            query,
+            defences: Default::default(),
+            sort: None,
+            beside: serde_json::Map::new(),
+        };
+        translate(&decoded).ok().and_then(|translation| {
+            crate::values::compared(&translation.tree)
+                .into_iter()
+                .next()
+        })
+    });
+    if let Ok(mut held) = ASKED.lock() {
+        held.insert(key, compared.clone());
+    }
+    compared
+}
+
+/// The group a number field is listed under: the site's filters, beside
+/// its stats.
+const FILTER: &str = "filter";
+
+/// The values a column can be added by, those that hold the words asked.
+#[derive(Debug, Clone, Serialize)]
+pub struct Values {
+    /// The stat table's version, the capture its texts are from.
+    pub stats: String,
+    /// The totals table's version, where the pseudo group is from.
+    pub totals: u32,
+    /// The catalogue's version, where the number fields are from.
+    pub catalogue: u32,
+    /// The entries listed, at most the limit asked.
+    pub entries: Vec<ValueEntry>,
+    /// Entries with a value that matched past the limit.
+    pub left_out: usize,
+}
+
+/// One entry of the value listing: what names it and the value it reads.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ValueEntry {
+    /// The stat as a query names it, or the number field's catalogue key.
+    pub id: String,
+    /// The site's names for it: a stat's texts, a field's catalogue label.
+    pub texts: Vec<String>,
+    /// The group a finder lists it under: a stat's category, or `filter`
+    /// for a number field.
+    pub group: &'static str,
+    /// The value it reads ([`value_of`]), the text a sort takes.
+    pub value: String,
+}
+
+/// Every entry a value is asked of, in the listing's order, by its
+/// group, its id and its names: the number fields first, each catalogue
+/// row the form renders as a number box (`minmax`, `minmax_option`,
+/// `sockets`) by its label, then the stats in the vocabulary's order, the
+/// pseudo group first. Made once in a process and held. No shape decides
+/// which are listed: [`values`] puts each it matches to [`value_of`].
+/// An entry asked: its group, its id, its names.
+type Asked = (&'static str, String, Vec<String>);
+
+fn asked() -> Result<&'static [Asked], LanguageError> {
+    use std::sync::LazyLock;
+    static ASKED: LazyLock<Result<Vec<Asked>, String>> = LazyLock::new(|| {
+        let table = stats::table().map_err(|e| e.to_string())?;
+        let totals = totals::table().map_err(|e| e.to_string())?;
+        let catalogue = super::catalogue::catalogue().map_err(|e| e.to_string())?;
+        let mut asked: Vec<Asked> = Vec::new();
+        for row in catalogue.rows() {
+            let boxed = row
+                .shape
+                .as_deref()
+                .is_some_and(|s| s.starts_with("minmax") || s == "sockets");
+            if let (true, Some(text)) = (boxed, &row.text) {
+                asked.push((FILTER, row.key.clone(), vec![text.clone()]));
+            }
+        }
+        let pseudo = totals
+            .totals()
+            .iter()
+            .map(|total| (&total.site, &total.text))
+            .chain(totals.readings().iter().map(|r| (&r.site, &r.text)))
+            .filter_map(|(site, text)| Some((site.as_deref()?, text.clone()?)));
+        for (site, text) in pseudo {
+            asked.push((PSEUDO, format!("{PSEUDO}.{site}"), vec![text]));
+        }
+        for (category, id, texts) in table.entries() {
+            asked.push((category, format!("{category}.{id}"), texts.to_vec()));
+        }
+        Ok(asked)
+    });
+    ASKED.as_deref().map_err(|e| defect(e.clone()))
+}
+
+/// The entries a column can be added by that hold every word of `ask`,
+/// case aside, in a text or in their group's name, a `~` before the ask
+/// dropped (the vocabulary's rule): those [`value_of`] answers a value
+/// for, in [`asked`]'s order, the first `limit` listed and the rest
+/// counted. Only the entries the words match are put to it, each once in
+/// a process. An error is a table this build ships that does not load: a
+/// build defect, said.
+pub fn values(ask: &str, limit: usize) -> Result<Values, LanguageError> {
+    let words = words(ask);
+    let mut entries = Vec::new();
+    let mut left_out = 0;
+    for (group, id, texts) in asked()? {
+        if !holds(&words, group, texts) {
+            continue;
+        }
+        let entry = match *group {
+            FILTER => Valued::Field(id),
+            _ => Valued::Stat(id),
+        };
+        let Some(value) = value_of(entry) else {
+            continue;
+        };
+        if entries.len() < limit {
+            entries.push(ValueEntry {
+                id: id.clone(),
+                texts: texts.clone(),
+                group,
+                value,
+            });
+        } else {
+            left_out += 1;
+        }
+    }
+    Ok(Values {
+        stats: stats::table()
+            .map_err(|e| defect(e.to_string()))?
+            .version()
+            .to_string(),
+        totals: totals::table()
+            .map_err(|e| defect(e.to_string()))?
+            .version(),
+        catalogue: super::catalogue::CATALOGUE_VERSION,
+        entries,
+        left_out,
+    })
+}
+
+/// An ask's words, lower case, one `~` before it dropped: the site's mark
+/// for words in any order, which is how every ask is read here.
+fn words(ask: &str) -> Vec<String> {
+    let ask = ask.trim_start();
+    let ask = ask.strip_prefix('~').unwrap_or(ask);
+    ask.split_whitespace().map(str::to_lowercase).collect()
+}
+
+/// Whether every word, case aside, stands in one of the texts or in the
+/// group's name.
+fn holds(words: &[String], group: &str, texts: &[String]) -> bool {
+    words.iter().all(|word| {
+        group.contains(word.as_str())
+            || texts
+                .iter()
+                .any(|text| text.to_lowercase().contains(word.as_str()))
+    })
 }
 
 fn defect(message: String) -> LanguageError {

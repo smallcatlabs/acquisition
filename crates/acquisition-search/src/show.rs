@@ -413,41 +413,23 @@ fn category_of(source: &str) -> Option<&'static str> {
 }
 
 /// The value the translation compares for a filter on the first site stat
-/// a line displays as (`translate::displayed_as`), with its slot; none
-/// where the line displays as none, or the translation compares no value
-/// of it. Asked once per stat in a process and held: the translation is a
-/// pure function of the build's tables.
+/// a line displays as (`translate::displayed_as`), with its slot: the
+/// entry's value ([`value_of`]), kept only where it is a sum over the
+/// stat's lines, whose slot a line reads; none where the line displays as
+/// no stat, or the value is none or of another kind.
+///
+/// [`value_of`]: crate::trade::vocabulary::value_of
 fn trade_value(line: &Line) -> Option<(String, String)> {
-    use std::collections::HashMap;
-    use std::sync::{LazyLock, Mutex};
-    type Held = HashMap<String, Option<(String, String)>>;
-    static ASKED: LazyLock<Mutex<Held>> = LazyLock::new(|| Mutex::new(HashMap::new()));
     let category = category_of(&line.source)?;
     let stat = format!(
         "{category}.{}",
         crate::trade::translate::displayed_as(category, &line.template).first()?
     );
-    if let Some(held) = ASKED.lock().ok().and_then(|held| held.get(&stat).cloned()) {
-        return held;
+    let one = crate::trade::vocabulary::compared_of(crate::trade::vocabulary::Valued::Stat(&stat))?;
+    match &one.value {
+        crate::tree::ValueRef::Sum { slot, .. } => Some((one.text, slot.clone())),
+        _ => None,
     }
-    let filter = serde_json::json!({ "query": { "stats": [{ "type": "and", "filters": [
-        { "id": stat, "value": { "min": 1 } } ] }] } });
-    let compared = crate::trade::decode(&filter.to_string())
-        .and_then(|decoded| crate::trade::translate::translate(&decoded))
-        .ok()
-        .and_then(|translation| {
-            crate::values::compared(&translation.tree)
-                .into_iter()
-                .next()
-                .and_then(|one| match &one.value {
-                    crate::tree::ValueRef::Sum { slot, .. } => Some((one.text, slot.clone())),
-                    _ => None,
-                })
-        });
-    if let Ok(mut held) = ASKED.lock() {
-        held.insert(stat, compared.clone());
-    }
-    compared
 }
 
 /// Each number field an item displays, where it is displayed, by its

@@ -391,3 +391,131 @@ fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
     assert_eq!(by_id[0].as_ref().unwrap().texts, two.texts);
     assert_eq!(by_id[2].as_ref().unwrap().texts, ["+# total maximum Life"]);
 }
+
+/// The value listing (`trade/vocabulary.rs`, `values`; the value finder,
+/// `roadmap/briefs/4-full-1-form-values.md`): every number field the form
+/// renders as a box and every stat of the vocabulary is put to the one
+/// function, and the listing is exactly the entries it answers a value for,
+/// in order, both ways; every value it offers is taken by the search as an
+/// order, refused by none. Its limit lists the first and counts the rest.
+#[test]
+fn the_value_listing_is_every_entry_with_a_value_and_each_one_orders() {
+    use acquisition_search::trade::catalogue::catalogue;
+    use acquisition_search::trade::vocabulary::{Valued, value_of, values};
+    use acquisition_search::{Request, totals};
+    // every entry asked, as the form and the vocabulary name them
+    let mut every: Vec<(String, bool)> = catalogue()
+        .unwrap()
+        .rows()
+        .iter()
+        .filter(|row| {
+            row.text.is_some()
+                && row
+                    .shape
+                    .as_deref()
+                    .is_some_and(|s| s.starts_with("minmax") || s == "sockets")
+        })
+        .map(|row| (row.key.clone(), true))
+        .collect();
+    let totals = totals::table().unwrap();
+    every.extend(
+        totals
+            .totals()
+            .iter()
+            .map(|t| (&t.site, &t.text))
+            .chain(totals.readings().iter().map(|r| (&r.site, &r.text)))
+            .filter(|(site, text)| site.is_some() && text.is_some())
+            .map(|(site, _)| (format!("pseudo.{}", site.as_deref().unwrap()), false)),
+    );
+    every.extend(
+        stats::table()
+            .unwrap()
+            .entries()
+            .map(|(category, id, _)| (format!("{category}.{id}"), false)),
+    );
+    let valued: Vec<(String, String)> = every
+        .iter()
+        .filter_map(|(id, field)| {
+            let entry = match field {
+                true => Valued::Field(id),
+                false => Valued::Stat(id),
+            };
+            Some((id.clone(), value_of(entry)?))
+        })
+        .collect();
+    let listed = values("", usize::MAX).unwrap();
+    assert_eq!(listed.left_out, 0);
+    let ids: Vec<(String, String)> = listed
+        .entries
+        .iter()
+        .map(|e| (e.id.clone(), e.value.clone()))
+        .collect();
+    assert!(
+        ids == valued,
+        "the listing is the entries with a value, in order"
+    );
+    assert!(
+        listed.entries.iter().any(|e| e.group == "filter")
+            && listed.entries.iter().any(|e| e.group == "pseudo")
+            && listed.entries.iter().any(|e| e.group == "explicit"),
+        "the fields, the totals and the stats"
+    );
+    // the limit: the first listed, the rest counted after the filter
+    let fifty = values("", 50).unwrap();
+    assert_eq!(fifty.entries, listed.entries[..50]);
+    assert_eq!(fifty.left_out, listed.entries.len() - 50);
+    // every value offered is taken as an order: read as a request's sort
+    // and answered over an empty store, refused by none
+    let corpus = crate::common::load(&crate::common::store(), None);
+    let mut seen = std::collections::HashSet::new();
+    for entry in &listed.entries {
+        if !seen.insert(entry.value.as_str()) {
+            continue;
+        }
+        let request: Request = serde_json::from_value(serde_json::json!({
+            "query": { "text": "" }, "view": { "rows": { "sort": entry.value } }
+        }))
+        .unwrap();
+        if let Err(e) = acquisition_search::answer(&corpus, &request) {
+            panic!("{} orders by `{}`: {}", entry.id, entry.value, e.to_json());
+        }
+    }
+}
+
+/// The one function the listing and a line's value share: the value the
+/// translation compares for a bounded filter on one entry, of any kind —
+/// a field's, a pseudo total's computed value, a stat's sum — and none for
+/// a stat with no number or an entry no table holds.
+#[test]
+fn an_entrys_value_is_what_the_translation_compares_for_it_bounded() {
+    use acquisition_search::trade::vocabulary::{Valued, value_of, values};
+    assert_eq!(
+        value_of(Valued::Field("misc_filters.ilvl")).as_deref(),
+        Some("ilvl")
+    );
+    // the sitting's total elemental resistance, by the site's own words
+    assert_eq!(
+        value_of(Valued::Stat("pseudo.pseudo_total_elemental_resistance")).as_deref(),
+        Some("pseudo.total_ele_res")
+    );
+    assert_eq!(
+        value_of(Valued::Stat("explicit.stat_3299347043")).as_deref(),
+        Some("sum(line(\"# to maximum Life\" source=explicit).arg1)")
+    );
+    // a stat with none: "Cannot be Frozen" holds no number
+    assert_eq!(value_of(Valued::Stat("explicit.stat_876831634")), None);
+    assert_eq!(value_of(Valued::Field("misc_filters.no_such")), None);
+    assert_eq!(value_of(Valued::Field("socket_filters.links")), None);
+    // found by the site's words, the field's label and the stat's text
+    let ilvl = values("item level", 5).unwrap();
+    assert_eq!(ilvl.entries[0].id, "misc_filters.ilvl");
+    assert_eq!(ilvl.entries[0].texts, ["Item Level"]);
+    assert_eq!(ilvl.entries[0].group, "filter");
+    let frozen = values("~cannot be frozen", 50).unwrap();
+    assert!(
+        frozen
+            .entries
+            .iter()
+            .all(|e| e.id != "explicit.stat_876831634")
+    );
+}
