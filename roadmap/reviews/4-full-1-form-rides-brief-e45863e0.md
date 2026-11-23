@@ -1,0 +1,15 @@
+`roadmap/briefs/4-full-1-form-rides.md` at `e45863e0` — not ready to build exactly as drawn.
+
+- **Decisions 5 / Find first — changes what gets built.** Routing count notifications solely through `event.target.form` loses the stat-list notifications already used by the page. In `assets/lists.js:76,86`, add and remove dispatch `change` from the items container, a `div` with no `.form`; the existing browser test requires these changes to ask for a count. The first builder guess is how those structural notifications acquire an owner. Smallest change: explicitly preserve their notification path alongside control ownership routing, and add `git grep -n 'dispatchEvent' crates/acquisition-cli/src/web/assets/` to Find first.
+
+- **Decisions 4 / Done when — changes what gets built.** Server marks based on the fill cannot keep the value/selection exemption correct while someone edits the form. Show an initially empty unsupported Map Series control, choose a value, then untick the switch: the prescribed static `data-unrun` still hides it. The browser criterion can pass using a value present at page load while missing this case. Smallest change: require the exemption to follow current control values and selections, permit the presentation mechanism needed, and check this edit-and-toggle sequence.
+
+- **Decisions 3 / Find first / Done when — changes what gets built.** Removing `all_fields` inside `opened_from` does not remove it from the page’s other links and forms. `search` copies `sent` before that partition (`mod.rs:1468`); `rows_links` and `view_link` copy those fields, and `page.rs:1575` writes them into the table’s hidden controls. The supplied page-field grep misses these consumers. Smallest change: specify stripping the switch from outgoing page fields, add a discovery command covering `rows_links`, `view_link`, `table_fields` and `opening`, and require a test that those outputs omit it.
+
+- **Decisions 2 and 4 / Done when — changes what gets built.** Revealed unsupported “Add Stat Group” buttons have no prescribed fate rendering, contradicting the switch’s explanation that an unmarked field runs as the site’s. `stat_pane` (`page.rs:1128`) discards each type’s fate and renders its text alone; the catalogue marks `stats.crucible` and `stats.mercenary` unsupported. Every done-when line could pass with those buttons shown unmarked. Smallest change: include these buttons in Decision 2’s rendering rule and require their non-exact mark and explanation in the golden.
+
+- **What I did not check and why:** No builds, tests, gate, browser execution or live traffic, as instructed. I ran all seven Find first commands; HEAD matched the requested commit. GitHub issue bodies/comments and current CI outcomes were not checked because this was a review of the committed tree. I found no invariant or dependency-boundary contradiction in the proposed scope.
+
+- **Form impediment:** The brief names the #181 comment as a fixed input without including its text; the tree supplies only the preceding close’s summary.
+
+- **Prompt impediment:** None.
