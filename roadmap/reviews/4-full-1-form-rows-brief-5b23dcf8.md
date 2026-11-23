@@ -1,0 +1,17 @@
+`roadmap/briefs/4-full-1-form-rows.md` at `5b23dcf8`: a builder could start, but the acceptance criteria need correction before closing the step.
+
+- **Done when — changes what gets built.** The prescribed browser test removes a group before submitting, so every criterion could pass without running the two-group search promised by the goal. It also never enters a weighted group’s bound; `trade/translate.rs` distinguishes bounded sums from unbounded presence checks, and `weighted` requires compatible positive weights. Smallest change: submit and verify both groups before removals, using a supported weighted sum with a group bound, and assert that the submitted and refilled fields retain both groups and their weights.
+
+- **Decisions 3 and 7 — changes what gets built.** Dispatching `change` “after” removal “from where it happened” leaves the event’s surviving target unspecified. Removing the nearest item detaches its remove control; an event subsequently dispatched there cannot bubble to the form’s count listener. This is the first mechanism the builder must guess. Smallest change: specify dispatch from the surviving containing list after removal.
+
+- **Decision 6 / Done when — changes what gets built.** Escape clears the list without specifying what happens to an outstanding request, allowing its eventual response to reopen the list. The existing `picker.js` rejects older replies through `asked`, but advances that counter only on input; Escape and clearing after a pick introduce additional invalidation paths. Smallest change: require pending replies to be invalidated whenever the finder clears, and exercise Escape during an outstanding request in the browser check required by the script-rule ruling.
+
+- **Find first / Done when — wording.** The retirement scan requires unrelated uses of the ordinary word `picker` to disappear. Running the first discovery command finds, among others, `acquisition-search` vocabulary documentation and `the_picker_lists_the_stat_vocabulary_with_each_fate`; these remain valid after replacing the page script. Smallest change: make the retirement check target the obsolete asset references, typed-row constant and old UI selectors, while permitting generic vocabulary terminology.
+
+- **Decisions 3 and 6 — wording.** “The script writes no value” contradicts the requirement that it empty the finder input after a pick. The existing finder is a transient search input without a submitted field name. Smallest change: prohibit writing submitted control values and explicitly permit clearing the finder’s transient input.
+
+- **Inputs — wording.** The CI successes are tree claims without their discovery commands, contrary to the brief-content ruling and `TEMPLATE.md`. The paragraph names runs `44930037421` and `44930037634` but provides no command to locate them. Smallest change: add the template’s workflow-list commands, or commands retrieving those exact runs.
+
+- **What I did not check and why:** I did not build, execute tests, probe browser selectors or verify CI results, as requested. I did not retrieve #184’s external discussion. All six read-only “Find first” commands were run against the clean checkout matching the named commit. I found no contradiction with the invariants or forbidden dependency edges, and no additional scope exclusion clearly necessary.
+
+- **What got in the way:** The required #184 comments are external to the named commit, so that fixed input cannot be assessed from the prescribed tree alone.
