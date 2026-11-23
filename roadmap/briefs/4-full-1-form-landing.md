@@ -5,28 +5,25 @@ Each submit, and each refused write or plan, leads back to its page
 holding what was sent (`4-full-1-form-design.md` §8 step 5): a request
 that leaves a page carries that page as `from`, and what answers it
 draws one way back from it. The league list's job gets its way back
-(#194's last comment), and the save form's and the plan's refusals keep
-their input (#190's rest). Closes #190.
+(#194), and the save form's and the plan's refusals keep their input
+(#190's rest). Closes #190.
 
 ## Inputs
 - `4-full-1-form-design.md` §5, §8 step 5, §9 (`from` is the
   session's), §10. Step 4's close, `b7b083d8`.
-- #194's last comment, #190's last two.
+- #194 comment 7056915725; #190 comments 7020795874, 7065908074.
 - C16 (a page is its URL), C47 (malformed input is a structured
   error), C138 (the listener: no new route, mutations by POST), C143
   (a refusal speaks the shared words), C154 (a retirement names what
   holds it), C153 (one golden per wording).
 - Code: `web/mod.rs` (its doc, the routes, every POST handler, `plan`,
-  `plan_again`, `jobs`, `places`, `place_fields`, `Web::written`,
-  `Web::failed`, `switched`, `taken`, `Paged`); `web/page.rs`
-  (`refused`, `post_form`, `save_forms`, `fetch_leagues`, `places`,
-  `jobs`); `acquisition_verbs::refusal`.
+  `jobs`, `places`, `Web::failed`, `Paged`); `web/page.rs` (`refused`,
+  `post_form`, `save_forms`, `places`, `jobs`).
 - CI (`gh run list --branch main --workflow "Gate (Linux)" --limit 1`,
   and Windows) at `b7b083d8`: Linux 45207522545 failure, Windows
-  45207522489 success. The failure is the Dependencies job's advisory
-  on `url` (RUSTSEC-2026-0592; `gh run view 45207522545
-  --log-failed`), no build or test: not this step's, filed by the
-  design session before the build.
+  45207522489 success: the advisory on `url` (`gh run view 45207522545
+  --log-failed`), not this step's, filed by the design session before
+  the build.
 
 ## Decisions
 The design session's (C172, who designs), each settled:
@@ -39,15 +36,15 @@ The design session's (C172, who designs), each settled:
    anyway (C16).
 2. **A route is a place or a step.** Places: the search page (`.`,
    `search`), `tabs`, `characters`, `saved`, `jobs`, an item's page.
-   Steps: `plan`, the clear's ask (`saved/clear` GET) and every POST. A
+   Steps: `plan`, `saved/open`, the clear's ask and every POST. A
    place's `from` is itself, its route and its fields less `from`; a
    `from` its URL carries is read only as its own way back. A step
    hands on the `from` it was given, and one reached with none has
    none. So `from` never nests and no way back leads to a step.
 3. **Nothing reaches a step without it**: every maker of a form that
    posts (`post_form`, the save form, the listing, the league list's
-   fetch, Apply), of a link to a step (a saved row's Clear, `expand`
-   kept; `plan_again`; `Paged`'s plan) and `refused`, whose offers
+   fetch, Apply), of a link to a step (a saved row's opening and
+   Clear, `expand` kept; `plan_again`; `Paged`'s plan and opening) and `refused`, whose offers
    post, takes the page's `From` and writes it. No `method="post"`
    stands in the web module outside those makers.
 4. **The place form never leaves.** "Refresh ticked" and "Plan under
@@ -75,7 +72,7 @@ The design session's (C172, who designs), each settled:
 ## Find first
 - `git grep -n 'method=\\"post\\"\|formaction\|post_form(\|fetch_leagues()' crates/acquisition-cli/src/web/`:
   every form that leaves, and its makers.
-- `git grep -n 'to_job(\|see_other(\|\.written(\|\.failed(\|failed_under(' crates/acquisition-cli/src/web/mod.rs`:
+- `git grep -n 'to_job(\|see_other(\|\.written(\|\.failed(\|failed_under(\|page::refused(' crates/acquisition-cli/src/web/mod.rs`:
   every answer and refusal page of a route.
 - The census, the refusals the leaving requests can meet (the design's
   §5): `git grep -n -e 'Failure::Usage(' -e 'anyhow!(' -e 'listed(' crates/acquisition-cli/src/web/mod.rs`
@@ -85,9 +82,10 @@ The design session's (C172, who designs), each settled:
   and `sed -n '/pub enum ErrorKind/,/^}/p' crates/acquisition-protocol/src/protocol.rs`:
   each a candidate, traced through the verbs each leaving route calls;
   the report lists each the route can return, by route.
-- `git grep -n 'landed_at_a_job\|jobs?job=\|class=\\"places\\"\|c168_\|saved/clear' crates/acquisition-cli/tests/ ':!*/goldens/*'`
+- `git grep -n 'landed_at_a_job\|place_form(\|jobs?job=\|class=\\"places\\"\|c168_\|saved/' crates/acquisition-cli/tests/ ':!*/goldens/*'`
   and `git grep -ln 'class="places"\|formaction\|method="post"\|saved/clear?' crates/acquisition-cli/tests/goldens/`:
-  the tests and goldens of every leaving form and link.
+  the tests and goldens of every leaving form and link; a caller of
+  `place_form` follows the new `303` before reading the plan.
 - `git grep -n 'switched(\|opened_from(\|taken(' crates/acquisition-cli/src/web/mod.rs`:
   where a route takes page fields out.
 
@@ -105,13 +103,14 @@ The design session's (C172, who designs), each settled:
   back to the search page as sent; a refused plan (nothing ticked, no
   policy) the refusal and the way back to the place page with every
   tick and open (goldens). A plan with no session still compiles.
-- A test whose table is the census, its rows the report's: each
-  refusal's page holds an offer a page takes, or words naming its
-  command as a person's act at a terminal; a hit with no row is named
-  in the commit's message with why no page meets it.
+- A test whose table is the census: each refusal's page holds its
+  form as sent, or an offer a page takes, or words naming its command
+  as a person's act at a terminal. The commit's message lists the
+  census by route, and each hit with no row and why no page meets it.
 - `from` read: a step, a route no place names, a token, an absolute
-  URL and a nested `from` each refused as usage; a place's URL with `from`
-  draws it and writes none into its own forms (tests).
+  URL and a nested `from` each refused as usage; a place's URL with
+  `from` draws it, and its own forms carry the place, never that
+  `from` (tests).
 - `git grep -c 'method=\\"post\\"' crates/acquisition-cli/src/web/`
   counts only the makers' lines, and `formaction` is found nowhere in
   `crates/acquisition-cli/src/`.
@@ -124,7 +123,7 @@ The design session's (C172, who designs), each settled:
 ## Not in scope
 - The jobs page's words (#182), another league's never-fetched tabs
   (#194's rest), the look (#285).
-- A new route, the `Referer` header, a way back in a script.
+- A new route, a way back in a script.
 - The value finder (step 6); a change to a verb, the protocol, or
   what a plan or a quote compiles.
 
