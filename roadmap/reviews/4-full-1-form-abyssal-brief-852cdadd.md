@@ -1,0 +1,12 @@
+`roadmap/briefs/4-full-1-form-abyssal.md` at `852cdadd`: a builder could start, but the capture acceptance requirement and discovery commands need correction.
+
+- **Done when — changes what gets built.** “zb01 to zb14 and zc01, zc02 run with no remainder” lacks a check covering empty-result captures. In `crates/acquisition-search/tests/trade_oracle.rs:307`, searches without bodies are skipped before translation; the sheet includes deliberate empty controls such as zb02, zb03, zb09 and zb13. Updating the oracle’s counts therefore cannot establish the stated requirement. Smallest change: require every named capture’s query to translate without a remainder, separately from checking fetched items through the existing oracle.
+
+- **Find first — changes what gets built.** The discovery commands miss instances included in their stated sweeps. Running the first command does not find the binder’s separate socket field definitions at `crates/acquisition-search/src/bind.rs:391` or the closed-word label at `src/describe.rs:519`; running the second omits the catalogue’s user-facing `says` text, including “Sockets by colour” at `reference/trade-catalogue-v1.toml:387`. Smallest change: extend the first pattern to cover dotted socket names and space-separated word lists, and include the catalogue in the user-text search.
+
+- **Inputs; Decisions 6; Done when — wording.** The brief carries measurements and an instance count without commands that establish them, contrary to C174, the rule that briefs carry commands beside tree claims. The recording’s “24 files, 386128 bytes” and “6 files, 112479 bytes” have a hash command beside them, which establishes neither file counts nor byte totals; “three count pins” and “two other pins” likewise have no discovery command identifying their holders. Smallest change: remove the recording counts or provide their measurement commands, and replace the fixed pin count with a command that discovers the affected assertions.
+
+- **What I did not check and why:** I did not build, run tests, execute capture-processing scripts or run the nextest pipeline, as instructed. I did not independently verify GitHub issues #185 and #309, their comments or CI conclusions because their contents are outside the committed tree. I found no contradiction with the named rulings or invariants in the material checked.
+
+- **Brief form:** Essential owner input is referenced by issue number and date, leaving its exact wording unavailable to a reviewer restricted to the tree.
+- **Prompt:** No additional obstacle.
