@@ -46,7 +46,9 @@ The design session's (C172, who designs), settled with the owner:
    and its examples. In the index each entry's name links to that entry
    and each block's head to that block; an entry's page links back to
    the index. The words are the search crate's; the blocks' heads and
-   their order have one home `describe_text` and the page both read. A
+   their order have one home, a table in `search_cmd.rs` that
+   `describe_text` and the page both read, its words naming no flag:
+   the terminal adds its own after, and its golden does not move. A
    view's entry is named by the request's word; the terminal alone
    spells a flag. What `next` tells a reader to do, the page spells as
    its links and its names box. Examples are text, not links.
@@ -58,14 +60,17 @@ The design session's (C172, who designs), settled with the owner:
 5. **Linked by `from::onward`**: beside the query box's summary, a link
    to the index in words that say what it is; and `Way::Describe {
    names }` in `Paged::request`, a link to those names, spelled in a
-   page's JSON answer as its other ways are.
+   page's JSON answer as its other ways are. Its one producer is
+   `describe`'s refusal of a pattern that matches nothing, which offers
+   the index; no search refusal gains one.
 6. **No script**: links and one GET form, the names box. No finder, no
    third ask of `stats`.
 7. **Pins, at the page**: the index, one entry and one block in a
    golden; an unknown name's refusal; the JSON equal to the search
    crate's document; the query box's link in the form's golden; a
-   refused search's page with its `describe` way a link; the way back
-   carried from the index to an entry and back. `all` is no golden.
+   pattern matching nothing refused with its way to the index a link;
+   the way back carried from the index to an entry and back. `all` is
+   no golden.
 
 ## Find first
 - `sed -n '/^fn describe_text/,/^}/p' crates/acquisition-cli/src/search_cmd.rs`,
@@ -108,12 +113,10 @@ The design session's (C172, who designs), settled with the owner:
   way back (`tests/web.rs`); a `from` naming `describe` is refused as a
   step (`from.rs`'s tests).
 - `search_form.txt` holds the query box's link to the index.
-- `Paged::request` spells `Way::Describe`; a refused search's page
-  draws its `describe` way as a link, and its JSON as a page's other ways
-  (`tests/web.rs`). No producer of such a way but `describe`'s own
-  stands at `3507969f` (Find first's third command): which refused
-  search carries one goes to the design session (C172) before this pin
-  is built, and the rest carries on. Each test or doc that held it as no page's way is
+- `Paged::request` spells `Way::Describe`: `describe?names=~<a
+  pattern matching nothing>` draws its offer of the index as a link
+  carrying `from`, and its JSON spells it as a page's other ways
+  (`tests/web.rs`). Each test or doc that held it as no page's way is
   changed, or retired by a `retired X; held by Y` line.
 - The web module's doc says `describe` is a step and a way a page takes;
   `README.md`'s `acq web` line names the index.
