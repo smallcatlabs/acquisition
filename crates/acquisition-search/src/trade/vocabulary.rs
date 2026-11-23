@@ -379,7 +379,8 @@ fn asked() -> Result<&'static [Asked], LanguageError> {
 /// The entries a column can be added by that hold every word of `ask`,
 /// case aside, in a text or in their group's name, a `~` before the ask
 /// dropped (the vocabulary's rule): those [`value_of`] answers a value
-/// for, in [`asked`]'s order, the first `limit` listed and the rest
+/// for, in the listing's order (the number fields, then the stats as
+/// the vocabulary lists them), the first `limit` listed and the rest
 /// counted. Only the entries the words match are put to it, each once in
 /// a process. An error is a table this build ships that does not load: a
 /// build defect, said.
