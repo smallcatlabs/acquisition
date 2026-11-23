@@ -2609,58 +2609,81 @@ def round_za(earlier):
 def round_zb(earlier):
     """Abyssal sockets (#185), asked of belts, where a socket is abyssal or
     none: the site's own page posts a Sockets filter's unset `a` and `d`
-    null (u059), so its form holds an abyssal count. zb01-zb02 whether `a`
-    counts abyssal sockets; zb03 whether `min` counts one; zb04-zb05 what
-    Link Groups makes of one; zb06-zb09 the line every such item displays,
-    asked as a stat, and whether `a` and the line find the same belts."""
+    null (u059), so its form holds an abyssal count. zb01-zb06 whether
+    `a` asks the abyssal sockets, counts them, and asks at least; zb07
+    whether `min` counts one; zb08-zb10 what Link Groups makes of one;
+    zb11-zb14 the line every such item displays, asked as a stat, and
+    whether `a` and the line find the same belts.
+
+    No search is read by comparing two totals: the site caps a total at
+    10,000 (trade-ground-truth.md), and belts with an abyssal socket are
+    more. Each decides by none or some, or by what the ten fetched show."""
     composed = Composed("zb", 2, earlier)
     add = composed.add
     line = "stat_3527617737"  # "Has # Abyssal Sockets"
 
-    def belts(name=None, value=None, stats=()):
+    def belts(name=None, value=None, stats=(), item_type=None, rarity=None, unique=None):
         filters = dict(category("accessory.belt"))
+        if rarity:
+            filters["type_filters"]["filters"]["rarity"] = {"option": rarity}
         if name:
             filters["socket_filters"] = {"disabled": False, "filters": {name: value}}
-        return batch_query(list(stats), filters)
+        q = batch_query(list(stats), filters, item_type)
+        if unique:
+            q = {"status": q["status"], "name": unique, **{k: v for k, v in q.items() if k != "status"}}
+        return q
 
-    add("`socket_filters.sockets` `a` 1 under `accessory.belt`. Only belts with an abyssal socket (Stygian Vise): "
-        "`a` asks the abyssal sockets; every kind of belt: the site ignores `a`; refused: the site takes no `a`. "
-        "The control of {next}", "the control: must find items", belts("sockets", {"a": 1}))
-    add("`a` 2, zb01's mutant. Fewer than zb01, each with two abyssal sockets (Darkness Enthroned): `a` is a "
-        "count; as many as zb01: `a` is a yes or no, or ignored. With zb06, every belt displaying the line: "
-        "zb01 as many as zb06, `a` asks at least; zb06 less this search, exactly", "zb01, `a` 1",
-        belts("sockets", {"a": 2}))
-    add("`socket_filters.sockets` `min` 1 under `accessory.belt`, no colour asked. The belts zb01 found: `min` "
-        "counts an abyssal socket, as the search's `sockets` does; none: `min` counts the coloured sockets "
-        "alone, and the row's `sockets{bounds}` is not the site's on such an item", "zb01, the belts with an "
-        "abyssal socket", belts("sockets", {"min": 1}))
-    add("`socket_filters.links` `a` 1 under `accessory.belt`. The belts zb01 found: Link Groups takes `a`, an "
-        "abyssal socket a group of its own; none: a link group holds no abyssal socket; every kind of belt: "
-        "ignored; refused: Link Groups takes no `a`", "zb01, the belts with an abyssal socket",
-        belts("links", {"a": 1}))
-    add("`socket_filters.links` `min` 1 under `accessory.belt`. The belts zb01 found: a lone abyssal socket is "
-        "a link group of one, as the search's `linked(size>=1)` reads it; none: it is no link group",
+    add("`socket_filters.sockets` `a` 1 under `accessory.belt`: must find items, each of the ten fetched "
+        "showing a socket `A`. Refused: the site takes no `a`. The control of {next}",
+        "the control: must find items", belts("sockets", {"a": 1}))
+    add("`a` 1 on a base with no socket: `type` `Leather Belt`. None: `a` asks the abyssal sockets; some: the "
+        "site ignores `a`", "zb01, `a` 1 finding belts; a Leather Belt is listed (12 in the captures)",
+        belts("sockets", {"a": 1}, item_type="Leather Belt"))
+    add("`a` 2 on belts that have one: `type` `Stygian Vise`, `rarity` `nonunique`. None: `a` is a count; "
+        "some, each fetched showing one socket `A`: `a` is a yes or no", "zb01, `a` 1 finding such belts",
+        belts("sockets", {"a": 2}, item_type="Stygian Vise", rarity="nonunique"))
+    add("the belt of two abyssal sockets by its name: `name` `Darkness Enthroned`, `type` `Stygian Vise`. The "
+        "ten fetched show how many sockets `A` it has; the control of {next}", "the control: must find items",
+        belts(item_type="Stygian Vise", unique="Darkness Enthroned"))
+    add("`a` 1 on `Darkness Enthroned`. Some, zb04's fetched showing two sockets: `a` asks at least; none: "
+        "exactly", "zb04, the belt alone", belts("sockets", {"a": 1}, item_type="Stygian Vise",
+                                                  unique="Darkness Enthroned"))
+    add("`a` 2 on `Darkness Enthroned`. Some: `a` counts to two; none, zb04's fetched showing two: `a` is not "
+        "the count of sockets `A`", "zb04, the belt alone",
+        belts("sockets", {"a": 2}, item_type="Stygian Vise", unique="Darkness Enthroned"))
+    add("`socket_filters.sockets` `min` 1 under `accessory.belt`, no colour asked. Some: `min` counts an "
+        "abyssal socket, as the search's `sockets` does, a belt having no other; none: `min` counts the "
+        "coloured sockets alone, and the row's `sockets{bounds}` is not the site's on such an item",
+        "zb01, the belts with an abyssal socket", belts("sockets", {"min": 1}))
+    add("`socket_filters.links` `a` 1 under `accessory.belt`. Some, {next} finding none: Link Groups takes "
+        "`a`, an abyssal socket a group of its own; none: a link group holds no abyssal socket; refused: "
+        "Link Groups takes no `a`", "zb01, the belts with an abyssal socket", belts("links", {"a": 1}))
+    add("`links` `a` 1 on `type` `Leather Belt`. None; some: Link Groups ignores `a`, and zb08's belts were "
+        "every belt", "zb08, the same filter under the category; a Leather Belt is listed",
+        belts("links", {"a": 1}, item_type="Leather Belt"))
+    add("`socket_filters.links` `min` 1 under `accessory.belt`. Some: a lone abyssal socket is a link group "
+        "of one, as the search's `linked(size>=1)` reads it; none: it is no link group",
         "zb01, the belts with an abyssal socket", belts("links", {"min": 1}))
-    add("the line as a stat, implicit: `implicit." + line + "` under `accessory.belt`. As many as zb01: a "
-        "Stygian Vise's socket is its implicit line; the ten fetched show `Has 1 Abyssal Socket`, the form the "
-        "translation reads", "zb01, the belts with an abyssal socket",
+    add("the line as a stat, implicit: `implicit." + line + "` under `accessory.belt`. Must find items; the "
+        "ten fetched show `Has 1 Abyssal Socket`, the form the translation reads, and a socket `A` each",
+        "the oracle (tests/trade_oracle.rs): every item returned is matched by the translated text, or a row",
         belts(stats=[group("and", ["implicit." + line])]))
     add("the line as a stat, explicit, on any item: `explicit." + line + "`. The ten fetched show the line's "
         "forms off a belt (gloves, boots, a helmet, a body armour) and each one's sockets, `A` among colours",
         "the oracle (tests/trade_oracle.rs): every item returned is matched by the translated text, or a row",
         batch_query([group("and", ["explicit." + line])]))
     add("complete: `a` 1 under `accessory.belt` with the line's three ids in a `not` group. None: every belt "
-        "`a` finds displays the line, so the stat and the count ask the same belts; some: the ten fetched name "
-        "an abyssal socket no line says", "zb01, `a` 1 alone",
-        belts("sockets", {"a": 1}, [group("not", [f"{domain}.{line}" for domain in
-                                                    ("explicit", "implicit", "fractured")])]))
-    add("sound: the line's implicit id required with `a` 1 under `accessory.belt`. As many as zb06: every "
-        "belt displaying the line has a socket `a` counts; fewer: zb06's ten fetched and these name a line "
-        "with no such socket", "zb06, the line alone",
-        belts("sockets", {"a": 1}, [group("and", ["implicit." + line])]))
+        "`a` finds displays the line; some: the ten fetched name an abyssal socket no line says",
+        "zb01, `a` 1 alone", belts("sockets", {"a": 1}, [group("not", [f"{domain}.{line}" for domain in
+                                                                      ("explicit", "implicit", "fractured")])]))
+    add("sound: the line's implicit id required with `sockets` `max` 0 under `accessory.belt`. None, zb07 "
+        "having found belts: every belt displaying the line has a socket the filter counts; some: the ten "
+        "fetched show the line on a belt with no socket; zb07 having found none, this search says nothing",
+        "zb11, the line alone; zb07, whether the bounds count an abyssal socket",
+        belts("sockets", {"max": 0}, [group("and", ["implicit." + line])]))
     rows = composed.done()
-    if len(rows) != 9:
-        raise SystemExit(f"round zb has {len(rows)} searches, its names written for 9")
+    if len(rows) != 14:
+        raise SystemExit(f"round zb has {len(rows)} searches, its names written for 14")
     return rows
 
 
