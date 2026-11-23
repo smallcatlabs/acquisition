@@ -216,6 +216,48 @@ the site's cap of 10,000). The captures are
 za). The translation lands such a pair as
 matching nothing (#150; the trade catalogue's `query.inverted`).
 
+**T36. The site's Sockets and Link Groups filters each read `a`, a count
+of abyssal sockets, at least; `min` and `max` count an abyssal socket
+among the sockets, and a lone abyssal socket is a link group of one.**
+[SITE — Confirmed; November 23, 2026, the owner's sitting, captured]
+Sockets `a` 1 found Stygian Vises with one socket `A` (zb01) and on a
+Leather Belt none (zb02); `a` 2 on a non-unique Stygian Vise found none
+(zb03), and on Darkness Enthroned `a` 1 and `a` 2 each found the belt
+with two (zb05, zb06), against the unique alone (zb04: nine of the ten
+fetched with two sockets `A`, one with one). Sockets `min` 1 found
+belts whose one socket is `A` (zb07), and `max` 1 on Darkness Enthroned
+found 1,370, each fetched with one socket (zc01). Link Groups `a` 1
+found belts and none on a Leather Belt (zb08, zb09), and Link Groups
+`min` 1 found belts whose one socket is `A` (zb10). GGG gives each
+abyssal socket a `group` of its own on every item fetched. Every
+total but zc01's is at the site's cap of 10,000. The captures are
+`search/pseudo-stats/raw/searches/` (its manifest, rounds zb and zc).
+The trade catalogue's two socket rows read `a` (#185); `d`, a
+resonator's count, was not asked.
+
+**T37. The stat `Has # Abyssal Sockets` is `stat_3527617737` under
+implicit and explicit, and every belt `a` finds displays it.** [SITE —
+Confirmed; November 23, 2026, the owner's sitting, captured]
+`implicit.stat_3527617737` found belts, each `Has 1 Abyssal Socket`
+(zb11), and `explicit.stat_3527617737` found Lightpoacher, Tombfist,
+Bubonic Trail and Darkness Enthroned, each with a socket `A`, beside
+coloured sockets on the first three (zb12). Sockets `a` 1 with the line's three ids (explicit, implicit,
+fractured) in a `not` found none (zb13). Whether every belt displaying
+the line is found by `a` could not be asked: the search would bound
+Sockets `max` at 0, which bounds nothing (T38).
+
+**T38. The site reads a Sockets filter's `max` of 0 as no bound.**
+[SITE — Confirmed for the Sockets filter; November 23, 2026, the
+owner's sitting, captured]
+The line of T37 with Sockets `max` 0 found belts with a socket `A`
+(zb14), and Sockets `max` 0 under body armour found body armour with
+sockets, two of the ten fetched with six (zc02). The translation drops
+such a maximum before reading the bounds (the trade catalogue's
+`max_zero`). A range's `max` of 0 (zc03, `misc_filters.quality` under
+body armour: each of the ten fetched shows no quality, which says
+little, since nine of zc02's ten had none either) and Link Groups' are
+not settled (#309).
+
 ### The API
 
 **T5. `Item` carries both `note` and `forum_note`, each "user-generated

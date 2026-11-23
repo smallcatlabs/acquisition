@@ -254,3 +254,21 @@ limit: 4 of 15 in 60 s, 11 of 60 in 300 s.
 | `raw/searches/y-fragments/` (33 files; as above) | 508382 | 2026-11-18 03:59 – 04:12 UTC | `70d7499a8a40c84df54cb0691fdb1159b0fd0486d2255ede4f2ea77b065fb27e` |
 | `raw/searches/z-fragments/` (16 files; as above) | 270079 | 2026-11-18 04:13 – 04:17 UTC | `b7ea6a5cf715f9ac588a22840ac4153509b721092303f1698fa91aecb3bf8a3d` |
 | `raw/searches/za-fragments/` (4 files; as above) | 45063 | 2026-11-18 04:28 UTC | `9018311893d5a2b6364ec08428ac0741ecb8db9c84311243c02da13cd9eb48e1` |
+
+Rounds zb and zc (#185, abyssal sockets; the step that lands them,
+4-full-1-form-abyssal), the afternoon of 2026-11-23 by the owner, 22:01 to
+22:17 UTC by the recorder's names, from the links of
+`search/pseudo-stats/data/search-sheet.csv` at `9594b66a` (round zb) and
+`48bcfa0e` (round zc, the repairs composed that afternoon from the counts);
+saved by `tools/sitting-recorder`, one file per call, in
+`~/Downloads/acq-sitting` beside rounds y, z and za, copied here a round to a
+folder. No cookie; 17 searches answered, 13 with a fetch of ten items.
+`tools/trade-split.py --write` over the whole folder wrote the 17 captures;
+it refused y10's second answer again, as on 2026-11-17, the first kept. The
+most the sitting used of the site's search limit, read over its own files: 3
+of 15 in 60 s, 10 of 60 in 300 s.
+
+| File | Bytes | Captured | sha256 |
+| --- | --- | --- | --- |
+| `raw/searches/zb-fragments/` (24 files; as above) | 386128 | 2026-11-23 22:01 – 22:09 UTC | `c35e62ff61ca50cab596a78d579eaf3e53e7ecf835cf3191b6a1a754aaf78ff6` |
+| `raw/searches/zc-fragments/` (6 files; as above) | 112479 | 2026-11-23 22:16 – 22:17 UTC | `c507299b909f45f61511e719100f7a9bd7fac276fa42f48321c13c4bd88df53c` |

@@ -243,7 +243,8 @@ fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
 /// and the questions the build leaves unsupported: two ids of two texts and
 /// the damage filter. Five ran partial (t37, t38, t55, t56, u059). Of the 31
 /// y searches, 11 have no item, y10 is a sixteenth crucible-node search,
-/// and 19 run.
+/// and 19 run. Of the 17 of rounds zb and zc, 4 have no item and 13 run
+/// (the test below).
 #[test]
 fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     let expected: Expected = toml::from_str(EXPECTED).unwrap();
@@ -327,7 +328,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (380, 795, 7459, 6840));
+    assert_eq!((none.len(), ran, items, matched), (384, 808, 7589, 6960));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(
@@ -445,4 +446,55 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
             );
         }
     }
+}
+
+/// #185: the sitting of 2026-11-23 asked the abyssal sockets — the
+/// Sockets and Link Groups filters' `a`, a Sockets `max` of 0, and the
+/// stat `Has # Abyssal Sockets` under implicit and explicit. Each of zb01
+/// to zb14, zc01 and zc02 translates with no remainder, those with no
+/// item among them, and every item the site fetched for one matches its
+/// text; zc03's ten, a range's `max` of 0, are the `quality-max-zero`
+/// finding's (#309).
+#[test]
+fn abyssal_sockets_each_search_of_the_sitting_runs_and_its_items_match() {
+    let asked: Vec<String> = (1..=14)
+        .map(|n| format!("zb{n:02}"))
+        .chain(["zc01".to_string(), "zc02".to_string()])
+        .collect();
+    let searches: Vec<Search> = searches()
+        .into_iter()
+        .filter(|s| asked.contains(&s.name))
+        .collect();
+    let found: Vec<&str> = searches.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(found, asked, "every search of the sitting is captured");
+    let mut fetched = 0;
+    for search in &searches {
+        let mut decoded = decode_json(&search.query).unwrap();
+        decoded.league = Some(search.league.clone());
+        let t = translate(&decoded).unwrap();
+        assert!(
+            t.remainder.is_empty(),
+            "{}: `{}` leaves {:?}",
+            search.name,
+            t.text,
+            t.remainder
+        );
+        let missed = disagreements(search, &t);
+        assert!(
+            missed.is_empty(),
+            "{}: `{}` misses items {:?}",
+            search.name,
+            t.text,
+            missed.iter().map(|d| d.item).collect::<Vec<_>>()
+        );
+        fetched += search.bodies.len();
+    }
+    // zb02, zb03, zb09 and zb13 found nothing; thirteen fetched ten each
+    let empty: Vec<&str> = searches
+        .iter()
+        .filter(|s| s.bodies.is_empty())
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(empty, ["zb02", "zb03", "zb09", "zb13"]);
+    assert_eq!(fetched, 120);
 }

@@ -24,8 +24,8 @@
 # `undecided`, `clauses` the paths of the top-level clauses whose term alone
 # refuses the item (the translation's report, `path`).
 #
-# Measured by the test: 795 searches run, 7,459 items, 6,840 matched,
-# 619 missed in 68 rows, none undecided; y10, of twenty crucible ids, is
+# Measured by the test: 808 searches run, 7,589 items, 6,960 matched,
+# 629 missed in 69 rows, none undecided; y10, of twenty crucible ids, is
 # partial. A row of a search a sitting ran is a search that asked its
 # question, classified by the search; a row of another search is
 # classified by a script from each item's lines; every row's items are
@@ -100,6 +100,13 @@ asks = "which pair the site compares when an item's two pairs differ, the first'
 key = "reworded-330"
 home = "patch"
 cites = "#276: 3.30 reworded the stat in place after the sitting's capture, and a stat translates to the text of the stats capture the table is made from and to no earlier text; the item, fetched before the patch, shows the old wording. Its stat is one the test finds moved between the captures of 2026-09-12 and 2026-11-17 (`stats_moved_at_330`)"
+
+[[finding]]
+key = "quality-max-zero"
+row = "misc_filters.quality"
+home = "sitting"
+cites = "zc03 asked `misc_filters.quality` at `max` 0 under body armour: the site found 10,000, and all ten fetched show no `Quality`, so the field is absent and `quality<=0` is false on each (C93). The sitting of 2026-11-23 found the site reads a Sockets `max` of 0 as no bound (zc02, T38); whether it reads a range's so, or bounds it and counts an item with no quality as meeting it, says little from zc03 alone, since nine of zc02's ten unbounded chests show no quality either (#309)"
+asks = "whether the site reads a range's `max` of 0 as no bound — `quality` at `min` 20 with `max` 0 parts the two readings and cannot be capped: items found, no bound; none, a bound — and, if it bounds, whether an item showing no quality meets it, so the row wants `lacked = \"meets_maximum\"` as the requirement rows have"
 
 [[row]]
 search = "c3"
@@ -576,3 +583,10 @@ items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
 clauses = ["1"]
 finding = "blighted-base"
+
+[[row]]
+search = "zc03"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "quality-max-zero"
