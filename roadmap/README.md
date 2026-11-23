@@ -20,14 +20,14 @@ better Acquisition that is agent-friendly and agent-forward.
   parts (`git log --grep='^Step: 4-full-1'`). The search form's
   reshaping is designed and ruled (`briefs/4-full-1-form-design.md`)
   and built in the series of its §8, one brief a step
-  (`git log --grep='^Step: 4-full-1-form'`). Steps 1 to 5 are closed:
+  (`git log --grep='^Step: 4-full-1-form'`). Steps 1 to 6 are closed:
   a saved search keeps what was asked (C194); a search's page is its
   source's editor, filled, above its answer; stat rows and groups are
   added and removed on the page; the form carries its quality box,
-  its switch, the site box and Clear; and a request that leaves a
-  page carries that page as `from` and leads back to it
-  (`briefs/4-full-1-form-landing.md`). Step 6, the value finder, is
-  next.
+  its switch, the site box and Clear; a request that leaves a page
+  leads back to it; and "Add a column" orders a page by a value
+  picked by name (`briefs/4-full-1-form-values.md`). Step 7, a
+  place's line (#296), is next.
 
 ## Next
 
@@ -37,8 +37,8 @@ when its step closes or the owner strikes it.
 
 1. 4-full part 1, the search form's reshaping (#185, #183), its
    design ruled (`briefs/4-full-1-form-design.md`) and built in the
-   series of its §8, each step its own brief, step 6 next; a sort by
-   values a player names and #296 ride with it. Its
+   series of its §8, each step its own brief, step 7 next; #296
+   rides with it. Its
    last step, a search's way back to the trade site (#303), waits on a
    sitting. The look is #285; what an apply brought, said on its job,
    is #182's rest; the never-fetched tabs of a league the scope's link
