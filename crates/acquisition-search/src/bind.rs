@@ -111,6 +111,8 @@
 //!   find 209 items of one such line and miss the 2 spelled the other way,
 //!   with no sign of it.
 
+use std::sync::{Arc, OnceLock};
+
 use regex::{Regex, RegexBuilder};
 
 use crate::error::{ErrorKind, LanguageError};
@@ -601,13 +603,32 @@ pub(crate) fn field_name(thing: Thing) -> &'static str {
 
 // ---- the bound query -----------------------------------------------------------------
 
-/// One text comparison, compiled (the module doc: one matcher, any case).
+/// One text comparison (the module doc: one matcher, any case): its
+/// pattern, and the matcher compiled from it. A `~` pattern is compiled as
+/// it is bound, which is where one that is no pattern is refused. A
+/// literal's (`:` and `=`) is an escaped text of at most [`LAZY_LITERAL`]
+/// bytes, which always compiles, so it is compiled when a text is first
+/// held to it: a query bound and never run against an item (a translation
+/// read for its value) compiles none. The cell is shared by every clone, so
+/// a test compiles once however its tree is copied.
 #[derive(Debug, Clone)]
-pub(crate) struct TextTest(Regex);
+pub(crate) struct TextTest {
+    pattern: String,
+    compiled: Arc<OnceLock<Option<Regex>>>,
+}
+
+/// The longest literal pattern, in bytes, whose compile waits for its first
+/// use; a longer one is compiled as it is bound, and refused there if the
+/// matcher would be too large. A literal this long compiles: its case of
+/// the costliest letters is pinned (`a_literal_at_the_lazy_bound_compiles`).
+pub(crate) const LAZY_LITERAL: usize = 1024;
 
 impl TextTest {
     pub fn holds(&self, text: &str) -> bool {
-        self.0.is_match(text)
+        self.compiled
+            .get_or_init(|| pattern_of("", &self.pattern).ok())
+            .as_ref()
+            .is_some_and(|regex| regex.is_match(text))
     }
 }
 
@@ -1406,7 +1427,22 @@ pub(crate) fn text_test(name: &str, op: Op, value: &Value) -> Result<TextTest, L
             ));
         }
     };
-    pattern_of(name, &pattern).map(TextTest)
+    // a literal within the bound always compiles, so its compile waits for
+    // its first use ([`TextTest`]); a pattern, or a longer literal, is
+    // compiled here, where it is refused
+    let compiled = match op {
+        Op::Match => None,
+        _ if pattern.len() > LAZY_LITERAL => None,
+        _ => Some(OnceLock::new()),
+    };
+    let compiled = match compiled {
+        Some(waiting) => waiting,
+        None => OnceLock::from(Some(pattern_of(name, &pattern)?)),
+    };
+    Ok(TextTest {
+        pattern,
+        compiled: Arc::new(compiled),
+    })
 }
 
 /// The one compiler of a `~` pattern (the `~` entry of `describe`: Rust
@@ -1588,9 +1624,56 @@ fn negation(before: &str) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{exact_pattern, fields, folded, text_test};
+    use super::{LAZY_LITERAL, exact_pattern, fields, folded, text_test};
     use crate::tree::{Node, Op, Value, ValueRef};
     use proptest::prelude::*;
+
+    /// A literal's matcher waits for its first use, a `~` pattern's and a
+    /// longer literal's is made as it is bound, and a clone shares the
+    /// one made ([`super::TextTest`]): binding a literal compiles nothing,
+    /// which is what a translation read for its value alone relies on.
+    #[test]
+    fn a_literals_matcher_waits_for_its_first_use_and_a_patterns_does_not() {
+        let text = |s: &str| Value::Text(s.to_string());
+        for op in [Op::Contains, Op::Eq] {
+            let test = text_test("name", op, &text("Maximum Life")).unwrap();
+            let copy = test.clone();
+            assert!(test.compiled.get().is_none(), "{op:?}: compiled as bound");
+            assert!(copy.holds("maximum life"), "{op:?}");
+            assert!(
+                test.compiled.get().is_some_and(Option::is_some),
+                "{op:?}: a clone compiled a matcher of its own"
+            );
+        }
+        let pattern = text_test("name", Op::Match, &text("max.*life")).unwrap();
+        assert!(pattern.compiled.get().is_some(), "a pattern waits");
+        assert!(text_test("name", Op::Match, &text("(")).is_err());
+        let long = "a".repeat(LAZY_LITERAL + 1);
+        let bound = text_test("name", Op::Contains, &text(&long)).unwrap();
+        assert!(bound.compiled.get().is_some(), "a long literal waits");
+        assert!(bound.holds(&long));
+    }
+
+    /// A literal within [`LAZY_LITERAL`] always compiles, so the compile
+    /// that waits cannot fail where none would refuse it: the letters whose
+    /// any-case classes are the widest, a letter of four bytes and a
+    /// character the pattern escapes, each filling the bound, under both
+    /// literal operators.
+    #[test]
+    fn a_literal_at_the_lazy_bound_compiles() {
+        for letter in ['k', 's', '\u{1c6}', '\u{3b8}', '\u{3b9}', '\u{10428}', '.'] {
+            for op in [Op::Contains, Op::Eq] {
+                let escaped = regex::escape(&letter.to_string()).len();
+                let filled = letter.to_string().repeat((LAZY_LITERAL - 6) / escaped);
+                let test = text_test("name", op, &Value::Text(filled.clone())).unwrap();
+                assert!(
+                    test.compiled.get().is_none(),
+                    "{letter:?} {op:?}: not at the bound"
+                );
+                assert!(test.holds(&filled), "{letter:?} {op:?}: no matcher");
+            }
+        }
+    }
 
     /// Every field and computed value is named in the spelling the parser
     /// gives a name, so one typed in any case binds to it and has its one
