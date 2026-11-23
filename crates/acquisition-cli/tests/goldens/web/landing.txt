@@ -34,7 +34,7 @@ saved search 0000000000a1 stands at revision 2, not the revision the write named
 <tr><td>elsewhere</td><td>pc · live</td><td>rarity=rare</td><td>2</td><td><age> ago via cli</td><td>0000000000a1</td></tr>
 </table>
 <ul class="offers">
-<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a1&amp;saved_revision=1"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="name" value="mine"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><button type="submit">the same write over revision 2, the row as it stands</button></form></li>
+<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a1&amp;saved_revision=1"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><label class="filter-title">Name <input name="name" value="mine" aria-label="the search's name"></label> <button type="submit">the same write over revision 2, the row as it stands</button></form></li>
 </ul>
 </div>
 

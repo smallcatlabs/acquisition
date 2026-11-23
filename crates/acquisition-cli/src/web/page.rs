@@ -230,6 +230,26 @@ pub(crate) fn refused(doc: &Value, from: Option<&FromPage>) -> String {
         .into_iter()
         .flatten()
         .map(|o| match o["request"].get("post") {
+            // a write offered with a name shows that name in its box, as
+            // the save form does, so what the reader typed stands to be
+            // read and changed before it is sent again (the landing rule)
+            Some(post) if o["request"]["fields"].get("name").is_some() => {
+                let fields = o["request"]["fields"].as_object();
+                format!(
+                    "<li>{}</li>\n",
+                    save_form(
+                        &said(post),
+                        from,
+                        fields
+                            .into_iter()
+                            .flatten()
+                            .filter(|(k, _)| *k != "name")
+                            .map(|(k, v)| (k.as_str(), said(v))),
+                        &said(&o["request"]["fields"]["name"]),
+                        &said(&o["says"])
+                    )
+                )
+            }
             Some(post) => format!(
                 "<li>{}</li>\n",
                 post_form(

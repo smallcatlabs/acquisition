@@ -1613,8 +1613,7 @@ async fn search(
     }
     let sent = fields.clone();
     let editing = fields.clone();
-    // the page itself, as sent, is what its leaving forms post as `from`
-    let here = Here::place(FromPage::here(Place::Search, &sent), back);
+    let sent_items = opening.items.clone();
     let (asked, filled, leagues) = blocking(&web, move |web| {
         // the query as read, the fold's or a token's: what the editors are
         // filled from, answered or refused
@@ -1734,6 +1733,19 @@ async fn search(
         (asked, filled, leagues)
     })
     .await;
+    // the page itself, as its every link writes it — its fields as sent and
+    // the opened rows it keeps (or, refused, those its URL opens) — is what
+    // its leaving forms post as `from`, as a place page's is
+    let items = match &asked {
+        Ok((.., kept, _)) => kept.clone(),
+        Err(_) => sent_items,
+    };
+    let itself: Fields = sent
+        .iter()
+        .cloned()
+        .chain(items.into_iter().map(|id| ("item".to_string(), id)))
+        .collect();
+    let here = Here::place(FromPage::here(Place::Search, &itself), back);
     let editors = page::editor(&web.form, &filled, leagues.as_deref(), here.onward());
     match asked {
         Ok((answer, ..)) if json => document(&answer),

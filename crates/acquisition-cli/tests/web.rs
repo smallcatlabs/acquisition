@@ -7046,6 +7046,19 @@ fn every_refusal_a_leaving_request_meets_has_its_way_on_and_its_way_back() {
         }
     }
     page_golden(file!(), "landing", &pages);
+    // a write offered over a row written since shows the name the reader
+    // typed in its box, to be read and changed before it is sent again
+    let (_, _, conflict, _) = census
+        .iter()
+        .find(|(label, ..)| *label == "POST saved <a row written since>")
+        .unwrap();
+    assert!(
+        conflict
+            .body
+            .contains("<label class=\"filter-title\">Name <input name=\"name\" value=\"mine\""),
+        "{}",
+        conflict.body
+    );
     // a submit the daemon refuses for want of a session: its command
     let signed = harness::scratch("webcensussession");
     let daemon = harness::login(&signed.0, "Alice");
@@ -7137,5 +7150,18 @@ fn a_from_is_a_place_of_this_server_read_once_and_never_carried_on() {
         "{}",
         tabs.body
     );
+    // a search page is itself with the rows it keeps open, as its every
+    // link writes it, so leaving it and coming back opens them again; a
+    // row it no longer holds is dropped, as its links drop it
+    let table = "search?realm=pc&text=class%3Arings&view.fields=icon";
+    let opened = web.get(&format!("{table}&item=r1&item=no-such-item&from=saved"));
+    assert_eq!(opened.status, 200, "{}", opened.body);
+    for button in ["Save this search", "Fetch the league list"] {
+        assert_eq!(
+            form_on(&opened.body, button, None).field("from"),
+            Some(format!("{table}&item=r1").as_str()),
+            "{button}"
+        );
+    }
     drop(scratch);
 }

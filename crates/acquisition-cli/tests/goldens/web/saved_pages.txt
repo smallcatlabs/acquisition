@@ -609,7 +609,7 @@ saved search 0000000000a2 stands at revision 4, not the revision the write named
 <tr><td>unique rings</td><td>pc · live</td><td>rarity=unique</td><td>4</td><td><age> ago via cli</td><td>0000000000a2</td></tr>
 </table>
 <ul class="offers">
-<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="4"><input type="hidden" name="name" value="rings"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><button type="submit">the same write over revision 4, the row as it stands</button></form></li>
+<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="4"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><label class="filter-title">Name <input name="name" value="rings" aria-label="the search's name"></label> <button type="submit">the same write over revision 4, the row as it stands</button></form></li>
 </ul>
 </div>
 
@@ -762,7 +762,7 @@ saved search 0000000000a1 stands at revision 2, not the revision the write named
 <tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 3, newer than this build&#39;s v2</td><td>2</td><td></td><td>0000000000a1</td></tr>
 </table>
 <ul class="offers">
-<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a1&amp;saved_revision=1"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="name" value="amulets"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><button type="submit">the same write over revision 2, the row as it stands</button></form></li>
+<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a1&amp;saved_revision=1"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><label class="filter-title">Name <input name="name" value="amulets" aria-label="the search's name"></label> <button type="submit">the same write over revision 2, the row as it stands</button></form></li>
 </ul>
 </div>
 
