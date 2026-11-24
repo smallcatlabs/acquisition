@@ -150,7 +150,8 @@ pub(crate) fn offline_web(tag: &str) -> (harness::Scratch, WebUi) {
 /// of it runs. Over the offline world with a third tab of belts — one with
 /// the implicit `Has 1 Abyssal Socket` and its socket `A`, one with none —
 /// `stats?q=` finds `implicit.stat_3527617737`, and the form's row of it
-/// finds the abyssal belt alone, as does the Sockets filter's `a` box.
+/// finds the abyssal belt alone, with no bound and at a minimum of 1, as
+/// does the Sockets filter's `a` box.
 #[test]
 fn an_abyssal_sockets_stat_is_found_and_its_form_row_runs() {
     let scratch = harness::scratch("webabyssal");
@@ -230,6 +231,10 @@ fn an_abyssal_sockets_stat_is_found_and_its_form_row_runs() {
         ("stat.id", "implicit.stat_3527617737"),
     ];
     let answer = web.get_json(&format!("search?{}", query_string(&row)));
+    assert_eq!(ids(&answer), ["abyss"], "{answer}");
+    // the row with a minimum of 1: the singular's 1 is the stat's number
+    let bounded = [&row[..], &[("stat.min", "1")]].concat();
+    let answer = web.get_json(&format!("search?{}", query_string(&bounded)));
     assert_eq!(ids(&answer), ["abyss"], "{answer}");
     // the Sockets filter's `a` box asks the same belt
     let boxed = [
