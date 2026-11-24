@@ -33,8 +33,8 @@
 //!   source, two words to a pair and no word in two, every elision's key
 //!   once and its `drop` holding a `#`, every text a text the stat table
 //!   lists, a form that is not its own text, a kind of the four and a
-//!   number only on a `numberless` form, a `plural` form with its text's
-//!   open `#`s, no form twice, no row the game's forms already give, every
+//!   number only on a `numberless` form, a `plural` form writing its
+//!   numbers where its text does (a digit standing for a `#`), no form twice, no row the game's forms already give, every
 //!   refusal a listed text under a rule the table has.
 //! - **A rule is applied to the text the translation writes** — the site's,
 //!   its ` (Local)` dropped — where the export joins it nowhere; the forms
@@ -347,6 +347,21 @@ fn open(text: &str) -> usize {
         .count()
 }
 
+/// Whether a form writes its numbers where a text writes its own: a `#`
+/// or a digit where the text has a `#` — a displayed line's digit is its
+/// number, `Has 1 Abyssal Socket` the text `Has # Abyssal Sockets` at 1 —
+/// and the text's own digit, its sign aside, where it has one. A plural's
+/// numbers (`tools/trade-forms-table.py`, rule 3).
+fn numbers_of(text: &str, form: &str) -> bool {
+    let (text, form) = (template::fixed(text).1, template::fixed(form).1);
+    text.len() == form.len()
+        && text.iter().zip(&form).all(|(t, f)| match (t, f) {
+            (None, _) => true,
+            (Some(t), Some(f)) => t.abs() == f.abs(),
+            (Some(_), None) => false,
+        })
+}
+
 /// The text the translation writes of a site text: its ` (Local)` dropped.
 fn written(site: &str) -> &str {
     site.strip_suffix(LOCAL).unwrap_or(site)
@@ -499,8 +514,10 @@ impl FormsTable {
             if number.is_some() && kind != Kind::Numberless {
                 return Err(why("names a number, which only a numberless form has"));
             }
-            if kind == Kind::Plural && open(&form) != open(written(text)) {
-                return Err(why("is plural and does not leave its text's `#`s open"));
+            if kind == Kind::Plural && !numbers_of(written(text), &form) {
+                return Err(why(
+                    "is plural and does not write its numbers where its text does",
+                ));
             }
             Ok(Form {
                 text: form,

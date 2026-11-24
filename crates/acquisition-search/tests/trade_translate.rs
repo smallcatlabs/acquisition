@@ -626,10 +626,10 @@ struct Stat {
 /// C113, K6: every one of the stat table's category and id pairs
 /// translates, alone and with a bound — each a filter of one `and` group —
 /// and holds what every translation holds; the statuses are the catalogue
-/// header's count — alone 13,661 exact, 819 ambiguous, 220 unsupported, the
-/// two-text ids every one; with a bound 9,400, 5,080 and 220, 4,585 of them
+/// header's count — alone 13,669 exact, 811 ambiguous, 220 unsupported, the
+/// two-text ids every one; with a bound 9,408, 5,072 and 220, 4,577 of them
 /// a stat a form of which no sum holds — 49 pairs carry a refused form
-/// either way, 300 a wording the game data gives, 2,243 a number written as
+/// either way, 292 a wording the game data gives, 2,243 a number written as
 /// a digit, exact, and 14 a text of three numbers or more with no one
 /// `# to #`. The counts are the stat table's of 2026-11-17. Every pair and
 /// the counts where `ACQ_CASES=full` (CI); here a sixteenth of them, a
@@ -652,8 +652,8 @@ fn c113_every_stat_id_of_the_table_translates() {
         % stride;
     let share: Vec<&String> = ids.iter().skip(offset).step_by(stride).collect();
     for (value, statuses, forms) in [
-        (json!({}), [13_661, 819, 220], 0),
-        (json!({ "min": 1 }), [9_400, 5_080, 220], 4_585),
+        (json!({}), [13_669, 811, 220], 0),
+        (json!({ "min": 1 }), [9_408, 5_072, 220], 4_577),
     ] {
         let filters: Vec<Value> = share
             .iter()
@@ -693,7 +693,7 @@ fn c113_every_stat_id_of_the_table_translates() {
         assert_eq!(read("stat.text.many"), 14);
         assert_eq!(read("stat.text.forms"), forms, "{value}");
         assert_eq!(read("stat.text.refused"), 49);
-        assert_eq!(read("stat.text.wording"), 300);
+        assert_eq!(read("stat.text.wording"), 292);
     }
 }
 

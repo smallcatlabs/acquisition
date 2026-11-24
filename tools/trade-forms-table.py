@@ -46,8 +46,10 @@ Rules, each a reading of the export and never a judgment (C106):
      `numberless` where it shows fewer `#`s than the text, its `number` the
      one value its condition allows where it allows one; `plural` where it
      is the text word for word but for a noun's or a verb's number
-     (`second`/`seconds`, `Enemy`/`Enemies`, `is`/`are`), its `#`s where
-     the text's are and no number written as a digit in place of one;
+     (`second`/`seconds`, `Enemy`/`Enemies`, `is`/`are`), its numbers
+     where the text's are: a `#` or a digit where the text has a `#` (a
+     displayed line's digit is its number: `Has 1 Abyssal Socket` is
+     `Has # Abyssal Sockets` at 1), the text's own digit where it has one;
      `other` beside.
   4. Order: the stat table's, a text at its first id; forms by the
      export's order within an entry, entries by the export's.
@@ -94,6 +96,12 @@ def key(text):
     (src/trade/forms.rs, `key`)."""
     t = NUMBER.sub("#", text)
     return re.sub(r"(?<![#\d)])[+-]#", "#", t).lower()
+
+
+def numbers(text):
+    """A text's numbers in order, as `key` finds them: `#` where it leaves
+    one open, the digit it writes beside, a sign dropped."""
+    return [m.group(0).lstrip("+-") for m in re.finditer(r"#|" + NUMBER.pattern, text)]
 
 
 def display(string):
@@ -154,8 +162,10 @@ def kind_of(text, form, shown_negated, count):
     if count(form) < count(text):
         return "numberless"
     a, b = key(text).split(), key(form).split()
-    # the same `#`s the site leaves open, not a number written as a digit
-    same = text.count("#") == form.count("#")
+    # its numbers where the text's are: a `#` or a digit where the text has
+    # a `#`, the text's own digit where it has one
+    t, f = numbers(text), numbers(form)
+    same = len(t) == len(f) and all(n == "#" or n == m for n, m in zip(t, f))
     if same and len(a) == len(b) and [word(w) for w in a] == [word(w) for w in b]:
         return "plural"
     return "other"

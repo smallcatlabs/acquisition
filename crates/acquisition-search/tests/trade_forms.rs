@@ -298,18 +298,45 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
         ),
         Err(FormsError::Version { found: 2, .. })
     ));
-    let joined = |forms: &str| {
+    let joined = |text: &str, forms: &str| {
         FormsTable::parse(
             FORMS_TOML.split("\n[[form]]").next().unwrap(),
-            &format!("{bare}[[text]]\ntext = \"Has # Abyssal Sockets\"\nforms = {forms}\n"),
+            &format!("{bare}[[text]]\ntext = \"{text}\"\nforms = {forms}\n"),
             stats,
         )
     };
-    assert!(joined("[]").is_ok());
+    assert!(joined("Has # Abyssal Sockets", "[]").is_ok());
+    // a plural writes its numbers where its text does: a digit where the
+    // text has a `#` is its number (round ze), and a `#` where the text
+    // writes a digit is no plural of it
+    let abyssal = joined(
+        "Has # Abyssal Sockets",
+        "[{ form = \"Has 1 Abyssal Socket\", kind = \"plural\" }]",
+    )
+    .unwrap();
+    assert_eq!(
+        abyssal
+            .of("Has # Abyssal Sockets")
+            .known
+            .into_iter()
+            .map(|f| (f.text, f.kind.word()))
+            .collect::<Vec<_>>(),
+        [("Has 1 Abyssal Socket".to_string(), "plural")]
+    );
     assert!(matches!(
-        joined("[{ form = \"Has 1 Abyssal Socket\", kind = \"plural\" }]"),
-        Err(FormsError::Form { .. })
+        joined(
+            "Has 1 Socket",
+            "[{ form = \"Has # Sockets\", kind = \"plural\" }]"
+        ),
+        Err(FormsError::Form {
+            why: "is plural and does not write its numbers where its text does",
+            ..
+        })
     ));
+    assert_eq!(
+        texts("Has # Abyssal Sockets"),
+        [("Has 1 Abyssal Socket".to_string(), "plural")]
+    );
     assert!(matches!(
         FormsTable::parse(
             FORMS_TOML.split("\n[[form]]").next().unwrap(),

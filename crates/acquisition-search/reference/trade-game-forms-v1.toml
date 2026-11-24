@@ -19,7 +19,7 @@
 #
 # Measured at generation: 6327 texts joined, 2585 of them with a
 # form; 2630 forms — 1949 opposite, 300 numberless,
-# 126 plural, 255 other. 318 texts the export
+# 131 plural, 250 other. 318 texts the export
 # leaves unjoined though one of its strings, markup reduced, is the text
 # (rule 5; search/repoe/data/trade-unjoined.toml): the hand rules stand for
 # them until a pin's export joins them.
@@ -347,7 +347,7 @@ forms = [
 [[text]]
 text = "Adds # Passive Skills"
 forms = [
-    { form = "Adds 1 Passive Skill", kind = "other" },
+    { form = "Adds 1 Passive Skill", kind = "plural" },
 ]
 
 [[text]]
@@ -1329,7 +1329,7 @@ forms = [
 [[text]]
 text = "Has # Abyssal Sockets"
 forms = [
-    { form = "Has 1 Abyssal Socket", kind = "other" },
+    { form = "Has 1 Abyssal Socket", kind = "plural" },
 ]
 
 [[text]]
@@ -4040,7 +4040,7 @@ forms = []
 [[text]]
 text = "Adds # Jewel Socket Passive Skills"
 forms = [
-    { form = "Adds 1 Jewel Socket Passive Skill", kind = "other" },
+    { form = "Adds 1 Jewel Socket Passive Skill", kind = "plural" },
 ]
 
 [[text]]
@@ -4084,7 +4084,7 @@ forms = [
 [[text]]
 text = "Adds # Small Passive Skills which grant nothing"
 forms = [
-    { form = "Adds 1 Small Passive Skill which grants nothing", kind = "other" },
+    { form = "Adds 1 Small Passive Skill which grants nothing", kind = "plural" },
 ]
 
 [[text]]
@@ -25092,7 +25092,7 @@ forms = [
 [[text]]
 text = "Has # White Sockets"
 forms = [
-    { form = "Has 1 White Socket", kind = "other" },
+    { form = "Has 1 White Socket", kind = "plural" },
 ]
 
 [[text]]

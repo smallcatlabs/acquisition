@@ -1287,6 +1287,42 @@ matches = [
 fails = ['{"explicitMods": ["Drops Burning Ground while moving, dealing 500 Fire Damage per second for 4 seconds"]}', '{"explicitMods": ["Drops Burning Ground while moving, dealing 1500 Fire Damage per second for 1 second"]}']
 
 [[case]]
+name = "a digit where the text has a `#` is the form's number, summed under a bound: an implicit abyssal socket at least one (ze01)"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_3527617737", "value": {"min": 1}}]}]}'
+text = 'sum(line(("Has # Abyssal Sockets" or "Has # Abyssal Socket") source=implicit).arg1)>=1'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "implicitMods": ["Has 1 Abyssal Socket"]}']
+fails = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise"}', '{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "explicitMods": ["Has 1 Abyssal Socket"]}']
+
+[[case]]
+name = "an implicit abyssal socket at least two: the singular's one is below it (ze02)"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_3527617737", "value": {"min": 2}}]}]}'
+text = 'sum(line(("Has # Abyssal Sockets" or "Has # Abyssal Socket") source=implicit).arg1)>=2'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "implicitMods": ["Has 2 Abyssal Sockets"]}']
+fails = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "implicitMods": ["Has 1 Abyssal Socket"]}']
+
+[[case]]
+name = "an explicit abyssal socket exactly one: the singular is one, and two is above it (ze03)"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3527617737", "value": {"min": 1, "max": 1}}]}]}'
+text = 'line(("Has # Abyssal Sockets" or "Has # Abyssal Socket") source=explicit) sum(line(("Has # Abyssal Sockets" or "Has # Abyssal Socket") source=explicit).arg1)=1..1'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "explicitMods": ["Has 1 Abyssal Socket"]}']
+fails = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise"}', '{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "implicitMods": ["Has 1 Abyssal Socket"]}', '{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "explicitMods": ["Has 2 Abyssal Sockets"]}']
+
+[[case]]
+name = "an explicit abyssal socket at least two: the plural's two, never the singular's one (ze04)"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3527617737", "value": {"min": 2}}]}]}'
+text = 'sum(line(("Has # Abyssal Sockets" or "Has # Abyssal Socket") source=explicit).arg1)>=2'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "explicitMods": ["Has 2 Abyssal Sockets"]}']
+fails = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "explicitMods": ["Has 1 Abyssal Socket"]}']
+
+[[case]]
 name = "a form that is a listed text is refused by name: the form left out, the text and the listed text ambiguous"
 query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_587431675"}]}]}'
 text = 'line(("#% increased Global Critical Strike Chance" or "#% reduced Global Critical Strike Chance") source=explicit)'
