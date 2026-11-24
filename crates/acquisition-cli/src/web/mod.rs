@@ -303,14 +303,21 @@
 //!   lists the fields the type takes ([`page::type_takes`]). The script
 //!   names no field and writes no word or value a form sends (C46).
 //! - **The value finder** (`roadmap/briefs/4-full-1-form-values.md`):
-//!   "Add a column" ([`page::value_finder`]) stands inside each form that
-//!   carries the page's view, after that form's own button — the search
-//!   form and the query box, and a place page's list form beside its item
-//!   heads, where they stand — and asks `stats?values=true&q=`, the value
-//!   listing (`acquisition_search::trade::vocabulary::values`): every number
-//!   field the form renders as a box and every stat of the vocabulary that
-//!   the translation compares a value for, by the site's words, JSON where
-//!   asked. Each option is a submit button of the finder's form
+//!   "Add a column" ([`page::value_finder`]) stands inside a form that
+//!   carries the page's view, after that form's own button, and asks
+//!   `stats?values=true&q=`, the value listing
+//!   (`acquisition_search::trade::vocabulary::values`): every number field
+//!   the form renders as a box and every stat of the vocabulary that the
+//!   translation compares a value for, by the site's words, JSON where
+//!   asked. A search page draws one (#319), in the editor that holds the
+//!   search it shows ([`page::Holder`], read from the source in
+//!   [`Web::editors`]): the query box where the source is a text in the
+//!   language, the search form where it is the site's — a form search, a
+//!   site search, a saved one of either kind — and on a page with no
+//!   search; so a pick keeps the search shown, never sending an editor
+//!   that holds none of it. A place page draws its own in its list form,
+//!   beside its item heads, where they stand. Each option is a submit
+//!   button of the finder's form
 //!   ([`page::value_options`]) sending `view.by` with the value's text, so
 //!   a pick sends that form as it stands with one field more. `view.by` is
 //!   the page's: [`search`] and [`places`] take it out of their fields
@@ -980,8 +987,16 @@ impl Web {
             }
             Some(query) => {
                 filled.text = canonical.or_else(|| query.text.clone()).unwrap_or_default();
+                filled.holder = page::Holder::QueryBox;
             }
-            None => filled.text = named("text").unwrap_or_default(),
+            // a search refused before it was read: the query box holds it
+            // where a text was sent
+            None => {
+                filled.text = named("text").unwrap_or_default();
+                if !filled.text.trim().is_empty() {
+                    filled.holder = page::Holder::QueryBox;
+                }
+            }
         }
         if let Some(realm) = realm {
             filled.realm = realm;

@@ -1281,6 +1281,64 @@ fn an_empty_search_form_asks_the_rows_every_other_door_asks() {
     assert_eq!(searched, shown(&answer.body, box_form));
 }
 
+/// The page seat's fault: an answer from the query box drew "Add a
+/// column" in both editors, and a pick in the search form's, which holds
+/// nothing of a typed query, landed on every item in scope. A search page
+/// draws one, in the editor that holds the search it shows: an answer
+/// from the query box inside the query box's form, where a pick keeps the
+/// query; a form answer and the empty page inside the search form.
+#[test]
+fn add_a_column_stands_only_in_the_editor_that_holds_the_search() {
+    let (_scratch, web) = offline_web("webcolumn");
+    let finder = "data-finder=\"stats?values=true&amp;q=\"";
+    // the one finder's form: the opening tag of the form it stands in
+    let finders_form = |body: &str| -> String {
+        assert_eq!(body.matches(finder).count(), 1, "{body}");
+        let at = body.find(finder).unwrap();
+        let opened = body[..at].rfind("<form ").unwrap();
+        assert!(
+            !body[opened..at].contains("</form>"),
+            "the finder stands outside a form: {body}"
+        );
+        body[opened..opened + body[opened..].find('>').unwrap() + 1].to_string()
+    };
+    let box_form = "<form class=\"query-box\"";
+    let empty = web.get("");
+    assert_eq!(finders_form(&empty.body), SEARCH_FORM);
+    let fields: Vec<(String, String)> = ring_search()
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    let formed = web.get(&sent_path(&fields));
+    assert_eq!(formed.status, 200, "{}", formed.body);
+    assert_eq!(finders_form(&formed.body), SEARCH_FORM);
+    let typed = web.get(&format!(
+        "search?{}",
+        query_string(&[("realm", "pc"), ("text", "class:rings")])
+    ));
+    assert_eq!(typed.status, 200, "{}", typed.body);
+    assert!(
+        finders_form(&typed.body).starts_with(box_form),
+        "{}",
+        typed.body
+    );
+    // a pick there sends the query box as it stands, its text among it,
+    // and lands on the query ordered by the value
+    let mut picked = box_fields(&typed.body);
+    picked.push(("text".into(), "class:rings".into()));
+    picked.push(("view.by".into(), "ilvl".into()));
+    let reply = web.get(&sent_path(&picked));
+    assert_eq!(reply.status, 303, "{}", reply.body);
+    let location = reply.header("location").expect("a location").to_string();
+    let landed = web.get_json(&location[location.find("search?").unwrap()..]);
+    let asked = web.get_json(&format!(
+        "search?{}",
+        query_string(&[("realm", "pc"), ("text", "class:rings")])
+    ));
+    assert_eq!(landed["query"], asked["query"], "{location}");
+    assert_eq!(landed["view"]["rows"]["sort"], "ilvl");
+}
+
 /// The query box sorts and pages as the big form does: its "Show" is on
 /// the form page, a typed query with a sort answers as `acq search --sort
 /// --desc` does, and the answer's box comes back set to the rows view it

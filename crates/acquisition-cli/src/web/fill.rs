@@ -450,7 +450,7 @@ mod tests {
             },
             ..Filled::empty("pc")
         };
-        let html = page::search_form(&form, &filled, Some(&[("Standard".to_string(), true)]));
+        let html = page::search_form(&form, &filled, Some(&[("Standard".to_string(), true)]), "");
         let mut rendered = BTreeSet::new();
         for part in html.split("name=\"").skip(1) {
             rendered.insert(part[..part.find('"').unwrap()].to_string());

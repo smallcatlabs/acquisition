@@ -729,8 +729,9 @@ fn fate_span(fate: Option<&Fate>) -> String {
 
 /// What fills a page's editors (`4-full-1-form-design.md` §2): the form's
 /// envelope, the scope the form carries, the query box's text and whether
-/// it stands open, the site box's text, the view both carry, a count's keys
-/// and the saved search the page was opened from.
+/// it stands open, the editor that holds the search the page shows, the
+/// site box's text, the view both carry, a count's keys and the saved
+/// search the page was opened from.
 pub(crate) struct Filled {
     pub fill: Fill,
     pub realm: String,
@@ -738,6 +739,9 @@ pub(crate) struct Filled {
     pub membership: Option<String>,
     pub text: String,
     pub text_open: bool,
+    /// Where "Add a column" stands (#319): the editor whose search the
+    /// page shows.
+    pub holder: Holder,
     pub trade: String,
     pub view: BoxView,
     pub saved: Option<(String, i64)>,
@@ -753,6 +757,7 @@ impl Filled {
             membership: None,
             text: String::new(),
             text_open: true,
+            holder: Holder::Form,
             trade: String::new(),
             view: BoxView::default(),
             saved: None,
@@ -760,11 +765,23 @@ impl Filled {
     }
 }
 
+/// The editor that holds the search a page shows (#319): the query box
+/// where the search is a text in the language, the search form where it is
+/// the site's (a form search, a site search, a saved one of either kind)
+/// and on a page with no search.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Holder {
+    Form,
+    QueryBox,
+}
+
 /// The page's editors, filled (the one page, `4-full-1-form-design.md` §2):
 /// what the form's envelope holds and no control sends, named; the search
 /// form, the site box in its bar; the query box, `index` its link to the
 /// language's index; the league list's fetch. The answer or
-/// the refusal stands under them, at [`ANSWER`].
+/// the refusal stands under them, at [`ANSWER`]. "Add a column" stands in
+/// one of them, the one that holds the search the page shows
+/// ([`Holder`]): a pick sends its editor, so it keeps that search.
 pub(crate) fn editor(
     form: &Form,
     filled: &Filled,
@@ -772,11 +789,16 @@ pub(crate) fn editor(
     from: Option<&FromPage>,
     index: &str,
 ) -> String {
+    let finder = value_finder();
+    let (in_form, in_box) = match filled.holder {
+        Holder::Form => (finder.as_str(), ""),
+        Holder::QueryBox => ("", finder.as_str()),
+    };
     // the form first, so its controls have taken what they hold
-    let searched = search_form(form, filled, leagues);
+    let searched = search_form(form, filled, leagues, in_form);
     let mut out = unsent(&filled.fill.left());
     out.push_str(&searched);
-    out.push_str(&query_box(filled, index));
+    out.push_str(&query_box(filled, index, in_box));
     out.push_str(&fetch_leagues(from));
     out
 }
@@ -841,11 +863,14 @@ fn checked(ticked: bool) -> &'static str {
 ///
 /// The form is one realm's render: its league list is that realm's, so
 /// the realm is chosen by a form of its own that renders the page again,
-/// and the search carries the realm shown.
+/// and the search carries the realm shown. After its buttons stands
+/// `finder`, "Add a column" where the form holds the page's search
+/// ([`editor`]), else nothing.
 pub(crate) fn search_form(
     form: &Form,
     filled: &Filled,
     leagues: Option<&[(String, bool)]>,
+    finder: &str,
 ) -> String {
     let fill = &filled.fill;
     let realm = filled.realm.as_str();
@@ -955,10 +980,10 @@ pub(crate) fn search_form(
     out.push_str(SITE_COUNT);
     out.push(' ');
     out.push_str(&clear(realm, filled.membership.as_deref()));
-    // "Add a column", after the form's button (the value finder)
+    // "Add a column", after the form's button, where the form holds the
+    // page's search (the value finder, [`editor`])
     out.push_str(&format!(
-        "</div>\n<div class=\"controls-right\">{}</div>\n</div>\n",
-        value_finder()
+        "</div>\n<div class=\"controls-right\">{finder}</div>\n</div>\n"
     ));
     out.push_str(&carried(
         &filled.view,
@@ -1441,7 +1466,9 @@ const TRADE_FORM: &str = "trade-form";
 /// holds the search (the one page, `4-full-1-form-design.md` §2). Beside
 /// its summary, inside the box, `index` links the language's index
 /// (`4-full-1-form-index.md`, Decision 5), in words that say what it is.
-fn query_box(filled: &Filled, index: &str) -> String {
+/// After its button stands `finder`, "Add a column" where the box holds
+/// the page's search ([`editor`]), else nothing.
+fn query_box(filled: &Filled, index: &str, finder: &str) -> String {
     let realm = filled.realm.as_str();
     let membership = filled.membership.as_deref();
     let text = filled.text.as_str();
@@ -1473,7 +1500,7 @@ fn query_box(filled: &Filled, index: &str) -> String {
         esc(THE_INDEX),
         esc(text),
         rows_shown(view.limit),
-        value_finder()
+        finder
     )
 }
 
