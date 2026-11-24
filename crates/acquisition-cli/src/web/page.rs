@@ -943,37 +943,11 @@ pub(crate) fn search_form(
     // the view, as the query box carries it: the rows' number, the way they
     // show, a count's keys; and hidden, the order and the values the URL
     // named, which no control writes
-    // the search's own number — a count asked with none, or rows at the
-    // listing's bound, which no choice here names — is sent empty, as the
-    // query box's default is
-    let listed = acquisition_store::bound::LISTED;
-    let own = match filled.view.limit {
-        None => filled.view.count.is_some(),
-        Some(n) => n == listed && !LIMITS.contains(&n),
-    };
-    let limit = filled.view.limit.unwrap_or(LIMITS[0]);
-    let mut limits: Vec<(String, usize)> = LIMITS.iter().map(|n| (n.to_string(), *n)).collect();
-    if !own && !LIMITS.contains(&limit) {
-        limits.push((limit.to_string(), limit));
-        limits.sort_by_key(|(_, n)| *n);
-    }
-    if own {
-        limits.insert(0, (String::new(), listed));
-    }
-    out.push_str("<div class=\"controls\">\n<div class=\"controls-left\"><label class=\"control\">Show <select name=\"view.limit\">");
-    for (value, n) in &limits {
-        let chosen = match own {
-            true => value.is_empty(),
-            false => *n == limit,
-        };
-        out.push_str(&format!(
-            "<option value=\"{value}\"{}>{n}</option>",
-            if chosen { " selected" } else { "" }
-        ));
-    }
+    out.push_str("<div class=\"controls\">\n<div class=\"controls-left\">");
+    out.push_str(&rows_shown(filled.view.limit));
     let tabled = filled.view.table;
     out.push_str(&format!(
-        "</select></label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\"{}>cards</option><option value=\"icon\"{}>a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\"{} placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ",
+        " <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\"{}>cards</option><option value=\"icon\"{}>a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\"{} placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ",
         if tabled { "" } else { " selected" },
         if tabled { " selected" } else { "" },
         valued(filled.view.count.as_deref()),
@@ -1456,23 +1430,6 @@ fn query_box(filled: &Filled, index: &str) -> String {
         carried.push_str(&hidden("saved", id));
         carried.push_str(&hidden("saved_revision", &at.to_string()));
     }
-    let listed = acquisition_store::bound::LISTED;
-    let limit = view.limit.unwrap_or(listed);
-    let mut limits = vec![(String::new(), listed)];
-    limits.extend(LIMITS.iter().map(|n| (n.to_string(), *n)));
-    if !limits.iter().any(|(_, n)| *n == limit) {
-        limits.push((limit.to_string(), limit));
-        limits.sort_by_key(|(_, n)| *n);
-    }
-    let shown: String = limits
-        .iter()
-        .map(|(value, n)| {
-            format!(
-                "<option value=\"{value}\"{}>{n}</option>",
-                if *n == limit { " selected" } else { "" }
-            )
-        })
-        .collect();
     // the view the URL named, hidden (the one renderer both editors
     // share), a count's keys among them, which the box has no control for
     carried.push_str(&view_hidden(view, true));
@@ -1485,13 +1442,41 @@ fn query_box(filled: &Filled, index: &str) -> String {
         if tabled { " selected" } else { "" }
     );
     format!(
-        "<details class=\"query-details\"{}><summary>The query, in the language</summary><p class=\"index\"><a href=\"{}\">{}</a></p><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}{}</form></details>\n",
+        "<details class=\"query-details\"{}><summary>The query, in the language</summary><p class=\"index\"><a href=\"{}\">{}</a></p><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea>{} {results_as} <button type=\"submit\">Run this query</button> {COUNT}{}</form></details>\n",
         if filled.text_open { " open" } else { "" },
         esc(index),
         esc(THE_INDEX),
         esc(text),
+        rows_shown(view.limit),
         value_finder()
     )
+}
+
+/// "Show", the rows' number, on both editors (the search form's bar and
+/// the query box) by this one maker: the search's own default first, sent
+/// empty, so a form left as it is asks no limit, then the form's
+/// [`LIMITS`], and a number the URL named that neither offers, in its
+/// place among them; the number shown chosen, the default where none was.
+fn rows_shown(limit: Option<usize>) -> String {
+    let listed = acquisition_store::bound::LISTED;
+    let mut offered: Vec<usize> = LIMITS.to_vec();
+    if let Some(n) = limit.filter(|n| *n != listed && !LIMITS.contains(n)) {
+        offered.push(n);
+        offered.sort_unstable();
+    }
+    let chosen = limit.unwrap_or(listed);
+    let mut out = format!(
+        "<label class=\"control\">Show <select name=\"view.limit\"><option value=\"\"{}>{listed}</option>",
+        if chosen == listed { " selected" } else { "" }
+    );
+    for n in offered {
+        out.push_str(&format!(
+            "<option value=\"{n}\"{}>{n}</option>",
+            if n == chosen { " selected" } else { "" }
+        ));
+    }
+    out.push_str("</select></label>");
+    out
 }
 
 /// What both editors carry of the view: the sort and the values the URL

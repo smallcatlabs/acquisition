@@ -100,7 +100,8 @@ use serde_json::{Map, Value};
 /// ships it.
 const FILTERS: &str = acquisition_search::trade::catalogue::FILTERS_JSON;
 
-/// The rows view's limits a form offers, the first the default.
+/// The rows view's limits a form offers after the search's own default,
+/// which "Show" offers first and sends empty (`page::rows_shown`).
 pub(crate) const LIMITS: [usize; 4] = [20, 50, 100, 200];
 
 /// One row of the catalogue as a control shows it: its status, and what

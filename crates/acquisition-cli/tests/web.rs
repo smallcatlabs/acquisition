@@ -1235,6 +1235,48 @@ fn every_search_stands_under_its_editor_filled_with_what_was_asked() {
     assert!(refused_json(&web, &unread, 400)["error"].is_string());
 }
 
+/// The page seat's fault: the empty search form's "Show" offered 20 first
+/// and chosen, so a first search from it asked 20 rows where the query
+/// box, a saved search and an answer's form asked the search's own 10.
+/// Both editors' "Show" is one list, the default first and sent empty, on
+/// the empty page and on an answer that asked a number of its own.
+#[test]
+fn an_empty_search_form_asks_the_rows_every_other_door_asks() {
+    let (_scratch, web) = offline_web("webshow");
+    let shown = |body: &str, form: &str| {
+        let at = body
+            .find(form)
+            .unwrap_or_else(|| panic!("no {form}: {body}"));
+        let from = at + body[at..].find("<select name=\"view.limit\">").unwrap();
+        let to = from + body[from..].find("</select>").unwrap();
+        body[from..to].to_string()
+    };
+    let box_form = "<form class=\"query-box\"";
+    let empty = web.get("");
+    let searched = shown(&empty.body, SEARCH_FORM);
+    assert_eq!(
+        searched,
+        "<select name=\"view.limit\"><option value=\"\" selected>10</option><option value=\"20\">20</option><option value=\"50\">50</option><option value=\"100\">100</option><option value=\"200\">200</option>",
+        "the empty form's \"Show\" asks a number nobody chose"
+    );
+    assert_eq!(searched, shown(&empty.body, box_form));
+    let answer = web.get(&format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            ("text", "class:rings"),
+            ("view.limit", "7")
+        ])
+    ));
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    let searched = shown(&answer.body, SEARCH_FORM);
+    assert_eq!(
+        searched,
+        "<select name=\"view.limit\"><option value=\"\">10</option><option value=\"7\" selected>7</option><option value=\"20\">20</option><option value=\"50\">50</option><option value=\"100\">100</option><option value=\"200\">200</option>"
+    );
+    assert_eq!(searched, shown(&answer.body, box_form));
+}
+
 /// The query box sorts and pages as the big form does: its "Show" is on
 /// the form page, a typed query with a sort answers as `acq search --sort
 /// --desc` does, and the answer's box comes back set to the rows view it
