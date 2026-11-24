@@ -14,7 +14,11 @@
 # `differs = true`, which names none; `patch`, an item a game patch
 # reworded after its capture: its clause's stat is one 3.30 moved, so the
 # item, fetched before, shows a wording no translation gives; it names no
-# row and differs by no ruling. A `sitting` finding `asks` what the sitting
+# row and differs by no ruling. `body`, an item as GGG sends it that does
+# not carry what the site matched on: an unidentified item, its name empty
+# in the body and held by the site's index, refused by the name's clause
+# alone (the test holds both); it names no row and differs by no ruling,
+# the clause read as the site reads it. A `sitting` finding `asks` what the sitting
 # is to settle, each answered by searches with a mutant (the site-sitting
 # skill). Nothing here is a tolerance: each is the site reading a clause
 # otherwise, and the translation is fixed when its finding is answered.
@@ -24,8 +28,8 @@
 # `undecided`, `clauses` the paths of the top-level clauses whose term alone
 # refuses the item (the translation's report, `path`).
 #
-# Measured by the test: 808 searches run, 7,589 items, 6,960 matched,
-# 629 missed in 69 rows, none undecided; y10, of twenty crucible ids, is
+# Measured by the test: 813 searches run, 7,639 items, 7,009 matched,
+# 630 missed in 70 rows, none undecided; y10, of twenty crucible ids, is
 # partial. A row of a search a sitting ran is a search that asked its
 # question, classified by the search; a row of another search is
 # classified by a script from each item's lines; every row's items are
@@ -100,6 +104,11 @@ asks = "which pair the site compares when an item's two pairs differ, the first'
 key = "reworded-330"
 home = "patch"
 cites = "#276: 3.30 reworded the stat in place after the sitting's capture, and a stat translates to the text of the stats capture the table is made from and to no earlier text; the item, fetched before the patch, shows the old wording. Its stat is one the test finds moved between the captures of 2026-09-12 and 2026-11-17 (`stats_moved_at_330`)"
+
+[[finding]]
+key = "unidentified-name"
+home = "body"
+cites = "zd04 (round zd, 2026-11-23, #303): the site's `name` Redbeak with `type` Rusted Sword fetched an unidentified Rusted Sword among ten, its body's `name` empty and `identified` false, so `name=\"Redbeak\"` cannot meet it: the site matches an unidentified unique by the name its index holds and GGG's body does not carry (T41)"
 
 [[finding]]
 key = "quality-max-zero"
@@ -590,3 +599,10 @@ items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
 clauses = ["2"]
 finding = "quality-max-zero"
+
+[[row]]
+search = "zd04"
+items = [7]
+outcome = "missed"
+clauses = ["1"]
+finding = "unidentified-name"

@@ -1273,9 +1273,9 @@ fn against_the_site(fetched: Vec<&Value>) -> (usize, usize, usize, usize) {
 }
 
 /// S26 against the trade site (the table's header): every row of the
-/// site's `extended.ar|ev|es|ward` over the listings the sittings' 1,216
+/// site's `extended.ar|ev|es|ward` over the listings the sittings' 1,221
 /// captures fetched, each listing entered whole, is within one of the
-/// field — 2,089 of 2,405 equal and 316 one off — and equal on all 443
+/// field — 2,108 of 2,425 equal and 317 one off — and equal on all 443
 /// rows at 20 % quality or more or under the enchant, where the display
 /// stands. Over the owner's eight searches, 32 of 37 equal and 5 one off.
 #[test]
@@ -1287,8 +1287,8 @@ fn s26_the_q20_fields_are_within_one_of_every_captured_figure() {
         .values()
         .flat_map(|s| s["fetched"].as_array().unwrap())
         .collect();
-    assert_eq!(fetched.len(), 7815);
-    assert_eq!(against_the_site(fetched), (2089, 316, 443, 2405));
+    assert_eq!(fetched.len(), 7865);
+    assert_eq!(against_the_site(fetched), (2108, 317, 443, 2425));
 
     let census: Value = serde_json::from_str(CENSUS).unwrap();
     let fetched: Vec<&Value> = census["queries"]

@@ -16,7 +16,9 @@
 //! Each is a row of `trade-oracle.toml`, naming the top-level clauses that
 //! refuse it — each clause's term asked alone, so a row says which clause
 //! and never guesses — and the finding that answers it: a fact of the
-//! site's captures, the owner's ruling, or a question for a sitting. The
+//! site's captures, the owner's ruling, a question for a sitting, a
+//! patch's rewording, or an item whose body lacks what the site matched
+//! (an unidentified unique's name, its clause the name's). The
 //! rows are the expected set exactly: a new disagreement and a vanished one
 //! each fail. A fact of the site lies where the item meets it — the clauses
 //! under the refusing one whose term alone the item meets, the eldritch
@@ -53,7 +55,7 @@ struct Expected {
 #[serde(deny_unknown_fields)]
 struct Finding {
     key: String,
-    /// `site`, `ruling`, `sitting` or `patch`.
+    /// `site`, `ruling`, `sitting`, `patch` or `body`.
     home: String,
     cites: String,
     /// The catalogue row that labels its clause ambiguous.
@@ -256,7 +258,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     assert_eq!(findings.len(), expected.finding.len(), "a finding twice");
     for f in &expected.finding {
         assert!(
-            ["site", "ruling", "sitting", "patch"].contains(&f.home.as_str()),
+            ["site", "ruling", "sitting", "patch", "body"].contains(&f.home.as_str()),
             "{}: home {}",
             f.key,
             f.home
@@ -266,8 +268,8 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         // differ from the site
         assert_eq!(
             f.row.is_none(),
-            f.differs || f.home == "patch",
-            "{}: a finding names its row, or differs by a ruling, or is a patch's",
+            f.differs || ["patch", "body"].contains(&f.home.as_str()),
+            "{}: a finding names its row, or differs by a ruling, or is a patch's or a body's",
             f.key
         );
         assert!(
@@ -328,7 +330,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (384, 808, 7589, 6960));
+    assert_eq!((none.len(), ran, items, matched), (384, 813, 7639, 7009));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(
@@ -387,6 +389,35 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
             "{}: a patch's row is a capture taken after 3.30",
             r.search
         );
+    }
+
+    // a body's: every item a row of it names is unidentified as GGG sent
+    // it, and the one clause that refuses it is the name's, which the
+    // site matched on what the body does not carry
+    for r in expected
+        .row
+        .iter()
+        .filter(|r| findings[r.finding.as_str()].home == "body")
+    {
+        let search = searches().into_iter().find(|s| s.name == r.search).unwrap();
+        for &i in &r.items {
+            assert_eq!(
+                search.bodies[i]["identified"],
+                json!(false),
+                "{} item {i}: a body's row is an identified item",
+                r.search
+            );
+        }
+        let t = &translations[&r.search];
+        for path in &r.clauses {
+            let at = &t
+                .clauses
+                .iter()
+                .find(|c| c.path.as_ref() == Some(path))
+                .unwrap()
+                .at;
+            assert_eq!(at, "name", "{}: a body's row is refused by {at}", r.search);
+        }
     }
 
     // a ruling or a question: the clause that refuses the item, or a filter

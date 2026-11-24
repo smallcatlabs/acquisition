@@ -39,13 +39,13 @@ fn values(corpus: &acquisition_search::Corpus, field: &str) -> BTreeMap<String, 
 }
 
 /// The acceptance for `dps-at-quality`: over every listing the
-/// sittings fetched that carries the site's dps — 1,198 weapons, 1,098 of
+/// sittings fetched that carries the site's dps — 1,208 weapons, 1,108 of
 /// them displaying physical damage and an attack speed — the build's
-/// physical mean at 20 % quality is the site's on 904, a half off on 182
+/// physical mean at 20 % quality is the site's on 905, a half off on 191
 /// and one off on 12, and never further (the site's figure over the attack
 /// speed); `dps_q20`, the elemental and chaos ranges as displayed, stands
 /// to the site's `dps` with the same spread; and `pseudo.edps` is the
-/// site's `edps` on every one of the 1,198, to the site's two decimals.
+/// site's `edps` on every one of the 1,208, to the site's two decimals.
 /// Among them y04's bow, claw and mace: two equal and one a half off.
 #[test]
 fn dps_at_quality_the_q20_damage_is_within_one_of_every_captured_figure() {
@@ -84,7 +84,7 @@ fn dps_at_quality_the_q20_damage_is_within_one_of_every_captured_figure() {
             by_league.entry(league).or_default().push(body);
         }
     }
-    assert_eq!(site.len(), 1198);
+    assert_eq!(site.len(), 1208);
     for (league, items) in by_league {
         list_tabs(&mut s, "pc", &league, json!([tab("t", "Fetched")]), 10);
         fetch_tab(&mut s, "pc", &league, "t", "Fetched", items, 20);
@@ -128,7 +128,7 @@ fn dps_at_quality_the_q20_damage_is_within_one_of_every_captured_figure() {
             .or_default() += 1;
     }
     assert!(faults.is_empty(), "{}", faults.join("\n"));
-    assert_eq!(weapons, 1098);
+    assert_eq!(weapons, 1108);
     let spread = |off: &BTreeMap<i64, usize>| -> [usize; 4] {
         let within = |h: std::ops::RangeInclusive<i64>| -> usize {
             off.iter()
@@ -143,8 +143,8 @@ fn dps_at_quality_the_q20_damage_is_within_one_of_every_captured_figure() {
             weapons - within(-2..=2),
         ]
     };
-    assert_eq!(spread(&off), [904, 182, 12, 0], "pdps {off:?}");
-    assert_eq!(spread(&dps_off), [904, 182, 12, 0], "dps {dps_off:?}");
+    assert_eq!(spread(&off), [905, 191, 12, 0], "pdps {off:?}");
+    assert_eq!(spread(&dps_off), [905, 191, 12, 0], "dps {dps_off:?}");
 }
 
 /// The enchant `Quality does not increase Physical Damage`: under it the

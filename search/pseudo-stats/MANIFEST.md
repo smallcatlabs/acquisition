@@ -272,3 +272,20 @@ of 15 in 60 s, 10 of 60 in 300 s.
 | --- | --- | --- | --- |
 | `raw/searches/zb-fragments/` (24 files; as above) | 386128 | 2026-11-23 22:01 – 22:09 UTC | `c35e62ff61ca50cab596a78d579eaf3e53e7ecf835cf3191b6a1a754aaf78ff6` |
 | `raw/searches/zc-fragments/` (6 files; as above) | 112479 | 2026-11-23 22:16 – 22:17 UTC | `c507299b909f45f61511e719100f7a9bd7fac276fa42f48321c13c4bd88df53c` |
+
+Round zd (#303, a search's link back to the site; the step that lands it,
+4-full-1-form-link), the evening of 2026-11-23 by the owner, 00:33 to 00:35
+UTC on 2026-11-24 by the recorder's names, from the links of
+`search/pseudo-stats/data/search-sheet.csv` at `6d82a1c6`, each composed by
+the sheet otherwise than the site would; saved by `tools/sitting-recorder`
+in `~/Downloads/acq-sitting`, copied here. No cookie; 8 searches answered,
+each with a fetch of ten items and its total at the cap.
+`tools/trade-split.py --write` wrote zd01 to zd05; it refused zd06 to zd08
+as no row's, the page having posted a `status` their rows lack, so they are
+read from the recorder's files (T40) and their rows stay without a capture.
+The most the sitting used of the site's search limit, read over its own
+files: 4 of 15 in 60 s, 8 of 60 in 300 s.
+
+| File | Bytes | Captured | sha256 |
+| --- | --- | --- | --- |
+| `raw/searches/zd-fragments/` (16 files; as above) | 313796 | 2026-11-24 00:33 – 00:35 UTC | `c2afcd52aee173d55229c358ba2512faf64df816099aa95f63a2766a71455e0b` |

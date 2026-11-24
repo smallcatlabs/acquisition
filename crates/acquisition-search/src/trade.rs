@@ -67,7 +67,7 @@
 //!   the site is asked what it was asked; and the realm the search runs
 //!   in, since an id or a JSON names none. Nothing pins the bytes: the
 //!   site took an id of another encoder's deflate blocks, header and key
-//!   order (round zd, #303).
+//!   order (T39, `docs/design/trade-ground-truth.md`).
 //! - **No link** where the site could not be asked the search: it names
 //!   no league; it runs over every realm, or in PoE2; or its link would
 //!   not decode here, its id longer than [`MAX_ID`] or its query past

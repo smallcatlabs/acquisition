@@ -258,6 +258,45 @@ body armour: each of the ten fetched shows no quality, which says
 little, since nine of zc02's ten had none either) and Link Groups' are
 not settled (#309).
 
+**T39. The site takes a search id another encoder wrote: the query
+object's text, gzipped, base64url-encoded, whatever the kind of its
+deflate blocks, its header's operating-system byte or the order of the
+object's keys.** [SITE — Confirmed; November 23, 2026, the owner's
+sitting, captured]
+Each search was opened as a link the sheet composed, and each ran and
+fetched ten of the unique it named, its total at the cap: the site's
+own bytes (zd01, the control), blocks of no compression (zd02), a block
+of the fixed codes (zd03), the site's deflate under an operating-system
+byte of 255 (zd04), and the keys in the alphabet's order (zd05; the
+page posted them in its own). Nothing pins an encoder's bytes, so a
+link is written by any gzip (`trade::link`, C195). The captures are
+`search/pseudo-stats/raw/searches/` (its manifest, round zd).
+
+**T40. The site takes a search with no `status`.** [SITE — Confirmed;
+November 23, 2026, the owner's sitting, read from the recorder's files]
+A link whose query names no status ran and fetched ten Hrimsorrow
+(zd06); the form's shape, a category filter alone and neither `status`
+nor `stats`, fetched ten trinkets (zd07); and a category with an item
+level and a stat row fetched ten rings of item level 75 or more (zd08);
+each total at the cap. The page posted `status` `any` for each, zd07's
+with an empty `and` group and no `trade_filters`. Which status the site
+reads where a link names none is not shown: the tab's five searches
+before them each named `any`, and whether `any` was the site's default
+or what the tab remembered could be told only by a status-less link
+opened where nothing is stored. The splitter refuses these three as no
+row's, the page having posted a status the row lacks, and their rows
+stay without a capture.
+
+**T41. The site's `name` finds an unidentified unique, whose body
+carries no name.** [SITE — Confirmed; November 23, 2026, the owner's
+sitting, captured]
+`name` Redbeak with `type` Rusted Sword fetched, among ten, an
+unidentified Rusted Sword whose body's `name` is empty and
+`identified` false (zd04): the site matches by what its index holds,
+not by what GGG's body carries, so `name="Redbeak"` cannot meet the
+item. The oracle files it under the `body` home (`unidentified-name`);
+`query.name` stays exact.
+
 ### The API
 
 **T5. `Item` carries both `note` and `forum_note`, each "user-generated

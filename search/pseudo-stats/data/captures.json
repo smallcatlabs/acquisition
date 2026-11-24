@@ -1,6 +1,6 @@
 {
  "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",
- "_raw": "054e1d086ea63c299e72f4c4963211f30f59b9f31104b535d8ce1dc5f12f728c",
+ "_raw": "7fe65e7e1e059178e432837ffc01dff83cf0b51434524e1fd5b8f9e17a3ee736",
  "searches": {
   "R1": {
    "league": "Standard",
@@ -888813,6 +888813,5888 @@
            {
             "min": "100",
             "max": "100"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "zd01": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "name": "Tabula Rasa",
+    "type": "Simple Robe",
+    "stats": [
+     {
+      "type": "and",
+      "filters": []
+     }
+    ],
+    "filters": {
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 7,
+    "total": 10000
+   },
+   "ids_returned": 100,
+   "fetched": [
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+20%"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 67
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "+2 to Level of Socketed Aura Gems",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_2452998583",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 20,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {
+      "base_defence_percentile": 0
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "5% reduced Chaos Damage taken",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_2960683632",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 45,
+          "magnitudes": [
+           {
+            "min": "6",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+8%"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 33
+     },
+     "lines": {}
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {
+      "base_defence_percentile": 0
+     },
+     "lines": {}
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {
+      "base_defence_percentile": 0
+     },
+     "lines": {}
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {
+      "base_defence_percentile": 0
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "+2 to Level of Socketed Trap or Mine Gems",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_150668988",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 20,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {
+      "base_defence_percentile": 0
+     },
+     "lines": {}
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {
+      "base_defence_percentile": 17
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "+2 to Level of Socketed Trap or Mine Gems",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_150668988",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 20,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {
+      "base_defence_percentile": 0
+     },
+     "lines": {}
+    },
+    {
+     "name": "Tabula Rasa",
+     "typeLine": "Simple Robe",
+     "baseType": "Simple Robe",
+     "item_class": "Body Armours",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+20%"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "4% increased maximum Life",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_983749596",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "zd02": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "name": "Goldrim",
+    "type": "Leather Cap",
+    "stats": [
+     {
+      "type": "and",
+      "filters": []
+     }
+    ],
+    "filters": {
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 7,
+    "total": 10000
+   },
+   "ids_returned": 100,
+   "fetched": [
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+15%"
+       ]
+      ],
+      [
+       17,
+       "Evasion Rating",
+       [
+        "76"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 79,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+47 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+32% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "60"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 72,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+41 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+34% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+5%"
+       ]
+      ],
+      [
+       17,
+       "Evasion Rating",
+       [
+        "52"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 60,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+31 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+39% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "49"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 59,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+30 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+35% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "57"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 68,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+38 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+33% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "49"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 59,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+30 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+35% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "54"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 65,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+35 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+34% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+15%"
+       ]
+      ],
+      [
+       17,
+       "Evasion Rating",
+       [
+        "63"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 66,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+36 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+30% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "62"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 74,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+43 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+34% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Goldrim",
+     "typeLine": "Leather Cap",
+     "baseType": "Leather Cap",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "49"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 59,
+      "ev_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+30 to Evasion Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_53045048",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to [PlayerItemRarity|Item Rarity]",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3917489142",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+39% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 4 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "zd03": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "name": "Wanderlust",
+    "type": "Wool Shoes",
+    "stats": [
+     {
+      "type": "and",
+      "filters": []
+     }
+    ],
+    "filters": {
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 7,
+    "total": 10000
+   },
+   "ids_returned": 100,
+   "fetched": [
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "21"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 25,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+16 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "24% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "17"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 20,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+12 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "28% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "15"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 18,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "32% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "25"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 30,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+20 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "39% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "20"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 24,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+15 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "32% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "25"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 30,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+20 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "21% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "19"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 23,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+14 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "29% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "20"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 24,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+15 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "31% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+13%"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "17"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 18,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "27% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Wanderlust",
+     "typeLine": "Wool Shoes",
+     "baseType": "Wool Shoes",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       18,
+       "Energy Shield",
+       [
+        "24"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "es": 29,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "+5 to Dexterity",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3261801346",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+19 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4052037485",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "24% increased Mana Regeneration Rate",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_789117908",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Cannot be Frozen",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_876831634",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "zd04": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "name": "Redbeak",
+    "type": "Rusted Sword",
+    "stats": [
+     {
+      "type": "and",
+      "filters": []
+     }
+    ],
+    "filters": {
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 7,
+    "total": 10000
+   },
+   "ids_returned": 100,
+   "fetched": [
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "40% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+28 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "18% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+20 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "40% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+25 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "40% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+21 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "40% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+27 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "18% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+22 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "18% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+20 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "4-9"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.55"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 12.4,
+      "pdps": 12.4,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "40% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "40% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+30 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Redbeak",
+     "typeLine": "Rusted Sword",
+     "baseType": "Rusted Sword",
+     "item_class": "One Hand Swords",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       null,
+       "One Handed Sword",
+       []
+      ],
+      [
+       9,
+       "Physical Damage",
+       [
+        "9-23"
+       ]
+      ],
+      [
+       12,
+       "Critical Strike Chance",
+       [
+        "5.00%"
+       ]
+      ],
+      [
+       13,
+       "Attacks per Second",
+       [
+        "1.71"
+       ]
+      ],
+      [
+       14,
+       "Weapon Range: {0} metres",
+       [
+        "1.1"
+       ]
+      ]
+     ],
+     "extended": {
+      "dps": 32.49,
+      "pdps": 32.49,
+      "edps": 0,
+      "dps_aug": true,
+      "pdps_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "40% increased Global Accuracy Rating",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_624954515",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "100% increased Damage when on Low Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1513447578",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1509134228",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "50"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 2 to 6 Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1940865751",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           },
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_210067635",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+28 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Grants 2 Life per Enemy Hit",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_821021828",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "zd05": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "name": "Blackheart",
+    "type": "Iron Ring",
+    "stats": [
+     {
+      "type": "and",
+      "filters": []
+     }
+    ],
+    "filters": {
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 7,
+    "total": 10000
+   },
+   "ids_returned": 100,
+   "fetched": [
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+25 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 3.7 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+21 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 3.3 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+28 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 2.7 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+28 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 3.9 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+21 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 2.9 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+27 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 3.5 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+21 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 2.1 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+20 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 2.8 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+27 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 3.4 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Blackheart",
+     "typeLine": "Iron Ring",
+     "baseType": "Iron Ring",
+     "item_class": "Rings",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Adds 1 to 4 Physical Damage to Attacks",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3032590688",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": 2,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           },
+           {
+            "min": "4",
+            "max": "4"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "5% increased Global Physical Damage",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1310194496",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Adds 1 to 3 Chaos Damage to Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_674553446",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           },
+           {
+            "min": "20",
+            "max": "25"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+28 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 3.7 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% chance to Cause Monsters to Flee",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3181974858",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
            }
           ]
          }
