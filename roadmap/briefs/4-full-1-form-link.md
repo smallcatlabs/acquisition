@@ -85,13 +85,13 @@ The design session's (C172, who designs), settled with the owner:
   every place a site URL's shape is written.
 - `git grep -n -i -e 'compose' -e 'outbound' -e 'mints' -e 'Unbuilt, #303' -- decisions SURFACES.md crates/*/src docs/design README.md`:
   each text saying a link cannot be made or is unbuilt.
-- `git grep -n -e fidelity -e query.trade -e 'told(&answer)' -- crates/acquisition-mcp`:
-  where the MCP hands on the answer and its tests read the report.
+- `git grep -n -F -e fidelity -e query.trade -e 'told(&' -e '["trade"]' -- crates/acquisition-mcp`:
+  where the MCP hands on an answer or a `show` and reads the report.
 - `git grep -n -e 'target=' -e 'rel=' -e 'href="http' -- crates/acquisition-cli/src/web`:
   any link that leaves the server so far.
 - `tools/trade-split.py search/pseudo-stats/raw/searches/zd-fragments`:
   what the recording holds, before `--write` on the same folder.
-- `git grep -l 'captures.json' -- crates`: the captures' readers; with
+- `git grep -l -e captures.json -e bodies.json -- crates`: readers; with
   them written, `cargo nextest run --no-fail-fast` over those packages,
   unfiltered: the tests the landing fails.
 
@@ -131,7 +131,7 @@ The design session's (C172, who designs), settled with the owner:
 `TEMPLATE.md`. Every `acq` is in a mock world (the mock-session
 skill); tooling sends nothing to the trade site. The recording stays
 under `raw/`, never committed. A choice of shape with two defensible answers goes to the
-design session (C172, who designs); the rest carries on.
+design session; the rest carries on.
 
 ## Report
 `TEMPLATE.md`.
