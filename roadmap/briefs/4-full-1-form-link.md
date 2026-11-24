@@ -44,13 +44,13 @@ The design session's (C172, who designs), settled with the owner:
    in (the answer's resolved scope); `Read`, which drops the `Decoded`
    today, and `TradeOut`'s makers carry it. Nothing pins the bytes: the
    site took each encoding asked (zd02 to zd04).
-2. **One home, the trade report** (`TradeOut`): a key holding the link,
-   or the one sentence that says why there is none; with the link, each
-   thing beside the query the site cannot be asked, named: `defences:
-   "displayed"` (C142), a `sort`, any other key beside the query. The
-   CLI prints it, the page draws it, the MCP hands on the document.
-   The key's name and shape are agent-facing and the design session's:
-   the builder drafts them, and the report gives the draft.
+2. **One home, the trade report** (`TradeOut`): a key `link`, an
+   object holding `url`, or `none`, the one sentence that says why
+   there is none. With `url`: `left_out`, the names of what stands
+   beside the query that the site cannot be asked (`defences` where
+   `"displayed"`, C142; `sort`; any other key), and `notes`, Decision
+   4's sentences, each absent when empty. The CLI prints it, the page
+   draws it, the MCP hands on the document.
 3. **No link**, each in one sentence of the report: the search names no
    one league (an id, or a JSON with none); the scope is every realm,
    or PoE2; the link would not decode (its id longer than `MAX_ID`, or
