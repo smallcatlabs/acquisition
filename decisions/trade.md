@@ -20,7 +20,7 @@ What someone would propose and the project declines, each until the trigger it n
 
 - The outbound translation of a query in the language, and PoE2 on the trade site: not until a user needs a search they typed or an agent wrote sent to the site, or PoE2 trade is in use.
 - A map tier table for bases naming no tier: not until the owner registers a source (C79).
-- User-authored weighted sums: not until a recorded question a named total and `sum` cannot serve.
+- User-authored weighted sums beyond a weighted sum of named totals, which is to be built (#316): not until a recorded question that a named total, `sum` and such a sum cannot serve.
 
 ## Contract detail (binding with its line until code takes it)
 

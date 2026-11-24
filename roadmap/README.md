@@ -47,9 +47,9 @@ when its step closes or the owner strikes it.
    design ruled (`briefs/4-full-1-form-design.md`) and built in the
    series of its §8, all nine steps closed, and its page seat sat and
    closed (`audits/web-form/seat/README.md`). What is left of it is
-   the owner's: his sitting at the pages, the first link the build
-   composed opened by a person, and #316, whether a weighted sum of
-   pseudo totals is built. The look is #285; what an apply brought, said on its job,
+   the owner's: his sitting at the pages, and the first link the build
+   composed opened by a person. The look is #285; what an apply
+   brought, said on its job,
    is #182's rest; the never-fetched tabs of a league the scope's link
    does not name are #194's rest.
 2. The frontends' whole-code review, once item 1 closes.
@@ -60,8 +60,9 @@ when its step closes or the owner strikes it.
    corpus (#142), designed from the GUI's door; t7 (#143) only if t6
    shows the shape pays.
 5. The queued search and trade issues: #283 (the translation builds
-   two answers of the sitting of 2026-11-17), #46, #47, and #37 once
-   the owner has sat the site.
+   two answers of the sitting of 2026-11-17), #316 (a weighted sum of
+   pseudo totals, ruled to be built and not now), #46, #47, and #37
+   once the owner has sat the site.
 6. `alpha.2` (milestone "League 3.30 and alpha.2"): the release, its
    `keyring-macos` job dispatched once by hand before it; the tables
    stand at 3.30 (the close of `search-276`). Before it: #256, #222 and
