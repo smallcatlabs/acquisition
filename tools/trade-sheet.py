@@ -2847,6 +2847,45 @@ def round_zd(earlier):
     return rows
 
 
+def round_ze(earlier):
+    """The abyssal line under a bound (#315): the stat `stat_3527617737`,
+    "Has # Abyssal Sockets", was sat with no bound alone (zb11, zb12), and
+    an item of one socket displays `Has 1 Abyssal Socket`, a form that
+    writes the number where the text has its `#`. Whether the site reads
+    that 1 under a bound is asked here: ze01-ze02 the implicit on belts,
+    where a Stygian Vise's line is the singular; ze03-ze04 the explicit on
+    any item, the one and the two parted.
+
+    Each decides by none or some and by what the ten fetched display,
+    never by two totals (the site caps a total at 10,000)."""
+    composed = Composed("ze", 2, earlier)
+    add = composed.add
+    line = "stat_3527617737"
+
+    def bounded(domain, value, option=None):
+        stats = [{"type": "and", "filters": [{"id": f"{domain}.{line}", "value": value, "disabled": False}]}]
+        return batch_query(stats, category(option) if option else None)
+
+    add("the abyssal line as a stat with a bound, implicit: `implicit." + line + "` at `min` 1 under "
+        "`accessory.belt`. Some, each fetched displaying `Has 1 Abyssal Socket`: the site reads the form's 1 "
+        "as the line's number under a bound; none: its bound skips the form, as the translation's does. The "
+        "control of {next}", "zb11, the same stat with no bound, found belts", bounded("implicit", {"min": 1},
+                                                                                     "accessory.belt"))
+    add("the same at `min` 2, ze01's mutant. None, ze01 having found belts: the number read is the line's "
+        "own, 1; some: the ten fetched show what the site summed to 2", "ze01, `min` 1",
+        bounded("implicit", {"min": 2}, "accessory.belt"))
+    add("the explicit line at `min` 1 and `max` 1, on any item: `explicit." + line + "`. Some, each fetched "
+        "displaying an explicit `Has 1 Abyssal Socket`: the form's 1 is read under a bound of both ends; "
+        "none: no explicit line of one socket is read so. The control of {next}",
+        "zb12, the same stat with no bound, found items", bounded("explicit", {"min": 1, "max": 1}))
+    add("the explicit line at `min` 2: some, each fetched displaying `Has 2 Abyssal Sockets` and none the "
+        "singular: the bound parts the two forms by their number", "ze03, the ones", bounded("explicit", {"min": 2}))
+    rows = composed.done()
+    if len(rows) != 4:
+        raise SystemExit(f"round ze has {len(rows)} searches, its names written for 4")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2892,6 +2931,7 @@ def compose_sheet(method="site"):
         searches += round_zb(searches)
         searches += round_zc(searches)
         searches += round_zd(searches)
+        searches += round_ze(searches)
     return searches
 
 
