@@ -1,10 +1,9 @@
 # gate-four-rulings — What the local gate and the release run
 
 ## Goal
-A session pushes on a local green (C171, commit and push on a green
-gate), so the local gate holds what a push can turn red and only a
-local tree can see. When this step is done the full gate runs `cargo
-doc` as its `doc` stage; its `trade` stage runs the class, defence and
+A session pushes on a local green (C171), so the local gate holds what
+a push can turn red and only a local tree can see. Done, the full gate
+runs `cargo doc` as its `doc` stage; its `trade` stage runs the class, defence and
 forms tables' `--check` wherever the `poe1` clone sits at its pin; the
 `artifacts` stage stands, recorded as kept; and the macOS Keychain round
 trip has one definition, called by the release and by the weekly run,
@@ -15,25 +14,20 @@ and has run once on its own. Closes #257 and #225.
   (`gh issue view 257 --comments`, `gh issue view 225 --comments`), his
   words, the four recommendations as put and the costs each rested on;
   #220 names them (`gh issue view 220 --comments`).
-- What they reverse: his ruling of 2026-10-29, `git show 4b54e8c7` (doc
-  out of the full gate) and `roadmap/briefs/t2-gate-trims.md` (the
-  step, which also retired `artifacts`).
-- C170 (the gate's stages are the owner's), C175 (a gate or workflow
-  round is reviewed cold), C154 (a retirement names its holder), C192
-  (an entry states a property), C84 (the artifact mismatch). The entry
-  form is `tools/bothy.py`'s docstring; the next id is the highest
-  `python3 -I tools/bothy.py list` prints, plus one.
-- Code: `tools/gate.sh` (header, `names`, `ONLY`, `usage`,
-  `run_stage`), `tools/gate-breakers.sh`, `tools/trade-check.sh` and
-  `tools/trade-check-breakers.sh`, `tools/game-diff.py` (`check`: the
-  drift line's three outcomes), `tools/sources.py` (`require`, `PINS`),
-  `.github/workflows/release.yml`, `weekly.yml`, `gate-linux.yml`.
+- What they reverse: his ruling of 2026-10-29 on
+  `roadmap/briefs/t2-gate-trims.md`, which took `doc` out
+  (`git show 4b54e8c7`) and ruled `artifacts` retired, a stage the
+  step's close kept (`grep -n '^| t2,' roadmap/LEDGER.md`).
+- C170 (the gate's stages are the owner's), C154 (a retirement names
+  its holder), C192 (an entry states a property), C84 (the artifact
+  mismatch). The entry form is `tools/bothy.py`'s docstring; the next
+  id is the highest `python3 -I tools/bothy.py list` prints, plus one.
 - The design session's dispatch of the release workflow on `main` at
   `51d99a3d`, the Keychain job's first run: `gh run view 45329267444`,
   its `keyring-macos` job's conclusion read and said in the report.
 - CI: `gh run list --branch main --workflow "Gate (Linux)" --limit 1`,
-  the same for `Gate (Windows)`; both were running on `51d99a3d` when
-  this was written. A red run is this step's first concern.
+  and Windows; both were running on `51d99a3d` at this writing. A red
+  run is this step's first concern.
 
 ## Decisions
 The design session's (C172, who designs), settled with the owner:
@@ -48,13 +42,14 @@ The design session's (C172, who designs), settled with the owner:
 2. **`artifacts` is unchanged; the record changes:** the registry says
    the stage is kept and why, in the owner's words of 2026-11-23.
 3. **The three `--check`s run in `tools/trade-check.sh`, as one stage
-   of it.** The clone beside the tree at its pin: they run and must
-   pass. No clone: skipped, with one line saying so, as the drift line
-   is, so CI's run is unchanged. A clone off its pin: the stage fails
-   and says so, since that is a bump in progress, which regenerates its
-   tables. The header's "are not here" is rewritten to say where they
-   run. `tools/trade-check-breakers.sh` stages a table that has left
-   its generator.
+   of it.** The clone where `tools/sources.py` places it (`CLONES`,
+   which `ACQ_CLONES` moves) at its pin: they run and must pass. No
+   clone: skipped, with one line saying so, as the drift line is, so
+   CI's run is unchanged. A clone off its pin: the stage fails and says
+   so (a bump in progress regenerates its tables). The header's "are
+   not here" says where they run. `tools/trade-check-breakers.sh` stages a table that has left
+   its generator; how that case runs with no clone, as CI's breakers
+   job has none, is the design session's question.
 4. **One definition of the Keychain job:** a reusable workflow of its
    own (`on: workflow_call` and `workflow_dispatch`), called by
    `release.yml`, whose `draft` still needs it, and by `weekly.yml`; no
@@ -65,25 +60,25 @@ The design session's (C172, who designs), settled with the owner:
    quoted and dated, before any code that depends on them. An entry that
    already rules the same thing is amended, never contradicted by a
    second. (The entry form's rule 5 refuses a date or a quote in an
-   entry: raised with the design session with this brief; build what it
-   answers.)
+   entry: raised with the design session; the first commit waits for
+   its answer.)
 6. **Closes #257 and #225;** a comment on #220 says the four are ruled
-   and built, so its close no longer waits on them.
+   and built.
 
 ## Find first
 - `git grep -n -e 'only doc' -e 'cargo doc' -e 'doc stage' -e 'doc job' -- AGENTS.md .claude roadmap/briefs/TEMPLATE.md roadmap/briefs/REVIEW-PROMPT.md roadmap/briefs/BRIEF-REVIEW-PROMPT.md REVIEW-CHECKLIST.md tools .github`:
   every standing text about the doc stage, CI's doc job among them.
-- `git grep -n -e 'build test clippy' -e 'Its stages' -e "sed -n '4,10p'" -- AGENTS.md tools`:
-  every list of the stages, the check holding `AGENTS.md`'s to `names`,
-  and the usage the script prints by line number.
+- `git grep -n -e 'build test clippy' -e 'Its stages' -e 'DOCS=(' -e 'ONLY=(' -e "sed -n '4,10p'" -- AGENTS.md tools`:
+  every list and selection of the stages, the check and breaker holding
+  `AGENTS.md`'s to `names`, and the usage printed by line number.
 - `git grep -n -i -e retire -e artifacts -- decisions AGENTS.md .claude REVIEW-CHECKLIST.md GLOSSARY.md`
   and `python3 -I tools/bothy.py list | grep -i -e gate -e stage`:
   what the record says of `artifacts`, and the entries that rule the
   stages, to amend rather than contradict.
-- `git grep -n -e 'not here' -e poe1 -e drift -- tools/trade-check.sh tools/trade-check-breakers.sh`
-  and `git grep -n 'require(' -- tools/class-table.py tools/defence-table.py tools/trade-forms-table.py`:
-  the header to rewrite, the drift line's skip as the model, and the
-  clone each generator requires.
+- `git grep -n -e 'not here' -e poe1 -e drift -- tools/trade-check.sh tools/trade-check-breakers.sh`,
+  `git grep -n -e 'def check' -e 'CLONES' -e '^POE1' -e '^EXPORT' -e 'require(' -- tools/game-diff.py tools/sources.py tools/class-table.py tools/defence-table.py tools/trade-forms-table.py`:
+  the header to rewrite, the drift line's skip as the model, where the
+  clone is found, and what each generator requires.
 - `git grep -n -e keyring-macos -e keyring_round_trip -- .github crates tools roadmap/README.md`:
   every place the job or its test is named.
 - `git grep -n -i workflow -- tools`: every check that reads a workflow
@@ -96,18 +91,20 @@ The design session's (C172, who designs), settled with the owner:
   `--only doc` and `--docs` select as before; the header says the full
   gate runs it; `tools/gate.sh --help` prints the usage whole.
 - `tools/gate-breakers.sh`: a case stages a broken intra-doc link and
-  the doc stage refuses it by name; the case that holds `doc` out of the
-  full list is changed, or retired by a `retired X; held by Y` line.
+  the doc stage refuses it by name; the `--only doc` case stays, and
+  its comment says what is true.
 - `AGENTS.md`'s stage list and "Quality gate" name `doc`, and no
   sentence says CI alone runs it (`tools/docs-check.sh` passes). The
   first Find-first command finds no standing instruction to run
-  `--only doc` by hand.
+  `--only doc` by hand. `tools/docs-check-breakers.sh` passes, its
+  stage-order case reading the new list.
 - `tools/trade-check.sh` runs the three `--check`s as one stage: `ok`
   here, with the clone at its pin; one line saying they were skipped,
   exit unchanged, with no clone; a failure naming the pin with the clone
-  off it. Its header says where they run. `tools/trade-check-breakers.sh`
-  refuses a table that has left its generator by name. Both breaker
-  suites pass here.
+  off it; run with `ACQ_CLONES` naming another folder that holds it, as
+  here. Its header says where they run. `tools/trade-check-breakers.sh`
+  refuses by name a table that has left its generator, and passes with
+  the clone and with none (`ACQ_CLONES` at an empty folder).
 - The Keychain job's steps stand in one file
   (`git grep -n keyring_round_trip -- .github`); `release.yml`'s
   `draft` needs its caller; `weekly.yml` calls it;
@@ -124,7 +121,8 @@ The design session's (C172, who designs), settled with the owner:
 - Any other stage of the gate; a macOS gate on every push; the
   mutation run; #312.
 - The category table's `--tags`, which also reads the clone: not ruled.
-- Editing a brief or a record already written.
+- A pin bump, a table's regeneration, a generator's rules: a table
+  found off its generator is raised, not regenerated here.
 
 ## Rules
 `TEMPLATE.md`, less its line on `--only doc` once this step removes
