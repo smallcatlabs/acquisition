@@ -886,9 +886,9 @@ mod tests {
     /// `ACQ_KEYRING_ROUNDTRIP=1`, against the real OS store, so the gate
     /// stays hermetic; CI runs it against an unlocked gnome-keyring
     /// (`.github/workflows/gate-linux.yml`), Credential Manager
-    /// (`.github/workflows/gate-windows.yml`), and the macOS Keychain on
-    /// every release, which `draft` waits on
-    /// (`.github/workflows/release.yml`, `keyring-macos`).
+    /// (`.github/workflows/gate-windows.yml`), and the macOS Keychain in
+    /// one job (`.github/workflows/keyring-macos.yml`) that every release,
+    /// whose `draft` waits on it, and the weekly run both call.
     #[test]
     fn keyring_round_trip_survives_a_fresh_entry() {
         if std::env::var_os("ACQ_KEYRING_ROUNDTRIP").is_none() {

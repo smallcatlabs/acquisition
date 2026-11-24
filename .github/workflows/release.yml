@@ -188,29 +188,12 @@ jobs:
         run: |
           [ -z "${CODESIGN_KEYCHAIN:-}" ] || security delete-keychain "$CODESIGN_KEYCHAIN" || true
 
-  # The daemon's keyring round trip against the macOS Keychain
-  # (acquisition-daemon/src/auth.rs, `keyring_round_trip_survives_a_fresh_entry`),
-  # the one platform a release names that no gate runs it on: Linux's
-  # gate runs it against gnome-keyring, Windows's against Credential
-  # Manager. On every dispatch and tag, and `draft` needs it, so a tag's
-  # release is not drafted until the pass is earned on the tagged commit.
-  # The runner user's login keychain,
-  # unsigned test binary: it proves the backend round-trips through a
-  # fresh Entry, not the signed archive's item ACL.
+  # The daemon's keyring round trip against the macOS Keychain, defined
+  # once in `keyring-macos.yml` (C199, one Keychain job run twice). On
+  # every dispatch and tag, and `draft` needs it, so a tag's release is
+  # not drafted until the pass is earned on the tagged commit.
   keyring-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install the pinned toolchain
-        run: rustup toolchain install
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest@0.9.149
-      - uses: Swatinem/rust-cache@v2
-      - name: The keyring round trip against the Keychain
-        env:
-          ACQ_KEYRING_ROUNDTRIP: "1"
-        run: cargo nextest run --locked -p acquisition-daemon --lib --profile ci -E 'test(=auth::tests::keyring_round_trip_survives_a_fresh_entry)'
+    uses: ./.github/workflows/keyring-macos.yml
 
   # A tag drafts the release: every archive and SHA256SUMS. Published by
   # the owner, by hand.

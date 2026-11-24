@@ -19,6 +19,11 @@ name: Weekly
 # owner's identity, so they stage the refusals and skip the
 # real-identity cases. A cold debug build of acqd alone is about 30 s on
 # the development machine; the breakers take under a second.
+#
+# The daemon's keyring round trip against the macOS Keychain, defined
+# once in `keyring-macos.yml` (C199, one Keychain job run twice): the
+# release runs it too, and here a break between releases (a bump of the
+# keyring crate, a new runner image) is found before the next one.
 
 on:
   schedule:
@@ -87,3 +92,6 @@ jobs:
 
       - name: The signing script's breakers
         run: tools/sign-acqd-breakers.sh
+
+  keyring-macos:
+    uses: ./.github/workflows/keyring-macos.yml
