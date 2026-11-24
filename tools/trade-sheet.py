@@ -2857,7 +2857,9 @@ def round_ze(earlier):
     any item, the one and the two parted.
 
     Each decides by none or some and by what the ten fetched display,
-    never by two totals (the site caps a total at 10,000)."""
+    never by two totals (the site caps a total at 10,000). None is read
+    only beside its control found again that day: zb11's or zb12's link,
+    opened again where a search here finds none, its capture days old."""
     composed = Composed("ze", 2, earlier)
     add = composed.add
     line = "stat_3527617737"
@@ -2868,18 +2870,21 @@ def round_ze(earlier):
 
     add("the abyssal line as a stat with a bound, implicit: `implicit." + line + "` at `min` 1 under "
         "`accessory.belt`. Some, each fetched displaying `Has 1 Abyssal Socket`: the site reads the form's 1 "
-        "as the line's number under a bound; none: its bound skips the form, as the translation's does. The "
-        "control of {next}", "zb11, the same stat with no bound, found belts", bounded("implicit", {"min": 1},
+        "as the line's number under a bound; none, zb11's link still finding belts that day: its bound skips "
+        "the form, as the translation's does; none with zb11 not opened again says nothing. The control of "
+        "{next}", "zb11, the same stat with no bound, found belts on 2026-11-23: opened again with this", bounded("implicit", {"min": 1},
                                                                                      "accessory.belt"))
     add("the same at `min` 2, ze01's mutant. None, ze01 having found belts: the number read is the line's "
         "own, 1; some: the ten fetched show what the site summed to 2", "ze01, `min` 1",
         bounded("implicit", {"min": 2}, "accessory.belt"))
     add("the explicit line at `min` 1 and `max` 1, on any item: `explicit." + line + "`. Some, each fetched "
         "displaying an explicit `Has 1 Abyssal Socket`: the form's 1 is read under a bound of both ends; "
-        "none: no explicit line of one socket is read so. The control of {next}",
-        "zb12, the same stat with no bound, found items", bounded("explicit", {"min": 1, "max": 1}))
-    add("the explicit line at `min` 2: some, each fetched displaying `Has 2 Abyssal Sockets` and none the "
-        "singular: the bound parts the two forms by their number", "ze03, the ones", bounded("explicit", {"min": 2}))
+        "none, zb12's link still finding such items that day: no explicit line of one socket is read so; "
+        "none with zb12 not opened again says nothing. The control of {next}",
+        "zb12, the same stat with no bound, found items on 2026-11-23: opened again with this", bounded("explicit", {"min": 1, "max": 1}))
+    add("the explicit line at `min` 2: some, each fetched displaying two sockets or more (`Has 2 Abyssal "
+        "Sockets`, or a greater number) and none the singular: the bound reads each form's number", "ze03, the ones",
+        bounded("explicit", {"min": 2}))
     rows = composed.done()
     if len(rows) != 4:
         raise SystemExit(f"round ze has {len(rows)} searches, its names written for 4")
