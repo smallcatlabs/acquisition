@@ -33,7 +33,9 @@ better Acquisition that is agent-friendly and agent-forward.
   site reads it; the language's words are read on a page, its index
   linked from the query box; and a site search's answer carries its
   link back to the trade site (`briefs/4-full-1-form-link.md`). The
-  page seat over the series comes next, before the owner sits.
+  page seat over the series is sat, twice, and its fix round closed
+  (`audits/web-form/seat/README.md`); the owner's own sitting at the
+  pages is next.
 
 ## Next
 
@@ -43,10 +45,11 @@ when its step closes or the owner strikes it.
 
 1. 4-full part 1, the search form's reshaping, its
    design ruled (`briefs/4-full-1-form-design.md`) and built in the
-   series of its §8, all nine steps closed. What is left of it is the
-   page seat (the seat skill), a blind agent at the pages before the
-   owner sits, and the first link the build composed opened by a
-   person. The look is #285; what an apply brought, said on its job,
+   series of its §8, all nine steps closed, and its page seat sat and
+   closed (`audits/web-form/seat/README.md`). What is left of it is
+   the owner's: his sitting at the pages, the first link the build
+   composed opened by a person, and #316, whether a weighted sum of
+   pseudo totals is built. The look is #285; what an apply brought, said on its job,
    is #182's rest; the never-fetched tabs of a league the scope's link
    does not name are #194's rest.
 2. The frontends' whole-code review, once item 1 closes.
