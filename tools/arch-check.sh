@@ -69,6 +69,11 @@
 #      of it, `SystemTime::now`): test code reads the harness's `now`, the
 #      instant every child the test spawns reads as its own.
 #
+#  16. An excluded mutant stands where its pattern says (C200): every
+#      `exclude_re` of `.cargo/mutants.toml` names one examined file, a
+#      line and a column, and the source there begins with the operator
+#      or the match guard the pattern names.
+#
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -1086,5 +1091,86 @@ print(f"ok      {'transport':<13} {n} workspace source files outside the transpo
 PY
 )"); then fail=1; fi
 printf '%s\n' "$production"
+
+# ---- 16. an excluded mutant stands where its pattern says ----------------
+# C200. `.cargo/mutants.toml` lists the mutants the daemon's tests cannot
+# tell apart, each by its line, because the same operator elsewhere in its
+# function is caught and must stay tested. An edit above a listed line
+# moves it, and the weekly run then reports the mutant as missed, days
+# later. So the commit that moves the line meets it here: each pattern is
+# read as `<file>.rs:<line>:<col>: <what>$`, its file found
+# once among the config's `examine_globs`, and the source at that line and
+# column must hold what the pattern replaces or deletes: a binary operator
+# whole (`>` is not found in `>=`), a unary one, or a match guard's
+# expression, compared with white space left out. That is the name cargo-mutants gives the mutant (27.1.0, the
+# weekly's pin), read from the source and not from the tool, so every
+# clone checks it. The function's name is not read: the weekly run still
+# holds a pattern that names the right text in the wrong place. A pattern
+# in another form (a function replaced, a match arm deleted), or whose
+# operator is written as a regular expression and not a literal, is one
+# the check cannot place, and is refused until the check reads its form.
+if ! excluded=$(python3 -I - <<'PY'
+import glob, re, sys, tomllib
+CONFIG = ".cargo/mutants.toml"
+SHAPE = re.compile(r"^(?P<file>(?:[\w-]|\\\.)+):(?P<line>\d+):(?P<col>\d+): (?P<what>.*)\$$")
+GUARD = re.compile(r"^replace match guard (?P<x>.+) with \(?(?:true|false)(?:\|(?:true|false))?\)? in .+$")
+BINARY = re.compile(r"^replace (?P<x>\S+) with \S+(?: in .+)?$")
+UNARY = re.compile(r"^delete (?P<x>\S+)(?: .+)?$")
+OPERATOR = re.compile(r"^[-+*/%<>=!&|^]+$")
+RUN = re.compile(r"[-+*/%<>=!&|^]+")
+def literal(pattern):
+    """The text a regular expression matches when it matches one text
+    alone: its escapes undone, or None where a metacharacter stands bare."""
+    out = []; chars = iter(pattern)
+    for c in chars:
+        if c == "\\":
+            out.append(next(chars, ""))
+        elif c in ".^$*+?()[]{}|":
+            return None
+        else:
+            out.append(c)
+    return "".join(out)
+config = tomllib.loads(open(CONFIG, encoding="utf-8").read())
+examined = sorted({path for g in config.get("examine_globs", []) for path in glob.glob(g)})
+bad = []; n = 0
+for pattern in config.get("exclude_re", []):
+    n += 1
+    shape = SHAPE.match(pattern)
+    if not shape:
+        bad.append(f"MUTANT  {CONFIG}: `{pattern}` is not `<file>.rs:<line>:<col>: <what>$`: an exclusion names its line, so the check can say when the line has moved (C200)")
+        continue
+    name = literal(shape["file"]); line = int(shape["line"]); col = int(shape["col"])
+    what = shape["what"]
+    guard = GUARD.match(what); binary = BINARY.match(what); unary = UNARY.match(what)
+    if guard:
+        x = literal(guard["x"])
+    elif binary or unary:
+        x = literal((binary or unary)["x"])
+        x = x if x is not None and OPERATOR.match(x) else None
+    else:
+        x = None
+    if x is None:
+        bad.append(f"MUTANT  {CONFIG}: `{pattern}` replaces or deletes something this check cannot place: it reads an operator or a match guard written as a literal, each character of a regular expression escaped; write it so, or teach check 16 this form (C200)")
+        continue
+    files = [path for path in examined if path == name or path.endswith("/" + name)]
+    if len(files) != 1:
+        bad.append(f"MUTANT  {CONFIG}: `{pattern}` names {name}, which {len(files)} of the files `examine_globs` examines are called: the check places an exclusion in one file (C200)")
+        continue
+    lines = open(files[0], encoding="utf-8").read().splitlines()
+    there = "".join(lines[line - 1:line + 8])[col - 1:] if 0 < line <= len(lines) and 0 < col <= len(lines[line - 1]) else ""
+    if guard:
+        holds = "".join(there.split()).startswith("".join(x.split()))
+    elif binary:
+        # the whole operator: `>` is not found in `>=`
+        holds = RUN.match(there) is not None and RUN.match(there)[0] == x
+    else:
+        holds = there.startswith(x)
+    if not holds:
+        bad.append(f"MUTANT  {files[0]}:{line}:{col} no longer holds `{x}`, which `{pattern}` of {CONFIG} excludes there: the line moved or its code changed. Read the exclusion's reason against the code as it stands, then set its line and column (`cargo mutants --list --no-config --file {files[0]}` prints each mutant's), or drop it and pin the mutant (C200)")
+print("\n".join(bad) if bad else f"ok      {'excluded mutants':<13} {n} exclusions of {CONFIG} each stand where they say: the source at each line and column begins with the operator or the guard its pattern names")
+sys.exit(1 if bad else 0)
+PY
+); then fail=1; fi
+printf '%s\n' "$excluded"
 
 exit $fail

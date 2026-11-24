@@ -41,8 +41,10 @@ test_tool = "nextest"
 # `daemon/tests/responses.rs` and the knobs binary
 # `tests/environment.rs`). Each names its line: the same operator
 # elsewhere in the function is caught and must stay tested, so a pattern
-# for the function would hide it. A listed line that moves comes back as
-# missed, to be read again.
+# for the function would hide it. A listed line that moves, or whose
+# code changes where it stands, fails the gate (C200, an excluded
+# mutant's line; `tools/arch-check.sh`, check 16), to be read again by
+# the commit that moved it.
 #
 # A tie between two Instants is listed only when both arms leave the
 # limiter in the same state at the tie and nothing carries the difference

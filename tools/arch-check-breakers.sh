@@ -34,7 +34,10 @@
 # second production transport (in another file, under an alias, in the
 # constructor itself) and a second production choke point (in another
 # file, in the builder, behind a `#[cfg(test)]` item that is no tail
-# module); a comment and a tail test module pass. The TLS stack's cases (§5, C169)
+# module); a comment and a tail test module pass. Check 16's cases move an
+# excluded mutant's line, change the code where one stands (a guard
+# renamed, an operator widened), and list an exclusion in a form the check
+# cannot place. The TLS stack's cases (§5, C169)
 # give the one client another stack by each way the check reads: a
 # feature added to the transport's reqwest line or dropped from it, the
 # daemon's dev line alone moved, the native backend or the native roots
@@ -67,7 +70,8 @@ scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
 files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs crates/acquisition-daemon/tests/environment.rs tools/arch-check.sh
        crates/acquisition-client/tests/harness/mod.rs crates/acquisition-daemon/src/daemon/routes.rs tools/persist-verify.py tools/tracer-verify.py
        crates/acquisition-daemon/src/ratelimit.rs crates/acquisition-daemon/src/auth.rs crates/acquisition-daemon/src/daemon/kinds.rs
-       crates/acquisition-transport/Cargo.toml crates/acquisition-daemon/src/ratelimit/choke.rs crates/acquisition-daemon/src/daemon.rs)
+       crates/acquisition-transport/Cargo.toml crates/acquisition-daemon/src/ratelimit/choke.rs crates/acquisition-daemon/src/daemon.rs
+       .cargo/mutants.toml crates/acquisition-daemon/src/ratelimit/limiter.rs)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -150,7 +154,7 @@ run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> 
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | clip)"; pass=$((pass+1))
   else
-    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|BLOCKING|TRANSPORT|dependencies|layout|exempt|timers|blocking|transport' <<<"$out" | sed 's/^/          /')"
+    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|BLOCKING|TRANSPORT|MUTANT|dependencies|layout|exempt|timers|blocking|transport|excluded mutants' <<<"$out" | sed 's/^/          /')"
     failed=$((failed+1))
   fi
   restore
@@ -475,6 +479,22 @@ run_case 'the table jq answers nothing'                          refuse 'rows, t
 nojq() { mkdir -p "$scratch/nojq"; printf '#!/bin/sh\nexit 127\n' >"$scratch/nojq/jq"; chmod +x "$scratch/nojq/jq"; tool 'cd "$(dirname "$0")/.."' "cd \"\$(dirname \"\$0\")/..\"; export PATH=\"$scratch/nojq:\$PATH\""; }
 run_case 'jq absent'                                             refuse 'jq failed or is not installed' with_staged nojq
 run_case 'cargo metadata misspelled, both calls'                 refuse 'cargo metadata failed' with_staged tool "$META_CMD" "${META_CMD//cargo metadata/cargo metadataa}"
+
+echo '== the config: an excluded mutant stands where its pattern says (check 16, C200)'
+LIMITER_RS=crates/acquisition-daemon/src/ratelimit/limiter.rs
+MOVED='no longer holds'
+# The widened operator's line is read from the config, never typed here:
+# a typed line would fail this suite on the day the line moves.
+HOLD_LINE=$(sed -nE 's/.*limiter\\\.rs:([0-9]+):26: replace > with >= in Limiter::install_retry_hold.*/\1/p' .cargo/mutants.toml)
+hold_widened() { [[ -n $HOLD_LINE ]] && drift $LIMITER_RS "$(sed -n "${HOLD_LINE}p" $LIMITER_RS)" "$(sed -n "${HOLD_LINE}p" $LIMITER_RS | sed 's/ > / >= /')"; }
+run_case 'the exclusions as they stand'                          pass   'ok      excluded mutants' none
+run_case 'a line added above an excluded guard'                  refuse "$MOVED \`status.is_success()\`" inside $CHOKE_RS '    pub fn check(&self, route: &str) -> Result<(), Duration> {'$'\n' '        // breaker: one line more'$'\n'
+run_case 'an excluded guard renamed where it stands'             refuse "$MOVED \`status.is_success()\`" drift $CHOKE_RS 'Ok((status, Err(error))) if status.is_success() => {' 'Ok((status, Err(error))) if status.is_redirection() => {'
+run_case 'an excluded operator widened where it stands'          refuse "$LIMITER_RS:$HOLD_LINE:26 $MOVED \`>\`" hold_widened
+run_case 'an exclusion of a whole function'                      refuse 'replaces or deletes something this check cannot place' drift .cargo/mutants.toml 'exclude_re = [' 'exclude_re = [
+    '"'"'choke\.rs:354:9: replace ChokePoint::sleep with \(\)$'"'"','
+run_case 'an exclusion that names no line'                       refuse 'an exclusion names its line' drift .cargo/mutants.toml 'exclude_re = [' 'exclude_re = [
+    '"'"'replace > with >= in Limiter::statuses$'"'"','
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"
