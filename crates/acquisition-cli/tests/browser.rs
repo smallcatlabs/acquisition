@@ -1049,6 +1049,13 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
         .as_u64()
         .expect("a matched total");
     assert_eq!(total.to_string(), both);
+    // the search's own request is held while its submit is read: the
+    // flag is the document's that the search replaces, so read once the
+    // answer has come it is the new page's, which has none
+    page.cdp.call(
+        "Fetch.enable",
+        json!({ "patterns": [{ "urlPattern": "*/search?*", "requestStage": "Request" }] }),
+    );
     page.cdp
         .click(&format!("{SEARCH_FORM}.querySelector('button.search-btn')"));
     assert_eq!(
@@ -1056,6 +1063,12 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
         json!(true),
         "the browser held the search back"
     );
+    let held = page.cdp.event("Fetch.requestPaused");
+    page.cdp.call(
+        "Fetch.continueRequest",
+        json!({ "requestId": held["params"]["requestId"] }),
+    );
+    page.cdp.call("Fetch.disable", json!({}));
     page.loaded_again();
     let counted = match total {
         1 => "1 match".to_string(),
