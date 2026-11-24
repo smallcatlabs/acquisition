@@ -36,8 +36,9 @@
 # file, in the builder, behind a `#[cfg(test)]` item that is no tail
 # module); a comment and a tail test module pass. Check 16's cases move an
 # excluded mutant's line, change the code where one stands (a guard
-# renamed, an operator widened), and list an exclusion in a form the check
-# cannot place. The TLS stack's cases (§5, C169)
+# renamed or lengthened, an operator widened), and list an exclusion the
+# check cannot place (a whole function, an escape that is a class, no
+# line). The TLS stack's cases (§5, C169)
 # give the one client another stack by each way the check reads: a
 # feature added to the transport's reqwest line or dropped from it, the
 # daemon's dev line alone moved, the native backend or the native roots
@@ -490,9 +491,11 @@ hold_widened() { [[ -n $HOLD_LINE ]] && drift $LIMITER_RS "$(sed -n "${HOLD_LINE
 run_case 'the exclusions as they stand'                          pass   'ok      excluded mutants' none
 run_case 'a line added above an excluded guard'                  refuse "$MOVED \`status.is_success()\`" inside $CHOKE_RS '    pub fn check(&self, route: &str) -> Result<(), Duration> {'$'\n' '        // breaker: one line more'$'\n'
 run_case 'an excluded guard renamed where it stands'             refuse "$MOVED \`status.is_success()\`" drift $CHOKE_RS 'Ok((status, Err(error))) if status.is_success() => {' 'Ok((status, Err(error))) if status.is_redirection() => {'
+run_case 'an excluded guard lengthened where it stands'          refuse "$MOVED \`status.is_success()\`" drift $CHOKE_RS 'Ok((status, Err(error))) if status.is_success() => {' 'Ok((status, Err(error))) if status.is_success() && status.as_u16() != 204 => {'
 run_case 'an excluded operator widened where it stands'          refuse "$LIMITER_RS:$HOLD_LINE:26 $MOVED \`>\`" hold_widened
 run_case 'an exclusion of a whole function'                      refuse 'replaces or deletes something this check cannot place' drift .cargo/mutants.toml 'exclude_re = [' 'exclude_re = [
     '"'"'choke\.rs:354:9: replace ChokePoint::sleep with \(\)$'"'"','
+run_case 'an exclusion whose escape is a class, not a character' refuse 'replaces or deletes something this check cannot place' drift .cargo/mutants.toml 'replace match guard status' 'replace match guard \status'
 run_case 'an exclusion that names no line'                       refuse 'an exclusion names its line' drift .cargo/mutants.toml 'exclude_re = [' 'exclude_re = [
     '"'"'replace > with >= in Limiter::statuses$'"'"','
 

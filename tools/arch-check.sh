@@ -1102,13 +1102,15 @@ printf '%s\n' "$production"
 # once among the config's `examine_globs`, and the source at that line and
 # column must hold what the pattern replaces or deletes: a binary operator
 # whole (`>` is not found in `>=`), a unary one, or a match guard's
-# expression, compared with white space left out. That is the name cargo-mutants gives the mutant (27.1.0, the
+# expression whole, to its arm's `=>`, compared with white space left out.
+# The check holds nothing it has not read whole. That is the name cargo-mutants gives the mutant (27.1.0, the
 # weekly's pin), read from the source and not from the tool, so every
 # clone checks it. The function's name is not read: the weekly run still
 # holds a pattern that names the right text in the wrong place. A pattern
 # in another form (a function replaced, a match arm deleted), or whose
-# operator is written as a regular expression and not a literal, is one
-# the check cannot place, and is refused until the check reads its form.
+# operator or guard is written as a regular expression and not a literal
+# (a bare metacharacter, or an escape that is a class), is one the check
+# cannot place, and is refused until the check reads its form.
 if ! excluded=$(python3 -I - <<'PY'
 import glob, re, sys, tomllib
 CONFIG = ".cargo/mutants.toml"
@@ -1120,11 +1122,15 @@ OPERATOR = re.compile(r"^[-+*/%<>=!&|^]+$")
 RUN = re.compile(r"[-+*/%<>=!&|^]+")
 def literal(pattern):
     """The text a regular expression matches when it matches one text
-    alone: its escapes undone, or None where a metacharacter stands bare."""
+    alone: its escapes undone, or None where a metacharacter stands bare
+    or an escape is no character's own (`\\s` is a class, not an `s`)."""
     out = []; chars = iter(pattern)
     for c in chars:
         if c == "\\":
-            out.append(next(chars, ""))
+            c = next(chars, "")
+            if not c or c.isalnum() or c == "_":
+                return None
+            out.append(c)
         elif c in ".^$*+?()[]{}|":
             return None
         else:
@@ -1159,7 +1165,8 @@ for pattern in config.get("exclude_re", []):
     lines = open(files[0], encoding="utf-8").read().splitlines()
     there = "".join(lines[line - 1:line + 8])[col - 1:] if 0 < line <= len(lines) and 0 < col <= len(lines[line - 1]) else ""
     if guard:
-        holds = "".join(there.split()).startswith("".join(x.split()))
+        # the whole guard, to its arm's arrow: a guard lengthened is another
+        holds = "=>" in there and "".join(there.split("=>", 1)[0].split()) == "".join(x.split())
     elif binary:
         # the whole operator: `>` is not found in `>=`
         holds = RUN.match(there) is not None and RUN.match(there)[0] == x
