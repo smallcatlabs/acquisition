@@ -26,17 +26,23 @@
 #      read with no clone (`tools/totals-table.py --check`,
 #      `tools/trade-stats-table.py --check`), and the site join keeps its
 #      reason precedence (`tools/site-join.py --self-test`). The class,
-#      defence and forms tables' generators, and the category table's
-#      `--tags`, are not here: they read the `poe1` clone, which the CI
-#      runner lacks and `sources.require` refuses, so they run at a
-#      pin bump in the order `tools/game-diff.py` prints, each then with
-#      `--check`, and between bumps the drift line holds their headers to
-#      the pin.
+#      defence and forms tables are what their generators give from the
+#      `poe1` clone (C198, the gate checks the generated tables): their
+#      three `--check`s run, as one stage, wherever the clone sits where
+#      `tools/sources.py` places it (`ACQ_CLONES` moves it), and must
+#      pass; with no clone there the stage is skipped with one line, as
+#      the drift line is, so the CI runner, which has none, runs as
+#      before; a clone off its pin fails each, by `sources.require`'s
+#      refusal naming the pin (a bump regenerates the tables in the order
+#      `tools/game-diff.py` prints). Between bumps the drift line holds
+#      their headers to the pin. The category table's `--tags` reads the
+#      clone too and is not here.
 #
 # Six stages are self-tests, each staging its own refusals on inputs it
 # makes, and `gamediff`'s stage the `drift` line's too; the four that
 # hold a committed file to its script (`sheet`, `category`, `totals`,
-# `stats`) have theirs staged by `tools/trade-check-breakers.sh`.
+# `stats`), and the clone's three, have theirs staged by
+# `tools/trade-check-breakers.sh`.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -60,5 +66,22 @@ for check in "sheet tools/trade-sheet.py --verify" "split tools/trade-split.py -
     fail=1
   fi
 done
+
+# ---- the tables the clone gives (C198) -------------------------------------
+# Where the clone is, read from `tools/sources.py`, never worked out here.
+poe1=$(python3 -I -c 'import sys; sys.path.insert(0, "tools"); from sources import POE1; print(POE1)')
+if [[ ! -e $poe1 ]]; then
+  printf 'ok      %-13s %s\n' clone "no poe1 clone at $poe1: the class, defence and forms tables' checks are skipped"
+else
+  for check in "class tools/class-table.py" "defence tools/defence-table.py" "forms tools/trade-forms-table.py"; do
+    read -r name tool <<<"$check"
+    if said=$(python3 -I "$tool" --check 2>&1); then
+      printf 'ok      %-13s %s\n' "$name" "$(tail -1 <<<"$said" | sed 's/^ok *//')"
+    else
+      printf '%s\n' "$said" | sed "s/^/$(printf '%-7s ' "$(tr a-z A-Z <<<"$name")")/"
+      fail=1
+    fi
+  done
+fi
 
 exit $fail

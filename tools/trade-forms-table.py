@@ -11,8 +11,9 @@ joins).
     python3 -I tools/trade-forms-table.py --check    # exits 1 when the file on disk differs from what the sources give
 
 Inputs (read-only; tools/sources.py refuses an absent one or a clone off
-its pin, so the table regenerates byte-for-byte where the clone is, and the
-gate, which has none, never runs it; a pull's order is tools/game-diff.py's):
+its pin, so the table regenerates byte-for-byte where the clone is, and
+tools/trade-check.sh runs `--check` there and skips it where there is none;
+a pull's order is tools/game-diff.py's):
   ../poe1/data/stat_translations.json            the PoE1 export (search/repoe/MANIFEST.md):
                                                   each game stat's English strings, the value
                                                   range each is shown for, how each number is
