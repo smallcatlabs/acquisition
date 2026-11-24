@@ -20,7 +20,8 @@ better Acquisition that is agent-friendly and agent-forward.
   parts (`git log --grep='^Step: 4-full-1'`). The search form's
   reshaping is designed and ruled (`briefs/4-full-1-form-design.md`)
   and built in the series of its §8, one brief a step
-  (`git log --grep='^Step: 4-full-1-form'`). Steps 1 to 8 are closed:
+  (`git log --grep='^Step: 4-full-1-form'`). All nine steps are
+  closed:
   a saved search keeps what was asked (C194); a search's page is its
   source's editor, filled, above its answer; stat rows and groups are
   added and removed on the page; the form carries its quality box,
@@ -29,10 +30,10 @@ better Acquisition that is agent-friendly and agent-forward.
   name; with no sort asked a place's items stand as they lie, at
   every door, a stack's count a column; an abyssal socket is asked
   by its word, by the form's A boxes and by its stat, each as the
-  site reads it; and the language's words are read on a page, its
-  index linked from the query box (`briefs/4-full-1-form-index.md`).
-  Step 9, the last, a search's way back to the trade site (#303),
-  waits on its sitting.
+  site reads it; the language's words are read on a page, its index
+  linked from the query box; and a site search's answer carries its
+  link back to the trade site (`briefs/4-full-1-form-link.md`). The
+  page seat over the series comes next, before the owner sits.
 
 ## Next
 
@@ -42,9 +43,10 @@ when its step closes or the owner strikes it.
 
 1. 4-full part 1, the search form's reshaping, its
    design ruled (`briefs/4-full-1-form-design.md`) and built in the
-   series of its §8, each step its own brief, eight of nine closed. Its
-   last step, a search's way back to the trade site (#303), waits on a
-   sitting. The look is #285; what an apply brought, said on its job,
+   series of its §8, all nine steps closed. What is left of it is the
+   page seat (the seat skill), a blind agent at the pages before the
+   owner sits, and the first link the build composed opened by a
+   person. The look is #285; what an apply brought, said on its job,
    is #182's rest; the never-fetched tabs of a league the scope's link
    does not name are #194's rest.
 2. The frontends' whole-code review, once item 1 closes.
