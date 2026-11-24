@@ -338,7 +338,21 @@ pub struct Translation {
     pub catalogue: u32,
     pub stats: String,
     pub forms: u32,
+    /// The site search as it was read, nulls and all: what its link asks
+    /// the site (C195, `trade::link`), never what the text says.
+    #[serde(skip)]
+    pub asked: Decoded,
 }
+
+/// Whether a clause's `at` is the query object's, not a key beside it or
+/// the league: where a clause of it did not run here, it runs at the
+/// site, which its link asks the query as it was asked (C195).
+pub fn of_query(at: &str) -> bool {
+    !at.starts_with(ENVELOPE) && !at.starts_with("url.")
+}
+
+/// The `at` of a key beside the query object: `envelope.<key>`.
+const ENVELOPE: &str = "envelope.";
 
 fn tree_json<S: serde::Serializer>(tree: &Node, s: S) -> Result<S::Ok, S::Error> {
     crate::json::to_json(tree).serialize(s)
@@ -412,6 +426,7 @@ pub(crate) fn displayed_as(category: &str, template: &str) -> Vec<&'static str> 
 /// build ships that does not load, or a translation that broke its own
 /// guard — a build defect, said, never a partial answer.
 pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
+    let asked = decoded.clone();
     // a key a site object sends null is absent (u059), said once, here,
     // before anything reads a key: every reader below meets the query as if
     // the key were never sent
@@ -482,13 +497,14 @@ pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
     }
     for (key, value) in &decoded.beside {
         t.unknown(
-            &format!("envelope.{key}"),
+            &format!("{ENVELOPE}{key}"),
             value,
             &format!("the envelope's `{key}`, which no row reads"),
         )?;
     }
     t.finish(
         decoded,
+        asked,
         catalogue.version(),
         stats.version(),
         forms.version(),
@@ -2297,6 +2313,7 @@ impl Translator<'_> {
     fn finish(
         mut self,
         decoded: &Decoded,
+        asked: Decoded,
         catalogue: u32,
         stats: &str,
         forms: u32,
@@ -2378,6 +2395,7 @@ impl Translator<'_> {
             catalogue,
             stats: stats.to_string(),
             forms,
+            asked,
         })
     }
 }

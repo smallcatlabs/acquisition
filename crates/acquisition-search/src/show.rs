@@ -741,9 +741,12 @@ fn read_one(
     // hold the item; then the held item asked by the one evaluator
     let against = against
         .map(|input| -> Result<Against, SearchError> {
-            let read = input.read(Some(&crate::corpus::Realm::One(held.place.realm.clone())))?;
+            let realm = crate::corpus::Realm::One(held.place.realm.clone());
+            let read = input.read(Some(&realm))?;
             let mut against = against_held(&read.query, &held);
-            against.query.trade = read.translation.map(crate::answer::TradeOut::from);
+            against.query.trade = read
+                .translation
+                .map(|t| crate::answer::TradeOut::of(t, &realm));
             Ok(against)
         })
         .transpose()?;

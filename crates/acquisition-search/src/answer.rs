@@ -1488,31 +1488,105 @@ pub struct QueryOut {
 
 /// A site search's translation as the answer reports it (C113, K6): what
 /// the input was, every clause with its status, the remainder and the
-/// fidelity, and the versions of the three tables it was read by — the
-/// catalogue, the stat table and the forms table, which the build named
-/// in the basis digests (`build.rs`). The text and the tree are the query's own.
+/// fidelity, the link that asks the site the search (C195), and the
+/// versions of the three tables it was read by — the catalogue, the stat
+/// table and the forms table, which the build named in the basis digests
+/// (`build.rs`). The text and the tree are the query's own.
 #[derive(Debug, Clone, Serialize)]
 pub struct TradeOut {
     pub source: Source,
     pub fidelity: Fidelity,
     /// The `at` of every unsupported clause: what the text does not say.
     pub remainder: Vec<String>,
+    pub link: Link,
     pub clauses: Vec<ClauseOut>,
     pub catalogue: u32,
     pub stats: String,
     pub forms: u32,
 }
 
-impl From<Translation> for TradeOut {
-    fn from(t: Translation) -> TradeOut {
+impl TradeOut {
+    /// The report of a translation run in `realm`, the answer's resolved
+    /// scope or the realm of the item `show` holds: the search that ran,
+    /// never a form's unsent edits (C195).
+    pub fn of(t: Translation, realm: &Realm) -> TradeOut {
+        let link = Link::of(&t, realm);
         TradeOut {
             source: t.source,
             fidelity: t.fidelity,
             remainder: t.remainder,
+            link,
             clauses: t.clauses.into_iter().map(ClauseOut::from).collect(),
             catalogue: t.catalogue,
             stats: t.stats,
             forms: t.forms,
+        }
+    }
+}
+
+/// A site search's link back to the site (C195): the URL that asks the
+/// site the query object as it was asked, with what stands beside it
+/// that the site cannot be asked and what a reader must know of what it
+/// asks; or none, and the one sentence that says why.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum Link {
+    Url {
+        url: String,
+        /// The names of what stands beside the query object that the
+        /// site cannot be asked: `defences` where the displayed reading
+        /// was asked (C142), `sort`, and any other key.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        left_out: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        notes: Vec<String>,
+    },
+    None {
+        none: String,
+    },
+}
+
+/// What a link says where a clause of the query object did not run here.
+pub const LINK_RUNS_THERE: &str =
+    "the link carries the query as asked: the clauses not run here run there";
+
+/// What a link says where its query names no status.
+pub const LINK_NO_STATUS: &str = "the search names no status, and the site fills what a search leaves unsaid with its own, its status among them";
+
+impl Link {
+    fn of(t: &Translation, realm: &Realm) -> Link {
+        let asked = &t.asked;
+        let url = match trade::link(asked, realm.as_str()) {
+            Ok(url) => url,
+            Err(none) => return Link::None { none },
+        };
+        // beside the query: a key the site sends null is absent, as the
+        // translation reads it
+        let mut left_out = Vec::new();
+        if asked.defences == trade::Defences::Displayed {
+            left_out.push("defences".to_string());
+        }
+        if asked.sort.as_ref().is_some_and(|s| !s.is_null()) {
+            left_out.push("sort".to_string());
+        }
+        left_out.extend(
+            asked
+                .beside
+                .iter()
+                .filter(|(_, v)| !v.is_null())
+                .map(|(k, _)| k.clone()),
+        );
+        let mut notes = Vec::new();
+        if t.remainder.iter().any(|at| trade::translate::of_query(at)) {
+            notes.push(LINK_RUNS_THERE.to_string());
+        }
+        if asked.query.get("status").is_none_or(Json::is_null) {
+            notes.push(LINK_NO_STATUS.to_string());
+        }
+        Link::Url {
+            url,
+            left_out,
+            notes,
         }
     }
 }
@@ -2826,7 +2900,7 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
     // the site's search is the typed query's: its report stands with it,
     // and what each ambiguous clause's other reading would change, where
     // that search is the query run (C119)
-    let mut trade = translation.map(TradeOut::from);
+    let mut trade = translation.map(|t| TradeOut::of(t, &corpus.realm));
     if let (Some(report), None) = (&mut trade, &set_aside) {
         for clause in &mut report.clauses {
             if let Some(reading) = &clause.reading {

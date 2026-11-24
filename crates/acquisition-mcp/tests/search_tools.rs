@@ -708,9 +708,9 @@ fn describe_is_as_large_as_its_text_says() {
     // some 80 KB, every computed value's definition
     assert!(size(&mut seat, json!(["computed"])) > 70_000);
     assert!(size(&mut seat, json!(["computed"])) < 90_000);
-    // some 20 KB, the trade catalogue's rows (C113), each what the report
-    // an answer carries says of it
-    assert!(size(&mut seat, json!(["trade"])) < 25_000);
+    // some 25 KB, the trade catalogue's rows (C113), each what the report
+    // an answer carries says of it, its link among them (C195)
+    assert!(size(&mut seat, json!(["trade"])) < 27_000);
     assert!(size(&mut seat, json!(["trade"])) > 18_000);
     // some 20 KB, the fields, the property fields among them (C114)
     assert!(size(&mut seat, json!(["fields"])) < 24_000);
@@ -774,7 +774,7 @@ fn describe_is_as_large_as_its_text_says() {
         "the index, each entry's name and one line, some 38 KB",
         "or all: over 150 KB",
         "computed some 80 KB",
-        "fields and trade 20 KB each",
+        "trade 25 KB, fields 20 KB",
         "categories 10 KB",
         "pricing 8 KB, answer 7 KB, store 6 KB, daemon 5 KB",
         "the rest under 4 KB",
@@ -790,7 +790,7 @@ fn describe_is_as_large_as_its_text_says() {
 pub(crate) const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
 /// C113: `show`'s `against` takes a site search as a query, its report
-/// beside the text, and only in the item's realm (K6: else an xbox URL
+/// beside the text, its link in the report (C195), and only in the item's realm (K6: else an xbox URL
 /// would show a pc item a match). The request-level rules (a continuation keeps
 /// the site search, an edited text, a realm beside a URL, a trade that is none)
 /// are the search crate's (`next.rs`).
@@ -801,6 +801,14 @@ fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
     let (first, refused) = seat.search(&json!({ "query": { "trade": url } }));
     assert!(!refused, "{first}");
     assert_eq!(first["total"]["matched"], 3);
+    // the link back to the site is the report's, handed on whole (C195)
+    let link = &first["query"]["trade"]["link"];
+    assert!(
+        link["url"]
+            .as_str()
+            .is_some_and(|u| u.starts_with("https://www.pathofexile.com/trade/search/Standard/")),
+        "{link}"
+    );
     let (shown, refused) = seat.call(
         "show",
         &json!({ "id": "plain", "against": { "trade": url } }),

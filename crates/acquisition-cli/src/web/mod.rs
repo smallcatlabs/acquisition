@@ -26,7 +26,9 @@
 //!   response carries an `Access-Control-*` header. Every response says
 //!   `Referrer-Policy: same-origin`: the browser's fetch of an item's art
 //!   (C140) carries no referrer, so the token never reaches the image
-//!   host, while a form posted to the server itself carries its real
+//!   host, nor does a person's opening of a site search's link back to
+//!   the trade site (C195), the one link of the pages that leaves the
+//!   server, drawn with `target="_blank" rel="noopener"`; while a form posted to the server itself carries its real
 //!   Origin — under `no-referrer` the Fetch standard serialises a POST's
 //!   Origin as `null`, which the guard refuses. A content policy admits
 //!   images from that host alone and scripts and styles from the server

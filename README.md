@@ -199,7 +199,7 @@ acq store characters [--realm R] [--league L] [--limit N] [--expand]   # counts,
 acq search [--realm R] ['<query>'] [--sort V [--desc]] [--value V …] [--limit N] [--fields icon,item] [--routes]   # item search, items as they lie in their place unless --sort names a value; a store of two realms needs --realm (pc, poe2, all)
 acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key; line[:text,…] is the vocabulary
 acq search --describe[=name,…|=~pattern|=all]   # the query language: an index, a slice by pattern, or entries whole
-acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) translated to a query, no network
+acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) translated to a query, no network, with its link back to the site for you to open
 acq saved list | show <ID|NAME> | clear <ID> [--if-revision N]   # saved searches (list the default): the world's, not an account's, each by its id
 acq saved set [--id ID [--if-revision N]] [--name NAME] ['<query>' | --trade URL | --trade-file F] [--realm R] [--membership M]   # save a search or a trade site search, kept as given, or change one by its id, with undo
 acq search --saved <ID|NAME> [--limit N]   # run a saved search, its query and scope the row's

@@ -1069,3 +1069,146 @@ fn c142_the_defences_reading_lands_the_field_it_names() {
         assert_eq!(a["total"]["matched"], matched, "{defences}");
     }
 }
+
+/// C195, the search goes back as asked: an answer to a site search
+/// carries `query.trade.link`, written from the query object as it was
+/// read — a nested null kept, no `status` added — under its league and
+/// the realm it ran in, which a decode gives back; beside it, the names
+/// of what the site cannot be asked, and what a reader must know: a
+/// clause of the query not run here runs there (a key beside the query
+/// is no such clause), and a search that names no status takes the
+/// site's. Where the site could not be asked it — an id names no league,
+/// a scope of every realm is no realm's — one sentence says why, and
+/// `show` carries the link as an answer does.
+#[test]
+fn c195_a_site_searchs_report_carries_its_link_or_says_why_none() {
+    use acquisition_search::answer::{LINK_NO_STATUS, LINK_RUNS_THERE};
+    const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
+    let s = worked();
+    let pc = load(&s, Some("pc"));
+    let all = load(&s, Some("all"));
+    let asked = |corpus: &acquisition_search::Corpus, realm: &str, query: Value| -> Value {
+        let request = serde_json::from_value(json!({
+            "scope": { "realm": realm },
+            "query": { "trade": query },
+            "view": { "rows": { "limit": 0 } },
+        }))
+        .unwrap();
+        as_json(&acquisition_search::answer(corpus, &request).unwrap())["query"]["trade"].clone()
+    };
+    let back = |link: &Value| decode(link["url"].as_str().unwrap()).unwrap();
+
+    // a URL: the same query, league and realm
+    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
+    let report = asked(&pc, "pc", json!(url));
+    let link = &report["link"];
+    let d = back(link);
+    assert_eq!(d.query, decode(TRADE_ID).unwrap().query, "{link}");
+    assert_eq!(
+        (d.league.as_deref(), d.realm.as_deref()),
+        (Some("Standard"), Some("pc"))
+    );
+    assert!(link.get("left_out").is_none(), "{link}");
+
+    // an id names no league: no link, and why
+    let report = asked(&pc, "pc", json!(TRADE_ID));
+    let none = report["link"]["none"].as_str().unwrap();
+    assert!(none.contains("no league"), "{none}");
+    assert!(report["link"].get("url").is_none());
+
+    // a JSON: its query as read, a nested null kept and no status added;
+    // the status it leaves unsaid is the site's
+    let query = json!({ "filters": { "misc_filters": { "filters": { "ilvl": { "min": 75, "max": null } } } } });
+    let report = asked(
+        &pc,
+        "pc",
+        json!({ "league": "Hardcore Standard", "query": query }),
+    );
+    let link = &report["link"];
+    let d = back(link);
+    assert_eq!(d.query, query, "{link}");
+    assert_eq!(d.league.as_deref(), Some("Hardcore Standard"));
+    assert_eq!(link["notes"], json!([LINK_NO_STATUS]), "{link}");
+    // the same under the corpus context: the report set aside carries it
+    let request = serde_json::from_value(json!({
+        "scope": { "realm": "pc" },
+        "query": { "trade": { "league": "Standard", "query": query } },
+        "context": "corpus",
+        "view": { "rows": { "limit": 0 } },
+    }))
+    .unwrap();
+    let a = as_json(&acquisition_search::answer(&pc, &request).unwrap());
+    assert_eq!(back(&a["set_aside"]["trade"]["link"]).query, query, "{a}");
+
+    // what stands beside the query is named, and a remainder of an
+    // envelope key alone says nothing runs there
+    let report = asked(
+        &pc,
+        "pc",
+        json!({ "league": "Standard", "defences": "displayed", "sort": { "price": "asc" },
+                "realm": "pc", "query": { "status": { "option": "any" } } }),
+    );
+    assert_eq!(report["fidelity"], "partial", "{report}");
+    assert_eq!(report["remainder"], json!(["envelope.realm"]), "{report}");
+    let link = &report["link"];
+    assert_eq!(
+        link["left_out"],
+        json!(["defences", "sort", "realm"]),
+        "{link}"
+    );
+    assert!(link.get("notes").is_none(), "{link}");
+    assert_eq!(
+        back(link).query,
+        json!({ "status": { "option": "any" } }),
+        "the query alone goes back"
+    );
+    // a clause of the query not run here runs there
+    let report = asked(
+        &pc,
+        "pc",
+        json!({ "league": "Standard", "query": { "status": { "option": "any" }, "unheard": 1 } }),
+    );
+    assert_eq!(report["remainder"], json!(["unheard"]), "{report}");
+    assert_eq!(
+        report["link"]["notes"],
+        json!([LINK_RUNS_THERE]),
+        "{report}"
+    );
+
+    // every realm is no realm's
+    let report = asked(&all, "all", json!({ "league": "Standard", "query": {} }));
+    let none = report["link"]["none"].as_str().unwrap();
+    assert!(none.contains("every realm"), "{none}");
+
+    // show: the item's realm is the search's
+    let input = QueryInput {
+        trade: Some(json!({ "league": "Standard", "query": query })),
+        ..QueryInput::default()
+    };
+    let shown = acquisition_search::show::against(&s, &intent(&s), "r1", false, &input).unwrap();
+    let shown = serde_json::to_value(shown).unwrap();
+    let d = back(&shown["against"]["query"]["trade"]["link"]);
+    assert_eq!((d.query, d.realm.as_deref()), (query, Some("pc")));
+
+    // `describe trade` says the key once, and that the language has none
+    let described =
+        serde_json::to_value(acquisition_search::describe(&["trade".to_string()]).unwrap())
+            .unwrap();
+    let key = described["trade"]["report"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|k| k["name"] == "link")
+        .unwrap()
+        .clone();
+    let what = key["what"].as_str().unwrap();
+    for said in [
+        "`url`",
+        "`left_out`",
+        "`notes`",
+        "`none`",
+        "typed in the language has no trade report, and no link",
+    ] {
+        assert!(what.contains(said), "{said}: {what}");
+    }
+}

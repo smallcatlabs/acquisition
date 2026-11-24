@@ -7,6 +7,7 @@ $ acq search --realm pc --trade '{"query": {"type": "Chaos Orb"}}'
 --- stdout
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours
+        link      none — the search names no league, and a site link is one league's: a search id names none, and the query JSON names one as `league` beside its `query`
 query   base="Chaos Orb"
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched
         1 location never fetched: MapStash 1 of 1 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
@@ -31,6 +32,7 @@ $ acq search --realm pc --trade '{"query": {"stats": [{"type": "if", "filters": 
 --- stdout
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours
+        link      none — the search names no league, and a site link is one league's: a search id names none, and the query JSON names one as `league` beside its `query`
         nothing   misc_filters.ilvl  its minimum 85 is above its maximum 80
         nothing   stats.0.0          its minimum 5 is above its maximum 0
 query   false() (-line("# to maximum Life" source=implicit) or false())

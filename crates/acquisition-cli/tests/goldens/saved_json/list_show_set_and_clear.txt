@@ -133,6 +133,8 @@ $ acq search --saved <life-id> --limit 1
 --- stdout
 trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's search
         over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours
+        link      https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFaXk3c0UvN9t_pyvwSZB6gZTg1yEcoIJcmJKCOq-0dqlgbwLWgppAQd3YsH1F2ixM74KUyQ57YOrP4-j74eu9_b7DFxx5x9k9tCpzur-XlxrpBvjIdSEWT8TZHM0ugAAAA
+        note      the link carries the query as asked: the clauses not run here run there
         NOT RUN   stats.1    A crucible tree path is not read; not run.
         NOT RUN   stats.1.0  its group `stats.1` translates whole or not at all, and is unsupported
         reported  status     Online, available or securable is the seller's state, not the item's, so it means nothing in your stash.

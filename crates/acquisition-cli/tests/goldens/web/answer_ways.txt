@@ -340,6 +340,7 @@ GET search?<a site search with an ambiguous clause>
 <section class="trade">
 <p>from the query JSON: ambiguous — every clause ran, 2 as the site may not read them</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: none — the search names no league, and a site link is one league&#39;s: a search id names none, and the query JSON names one as `league` beside its `query`</p>
 <table class="clauses">
 <tr><th>Status</th><th>Clause</th><th>Says</th></tr>
 <tr><td>ambiguous</td><td>stats.0.0</td><td>the bound sums the text and its plurals; not its forms &quot;#% reduced Movement Speed&quot; (opposite) · read the other way: adds 0, drops <a class="way" data-way="/query/trade/clauses/1/other/drops" href="/<token>/search?realm=pc&amp;text=sum%28line%28%22%23%25%20increased%20Movement%20Speed%22%20source%3Dexplicit%29.arg1%29%3E%3D20%20line%28%22%23%25%20reduced%20Movement%20Speed%22%20source%3Dexplicit%29%20line%28%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20or%20%22Lose%20%23%25%20of%20Mana%20on%20Kill%22%29%20source%3Dexplicit%29">1</a></td></tr>

@@ -826,6 +826,37 @@ fn a_trade_url_runs_in_its_own_realm_whatever_the_page_carried() {
     assert!(!out.status.success(), "{out:?}");
 }
 
+/// C195, the search goes back as asked: an answer to a site search
+/// draws its link back to the site, the one link of the pages that
+/// leaves the server, opened in a new tab with no opener; and the page
+/// that carries it is served under `Referrer-Policy: same-origin`, so
+/// the site never reads the token from the page that sent a person there.
+#[test]
+fn c195_the_one_link_that_leaves_the_server_opens_apart_and_sends_no_referrer() {
+    use crate::search_json::TRADE_ID;
+    let (_scratch, web) = offline_web("webtradelink");
+    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
+    let fields = [("realm", "pc"), ("trade", url.as_str())];
+    let answer = web.get(&format!("search?{}", query_string(&fields)));
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    assert_eq!(answer.header("referrer-policy"), Some("same-origin"));
+    let leaving: Vec<&str> = answer
+        .body
+        .match_indices("href=\"http")
+        .map(|(at, _)| &answer.body[at..])
+        .collect();
+    assert_eq!(leaving.len(), 1, "{}", answer.body);
+    let anchor = &leaving[0][..leaving[0].find('>').unwrap()];
+    assert!(
+        anchor.starts_with("href=\"https://www.pathofexile.com/trade/search/Standard/"),
+        "{anchor}"
+    );
+    assert!(
+        anchor.ends_with("\" target=\"_blank\" rel=\"noopener\""),
+        "{anchor}"
+    );
+}
+
 /// #188: the two boxes are two searches, so both sent is a usage
 /// refusal in the page's words, and the trade box sent empty is one.
 #[test]

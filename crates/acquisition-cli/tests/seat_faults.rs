@@ -1508,8 +1508,10 @@ fn a_trade_answer_says_its_items_are_the_stores_whatever_its_fidelity() {
          site's and the items are yours",
         "{shown}"
     );
+    // the link, or why none (C195): its words are the goldens'
+    assert!(lines[2].starts_with("        link      "), "{shown}");
     assert!(
-        lines[2].starts_with(
+        lines[3].starts_with(
             "        reported  status  Online, available or securable is the seller's state"
         ),
         "{shown}"

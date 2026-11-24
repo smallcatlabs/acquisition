@@ -465,3 +465,119 @@ fn c142_an_envelope_names_the_defences_reading() {
         assert!(e.message.contains("`defences`"), "{bad}: {}", e.message);
     }
 }
+
+/// A JSON value of the site's kinds: an object, an array, text, a whole
+/// or a fractional number, a flag or null, nested a few deep.
+fn json_value() -> impl proptest::strategy::Strategy<Value = Value> {
+    use proptest::prelude::*;
+    let leaf = prop_oneof![
+        Just(Value::Null),
+        any::<bool>().prop_map(Value::Bool),
+        any::<i64>().prop_map(|n| json!(n)),
+        // a number of the site's: decimals of a few places, which read
+        // back exactly (a seventeen-digit float can come back an ulp off
+        // through serde_json's parser, which is the decode's own, not the
+        // link's)
+        (-1_000_000i32..1_000_000).prop_map(|n| json!(f64::from(n) / 100.0)),
+        "\\PC{0,12}".prop_map(Value::String),
+    ];
+    leaf.prop_recursive(4, 32, 6, |inner| {
+        prop_oneof![
+            proptest::collection::vec(inner.clone(), 0..5).prop_map(Value::Array),
+            proptest::collection::vec(("\\PC{0,8}", inner), 0..5)
+                .prop_map(|kv| Value::Object(kv.into_iter().collect())),
+        ]
+    })
+}
+
+/// A query object: the site's keys and any other, nulls among them.
+fn query_object() -> impl proptest::strategy::Strategy<Value = Value> {
+    use proptest::prelude::*;
+    proptest::collection::vec(("\\PC{0,10}", json_value()), 0..6)
+        .prop_map(|kv| Value::Object(kv.into_iter().collect()))
+}
+
+proptest::proptest! {
+    #![proptest_config(crate::common::generated::config(64, 512))]
+    /// C195, the search goes back as asked: a link composed from a query
+    /// object, a realm and a league decodes to that query, realm and
+    /// league — a league with a space, `%`, `/`, `?`, `#` or a letter
+    /// outside ASCII among them — the decode's rule run backwards.
+    #[test]
+    fn c195_a_composed_link_decodes_to_its_query_realm_and_league(
+        query in query_object(),
+        realm in proptest::sample::select(vec!["pc", "xbox", "sony"]),
+        league in "[A-Za-z0-9 %/?#.~_éü€-]{1,16}",
+    ) {
+        let decoded = Decoded {
+            source: Source::Json,
+            realm: None,
+            league: Some(league.clone()),
+            query: query.clone(),
+            defences: acquisition_search::Defences::Q20,
+            sort: None,
+            beside: serde_json::Map::new(),
+        };
+        let url = acquisition_search::trade::link(&decoded, realm)
+            .map_err(proptest::test_runner::TestCaseError::fail)?;
+        proptest::prop_assert!(url.starts_with(acquisition_search::trade::SITE), "{}", url);
+        let back = decode(&url).map_err(|e| proptest::test_runner::TestCaseError::fail(e.message))?;
+        proptest::prop_assert_eq!(back.source, Source::Url);
+        proptest::prop_assert_eq!(back.realm.as_deref(), Some(realm));
+        proptest::prop_assert_eq!(back.league, Some(league));
+        proptest::prop_assert_eq!(back.query, query);
+    }
+}
+
+/// C195: where the site could not be asked the search there is no link,
+/// and one sentence says why — no league, every realm, PoE2, an id past
+/// what is read here, a query past what an id inflates to here.
+#[test]
+fn c195_a_search_the_site_could_not_be_asked_has_no_link_and_says_why() {
+    use acquisition_search::trade::{MAX_ID, MAX_INFLATED, link};
+    let of = |league: Option<&str>, query: Value| Decoded {
+        source: Source::Json,
+        realm: None,
+        league: league.map(str::to_string),
+        query,
+        defences: acquisition_search::Defences::Q20,
+        sort: None,
+        beside: serde_json::Map::new(),
+    };
+    let small = of(Some("Standard"), json!({ "status": { "option": "any" } }));
+    assert!(link(&small, "pc").is_ok());
+    let none = |d: &Decoded, realm: &str| link(d, realm).unwrap_err();
+    assert!(none(&of(None, json!({})), "pc").contains("no league"));
+    assert!(none(&small, "all").contains("one realm's"));
+    assert!(none(&small, "poe2").contains("PoE2"));
+    // a query whose text is past the bound an id inflates to
+    let past = of(
+        Some("Standard"),
+        json!({ "term": "a".repeat(MAX_INFLATED) }),
+    );
+    let e = none(&past, "pc");
+    assert!(e.contains(&MAX_INFLATED.to_string()), "{e}");
+    // a query within that bound whose id is past the id's: text that does
+    // not compress, from a fixed sequence
+    let mut x: u64 = 0x9e37_79b9_7f4a_7c15;
+    let noise: String = (0..100_000)
+        .map(|_| {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            char::from(b'!' + (x % 90) as u8)
+        })
+        .collect();
+    let wide = of(Some("Standard"), json!({ "term": noise }));
+    let e = none(&wide, "pc");
+    assert!(e.contains(&MAX_ID.to_string()), "{e}");
+    // just within both, a link that decodes
+    let within = of(
+        Some("Standard"),
+        json!({ "term": "a".repeat(MAX_INFLATED - 20) }),
+    );
+    assert_eq!(
+        decode(&link(&within, "pc").unwrap()).unwrap().query,
+        within.query
+    );
+}

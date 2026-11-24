@@ -27,8 +27,8 @@ use std::collections::HashMap;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::Classed;
 use acquisition_search::answer::{
-    Answer, Count, ExplainOut, PLACE_ORDER_WORDS, QueryInput, Request, RowField, RowsOut, Shape,
-    TradeOut, ViewOut, Zero,
+    Answer, Count, ExplainOut, Link, PLACE_ORDER_WORDS, QueryInput, Request, RowField, RowsOut,
+    Shape, TradeOut, ViewOut, Zero,
 };
 use acquisition_search::counts::{CrossOut, Table};
 use acquisition_search::places::{Counted, Filter as PlaceFilter, Holds, Kind, Place, Places, Row};
@@ -1928,7 +1928,11 @@ fn basis_foot(words: &str) -> String {
 }
 
 /// A site search's translation (C113): its source and fidelity, what it
-/// runs over, then every clause the document lists as not run, ambiguous
+/// runs over, its link back to the site — the one link of the pages that
+/// leaves the server, opened in a new tab with no opener, the server's
+/// `Referrer-Policy: same-origin` keeping the token from the site — or
+/// why there is none, with what it leaves out and its notes (C195), then
+/// every clause the document lists as not run, ambiguous
 /// or reported, each its status, where it stands and what it says, an
 /// ambiguous clause's other reading with its adds and drops as ways.
 /// `at` is the pointer of the query holding it.
@@ -1938,6 +1942,19 @@ fn trade_section(trade: &TradeOut, at: &str, spell: Spell) -> String {
         esc(&search_cmd::fidelity_words(trade)),
         esc(&format!("Over {}", search_cmd::TRADE_OVER))
     );
+    for (word, said) in search_cmd::link_words(&trade.link) {
+        let said = match &trade.link {
+            Link::Url { url, .. } if word == "link" => format!(
+                "<a href=\"{}\" target=\"_blank\" rel=\"noopener\">the search on the trade site</a>",
+                esc(url)
+            ),
+            _ => esc(&said),
+        };
+        out.push_str(&format!(
+            "<p class=\"link\">{}: {said}</p>\n",
+            esc(&format!("{}{}", word[..1].to_uppercase(), &word[1..]))
+        ));
+    }
     let listed = search_cmd::clauses_listed(trade);
     if listed.iter().any(|(_, clauses)| !clauses.is_empty()) {
         out.push_str(

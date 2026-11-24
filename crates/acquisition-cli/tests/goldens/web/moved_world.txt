@@ -90,6 +90,7 @@ GET search?<a stat the table lacks>
 <section class="trade">
 <p>from the query JSON: PARTIAL — 1 clause not run, so this is not the site&#39;s search</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: none — the search names no league, and a site link is one league&#39;s: a search id names none, and the query JSON names one as `league` beside its `query`</p>
 <table class="clauses">
 <tr><th>Status</th><th>Clause</th><th>Says</th></tr>
 <tr><td>NOT RUN</td><td>stats.0.0</td><td>no row of the stat table is `explicit.stat_9999999999`</td></tr>
@@ -199,6 +200,7 @@ GET search?<every ring>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: none — the search names no league, and a site link is one league&#39;s: a search id names none, and the query JSON names one as `league` beside its `query`</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>category=&quot;accessory.ring&quot;</td></tr>

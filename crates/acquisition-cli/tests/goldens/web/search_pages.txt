@@ -74,6 +74,8 @@ GET search?<the ring search>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_01NSwqEMAy9S9YiMhVErzIMUmpGArUtbRRFendTXGiyeXl5nxP-ZBljguEEPgKOr_sFjWacfTwK9oHJOxhAG4MpCVtHcjNkmQoSaxbL944rKjdB9WTJgyahcQ-WDHFdDKP69L1qu6ZVot20XbE0LSQ1XZPzT_YC_xCqgqsAAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Note: the search names no status, and the site fills what a search leaves unsaid with its own, its status among them</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td></tr>
@@ -164,6 +166,8 @@ GET search?<the ring search as a table>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_01NSwqEMAy9S9YiMhVErzIMUmpGArUtbRRFendTXGiyeXl5nxP-ZBljguEEPgKOr_sFjWacfTwK9oHJOxhAG4MpCVtHcjNkmQoSaxbL944rKjdB9WTJgyahcQ-WDHFdDKP69L1qu6ZVot20XbE0LSQ1XZPzT_YC_xCqgqsAAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Note: the search names no status, and the site fills what a search leaves unsaid with its own, its status among them</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td></tr>
@@ -287,6 +291,8 @@ GET search?<a trade site search's URL>
 <section class="trade">
 <p>from a URL: PARTIAL — 2 clauses not run, so this is not the site&#39;s search</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFaXk3c0UvN9t_pyvwSZB6gZTg1yEcoIJcmJKCOq-0dqlgbwLWgppAQd3YsH1F2ixM74KUyQ57YOrP4-j74eu9_b7DFxx5x9k9tCpzur-XlxrpBvjIdSEWT8TZHM0ugAAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Note: the link carries the query as asked: the clauses not run here run there</p>
 <table class="clauses">
 <tr><th>Status</th><th>Clause</th><th>Says</th></tr>
 <tr><td>NOT RUN</td><td>stats.1</td><td>A crucible tree path is not read; not run.</td></tr>
@@ -394,6 +400,8 @@ GET search?<an xbox URL from the pc page>
 <section class="trade">
 <p>from a URL: PARTIAL — 2 clauses not run, so this is not the site&#39;s search</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/xbox/Hardcore/H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFaXk3c0UvN9t_pyvwSZB6gZTg1yEcoIJcmJKCOq-0dqlgbwLWgppAQd3YsH1F2ixM74KUyQ57YOrP4-j74eu9_b7DFxx5x9k9tCpzur-XlxrpBvjIdSEWT8TZHM0ugAAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Note: the link carries the query as asked: the clauses not run here run there</p>
 <table class="clauses">
 <tr><th>Status</th><th>Clause</th><th>Says</th></tr>
 <tr><td>NOT RUN</td><td>stats.1</td><td>A crucible tree path is not read; not run.</td></tr>
@@ -456,6 +464,7 @@ GET search?<the site's query JSON with its sort>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: none — the search names no league, and a site link is one league&#39;s: a search id names none, and the query JSON names one as `league` beside its `query`</p>
 <table class="clauses">
 <tr><th>Status</th><th>Clause</th><th>Says</th></tr>
 <tr><td>reported</td><td>sort</td><td>The site&#39;s sort is reported and not applied: order the rows yourself.</td></tr>
@@ -576,6 +585,8 @@ GET search?<the league counted by rarity>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_6uuBQBDv6ajAgAAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Note: the search names no status, and the site fills what a search leaves unsaid with its own, its status among them</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>league=Standard</td></tr>
@@ -752,6 +763,7 @@ GET search?<every item counted by class>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: none — the search names no league, and a site link is one league&#39;s: a search id names none, and the query JSON names one as `league` beside its `query`</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>(every item in scope)</td></tr>
@@ -1113,6 +1125,7 @@ GET search?realm=pc&trade=%7B%22query%22%3A+%7B%22stats%22%3A+%5B%7B%22type%22%3
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: none — the search names no league, and a site link is one league&#39;s: a search id names none, and the query JSON names one as `league` beside its `query`</p>
 <table class="clauses">
 <tr><th>Status</th><th>Clause</th><th>Says</th></tr>
 <tr><td>nothing</td><td>misc_filters.ilvl</td><td>its minimum 85 is above its maximum 80</td></tr>
@@ -1179,6 +1192,8 @@ GET search?<two stat groups, the second weighted>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_52NywqDMBRE_2XWUmITKOZXipRQ0_ZCFKm3Dwn3340P3LhSZjczZyaiY8cd7DWC-9bDwjUVMjwosH_PAVXJ9v820J34NAI3fS4KbS7K6NT9uvBJZERNDaxRIqVk697P0_PFm1qulBy8WRZtLuPNhFG9CyuTBkbsTAP7AAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Note: the search names no status, and the site fills what a search leaves unsaid with its own, its status among them</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>league=Standard sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=40 sum(line((&quot;# to maximum Life&quot; source=explicit) or (&quot;# to maximum Life&quot; source=implicit)).arg1)&gt;=100</td></tr>
@@ -1252,6 +1267,9 @@ GET search?<the defences as the item stands, two rows>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_22LQQqAIBRE7zLriEjLvleJCEkDQULyLwrx7hltY3bz3stIbDhBzxl8RwcNc1g02H1gd37A23q7Kwa_eW7fYBU9kZCqkwKl-TVoEkrSQCPKUvcAzQoYY2kAAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Left out: defences — beside the query, the site cannot be asked it</p>
+<p class="link">Note: the search names no status, and the site fills what a search leaves unsaid with its own, its status among them</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>league=Standard line(&quot;# to maximum Life&quot; source=explicit) line((&quot;#% increased maximum Life&quot; or &quot;#% reduced maximum Life&quot;) source=explicit)</td></tr>
@@ -1312,6 +1330,8 @@ GET search?<the socket rows' abyssal counts>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_2WJQQoAEBBF7_LXNrYuI4mSiTKzm9xdbCh_9d97ilxI0mA4BfdYk_jHfPHcAGenAZVWL-8t9uNVR04AAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Note: the search names no status, and the site fills what a search leaves unsaid with its own, its status among them</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>league=Standard sockets.abyssal&gt;=1 linked(abyssal&gt;=1)</td></tr>

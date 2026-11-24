@@ -53,13 +53,33 @@
 //!   the translated text name the field used; the option is read beside
 //!   `league` (C141, the league beside the JSON) and nothing else of the
 //!   envelope changes.
+//!
+//! # As built: the link
+//!
+//! - **C195, the search goes back as asked**: [`link`] runs the decode's
+//!   rule backwards. The id is the query object's text as `serde_json`
+//!   writes it, in the order it was read, gzipped and base64url-encoded
+//!   without padding; the URL is the site's search page,
+//!   `/trade/search/<league>/<id>` for pc and
+//!   `/trade/search/(xbox|sony)/<league>/<id>` for a console, the league
+//!   percent-encoded but for the letters, the digits and `-._~`. Its input
+//!   is the [`Decoded`] as read, before the translation drops a null, so
+//!   the site is asked what it was asked; and the realm the search runs
+//!   in, since an id or a JSON names none. Nothing pins the bytes: the
+//!   site took an id of another encoder's deflate blocks, header and key
+//!   order (round zd, #303).
+//! - **No link** where the site could not be asked the search: it names
+//!   no league; it runs over every realm, or in PoE2; or its link would
+//!   not decode here, its id longer than [`MAX_ID`] or its query past
+//!   [`MAX_INFLATED`]. Each is one sentence ([`link`]'s error). Nothing
+//!   opens or checks a link: a person opens it (C79).
 //! - Nothing here reads the vocabulary or writes a word of the
 //!   language: that is the translation, [`translate`], which consumes
 //!   a [`Decoded`] and reads the stat table, [`stats`], for the
 //!   vocabulary and the catalogue, [`catalogue`], for what each clause
 //!   becomes.
 
-use std::io::Read as _;
+use std::io::{Read as _, Write as _};
 
 use base64::Engine as _;
 use serde::Serialize;
@@ -388,6 +408,75 @@ fn percent_decoded(s: &str) -> Result<String, LanguageError> {
             "not a trade search URL: `{s}` does not decode to UTF-8"
         ))
     })
+}
+
+/// The site's search page, beneath which a link names its realm, its
+/// league and its id.
+pub const SITE: &str = "https://www.pathofexile.com/trade/search";
+
+/// A decoded site search, run in `realm`, as the link that asks the site
+/// it (C195): the query object as read, nulls and all, under the league
+/// it names and the realm — `pc`, `xbox` or `sony`. The error is the one
+/// sentence that says why there is none: no league, a realm that is no
+/// one PoE1 realm (`all`, `poe2`), or a link that would not decode here.
+pub fn link(decoded: &Decoded, realm: &str) -> Result<String, String> {
+    if realm.eq_ignore_ascii_case("all") {
+        return Err(
+            "the search runs over every realm, and a site link is one realm's: ask in pc, xbox or sony"
+                .to_string(),
+        );
+    }
+    if realm.eq_ignore_ascii_case("poe2") {
+        return Err("the search runs in PoE2, and the trade site's links are PoE1's".to_string());
+    }
+    let console = CONSOLE_REALMS
+        .iter()
+        .find(|r| r.eq_ignore_ascii_case(realm));
+    if console.is_none() && !realm.eq_ignore_ascii_case("pc") {
+        return Err(format!(
+            "`{realm}` is no realm of a site link: pc, xbox or sony"
+        ));
+    }
+    let Some(league) = decoded.league.as_deref() else {
+        return Err("the search names no league, and a site link is one league's: a search id names none, and the query JSON names one as `league` beside its `query`".to_string());
+    };
+    let text = decoded.query.to_string();
+    if text.len() > MAX_INFLATED {
+        return Err(format!(
+            "the query is {} bytes, past the {MAX_INFLATED} a search id is read to here",
+            text.len()
+        ));
+    }
+    let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    let bytes = gz
+        .write_all(text.as_bytes())
+        .and_then(|()| gz.finish())
+        .map_err(|e| format!("the query does not gzip: {e}"))?;
+    let id = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+    if id.len() > MAX_ID {
+        return Err(format!(
+            "the link's id is {} characters, longer than the {MAX_ID} a search id is read to here",
+            id.len()
+        ));
+    }
+    let league = percent_encoded(league);
+    Ok(match console {
+        Some(console) => format!("{SITE}/{console}/{league}/{id}"),
+        None => format!("{SITE}/{league}/{id}"),
+    })
+}
+
+/// A league as a path segment: each byte of its UTF-8 that is no letter,
+/// digit or `-._~` written `%XX`, which [`percent_decoded`] reads back.
+fn percent_encoded(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
 }
 
 fn trade(message: impl Into<String>) -> LanguageError {

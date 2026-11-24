@@ -55,6 +55,8 @@ GET search?<the ring search>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_01NSwqEMAy9S9YiMhVErzIMUmpGArUtbRRFendTXGiyeXl5nxP-ZBljguEEPgKOr_sFjWacfTwK9oHJOxhAG4MpCVtHcjNkmQoSaxbL944rKjdB9WTJgyahcQ-WDHFdDKP69L1qu6ZVot20XbE0LSQ1XZPzT_YC_xCqgqsAAAA" target="_blank" rel="noopener">the search on the trade site</a></p>
+<p class="link">Note: the search names no status, and the site fills what a search leaves unsaid with its own, its status among them</p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td></tr>

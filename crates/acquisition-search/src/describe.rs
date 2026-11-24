@@ -320,6 +320,10 @@ pub fn trade_report() -> Vec<Named> {
         ),
         key("remainder", "the clauses that did not run"),
         key(
+            "link",
+            "the site's search page for the search, for a person to open (nothing here opens or checks one), written from the query object as asked, its league and the realm it ran in: `url`, with `left_out`, what stands beside the query that the site cannot be asked — `defences` where the displayed reading was asked, `sort`, any other key — and `notes`: a clause not run here runs there, and a search that names no status takes the site's own; or `none`, why there is none — no league, every realm or PoE2, a link too long to be read back. A query typed in the language has no trade report, and no link",
+        ),
+        key(
             "fidelity",
             "how far the text is the site's search: exact, ambiguous where a clause ran as the site may not read it, or partial where the remainder is not empty, the answer then not the site's search. Never how far the items are the site's: the answer is over the items the store has fetched, priced or not — what it never fetched is `scope.never_fetched` — and the site shows public listings, a tab's being `tab.public`",
         ),

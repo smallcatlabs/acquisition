@@ -56,8 +56,8 @@ use crate::printed::Printed as _;
 use std::io::Read as _;
 
 use acquisition_search::answer::{
-    Answer, Asked, ClauseOut, Context, Count, Membership, PLACE_ORDER_WORDS, Request, RowField,
-    Rows, Scope, Shape, TradeOut, View, ViewOut,
+    Answer, Asked, ClauseOut, Context, Count, Link, Membership, PLACE_ORDER_WORDS, Request,
+    RowField, Rows, Scope, Shape, TradeOut, View, ViewOut,
 };
 use acquisition_search::corpus::Realm;
 use acquisition_search::counts::{Bucket, CrossOut, Label, SumOf, Summed, Table};
@@ -107,7 +107,9 @@ pub struct SearchArgs {
     /// alone, or its query JSON. A URL's realm is the search's scope, so
     /// `--realm` beside one is an error; an id or JSON names no realm and
     /// takes `--realm` as a query does. The answer opens with how
-    /// faithful the translation is and every clause it could not run;
+    /// faithful the translation is, its link back to the site for a
+    /// person to open (where it names a league), and every clause it
+    /// could not run;
     /// the clauses, each with its status, are its JSON's `query.trade`,
     /// and `--describe trade` is what becomes of each. The site's sort is
     /// reported, never applied. PoE1 only.
@@ -930,7 +932,9 @@ fn evidence_text(evidence: &acquisition_search::answer::Evidence) -> String {
 /// A site search's translation as an answer opens with it: one line,
 /// how far the text is the site's search; one line saying the items are
 /// the store's, never the site's listings, since a reader took `exact`
-/// for "the site would show the same"; then each clause that did not
+/// for "the site would show the same"; the link back to the site, or why
+/// there is none, with what it leaves out and its notes (C195,
+/// [`link_words`]); then each clause that did not
 /// run, each that runs as the site may not read it and each with no
 /// stash meaning, with its note — ten of each listed and the rest
 /// counted (C53) — and, beside an ambiguous clause whose other reading
@@ -943,6 +947,11 @@ pub(crate) fn trade_text(t: &TradeOut) -> Vec<String> {
         format!("trade   {}", fidelity_words(t)),
         format!("        over      {TRADE_OVER}"),
     ];
+    out.extend(
+        link_words(&t.link)
+            .into_iter()
+            .map(|(word, said)| format!("        {word:<9} {said}")),
+    );
     let listed = clauses_listed(t);
     let width = listed
         .iter()
@@ -998,6 +1007,35 @@ pub(crate) fn fidelity_words(t: &TradeOut) -> String {
         Fidelity::Exact => format!(
             "from {from}: exact — every clause with a stash meaning ran as the site reads it"
         ),
+    }
+}
+
+/// A site search's link back to the site (C195), as each surface says
+/// it: the URL, or `none` and why; what beside the query the site cannot
+/// be asked; each note. A word and what it says, the page drawing the
+/// URL as its link.
+pub(crate) fn link_words(link: &Link) -> Vec<(&'static str, String)> {
+    match link {
+        Link::None { none } => vec![("link", format!("none — {none}"))],
+        Link::Url {
+            url,
+            left_out,
+            notes,
+        } => {
+            let mut out = vec![("link", url.clone())];
+            if !left_out.is_empty() {
+                out.push((
+                    "left out",
+                    format!(
+                        "{} — beside the query, the site cannot be asked {}",
+                        left_out.join(", "),
+                        if left_out.len() == 1 { "it" } else { "them" }
+                    ),
+                ));
+            }
+            out.extend(notes.iter().map(|n| ("note", n.clone())));
+            out
+        }
     }
 }
 
