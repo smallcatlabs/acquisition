@@ -71,24 +71,50 @@ GZIP_HEADER = bytes.fromhex("1f8b0800000000000003")
 
 
 # An id written otherwise than the site writes it (round zd): each a valid
-# gzip member of the same text, (deflate level, strategy, header). The
-# site's own is a dynamic block at level 6 under GZIP_HEADER; `stored` is
-# blocks of no compression, `fixed` the fixed codes, `huffman only` codes
-# with no match, and `os unknown` the site's deflate under a header whose
-# last byte, the operating system, is 255.
+# gzip member of the same text, (deflate level, strategy, header, the kind
+# of its first block where the encoding fixes one). The site's own is
+# level 6 under GZIP_HEADER; `stored` is blocks of no compression (kind
+# 0), `fixed` the fixed codes (kind 1), and `os unknown` the site's
+# deflate under a header whose last byte, the operating system, is 255.
+# Each is told from the site's own by what a link's bytes show (`written`),
+# never by composing it again: deflate's bytes are the zlib build's.
 ENCODINGS = {
-    None: (6, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER),
-    "stored": (0, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER),
-    "fixed": (6, zlib.Z_FIXED, GZIP_HEADER),
-    "huffman only": (6, zlib.Z_HUFFMAN_ONLY, GZIP_HEADER),
-    "os unknown": (6, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER[:9] + b"\xff"),
+    None: (6, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER, None),
+    "stored": (0, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER, 0),
+    "fixed": (6, zlib.Z_FIXED, GZIP_HEADER, 1),
+    "os unknown": (6, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER[:9] + b"\xff", None),
 }
+
+
+def written(link_text):
+    """How a link's id is written: its gzip header, and the kind of its
+    first deflate block (0 stored, 1 fixed codes, 2 dynamic)."""
+    token = link_text.rsplit("/", 1)[1]
+    raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
+    return raw[:10], (raw[10] >> 1) & 3
+
+
+def misencoded(sheet_rows, searches):
+    """The sheet's rows whose link is not written as its search's
+    encoding says: a link in the site's own bytes under a row that asks
+    another encoding decodes to the row's query and asks nothing."""
+    asked = {r["search"]: r["encoding"] for r in searches if r.get("encoding")}
+    bad = []
+    for row in sheet_rows:
+        encoding = asked.get(row["search"])
+        if encoding is None:
+            continue
+        _, _, header, kind = ENCODINGS[encoding]
+        was, block = written(row["link"])
+        if was != header or (kind is not None and block != kind):
+            bad.append(row["search"])
+    return bad
 
 
 def compose(query, encoding=None):
     """The site's id for a query object, or the same text in another
     encoding (`ENCODINGS`)."""
-    level, strategy, header = ENCODINGS[encoding]
+    level, strategy, header, _ = ENCODINGS[encoding]
     body = json.dumps(query, separators=(",", ":"), ensure_ascii=False).encode()
     deflate = zlib.compressobj(level, zlib.DEFLATED, -15, 8, strategy)
     packed = deflate.compress(body) + deflate.flush()
@@ -2744,18 +2770,23 @@ def round_zd(earlier):
     """What the site takes of a link it did not write (#303): a search
     held as the site's JSON goes back as a link another encoder composes,
     from a query the search form made. zd01 the control, the site's own
-    bytes; zd02-zd05 the same shape of query in another encoding
-    (`ENCODINGS`), between them every kind of deflate block and another
-    header; zd06 the query's keys in another order; zd07-zd09 a query
-    with no `status`, and as the form makes one.
+    bytes; zd02-zd04 the same shape of query in another encoding
+    (`ENCODINGS`): a stored block and a block of the fixed codes beside
+    the control's dynamic one, and another header; zd05 the query's keys
+    in another order; zd06-zd08 a query with no `status`, and as the form
+    makes one.
 
     Each is a unique by its name, a query no row holds, and decides by
-    whether the site runs it: items found, or its refusal. A search the
-    page posts with a `status` the row lacks is no row's by
-    `trade_query.asking`, so zd07 to zd09 are read from the recorder's
-    files: what the page posted, and what was found."""
+    whether the site runs it: items found, or the site's refusal. A
+    search that runs and finds nothing says nothing of the link: its
+    control asks another item, so the query is asked again in the site's
+    own bytes before anything is read of it. A search the page posts
+    with a `status` the row lacks is no row's by `trade_query.asking`, so
+    zd06 to zd08 are read from the recorder's files: what the page
+    posted, and what was found."""
     composed = Composed("zd", 2, earlier)
     add = composed.add
+    nothing = "none found says nothing of the link: the query is asked again in the site's bytes"
 
     def unique(name, base, status=True):
         q = batch_query([], None, base)
@@ -2778,39 +2809,41 @@ def round_zd(earlier):
     for encoding, name, base, what in [
         ("stored", "Goldrim", "Leather Cap", "blocks of no compression"),
         ("fixed", "Wanderlust", "Wool Shoes", "a block of the fixed codes"),
-        ("huffman only", "Lifesprig", "Driftwood Wand", "a dynamic block with no match"),
         ("os unknown", "Redbeak", "Rusted Sword", "the site's own deflate under a header naming no operating "
                                                   "system (its tenth byte 255, the site's 3)"),
     ]:
         add(f"an id written otherwise, `{encoding}`: {what}; `name` `{name}`, `type` `{base}`. Items found: "
-            "the site inflates an id it did not write so; refused, or nothing shown: it takes its own bytes "
-            "alone", "zd01, the same shape in the site's bytes", unique(name, base), encoding=encoding)
+            f"the site inflates an id it did not write so; the site's refusal: it does not; {nothing}",
+            "zd01, the same shape in the site's bytes", unique(name, base), encoding=encoding)
     add("the query's keys in another order, the alphabet's at every depth, the id otherwise as the site "
         "writes it: `name` `Blackheart`, `type` `Iron Ring`. Items found: the order of an object's keys is "
-        "nothing to the site; refused: a link is written in the site's order", "zd01, the site's order",
-        ordered(unique("Blackheart", "Iron Ring")))
+        f"nothing to the site; the site's refusal: a link is written in the site's order; {nothing}",
+        "zd01, the site's order", ordered(unique("Blackheart", "Iron Ring")))
     add("no `status`: zd01's shape less that key, `name` `Hrimsorrow`, `type` `Goathide Gloves`. Items "
         "found: the site takes a query with no status, and what the page posted says the status it read; "
-        "refused: a link needs one", "zd01, the shape with its status",
+        f"the site's refusal: a link needs one; {nothing}", "zd01, the shape with its status",
         unique("Hrimsorrow", "Goathide Gloves", status=False))
     add("as the search form makes one, a filter alone: `filters` with `type_filters.category` "
         "`accessory.trinket`, no `status`, no `stats`, no `disabled`. Items found: the form's query goes "
-        "back as it is held; refused: the recorder's file says what was missing",
-        "zd07, no `status` alone; u016 listed the category",
+        "back as it is held; the site's refusal: the recorder's file says what was missing",
+        "zd06, no `status` alone; u016 listed the category",
         {"filters": {"type_filters": {"filters": {"category": {"option": "accessory.trinket"}}}}})
     add("as the search form makes one, a filter and a stat row: `type_filters.category` `accessory.ring`, "
         "`misc_filters.ilvl` `min` 75, and `explicit.stat_3299347043` at `min` 90 in an `and` group, the "
         "form's order of keys. Items found, each a ring of item level 75 or more with 90 life: the form's "
-        "query runs on the site as asked", "zd08, a filter alone",
+        f"query runs on the site as asked; the site's refusal: it does not; {nothing}", "zd07, a filter alone",
         {"filters": {"type_filters": {"filters": {"category": {"option": "accessory.ring"}}},
                      "misc_filters": {"filters": {"ilvl": {"min": 75}}}},
          "stats": [{"type": "and", "filters": [{"id": "explicit.stat_3299347043", "value": {"min": 90}}]}]})
     rows = composed.done()
-    if len(rows) != 9:
-        raise SystemExit(f"round zd has {len(rows)} searches, its names written for 9")
-    kinds = {compose(r["query"], r.get("encoding")) == compose(r["query"]) for r in rows if r.get("encoding")}
-    if kinds != {False}:
-        raise SystemExit("an encoding of round zd writes the site's own bytes: it asks nothing")
+    if len(rows) != 8:
+        raise SystemExit(f"round zd has {len(rows)} searches, its names written for 8")
+    # an encoding asks something only of a query the site's own bytes write
+    # otherwise by what `written` shows: a query short enough is a block of
+    # the fixed codes in the site's bytes too
+    the_sites = [{"search": r["search"], "link": link(r["query"])} for r in rows if r.get("encoding")]
+    if misencoded(the_sites, rows) != [r["search"] for r in the_sites]:
+        raise SystemExit("an encoding of round zd is not told from the site's own bytes: it asks nothing")
     return rows
 
 
@@ -2930,7 +2963,8 @@ def verify():
     with OUT.open(newline="") as fh:
         rows = list(csv.DictReader(fh))
     for row in rows:
-        if decode(row["link"]) != json.loads(row["query"]):
+        # by the text, so the order of an object's keys is the row's too (zd05)
+        if json.dumps(decode(row["link"])) != json.dumps(json.loads(row["query"])):
             bad += 1
             print(f"DIFFER  {row['search']}")
         if row["link"].rsplit("/", 2)[1] != urllib.parse.quote(row["league"]):
@@ -2939,8 +2973,12 @@ def verify():
         if not row["control"].strip():
             bad += 1
             print(f"NO CONTROL  {row['search']}")
+    searches = compose_sheet()
+    for name in misencoded(rows, searches):
+        bad += 1
+        print(f"ENCODING  {name}: the link is not written as its search's encoding says")
     # the sheet is what this script writes, line for line
-    composed = kept(sheet_text(compose_sheet()))
+    composed = kept(sheet_text(searches))
     with OUT.open(newline="") as fh:
         committed = fh.read()
     gone = changed(composed)
@@ -2950,16 +2988,29 @@ def verify():
     if composed != committed and not gone:
         bad += 1
         print(f"UNWRITTEN  {len(composed.splitlines()) - len(committed.splitlines())} composed searches the sheet lacks")
-    print(f"{len(rows)} links decoded, {bad} differ from their query, their league or their composition, or lack a control")
+    print(f"{len(rows)} links decoded, {bad} differ from their query, its keys' order, their league, their "
+          "encoding or their composition, or lack a control")
     return 1 if bad else 0
 
 
 def self_test():
+    # a link in the site's own bytes under a row that asks another encoding
+    # is found, and one written as asked is not; needs no capture
+    # (of a query long enough that the site's own bytes are a dynamic block)
+    asked = batch_query([], None, "Simple Robe")
+    probe = [{"search": name, "query": asked, "encoding": name} for name in ENCODINGS if name]
+    as_asked = [{"search": r["search"], "link": link(asked, LEAGUE, r["encoding"])} for r in probe]
+    the_sites = [{"search": r["search"], "link": link(asked)} for r in probe]
+    found = (misencoded(as_asked, probe), misencoded(the_sites, probe))
+    failed = 0
+    if found != ([], [r["search"] for r in probe]):
+        failed += 1
+        print(f"DIFFER  an encoding's own link refused, or the site's bytes taken for one: {found}")
+    print(f"{len(probe)} encodings told from the site's own bytes, {failed} not")
     requests = sorted(CAPTURED.glob("*-request.json"))
     if not requests:
         print(f"skipped: no captures under {CAPTURED} (raw/ is local only)")
-        return 0
-    failed = 0
+        return 1 if failed else 0
     checked = 0
     for request in requests:
         read = capture(CAPTURED, request.name[: -len("-request.json")])
