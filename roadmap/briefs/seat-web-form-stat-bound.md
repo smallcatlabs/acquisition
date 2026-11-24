@@ -13,10 +13,9 @@ sitting lands. Closes #315.
   counts, round ze's answers, the fix. `audits/web-form/seat/REPORT.md`,
   fault 2. The owner's choice on #185 (presence over every form, a bound
   the text and its plurals) and his word of 2026-11-23 to build it.
-- C106 (game data, never a judgment), C113 (the oracle of missed
-  matches), C122 (pin once, lowest crate), C153 (a finding joins its
-  surface), C154 (a retirement names its holder), C116 (no id in
-  user-facing text).
+- C106 (game data), C113 (the oracle of missed matches), C122 (pin
+  once, lowest crate), C153 (a finding joins its surface), C154 (a
+  retirement names its holder), C116 (no id in user-facing text).
 - Code: `tools/trade-forms-table.py` (rule 3, `kind_of`, `word`); the
   search crate's `src/trade/forms.rs` (`open`, the loader's `plural`
   check), `src/trade/translate.rs` (the forms loop and its notes), and
@@ -50,26 +49,24 @@ The design session's (C172, who designs), settled with the owner:
    already reads; a plural it does not read (`Prefix`/`Prefixes`) stays
    `other` here and is listed in the report (Find first), not moved.
 3. **The table is regenerated** by its generator at its pin, by the
-   convention the reference tables follow for a change of content (its
-   `version`, its name, the build digest; found below). How many forms
+   convention the reference tables follow for a change of content
+   (its version and name; found below). How many forms
    move from `other` to `plural` is measured and said; each moved form
    is read once, and one that is not its text's singular or plural is a
    finding for the design session, not a silent move.
-4. **A clause's status and notes are what its row gives**: no new
-   status. Where a note named a form left out of the sum, it no longer
-   does.
+4. **A clause's status and notes are its row's**: no new status. A
+   note that named a form left out of the sum no longer does.
 5. **The sitting lands here**: ze01 to ze04's captures, the manifest's
    paragraph and row, the site's answer as the next numbered claim in
    `docs/design/trade-ground-truth.md`, and every count pin over the
    captures holding what it then measures. The oracle runs the four
    with every fetched item matched.
-6. **Pinned at the lowest crate** by tests named for the fault, and
-   one row at the page (Done when).
+6. **Pinned at the lowest crate**, one row at the page (Done when).
 
 ## Find first
 - `git grep -n -i 'digit\|plural\|kind_of\|open(' -- tools/trade-forms-table.py crates/acquisition-search/src/trade/forms.rs`:
   rule 3 and the loader's check.
-- `git grep -n -e 'summed()' -e 'Kind::Plural' -e 'Kind::Other' -e 'unsummed' -e 'Shown::of' -e 'fn of(text' -e 'template::fixed' -- crates/acquisition-search/src/trade crates/acquisition-search/tests`:
+- `git grep -n -e '\.kind\b' -e 'Kind::' -e 'summed' -e 'Shown::of' -e 'fn of(text' -e 'template::fixed' -- crates/acquisition-search/src/trade crates/acquisition-search/tests`:
   every reader of a form's kind, and how a form's text becomes a line
   where it writes a digit.
 - After the regeneration, `grep -n 'kind = "other"' crates/acquisition-search/reference/trade-game-forms-v1.toml`,
@@ -102,8 +99,10 @@ The design session's (C172, who designs), settled with the owner:
   match an item displaying `Has 1 Abyssal Socket` of its kind and fail
   one without; at `min` 2 each fails `Has 1` and matches `Has 2 Abyssal
   Sockets`; no case's note names the singular as left out.
-- `trade_translate.rs`'s bound counts and the catalogue header's hold
-  what the test measures, each move said in the commit.
+- `trade_translate.rs`'s counts, alone and with a bound, and the
+  catalogue header's hold what `ACQ_CASES=full cargo nextest run -p
+  acquisition-search --test main c113_every_stat_id_of_the_table_translates`
+  measures (the gate runs a share; CI all), each move said in the commit.
 - The sitting: ze01 to ze04's captures written by `trade-split.py
   --write`, their inventory, and what steps 7 to 10 write; a `MANIFEST.md`
   paragraph and row as round zd's; the claim in `trade-ground-truth.md`
@@ -118,7 +117,7 @@ The design session's (C172, who designs), settled with the owner:
 - `tools/gate.sh` exits 0 on the close's tree.
 
 ## Not in scope
-- #316 (a weighted sum of pseudo totals), #309 (a bound of 0), #317.
+- #316 (a weighted sum of pseudo totals), #309, #317.
 - Any other kind of form (`opposite`, `numberless`, an `other` that is
   not a plural): their status and notes stay.
 - The pages beyond the one `web.rs` case; the look (#285).
@@ -128,7 +127,7 @@ The design session's (C172, who designs), settled with the owner:
 skill); tooling sends nothing to the trade site. Land the captures as
 the site-sitting skill says; the recording stays under `raw/`, never
 committed. A choice of shape with two defensible answers goes to the
-design session (C172, who designs); the rest carries on.
+design session; the rest carries on.
 
 ## Report
 `TEMPLATE.md`.
