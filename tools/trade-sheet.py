@@ -70,18 +70,35 @@ LEAGUE = "Standard"
 GZIP_HEADER = bytes.fromhex("1f8b0800000000000003")
 
 
-def compose(query):
-    """The site's id for a query object."""
+# An id written otherwise than the site writes it (round zd): each a valid
+# gzip member of the same text, (deflate level, strategy, header). The
+# site's own is a dynamic block at level 6 under GZIP_HEADER; `stored` is
+# blocks of no compression, `fixed` the fixed codes, `huffman only` codes
+# with no match, and `os unknown` the site's deflate under a header whose
+# last byte, the operating system, is 255.
+ENCODINGS = {
+    None: (6, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER),
+    "stored": (0, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER),
+    "fixed": (6, zlib.Z_FIXED, GZIP_HEADER),
+    "huffman only": (6, zlib.Z_HUFFMAN_ONLY, GZIP_HEADER),
+    "os unknown": (6, zlib.Z_DEFAULT_STRATEGY, GZIP_HEADER[:9] + b"\xff"),
+}
+
+
+def compose(query, encoding=None):
+    """The site's id for a query object, or the same text in another
+    encoding (`ENCODINGS`)."""
+    level, strategy, header = ENCODINGS[encoding]
     body = json.dumps(query, separators=(",", ":"), ensure_ascii=False).encode()
-    deflate = zlib.compressobj(6, zlib.DEFLATED, -15)
+    deflate = zlib.compressobj(level, zlib.DEFLATED, -15, 8, strategy)
     packed = deflate.compress(body) + deflate.flush()
     trailer = struct.pack("<II", zlib.crc32(body), len(body))
-    whole = GZIP_HEADER + packed + trailer
+    whole = header + packed + trailer
     return base64.urlsafe_b64encode(whole).decode().rstrip("=")
 
 
-def link(query, league=LEAGUE):
-    return f"{SITE}/{league}/{compose(query)}"
+def link(query, league=LEAGUE, encoding=None):
+    return f"{SITE}/{league}/{compose(query, encoding)}"
 
 
 def query(stats, rarity="rare"):
@@ -1846,7 +1863,7 @@ class Composed:
         self.mine = {}
         self.waiting = []
 
-    def add(self, decides, control, q, league=None):
+    def add(self, decides, control, q, league=None, encoding=None):
         league = league or self.league
         key = (league, json.dumps(q, sort_keys=True))
         if key in self.known:
@@ -1859,6 +1876,8 @@ class Composed:
             row = {"search": name, "decides": decides, "control": control, "query": q}
             if league != LEAGUE:
                 row["league"] = league
+            if encoding:
+                row["encoding"] = encoding
             self.rows.append(row)
             self.known[key] = name
             self.mine[name] = row
@@ -2721,6 +2740,80 @@ def round_zc(earlier):
     return rows
 
 
+def round_zd(earlier):
+    """What the site takes of a link it did not write (#303): a search
+    held as the site's JSON goes back as a link another encoder composes,
+    from a query the search form made. zd01 the control, the site's own
+    bytes; zd02-zd05 the same shape of query in another encoding
+    (`ENCODINGS`), between them every kind of deflate block and another
+    header; zd06 the query's keys in another order; zd07-zd09 a query
+    with no `status`, and as the form makes one.
+
+    Each is a unique by its name, a query no row holds, and decides by
+    whether the site runs it: items found, or its refusal. A search the
+    page posts with a `status` the row lacks is no row's by
+    `trade_query.asking`, so zd07 to zd09 are read from the recorder's
+    files: what the page posted, and what was found."""
+    composed = Composed("zd", 2, earlier)
+    add = composed.add
+
+    def unique(name, base, status=True):
+        q = batch_query([], None, base)
+        q = {"status": q["status"], "name": name, **{k: v for k, v in q.items() if k != "status"}}
+        if not status:
+            del q["status"]
+        return q
+
+    def ordered(node):
+        """The same object, its keys in the alphabet's order at every depth."""
+        if isinstance(node, dict):
+            return {k: ordered(node[k]) for k in sorted(node)}
+        if isinstance(node, list):
+            return [ordered(v) for v in node]
+        return node
+
+    add("the control: `name` `Tabula Rasa`, `type` `Simple Robe`, the id as the site writes it. Must find "
+        "items; the control of every search of this round", "the control: must find items",
+        unique("Tabula Rasa", "Simple Robe"))
+    for encoding, name, base, what in [
+        ("stored", "Goldrim", "Leather Cap", "blocks of no compression"),
+        ("fixed", "Wanderlust", "Wool Shoes", "a block of the fixed codes"),
+        ("huffman only", "Lifesprig", "Driftwood Wand", "a dynamic block with no match"),
+        ("os unknown", "Redbeak", "Rusted Sword", "the site's own deflate under a header naming no operating "
+                                                  "system (its tenth byte 255, the site's 3)"),
+    ]:
+        add(f"an id written otherwise, `{encoding}`: {what}; `name` `{name}`, `type` `{base}`. Items found: "
+            "the site inflates an id it did not write so; refused, or nothing shown: it takes its own bytes "
+            "alone", "zd01, the same shape in the site's bytes", unique(name, base), encoding=encoding)
+    add("the query's keys in another order, the alphabet's at every depth, the id otherwise as the site "
+        "writes it: `name` `Blackheart`, `type` `Iron Ring`. Items found: the order of an object's keys is "
+        "nothing to the site; refused: a link is written in the site's order", "zd01, the site's order",
+        ordered(unique("Blackheart", "Iron Ring")))
+    add("no `status`: zd01's shape less that key, `name` `Hrimsorrow`, `type` `Goathide Gloves`. Items "
+        "found: the site takes a query with no status, and what the page posted says the status it read; "
+        "refused: a link needs one", "zd01, the shape with its status",
+        unique("Hrimsorrow", "Goathide Gloves", status=False))
+    add("as the search form makes one, a filter alone: `filters` with `type_filters.category` "
+        "`accessory.trinket`, no `status`, no `stats`, no `disabled`. Items found: the form's query goes "
+        "back as it is held; refused: the recorder's file says what was missing",
+        "zd07, no `status` alone; u016 listed the category",
+        {"filters": {"type_filters": {"filters": {"category": {"option": "accessory.trinket"}}}}})
+    add("as the search form makes one, a filter and a stat row: `type_filters.category` `accessory.ring`, "
+        "`misc_filters.ilvl` `min` 75, and `explicit.stat_3299347043` at `min` 90 in an `and` group, the "
+        "form's order of keys. Items found, each a ring of item level 75 or more with 90 life: the form's "
+        "query runs on the site as asked", "zd08, a filter alone",
+        {"filters": {"type_filters": {"filters": {"category": {"option": "accessory.ring"}}},
+                     "misc_filters": {"filters": {"ilvl": {"min": 75}}}},
+         "stats": [{"type": "and", "filters": [{"id": "explicit.stat_3299347043", "value": {"min": 90}}]}]})
+    rows = composed.done()
+    if len(rows) != 9:
+        raise SystemExit(f"round zd has {len(rows)} searches, its names written for 9")
+    kinds = {compose(r["query"], r.get("encoding")) == compose(r["query"]) for r in rows if r.get("encoding")}
+    if kinds != {False}:
+        raise SystemExit("an encoding of round zd writes the site's own bytes: it asks nothing")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2765,6 +2858,7 @@ def compose_sheet(method="site"):
         searches += round_za(searches)
         searches += round_zb(searches)
         searches += round_zc(searches)
+        searches += round_zd(searches)
     return searches
 
 
@@ -2779,7 +2873,8 @@ def sheet_text(searches):
             raise SystemExit(f"two searches named {row['search']}")
         seen.add(row["search"])
         league = row.get("league", LEAGUE)
-        sheet.writerow([row["search"], row["decides"], row["control"], league, link(row["query"], league),
+        sheet.writerow([row["search"], row["decides"], row["control"], league,
+                        link(row["query"], league, row.get("encoding")),
                         json.dumps(row["query"], separators=(",", ":"), ensure_ascii=False)])
     return out.getvalue()
 
