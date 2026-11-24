@@ -1,0 +1,7 @@
+- `ab7aacb8^..13123a23` — done-when holds by inspection, except the specified golden location; execution not verified.
+- Findings: none.
+- Not checked: builds, tests, browser behavior, gate results, CI or fixture regeneration, as instructed.
+- Nitpicks for unlikely cases: none.
+- Brief: change the query-box link’s required golden from `search_form.txt` to `search_pages.txt`, which holds it; the form excerpt ends before the query box.
+- Plan: no changes suggested.
+- Prompt: nothing impeded the review.
