@@ -223,7 +223,11 @@ assert len(line.findall(s)) == 1, 'no one names=( line ending in tree'
 p.write_text(line.sub(lambda m: 'names=(' + m.group(1) + ' zzbreaker tree)', s))
 PY
 }
-run_case 'AGENTS.md names two stages out of order'               refuse 'AGENTS.md says the stages are build test clippy winclippy diff fmt' swapped
+# The refusal's words are read from the script's own list, `fmt` and
+# `diff` swapped, so a stage added to the gate never leaves this case
+# expecting the list as it was.
+said_swapped=$(sed -nE 's/^names=\((.*)\)$/\1/p' tools/gate.sh | sed 's/ fmt diff / diff fmt /')
+run_case 'AGENTS.md names two stages out of order'               refuse "AGENTS.md says the stages are $said_swapped;" swapped
 run_case 'the script gains a stage AGENTS.md does not name'      refuse 'artifacts zzbreaker tree: make the sentence' gate_gains
 
 echo

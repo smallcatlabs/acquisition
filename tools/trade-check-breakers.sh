@@ -77,8 +77,9 @@ p.write_text(s.replace(sys.argv[2], sys.argv[3]), encoding="utf-8")
 PY
 }
 append() { printf '%s\n' "$2" >>"$1"; }   # append <file> <line>
-# Where the clone is and its pin, read from tools/sources.py, as the check reads them.
-read -r poe1 pin < <(python3 -I -c 'import sys; sys.path.insert(0, "tools"); from sources import POE1, PINS; print(POE1, PINS["poe1"])')
+# Where the clone is and its pin, read from tools/sources.py, as the check
+# reads them: a line each, so a path with a space in it stays whole.
+{ read -r poe1; read -r pin; } < <(python3 -I -c 'import sys; sys.path.insert(0, "tools"); from sources import POE1, PINS; print(POE1); print(PINS["poe1"])')
 no_clones() { mkdir -p "$scratch/none" && case_env=("ACQ_CLONES=$scratch/none"); }
 clone_at_no_commit() { mkdir -p "$scratch/bare" && git init -q "$scratch/bare/poe1" && case_env=("ACQ_CLONES=$scratch/bare"); }
 
