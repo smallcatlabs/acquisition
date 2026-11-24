@@ -78,8 +78,6 @@ skill apply. What a builder adds:
   the commit of the check it stages.
 - Each concern may commit after its own targeted tests; the one full
   gate runs on the step's tree before the last commit.
-- When doc comments change, run `tools/gate.sh --only doc` before the
-  last commit: CI runs that stage and the full gate does not.
 - Rewrite your own unpushed commits with `git commit-tree -S` (signed,
   as every commit here is), then `git update-ref <ref> <new> <old>`,
   which refuses if the branch moved; never a reset, and each rewritten

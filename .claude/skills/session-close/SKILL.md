@@ -86,9 +86,7 @@ later read".
 
 ## 4. Before a push
 
-A push stands alone in its command. When the range changes doc
-comments, run `tools/gate.sh --only doc` first: CI runs that stage and
-the full gate does not.
+A push stands alone in its command.
 
 ## 5. A phase close
 

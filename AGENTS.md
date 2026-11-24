@@ -188,6 +188,7 @@ trade site).
 cargo build --workspace
 cargo nextest run --workspace --all-targets
 cargo clippy --workspace --all-targets --all-features -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 cargo fmt --all -- --check
 git diff --check
 tools/docs-check.sh
@@ -198,9 +199,8 @@ python3 -I tools/bothy.py check
 
 `tools/gate.sh` runs these and four checks of its own, with a table of
 exit statuses. Its stages, in order: `build` `test` `clippy`
-`winclippy` `fmt` `diff` `docs` `arch` `trade` `bothy` `features`
-`artifacts` `tree`. `--docs` runs the five that build no Rust. CI runs
-`cargo doc` (`--only doc` here).
+`winclippy` `doc` `fmt` `diff` `docs` `arch` `trade` `bothy` `features`
+`artifacts` `tree`. `--docs` runs the five that build no Rust.
 
 Once per clone: `git config core.hooksPath .githooks` (the commit
 hooks write Claude's trailer as `Assisted-by:`, and refuse a commit from

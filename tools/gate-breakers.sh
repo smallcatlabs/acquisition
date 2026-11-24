@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-breakers.sh — proves tools/gate.sh refuses what it claims to, by
 # staging each refusal and watching it fail: a stage name it does not
-# know, the fixture switch reaching a stage, a working tree its
-# stages changed, a feature pin taken out, a release matrix row the
+# know, a broken intra-doc link, the fixture switch reaching a stage, a
+# working tree its stages changed, a feature pin taken out, a release matrix row the
 # features stage cannot read, and cargo failing under it, the
 # Windows-target clippy where its target is not installed and the compiler
 # it names on each host, and the
@@ -36,12 +36,16 @@ for p in "${owned[@]}"; do
 done
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-gate-breakers.XXXXXX")
-files=(tools/gate.sh GLOSSARY.md crates/acquisition-cli/Cargo.toml Cargo.lock .github/workflows/release.yml)
-for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
+# Copied and restored with their times (`cp -p`): cargo reads a member's
+# source by its time, so a source put back newer than the build would
+# rebuild every crate above it on the next gate.
+PROTOCOL=crates/acquisition-protocol/src/lib.rs
+files=(tools/gate.sh GLOSSARY.md crates/acquisition-cli/Cargo.toml Cargo.lock .github/workflows/release.yml "$PROTOCOL")
+for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp -p "$f" "$scratch/keep/$f"; done
 restore() {
   local f
   for f in "${files[@]}"; do
-    cp "$scratch/keep/$f" "$f"
+    cp -p "$scratch/keep/$f" "$f"
     cmp -s "$scratch/keep/$f" "$f" || { echo "RESTORE FAILED: $f"; exit 2; }
   done
   rm -f "${owned[@]}" "$scratch/verdicts.tsv"
@@ -106,9 +110,30 @@ gate=tools/gate.sh
 echo '== a stage the gate does not know'
 run_case 'an unknown stage under --only'                         refuse '--only takes one of: build'    none $gate --only bogus
 run_case 'an unknown flag'                                       refuse 'tools/gate.sh --only <stage>'  none $gate --bogus
-# The doc stage is not in the full list (CI runs it) and is selectable here.
+run_case 'the usage, whole'                                      pass   '--only <stage>  one stage, by its name in the table' none $gate --help
+# The doc stage is in the full list, and selectable alone, as the Linux
+# gate's doc job runs it.
 doc_is_quick() { stage_does doc true; }
 run_case 'the doc stage under --only'                            pass   'gate: green'  doc_is_quick $gate --only doc
+
+echo '== the docs: a broken intra-doc link fails the doc stage, naming it (C196)'
+# The stage's own command, run for real, in a target directory of the
+# case's own (`gate-breakers` under the one cargo would use: a runner's
+# own, or the ignored `target/`), so the clone's own builds are never
+# touched and a runner that keeps its target directory keeps this one
+# warm. The link is staged in the protocol crate, which links
+# serde alone: its docs are among the first the stage builds, and cargo
+# starts nothing after the first that fails, so a cold run builds little
+# more than serde.
+broken_link() {
+  python3 - "$PROTOCOL" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); s = p.read_text()
+assert s.startswith('//! '), 'the protocol crate opens with no inner doc'
+p.write_text('//! [`ZzGateBreaker`]\n' + s)
+PY
+}
+run_case 'a link to no item'                                     refuse 'unresolved link to `ZzGateBreaker`' broken_link env CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target}/gate-breakers" $gate --only doc
 
 echo '== the fixture switch: set at any value, no stage sees it (#87)'
 # The stage that would rewrite a golden is any stage: the gate unsets the

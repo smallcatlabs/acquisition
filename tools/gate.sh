@@ -6,8 +6,7 @@
 #                                 change no test or build reads, which the
 #                                 session establishes; when unsure, the
 #                                 full gate
-#   tools/gate.sh --only <stage>  one stage, by the name in the table, or
-#                                 doc, which CI runs
+#   tools/gate.sh --only <stage>  one stage, by its name in the table
 #
 # Each stage runs bare, its output unfiltered, and its exit status is
 # captured into its own slot: a stage piped through a filter reports the
@@ -80,10 +79,12 @@
 # that compares, so a gate run in a shell that exports it would rewrite
 # every golden and go green.
 #
-# The doc stage, `cargo doc` with warnings denied, is not in the full
-# list: 81 s after one store touch, on a 10-core M4, serial, and the
-# Linux gate's `doc` job runs it on every push (the owner's ruling).
-# `--only doc` runs it here.
+# C196 (the gate builds the docs): the `doc` stage is `cargo doc` over
+# the workspace's own crates with warnings denied, so a broken intra-doc
+# link, a public doc naming a private item among them, fails the full
+# gate before a push. It is warm in a second with nothing changed, and
+# rebuilds the docs of a changed crate and of every crate above it. The
+# Linux gate's `doc` job runs the same stage on every push.
 #
 # The full gate ends with `tree`: the working tree its stages leave must
 # be the one they found. A session gates its uncommitted work, so
@@ -98,8 +99,7 @@ cd "$(dirname "$0")/.."
 
 unset ACQ_UPDATE_FIXTURES
 
-names=(build test clippy winclippy fmt diff docs arch trade bothy features artifacts tree)
-ONLY=(doc)   # selectable by --only, never in the full list
+names=(build test clippy winclippy doc fmt diff docs arch trade bothy features artifacts tree)
 DOCS=(diff docs arch trade bothy)
 VERDICTS=runs/gate/verdicts.tsv
 
@@ -305,7 +305,8 @@ run_stage() {
   esac
 }
 
-usage() { sed -n '4,10p' "$0" | sed 's/^# \{0,1\}//'; }
+# The usage is the header's lines from the fourth to the first bare `#`.
+usage() { awk 'NR >= 4 { if ($0 == "#") exit; sub(/^# ?/, ""); print }' "$0"; }
 
 selected=()
 case ${1:-} in
@@ -313,9 +314,9 @@ case ${1:-} in
   --docs) selected=("${DOCS[@]}"); selection=--docs ;;
   --only)
     selection="--only ${2:-}"
-    for name in "${names[@]}" "${ONLY[@]}"; do [[ ${2:-} == "$name" ]] && selected=("$2"); done
+    for name in "${names[@]}"; do [[ ${2:-} == "$name" ]] && selected=("$2"); done
     if ((${#selected[@]} == 0)); then
-      echo "gate.sh: --only takes one of: ${names[*]} ${ONLY[*]}" >&2; exit 2
+      echo "gate.sh: --only takes one of: ${names[*]}" >&2; exit 2
     fi ;;
   -h | --help) usage; exit 0 ;;
   *) usage >&2; exit 2 ;;
