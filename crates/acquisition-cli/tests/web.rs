@@ -1824,6 +1824,10 @@ fn every_search_page_is_a_wording_golden() {
             "A trade site search: its URL, its id or its query JSON",
             "name=\"trade\"",
             "Run the site's search",
+            // the query box's link to the language's index, beside its
+            // summary, carrying the page as its way back
+            "<summary>The query, in the language</summary><p class=\"index\"><a href=\"",
+            "/describe?from=.\">The language&#39;s index: every entry by its name and one line</a></p><form class=\"query-box\"",
         ],
     );
     // a fate is said where it is not exact (`4-full-1-form-rides.md`,
@@ -7812,7 +7816,8 @@ fn the_language_on_a_page_is_a_wording_golden() {
     drop(scratch);
 }
 
-/// `describe` is a step (the landing rule): reached with a `from`, every
+/// `describe` is a step (the landing rule): reached from the query box's
+/// link with the search page as its `from`, every
 /// page of it draws that way back, and its links to an entry, to a block
 /// and to the index, and its names box, hand it on; a pattern that matches
 /// nothing is refused with its offer of the index a link carrying it, and
@@ -7823,7 +7828,15 @@ fn the_language_hands_on_the_way_back_it_was_given() {
     let from = "search?realm=pc&text=rarity%3Drare";
     let carried = format!("from={}", url_encoded(from));
     let back = back_link(&web, from);
-    let index = web.get(&format!("describe?{carried}"));
+    // the query box's link: the index, the search page its way back
+    let searched = web.get(from);
+    assert_eq!(searched.status, 200, "{}", searched.body);
+    let linked = link_saying(
+        &searched.body,
+        "The language&#39;s index: every entry by its name and one line",
+    );
+    assert_eq!(linked, format!("/{}/describe?{carried}", web.token));
+    let index = follow(&web, &linked);
     assert_eq!(index.status, 200, "{}", index.body);
     assert!(index.body.contains(&back), "{back}: {}", index.body);
     assert!(

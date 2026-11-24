@@ -762,19 +762,21 @@ impl Filled {
 
 /// The page's editors, filled (the one page, `4-full-1-form-design.md` §2):
 /// what the form's envelope holds and no control sends, named; the search
-/// form, the site box in its bar; the query box; the league list's fetch. The answer or
+/// form, the site box in its bar; the query box, `index` its link to the
+/// language's index; the league list's fetch. The answer or
 /// the refusal stands under them, at [`ANSWER`].
 pub(crate) fn editor(
     form: &Form,
     filled: &Filled,
     leagues: Option<&[(String, bool)]>,
     from: Option<&FromPage>,
+    index: &str,
 ) -> String {
     // the form first, so its controls have taken what they hold
     let searched = search_form(form, filled, leagues);
     let mut out = unsent(&filled.fill.left());
     out.push_str(&searched);
-    out.push_str(&query_box(filled));
+    out.push_str(&query_box(filled, index));
     out.push_str(&fetch_leagues(from));
     out
 }
@@ -1437,8 +1439,10 @@ const TRADE_FORM: &str = "trade-form";
 /// an answer's or, on a refused search, the URL's as sent (#190), and the
 /// save note reads the same. It stands in a `details`, open where the
 /// page's source is a text or the page has none, closed where the form
-/// holds the search (the one page, `4-full-1-form-design.md` §2).
-fn query_box(filled: &Filled) -> String {
+/// holds the search (the one page, `4-full-1-form-design.md` §2). Beside
+/// its summary, inside the box, `index` links the language's index
+/// (`4-full-1-form-index.md`, Decision 5), in words that say what it is.
+fn query_box(filled: &Filled, index: &str) -> String {
     let realm = filled.realm.as_str();
     let membership = filled.membership.as_deref();
     let text = filled.text.as_str();
@@ -1481,8 +1485,10 @@ fn query_box(filled: &Filled) -> String {
         if tabled { " selected" } else { "" }
     );
     format!(
-        "<details class=\"query-details\"{}><summary>The query, in the language</summary><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}{}</form></details>\n",
+        "<details class=\"query-details\"{}><summary>The query, in the language</summary><p class=\"index\"><a href=\"{}\">{}</a></p><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}{}</form></details>\n",
         if filled.text_open { " open" } else { "" },
+        esc(index),
+        esc(THE_INDEX),
         esc(text),
         value_finder()
     )

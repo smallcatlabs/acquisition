@@ -146,10 +146,11 @@
 //!   (`search_cmd::BLOCKS`), which the terminal's text reads too. It is a
 //!   step: its every link — an entry, a block, the index — and its names
 //!   box, the one GET form, hand on the `from` it was given, which each of
-//!   its pages draws as its way back. It is a way a page takes: a way on
-//!   to the language (`Way::Describe`) is a link to its names ([`Paged`]),
-//!   whose one producer is `describe`'s own refusal of a pattern that
-//!   matches nothing, offering the index.
+//!   its pages draws as its way back. It is a way a page takes: the query
+//!   box links the index beside its summary, carrying the page's `from`,
+//!   and a way on to the language (`Way::Describe`) is a link to its
+//!   names ([`Paged`]), whose one producer is `describe`'s own refusal of
+//!   a pattern that matches nothing, offering the index.
 //! - **The filter**: `name` (words the name holds), `type` (a tab's type)
 //!   and `fetched` (`never`) are the places document's filter, read by it
 //!   and refused in its words. Its controls stand under the column heads in
@@ -1637,7 +1638,13 @@ async fn home(
     };
     let body = format!(
         "{said}{}{}",
-        page::editor(&web.form, &filled, leagues.as_deref(), here.onward()),
+        page::editor(
+            &web.form,
+            &filled,
+            leagues.as_deref(),
+            here.onward(),
+            &web.describing(&[], here.onward()),
+        ),
         page::switch(all_fields)
     );
     web.page_at(
@@ -1862,7 +1869,13 @@ async fn search(
         .chain(items.into_iter().map(|id| ("item".to_string(), id)))
         .collect();
     let here = Here::place(FromPage::here(Place::Search, &itself), back);
-    let editors = page::editor(&web.form, &filled, leagues.as_deref(), here.onward());
+    let editors = page::editor(
+        &web.form,
+        &filled,
+        leagues.as_deref(),
+        here.onward(),
+        &web.describing(&[], here.onward()),
+    );
     match asked {
         Ok((answer, ..)) if json => document(&answer),
         Ok((answer, window, opened, carried, continued, request, held, kept, placed)) => {
