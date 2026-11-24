@@ -1235,11 +1235,10 @@ fn every_search_stands_under_its_editor_filled_with_what_was_asked() {
     assert!(refused_json(&web, &unread, 400)["error"].is_string());
 }
 
-/// The page seat's fault: the empty search form's "Show" offered 20 first
-/// and chosen, so a first search from it asked 20 rows where the query
-/// box, a saved search and an answer's form asked the search's own 10.
-/// Both editors' "Show" is one list, the default first and sent empty, on
-/// the empty page and on an answer that asked a number of its own.
+/// No door asks a number of rows nobody chose: both editors' "Show" (the
+/// search form's bar and the query box) is one list, the search's own
+/// default first, sent empty and chosen on the empty page, and on an
+/// answer that asked a number of its own, that number chosen in both.
 #[test]
 fn an_empty_search_form_asks_the_rows_every_other_door_asks() {
     let (_scratch, web) = offline_web("webshow");

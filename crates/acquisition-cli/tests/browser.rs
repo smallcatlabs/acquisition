@@ -548,9 +548,7 @@ fn the_count_beside_the_button_follows_its_own_form() {
     );
 }
 
-/// The page seat's fault: the number beside Search went from 69 to 101 as
-/// a weighted sum's minimum was typed, the group of two pseudo totals
-/// having stopped running, and nothing beside the number said so. The
+/// A number counted without part of the search never stands alone. The
 /// count's rule (`count.js`) for the clauses not run: beside a form whose
 /// search is the site's, the number of the search's clauses that would
 /// not run (the `count` route's remainder) shows where it is not zero and
