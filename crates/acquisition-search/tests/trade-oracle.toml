@@ -28,7 +28,7 @@
 # `undecided`, `clauses` the paths of the top-level clauses whose term alone
 # refuses the item (the translation's report, `path`).
 #
-# Measured by the test: 813 searches run, 7,639 items, 7,009 matched,
+# Measured by the test: 816 searches run, 7,669 items, 7,039 matched,
 # 630 missed in 70 rows, none undecided; y10, of twenty crucible ids, is
 # partial. A row of a search a sitting ran is a search that asked its
 # question, classified by the search; a row of another search is

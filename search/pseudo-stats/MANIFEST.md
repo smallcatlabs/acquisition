@@ -289,3 +289,19 @@ files: 4 of 15 in 60 s, 8 of 60 in 300 s.
 | File | Bytes | Captured | sha256 |
 | --- | --- | --- | --- |
 | `raw/searches/zd-fragments/` (16 files; as above) | 313796 | 2026-11-24 00:33 – 00:35 UTC | `c2afcd52aee173d55229c358ba2512faf64df816099aa95f63a2766a71455e0b` |
+
+Round ze (#315, the abyssal stat under a bound; the step that lands it,
+seat-web-form-stat-bound), the evening of 2026-11-23 by the owner, 02:53
+UTC on 2026-11-24 by the recorder's names, from the links of
+`search/pseudo-stats/data/search-sheet.csv` at `a681ca7d`; saved by
+`tools/sitting-recorder` in `~/Downloads/acq-sitting`, copied here. No
+cookie; 4 searches answered: ze01, ze03 and ze04 each with a fetch of ten
+items and its total at the cap, ze02 none (total 0), the answer expected
+beside ze01's of the same minute. `tools/trade-split.py --write` wrote
+all four (T42). The most the site's headers counted of its search limit:
+4 of 15 in 60 s and 9 of 60 in 300 s (the address's count, which holds
+searches beyond the round's four).
+
+| File | Bytes | Captured | sha256 |
+| --- | --- | --- | --- |
+| `raw/searches/ze-fragments/` (7 files; as above) | 136429 | 2026-11-24 02:53 UTC | `ec88a019b4b42911ecec72514ba39b0852f8ed4f21c2d90f08f81357494770af` |

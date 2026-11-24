@@ -1,6 +1,6 @@
 {
  "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",
- "_raw": "7fe65e7e1e059178e432837ffc01dff83cf0b51434524e1fd5b8f9e17a3ee736",
+ "_raw": "a5d40abb4d43dab10435ed6f79c9f3add3125e248d2d910ddb07c279f09899ae",
  "searches": {
   "R1": {
    "league": "Standard",
@@ -894699,6 +894699,4121 @@
           ]
          }
         ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "ze01": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "stats": [
+     {
+      "type": "and",
+      "filters": [
+       {
+        "id": "implicit.stat_3527617737",
+        "value": {
+         "min": 1
+        }
+       }
+      ]
+     }
+    ],
+    "filters": {
+     "type_filters": {
+      "filters": {
+       "category": {
+        "option": "accessory.belt"
+       }
+      }
+     },
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 8,
+    "total": 10000,
+    "inexact": true
+   },
+   "ids_returned": 100,
+   "fetched": [
+    {
+     "name": "Agony Buckle",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "+9 to Strength",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4080418644",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Brute",
+          "tier": "S10",
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "8",
+            "max": "12"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+39 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Stalwart",
+          "tier": "P7",
+          "level": 18,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "54"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 1.6 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Newt",
+          "tier": "S9",
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+22 to maximum Mana",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1050105434",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Cobalt",
+          "tier": "P10",
+          "level": 11,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "24"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+15% to Fire Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3372524247",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Salamander",
+          "tier": "S7",
+          "level": 12,
+          "magnitudes": [
+           {
+            "min": "12",
+            "max": "17"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "37% increased Elemental Damage with Attack Skills",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_387439868",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Overpowering",
+          "tier": "P2",
+          "level": 81,
+          "magnitudes": [
+           {
+            "min": "37",
+            "max": "42"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Pandemonium Buckle",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "+44 to Armour",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_809229260",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Ribbed",
+          "tier": "P6",
+          "level": 30,
+          "magnitudes": [
+           {
+            "min": "36",
+            "max": "60"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 8.6 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Starfish",
+          "tier": "S6",
+          "level": 31,
+          "magnitudes": [
+           {
+            "min": "16.1",
+            "max": "24"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+26% to Lightning Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1671376347",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Thunderhead",
+          "tier": "S5",
+          "level": 37,
+          "magnitudes": [
+           {
+            "min": "24",
+            "max": "29"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "11% increased Stun and Block Recovery",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2511217560",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of Thick Skin",
+          "tier": "S6",
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "11",
+            "max": "13"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Phoenix Snare",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "14% reduced Enemy Stun Threshold",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1443060084",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Gladiator",
+          "tier": "S1",
+          "level": 58,
+          "magnitudes": [
+           {
+            "min": "14",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+34 to Armour",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_809229260",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Studded",
+          "tier": "P7",
+          "level": 18,
+          "magnitudes": [
+           {
+            "min": "11",
+            "max": "35"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+26 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3489782002",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Seething",
+          "tier": "P6",
+          "level": 42,
+          "magnitudes": [
+           {
+            "min": "23",
+            "max": "26"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+66 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Rotund",
+          "tier": "P4",
+          "level": 36,
+          "magnitudes": [
+           {
+            "min": "85",
+            "max": "99"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 5.4 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Flatworm",
+          "tier": "S7",
+          "level": 19,
+          "magnitudes": [
+           {
+            "min": "8.1",
+            "max": "16"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+26% to Lightning Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1671376347",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Thunderhead",
+          "tier": "S5",
+          "level": 37,
+          "magnitudes": [
+           {
+            "min": "24",
+            "max": "29"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Golem Bond",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "+24 to Strength",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4080418644",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Lion",
+          "tier": "S7",
+          "level": 33,
+          "magnitudes": [
+           {
+            "min": "23",
+            "max": "27"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+38 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3489782002",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Incandescent",
+          "tier": "P3",
+          "level": 68,
+          "magnitudes": [
+           {
+            "min": "38",
+            "max": "43"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+39% to Lightning Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1671376347",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Maelstrom",
+          "tier": "S3",
+          "level": 60,
+          "magnitudes": [
+           {
+            "min": "36",
+            "max": "41"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "14% increased Stun and Block Recovery",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2511217560",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of Stone Skin",
+          "tier": "S5",
+          "level": 17,
+          "magnitudes": [
+           {
+            "min": "14",
+            "max": "16"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Dread Girdle",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "13% reduced Enemy Stun Threshold",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1443060084",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Combatant",
+          "tier": "S2",
+          "level": 44,
+          "magnitudes": [
+           {
+            "min": "12",
+            "max": "13"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+16 to Armour",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_809229260",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Studded",
+          "tier": "P7",
+          "level": 18,
+          "magnitudes": [
+           {
+            "min": "11",
+            "max": "35"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+37 to maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3299347043",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Stalwart",
+          "tier": "P7",
+          "level": 18,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "54"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+12% to Fire Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3372524247",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Salamander",
+          "tier": "S7",
+          "level": 12,
+          "magnitudes": [
+           {
+            "min": "12",
+            "max": "17"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "21% increased Stun and Block Recovery",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2511217560",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of Steel Skin",
+          "tier": "S3",
+          "level": 42,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "22"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Cataclysm Thread",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "8% reduced Enemy Stun Threshold",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1443060084",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Brawler",
+          "tier": "S4",
+          "level": 20,
+          "magnitudes": [
+           {
+            "min": "8",
+            "max": "9"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+100 to Armour",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_809229260",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Fortified",
+          "tier": "P5",
+          "level": 44,
+          "magnitudes": [
+           {
+            "min": "61",
+            "max": "138"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+7% to Cold Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4220027924",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Inuit",
+          "tier": "S8",
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "6",
+            "max": "11"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+44% to Lightning Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1671376347",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Lightning",
+          "tier": "S2",
+          "level": 72,
+          "magnitudes": [
+           {
+            "min": "42",
+            "max": "45"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Behemoth Clasp",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "13% reduced Enemy Stun Threshold",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1443060084",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Combatant",
+          "tier": "S2",
+          "level": 44,
+          "magnitudes": [
+           {
+            "min": "12",
+            "max": "13"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+17 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3489782002",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Radiating",
+          "tier": "P8",
+          "level": 29,
+          "magnitudes": [
+           {
+            "min": "16",
+            "max": "19"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+8% to Fire Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3372524247",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Whelpling",
+          "tier": "S8",
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "6",
+            "max": "11"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% increased Stun and Block Recovery",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2511217560",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of Steel Skin",
+          "tier": "S3",
+          "level": 42,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "22"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Mind Trap",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "8% reduced Enemy Stun Threshold",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1443060084",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Brawler",
+          "tier": "S4",
+          "level": 20,
+          "magnitudes": [
+           {
+            "min": "8",
+            "max": "9"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+29 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3489782002",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Blazing",
+          "tier": "P5",
+          "level": 50,
+          "magnitudes": [
+           {
+            "min": "27",
+            "max": "31"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 2.1 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Lizard",
+          "tier": "S8",
+          "level": 7,
+          "magnitudes": [
+           {
+            "min": "2.1",
+            "max": "8"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+17% to Lightning Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1671376347",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Squall",
+          "tier": "S7",
+          "level": 13,
+          "magnitudes": [
+           {
+            "min": "12",
+            "max": "17"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Domination Lock",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "+29 to Strength",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4080418644",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Gorilla",
+          "tier": "S6",
+          "level": 44,
+          "magnitudes": [
+           {
+            "min": "28",
+            "max": "32"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+17 to maximum Energy Shield",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3489782002",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Radiating",
+          "tier": "P8",
+          "level": 29,
+          "magnitudes": [
+           {
+            "min": "16",
+            "max": "19"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 4.3 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Flatworm",
+          "tier": "S7",
+          "level": 19,
+          "magnitudes": [
+           {
+            "min": "8.1",
+            "max": "16"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Reflects 6 Physical Damage to Melee Attackers",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3767873853",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Spiny",
+          "tier": "P1",
+          "level": 10,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Apocalypse Strap",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Rare",
+     "frameType": 2,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "+65 to Armour",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_809229260",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Fortified",
+          "tier": "P5",
+          "level": 44,
+          "magnitudes": [
+           {
+            "min": "61",
+            "max": "138"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Regenerate 3.8 Life per second",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3325883026",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Lizard",
+          "tier": "S8",
+          "level": 7,
+          "magnitudes": [
+           {
+            "min": "2.1",
+            "max": "8"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+45% to Fire Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3372524247",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Magma",
+          "tier": "S2",
+          "level": 72,
+          "magnitudes": [
+           {
+            "min": "42",
+            "max": "45"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+18% to Cold Resistance",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4220027924",
+        "flags": null,
+        "mods": [
+         {
+          "name": "of the Penguin",
+          "tier": "S6",
+          "level": 26,
+          "magnitudes": [
+           {
+            "min": "18",
+            "max": "23"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "ze02": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "stats": [
+     {
+      "type": "and",
+      "filters": [
+       {
+        "id": "implicit.stat_3527617737",
+        "value": {
+         "min": 2
+        }
+       }
+      ]
+     }
+    ],
+    "filters": {
+     "type_filters": {
+      "filters": {
+       "category": {
+        "option": "accessory.belt"
+       }
+      }
+     },
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 8,
+    "total": 0
+   },
+   "ids_returned": 0,
+   "fetched": []
+  },
+  "ze03": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "stats": [
+     {
+      "type": "and",
+      "filters": [
+       {
+        "id": "explicit.stat_3527617737",
+        "value": {
+         "min": 1,
+         "max": 1
+        }
+       }
+      ]
+     }
+    ],
+    "filters": {
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 6,
+    "total": 10000
+   },
+   "ids_returned": 100,
+   "fetched": [
+    {
+     "name": "Bubonic Trail",
+     "typeLine": "Murder Boots",
+     "baseType": "Murder Boots",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "185"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "18"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 222,
+      "ev_aug": true,
+      "es": 22,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Triggers Level 20 [DeathWalk::20|Death Walk] when Equipped",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_651875072",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "6% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "30% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Damage for each type of Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_154272030",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "143"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "29"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "ar_aug": true,
+      "es": 35,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "18% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 4% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "143"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "29"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "ar_aug": true,
+      "es": 35,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+13% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "19% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 5% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "143"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "29"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "ar_aug": true,
+      "es": 35,
+      "es_aug": true
+     },
+     "lines": {
+      "enchantMods": [
+       {
+        "description": "Shock Nova ring deals 40% increased Damage",
+        "domain": "enchant",
+        "hash": "stat.enchant.stat_3652051346",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Enchantment Shock Nova Larger Ring Damage 1",
+          "tier": null,
+          "level": 66,
+          "magnitudes": [
+           {
+            "min": "40",
+            "max": "40"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+12% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "16% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 5% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "143"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "29"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "ar_aug": true,
+      "es": 35,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "17% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 5% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "143"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "29"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "ar_aug": true,
+      "es": 35,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+11% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "19% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 5% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "143"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "29"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "ar_aug": true,
+      "es": 35,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+14% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "17% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 4% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Bubonic Trail",
+     "typeLine": "Murder Boots",
+     "baseType": "Murder Boots",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "185"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "18"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 222,
+      "ev_aug": true,
+      "es": 22,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Triggers Level 20 [DeathWalk::20|Death Walk] when Equipped",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_651875072",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "4% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "30% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Damage for each type of Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_154272030",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Darkness Enthroned",
+     "typeLine": "Stygian Vise",
+     "baseType": "Stygian Vise",
+     "item_class": "Belts",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [],
+     "extended": {},
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "50% increased Effect of Socketed Abyss Jewels",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1482572705",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "50",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Bubonic Trail",
+     "typeLine": "Murder Boots",
+     "baseType": "Murder Boots",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       17,
+       "Evasion Rating",
+       [
+        "185"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "18"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 222,
+      "ev_aug": true,
+      "es": 22,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 1 Abyssal Socket",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Triggers Level 20 [DeathWalk::20|Death Walk] when Equipped",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_651875072",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "5% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "30% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Damage for each type of Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_154272030",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "ze04": {
+   "league": "Standard",
+   "returned_query": {
+    "status": {
+     "option": "any"
+    },
+    "stats": [
+     {
+      "type": "and",
+      "filters": [
+       {
+        "id": "explicit.stat_3527617737",
+        "value": {
+         "min": 2
+        }
+       }
+      ]
+     }
+    ],
+    "filters": {
+     "trade_filters": {
+      "filters": {
+       "sale_type": {
+        "option": "any"
+       }
+      },
+      "disabled": true
+     }
+    }
+   },
+   "sheet_query": "the same",
+   "search": {
+    "complexity": 6,
+    "total": 10000
+   },
+   "ids_returned": 100,
+   "fetched": [
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "143"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "29"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "ar_aug": true,
+      "es": 35,
+      "es_aug": true
+     },
+     "lines": {
+      "implicitMods": [
+       {
+        "description": "4% increased maximum Energy Shield",
+        "domain": "implicit",
+        "hash": "stat.implicit.stat_2482852589",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+12% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "19% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 4% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+20%"
+       ]
+      ],
+      [
+       16,
+       "Armour",
+       [
+        "172"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "35"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "es": 35
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+12% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "20% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 5% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Bubonic Trail",
+     "typeLine": "Murder Boots",
+     "baseType": "Murder Boots",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+20%"
+       ]
+      ],
+      [
+       17,
+       "Evasion Rating",
+       [
+        "222"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "22"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 222,
+      "es": 22
+     },
+     "lines": {
+      "enchantMods": [
+       {
+        "description": "0.6% of Damage Leeched as Life if you've Killed Recently",
+        "domain": "enchant",
+        "hash": "stat.enchant.stat_4291115328",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Enchantment Leech 3",
+          "tier": null,
+          "level": 75,
+          "magnitudes": [
+           {
+            "min": "0.6",
+            "max": "0.6"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Triggers Level 20 [DeathWalk::20|Death Walk] when Equipped",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_651875072",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "6% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "30% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Damage for each type of Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_154272030",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Tombfist",
+     "typeLine": "Steelscale Gauntlets",
+     "baseType": "Steelscale Gauntlets",
+     "item_class": "Gloves",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+20%"
+       ]
+      ],
+      [
+       16,
+       "Armour",
+       [
+        "78"
+       ]
+      ],
+      [
+       17,
+       "Evasion Rating",
+       [
+        "78"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 78,
+      "ar": 78
+     },
+     "lines": {
+      "enchantMods": [
+       {
+        "description": "Trigger [EnchantmentOfWarOnKill3::1|Decree of War] on Kill",
+        "domain": "enchant",
+        "hash": "stat.enchant.stat_1106926438",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Enchantment Decree of War",
+          "tier": null,
+          "level": 66,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "6% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": []
+       },
+       {
+        "description": "With a Murderous Eye Jewel Socketed, Intimidate Enemies for 4 seconds on Hit with Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_642457541",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "With a Searching Eye Jewel Socketed, Maim Enemies for 4 seconds on Hit with Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2750004091",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Bubonic Trail",
+     "typeLine": "Murder Boots",
+     "baseType": "Murder Boots",
+     "item_class": "Boots",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+6%"
+       ]
+      ],
+      [
+       17,
+       "Evasion Rating",
+       [
+        "196"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "19"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 222,
+      "ev_aug": true,
+      "es": 22,
+      "es_aug": true
+     },
+     "lines": {
+      "enchantMods": [
+       {
+        "description": "You take 6% reduced Extra Damage from Critical Strikes if you've taken a Critical Strike Recently",
+        "domain": "enchant",
+        "hash": "stat.enchant.stat_2047590583",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Enchantment Attack Dodge 1",
+          "tier": null,
+          "level": 53,
+          "magnitudes": [
+           {
+            "min": "6",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Triggers Level 20 [DeathWalk::20|Death Walk] when Equipped",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_651875072",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "5% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "30% increased Movement Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2250533757",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Damage for each type of Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_154272030",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Command of the Pit",
+     "typeLine": "Riveted Gloves",
+     "baseType": "Riveted Gloves",
+     "item_class": "Gloves",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "67"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "14"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 80,
+      "ar_aug": true,
+      "es": 17,
+      "es_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "7% increased Cast Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2891184298",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "6",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "6% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "4",
+            "max": "6"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "With a Ghastly Eye Jewel Socketed, Minions have +1000 to Accuracy Rating",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2388362438",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1000",
+            "max": "1000"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "With a Hypnotic Eye Jewel Socketed, gain Arcane Surge on Hit with Spells",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3153744598",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Tombfist",
+     "typeLine": "Steelscale Gauntlets",
+     "baseType": "Steelscale Gauntlets",
+     "item_class": "Gloves",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "65"
+       ]
+      ],
+      [
+       17,
+       "Evasion Rating",
+       [
+        "65"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 78,
+      "ev_aug": true,
+      "ar": 78,
+      "ar_aug": true
+     },
+     "lines": {
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "5% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": []
+       },
+       {
+        "description": "With a Murderous Eye Jewel Socketed, Intimidate Enemies for 4 seconds on Hit with Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_642457541",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "With a Searching Eye Jewel Socketed, Maim Enemies for 4 seconds on Hit with Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2750004091",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       16,
+       "Armour",
+       [
+        "143"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "29"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "ar_aug": true,
+      "es": 35,
+      "es_aug": true
+     },
+     "lines": {
+      "enchantMods": [
+       {
+        "description": "Ice Nova has +30% chance to Freeze",
+        "domain": "enchant",
+        "hash": "stat.enchant.stat_3269321994",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Enchantment Ice Nova Freeze Chance 2",
+          "tier": null,
+          "level": 75,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+10% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "16% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 5% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
+       }
+      ]
+     }
+    },
+    {
+     "name": "Tombfist",
+     "typeLine": "Steelscale Gauntlets",
+     "baseType": "Steelscale Gauntlets",
+     "item_class": "Gloves",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+20%"
+       ]
+      ],
+      [
+       16,
+       "Armour",
+       [
+        "78"
+       ]
+      ],
+      [
+       17,
+       "Evasion Rating",
+       [
+        "78"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ev": 78,
+      "ar": 78
+     },
+     "lines": {
+      "enchantMods": [
+       {
+        "description": "Trigger [EnchantmentOfFlamesOnHit::1|Word of Flames] on Hit",
+        "domain": "enchant",
+        "hash": "stat.enchant.stat_891161612",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Enchantment Word of Flames",
+          "tier": null,
+          "level": 32,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "10% increased Attack Speed",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_681332047",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "5",
+            "max": "10"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "4% increased maximum Life",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_983749596",
+        "flags": null,
+        "mods": []
+       },
+       {
+        "description": "With a Murderous Eye Jewel Socketed, Intimidate Enemies for 4 seconds on Hit with Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_642457541",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "With a Searching Eye Jewel Socketed, Maim Enemies for 4 seconds on Hit with Attacks",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2750004091",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Lightpoacher",
+     "typeLine": "Great Crown",
+     "baseType": "Great Crown",
+     "item_class": "Helmets",
+     "rarity": "Unique",
+     "frameType": 3,
+     "properties": [
+      [
+       6,
+       "Quality",
+       [
+        "+20%"
+       ]
+      ],
+      [
+       16,
+       "Armour",
+       [
+        "172"
+       ]
+      ],
+      [
+       18,
+       "Energy Shield",
+       [
+        "35"
+       ]
+      ]
+     ],
+     "extended": {
+      "base_defence_percentile": 0,
+      "ar": 172,
+      "es": 35
+     },
+     "lines": {
+      "enchantMods": [
+       {
+        "description": "30% reduced Storm Call Duration",
+        "domain": "enchant",
+        "hash": "stat.enchant.stat_1843506018",
+        "flags": null,
+        "mods": [
+         {
+          "name": "Enchantment Storm Call Duration 2",
+          "tier": null,
+          "level": 75,
+          "magnitudes": [
+           {
+            "min": "30",
+            "max": "30"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "explicitMods": [
+       {
+        "description": "Has 2 Abyssal Sockets",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_3527617737",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "2",
+            "max": "2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Trigger Level 20 [SpiritBurst::20|Spirit Burst] when you Use a Skill while you have a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_1992516007",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "20",
+            "max": "20"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+11% to all Elemental Resistances",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_2901986750",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "10",
+            "max": "15"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "+1 to Maximum Spirit Charges per Abyss Jewel affecting you",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_4053097676",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "1",
+            "max": "1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "16% chance to gain a Spirit Charge on Kill",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_570644802",
+        "flags": null,
+        "mods": [
+         {
+          "name": null,
+          "tier": null,
+          "level": null,
+          "magnitudes": [
+           {
+            "min": "100",
+            "max": "100"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "description": "Recover 4% of Life when you lose a Spirit Charge",
+        "domain": "explicit",
+        "hash": "stat.explicit.stat_305634887",
+        "flags": null,
+        "mods": []
        }
       ]
      }

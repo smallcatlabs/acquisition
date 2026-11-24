@@ -297,6 +297,24 @@ not by what GGG's body carries, so `name="Redbeak"` cannot meet the
 item. The oracle files it under the `body` home (`unidentified-name`);
 `query.name` stays exact.
 
+**T42. A bound on a stat counts the form that writes its number where
+the text has a `#`: `Has 1 Abyssal Socket` is one under "Has # Abyssal
+Sockets".** [SITE — Confirmed; November 23, 2026, the owner's sitting,
+captured]
+The implicit `stat_3527617737` at `min` 1 on belts fetched ten Stygian
+Vises, each displaying the implicit `Has 1 Abyssal Socket`, its total at
+the cap (ze01); at `min` 2 it found none (ze02, the same minute). The
+explicit at `min` 1 `max` 1 fetched ten, each displaying the explicit
+`Has 1 Abyssal Socket` (ze03: Lightpoacher, Bubonic Trail, and a
+Darkness Enthroned whose implicit and explicit are each one socket); at
+`min` 2, ten each displaying `Has 2 Abyssal Sockets` (ze04). So the site
+reads the singular's 1 as the stat's number, and the two domains apart:
+an implicit of one and an explicit of one on one belt are not two under
+either id. The forms table reads a digit where the text has a `#` as
+the form's number (`tools/trade-forms-table.py`, rule 3), and a bound
+sums such a form with its text. The captures are
+`search/pseudo-stats/raw/searches/` (its manifest, round ze).
+
 ### The API
 
 **T5. `Item` carries both `note` and `forum_note`, each "user-generated

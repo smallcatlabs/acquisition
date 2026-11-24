@@ -245,8 +245,8 @@ fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
 /// and the questions the build leaves unsupported: two ids of two texts and
 /// the damage filter. Five ran partial (t37, t38, t55, t56, u059). Of the 31
 /// y searches, 11 have no item, y10 is a sixteenth crucible-node search,
-/// and 19 run. Of the 17 of rounds zb and zc, 4 have no item and 13 run
-/// (the test below).
+/// and 19 run. Of the 17 of rounds zb and zc, 4 have no item and 13 run,
+/// and of round ze's 4, ze02 has none and 3 run (the test below).
 #[test]
 fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     let expected: Expected = toml::from_str(EXPECTED).unwrap();
@@ -330,7 +330,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (384, 813, 7639, 7009));
+    assert_eq!((none.len(), ran, items, matched), (385, 816, 7669, 7039));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(
@@ -479,19 +479,21 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     }
 }
 
-/// #185: the abyssal sockets as the site reads them (T36 to T38 in
+/// #185: the abyssal sockets as the site reads them (T36 to T38 and T42 in
 /// `docs/design/trade-ground-truth.md`) — the Sockets and Link Groups
 /// filters' `a`, a Sockets `max` of 0, and the stat `Has # Abyssal
-/// Sockets` under implicit and explicit. Each of zb01
-/// to zb14, zc01 and zc02 translates with no remainder, those with no
-/// item among them, and every item the site fetched for one matches its
-/// text; zc03's ten, a range's `max` of 0, are the `quality-max-zero`
-/// finding's (#309).
+/// Sockets` under implicit and explicit, with no bound and with one, its
+/// singular `Has 1 Abyssal Socket` one under a bound. Each of zb01
+/// to zb14, zc01, zc02 and ze01 to ze04 translates with no remainder,
+/// those with no item among them, and every item the site fetched for one
+/// matches its text; zc03's ten, a range's `max` of 0, are the
+/// `quality-max-zero` finding's (#309).
 #[test]
 fn abyssal_sockets_each_search_of_the_sitting_runs_and_its_items_match() {
     let asked: Vec<String> = (1..=14)
         .map(|n| format!("zb{n:02}"))
         .chain(["zc01".to_string(), "zc02".to_string()])
+        .chain((1..=4).map(|n| format!("ze{n:02}")))
         .collect();
     let searches: Vec<Search> = searches()
         .into_iter()
@@ -521,13 +523,13 @@ fn abyssal_sockets_each_search_of_the_sitting_runs_and_its_items_match() {
         );
         fetched += search.bodies.len();
     }
-    // zb02, zb03, zb09 and zb13 found nothing; the twelve others fetched
-    // ten each (zc03, the thirteenth, is the finding's)
+    // zb02, zb03, zb09, zb13 and ze02 found nothing; the fifteen others
+    // fetched ten each (zc03 is the finding's)
     let empty: Vec<&str> = searches
         .iter()
         .filter(|s| s.bodies.is_empty())
         .map(|s| s.name.as_str())
         .collect();
-    assert_eq!(empty, ["zb02", "zb03", "zb09", "zb13"]);
-    assert_eq!(fetched, 120);
+    assert_eq!(empty, ["zb02", "zb03", "zb09", "zb13", "ze02"]);
+    assert_eq!(fetched, 150);
 }

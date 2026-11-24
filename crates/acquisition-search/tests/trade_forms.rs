@@ -349,8 +349,8 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
 
 /// The captures hold the table: over every listing the site sent (the
 /// sittings' and the owner's census, each search's items a corpus of
-/// their own), every one of the 23,703 lines under an id of the six hash
-/// categories is met by the id's presence term, translated alone — 22,937
+/// their own), every one of the 23,872 lines under an id of the six hash
+/// categories is met by the id's presence term, translated alone — 23,106
 /// — but 55 under an id the translation leaves unsupported (an id of two
 /// texts; y18's among them), 8 under an id whose clause is ambiguous by a
 /// refusal, its form left to the site (the Staves, Legacy and Global
@@ -477,7 +477,7 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     );
     assert_eq!(
         (lines, moved, gap, met, unsupported, refused),
-        (23_703, 703, 0, 22_937, 55, 8)
+        (23_872, 703, 0, 23_106, 55, 8)
     );
 }
 
