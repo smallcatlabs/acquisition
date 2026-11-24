@@ -1132,9 +1132,10 @@ mod tests {
             url_path: "/stash/Standard/t1",
             ..report(status)
         };
+        // Cloudflare's block on a status that would count were it GGG's.
         let block = SendReport {
             block: true,
-            ..on("GET", Some(403))
+            ..on("GET", Some(400))
         };
         let closes = |sent: SendReport<'_>| rails.record_send(&sent).closed;
         let held = || rails.closed_for(ROUTE);
@@ -1162,7 +1163,11 @@ mod tests {
             assert_eq!(closes(sent), None, "{what}");
             assert_eq!(held(), None, "{what}");
         }
-        assert!(rails.record(&block).is_some(), "a block halts");
+        // The run stands at four, and the block's 400 is no fifth.
+        let blocked = rails.record_send(&block);
+        assert!(blocked.halted.is_some(), "a block halts");
+        assert_eq!(blocked.closed, None, "a block is no invalid answer");
+        assert_eq!(held(), None, "a block");
         rails.reset_tripwire().unwrap();
         // The reset forgot the run of four: four 400s and a 404 (which
         // counts) close it at the fifth, for a minute.
@@ -1257,7 +1262,10 @@ mod tests {
 
     /// C190: a closed route outlives the daemon, every daemon honours it,
     /// tripwire or not, and its persisted time is the wall clock's, so a
-    /// successor holds what remains of it.
+    /// successor holds what remains of it. The time is kept in whole
+    /// seconds, rounded up: a closure made part-way through a second
+    /// lasts its cooldown and never less. The reset's opening is written
+    /// too, so the lifetime after it finds the route open.
     #[test]
     fn c190_a_closed_route_holds_the_next_lifetime() {
         use crate::testing::ParkingClock;
@@ -1269,21 +1277,31 @@ mod tests {
             ..RailsConfig::default()
         };
         let first = Rails::with_config_and_clock(config.clone(), clock.clone());
+        clock.advance(Duration::from_millis(250));
         for _ in 0..5 {
             first.record(&SendReport {
                 route: "stash@A#1",
                 ..report(Some(400))
             });
         }
+        assert_eq!(
+            first.closed_for("stash@A#1"),
+            Some(Duration::from_millis(60_750)),
+            "the minute, and the rest of the second it was made in"
+        );
         clock.advance(Duration::from_secs(20));
-        let second = Rails::with_config_and_clock(config, clock.clone());
+        let second = Rails::with_config_and_clock(config.clone(), clock.clone());
         assert_eq!(
             second.closed_for("stash@A#1"),
-            Some(Duration::from_secs(40))
+            Some(Duration::from_millis(40_750))
         );
         let status = second.status().closed_routes;
         assert_eq!(status.len(), 1);
         assert_eq!((status[0].invalid, status[0].status), (5, 400));
+        second.reset_tripwire().unwrap();
+        let third = Rails::with_config_and_clock(config, clock.clone());
+        assert_eq!(third.closed_for("stash@A#1"), None, "the reset was written");
+        assert!(third.status().closed_routes.is_empty());
     }
 
     /// A ceiling met beside another halt is named with it, for a reset

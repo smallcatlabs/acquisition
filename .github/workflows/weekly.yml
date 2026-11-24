@@ -65,7 +65,9 @@ jobs:
       - name: No mutant missed
         if: ${{ !cancelled() }}
         run: |
+          echo "Timed out, which counts as caught:"
           cat mutants.out/timeout.txt
+          echo "Missed, which fails this shard:"
           cat mutants.out/missed.txt
           test ! -s mutants.out/missed.txt
 

@@ -410,7 +410,11 @@ impl ChokePoint {
         if wait.is_zero() { Ok(()) } else { Err(wait) }
     }
 
-    pub fn eta_for(&self, route: &str, ahead: u32) -> Duration {
+    /// One queue position's ETA on `route`, a simulation a job: the
+    /// oracle the listing's one pass ([`ChokePoint::etas_for`]) is held
+    /// to, and no production path's.
+    #[cfg(test)]
+    pub(crate) fn eta_for(&self, route: &str, ahead: u32) -> Duration {
         let (from, left) = self.estimated_from(route);
         self.limiter.lock().unwrap().eta_for(route, ahead, from) + left
     }
