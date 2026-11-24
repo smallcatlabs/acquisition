@@ -307,8 +307,9 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
     };
     assert!(joined("Has # Abyssal Sockets", "[]").is_ok());
     // a plural writes its numbers where its text does: a digit where the
-    // text has a `#` is its number (round ze), and a `#` where the text
-    // writes a digit is no plural of it
+    // text has a `#` is its number (T42 in
+    // docs/design/trade-ground-truth.md), and a `#` where the text writes
+    // a digit is no plural of it
     let abyssal = joined(
         "Has # Abyssal Sockets",
         "[{ form = \"Has 1 Abyssal Socket\", kind = \"plural\" }]",
