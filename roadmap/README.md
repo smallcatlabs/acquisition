@@ -97,11 +97,11 @@ His queue is the open issues labelled `trigger:ruling`:
 - Whether to tell the RePoE fork that its 3.30 export joins no trade
   id for a string with markup (#281): a post on another project's
   tracker.
-- The sitting #303 waits on: a few composed links, one with no
-  status.
+- One link the build composed, opened on the trade site: any site
+  search's answer carries one, and no tool opens it (C79).
 - After 2026-11-30, re-measure what the governance rebuild changed
-  (#220), and rule the gate's four questions on its record (#257,
-  #225).
+  (#220). The gate's four questions it was to carry are ruled and
+  built (C196 to C199).
 
 ## Starting a session
 
