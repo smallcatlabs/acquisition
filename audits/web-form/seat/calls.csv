@@ -1,0 +1,5 @@
+# written by seat.py during the run, one row per `acq` command in this world; row n's output is calls/NNN.txt
+n,task,args,exit,stdout_bytes,stderr_bytes,wall_ms,shown,note
+1,T9,"[""search"", ""--help""]",0,11284,0,4,whole,find how to run a trade site search
+2,T9,"[""search"", ""--realm"", ""pc"", ""--trade-file"", ""/Users/tom/seat-worlds/web-form/page-opus/drafts/t4-trade.json""]",1,0,343,36,whole,"T4's trade JSON, from drafts/t4-trade.json"
+3,T9,"[""--account"", ""GERWARIC#7694"", ""search"", ""--realm"", ""pc"", ""--trade-file"", ""/Users/tom/seat-worlds/web-form/page-opus/drafts/t4-trade.json""]",0,7051,0,531,whole,"same, naming the account as call 2 offered"
