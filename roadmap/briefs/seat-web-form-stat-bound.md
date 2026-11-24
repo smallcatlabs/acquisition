@@ -1,0 +1,134 @@
+# seat-web-form-stat-bound — The abyssal stat under a bound
+
+## Goal
+A bound on a stat sums every form that is its text but for a noun's or
+a verb's number, whether the form writes a `#` or a digit where the
+text has a `#`. So `stat_3527617737`, "Has # Abyssal Sockets", at `min`
+1 finds an item displaying `Has 1 Abyssal Socket`, as the site does
+(round ze); today it misses every such item (the page seat, fault 2). The rule is
+the forms table's, for every text; the sitting lands. Closes #315.
+
+## Inputs
+- #315 and its comment (`gh issue view 315 --comments`): the seat's
+  counts, round ze's answers, the fix. `audits/web-form/seat/REPORT.md`,
+  fault 2. The owner's choice on #185 (presence over every form, a bound
+  the text and its plurals) and his word of 2026-11-23 to build it.
+- C106 (game data, never a judgment), C113 (the oracle of missed
+  matches), C122 (pin once, lowest crate), C153 (a finding joins its
+  surface), C154 (a retirement names its holder), C116 (no id in
+  user-facing text).
+- Code: `tools/trade-forms-table.py` (rule 3, `kind_of`, `key`,
+  `VERSION`); the search crate's `src/trade/forms.rs` (`open`, the
+  loader's `plural` check, `Kind::summed`), `src/trade/translate.rs`
+  (the forms loop: `summed`, `unsummed`, the `stat.text.forms` and
+  `stat.text.wording` notes), `reference/trade-game-forms-v1.toml`,
+  `reference/trade-catalogue-v1.toml` (its header's counts).
+- The sitting: the recorder's files in `~/Downloads/acq-sitting`, copied
+  to `search/pseudo-stats/raw/searches/ze-fragments/` (7 files, 136429
+  bytes; `shasum -a 256 * | awk '{print $1}' | sort | shasum -a 256`
+  in that folder gives `ec88a019b4b42911ecec72514ba39b0852f8ed4f21c2d90f08f81357494770af`);
+  the sheet's `round_ze` at `a681ca7d`; the site-sitting skill's steps 6
+  to 10; the last landing, `5c04b657`, as the model.
+- The export's clone at its pin: `python3 -I tools/trade-forms-table.py --check`
+  printed `ok` at `262d4ed2`.
+- CI at `262d4ed2` (`gh run list --branch main --workflow "Gate (Linux)"
+  --limit 1`, and Windows): Linux 45316607305 queued, Windows
+  45316607310 in progress when this brief was written; a red run is
+  this step's first concern.
+
+## Decisions
+The design session's (C172, who designs), settled with the owner:
+1. **The owner's choice stands unchanged.** `Has 1 Abyssal Socket` is
+   the text's singular. The table calls it `other` only because rule 3
+   keeps out of `plural` a form with a digit in place of a `#`, and the
+   loader refuses it as one.
+2. **A displayed line's digit is its number,** for every text: the line
+   `Has 1 Abyssal Socket` templates to `Has # Abyssal Socket` with 1,
+   which is how the unbounded translation already finds it. A form that
+   is the text word for word but for a noun's or a verb's number is
+   `plural` whether it writes a `#` or a digit where the text has a
+   `#`, summed with the text under a bound. Rule 3 (docstring and
+   `kind_of`) and the loader's check change together; nothing is keyed
+   on this text or this stat.
+3. **The table is regenerated** by its generator at its pin, by the
+   convention the reference tables follow for a change of content (its
+   `version`, its name, the build digest; found below). How many forms
+   move from `other` to `plural` is measured and said; each moved form
+   is read once, and one that is not its text's singular or plural is a
+   finding for the design session, not a silent move.
+4. **A clause's status and notes are what its row gives**: no new
+   status. Where a note named a form left out of the sum, it no longer
+   does.
+5. **The sitting lands here**: ze01 to ze04's captures, the manifest's
+   paragraph and row, the site's answer as the next numbered claim in
+   `docs/design/trade-ground-truth.md`, and every count pin over the
+   captures holding what it then measures. The oracle runs the four
+   with every fetched item matched.
+6. **Pinned at the lowest crate** by tests named for the fault: the stat
+   at `min` 1 finds `Has 1 Abyssal Socket` and at `min` 2 does not; at
+   `min` 2 finds `Has 2 Abyssal Sockets`; implicit and explicit apart.
+   At the page, one existing case gains a row.
+
+## Find first
+- `git grep -n -i 'digit\|plural\|kind_of\|open(' -- tools/trade-forms-table.py crates/acquisition-search/src/trade/forms.rs`:
+  rule 3 and the loader's check.
+- `git grep -n 'summed()\|Kind::Plural\|Kind::Other\|unsummed' -- crates`:
+  every reader of a form's kind, and how a form's text becomes a line
+  (`Shown::of`) where it writes a digit.
+- `git grep -n 'Has 1 Abyssal Socket\|is plural and does not' -- crates`:
+  the refusal and the test that holds it.
+- `git grep -n 'not its forms\|stat.text.forms\|stat.text.wording' -- crates ':!*/goldens/*'`:
+  every note naming a form left out, and every count of the rules'
+  clauses (the catalogue's header and its pin among them).
+- `git log -p --format='== %h %s' -- crates/acquisition-search/reference/trade-game-forms-v1.toml | grep -E '^== |^[-+]version'`
+  and `git grep -n 'VERSION' -- tools/trade-forms-table.py crates/acquisition-search/src/trade/forms.rs crates/acquisition-search/build.rs`:
+  how a change of a table's content carries its version.
+- `grep -n '^\*\*T[0-9]' docs/design/trade-ground-truth.md | tail -1`:
+  the claim's number.
+- With the captures written, `git grep -l -e 'captures.json' -e 'bodies.json' -- crates`
+  and `cargo nextest run -p acquisition-search --no-fail-fast 2>&1 | grep -E '^ +FAIL'`:
+  every test the landing and the rule move.
+
+## Done when
+- `tools/trade-forms-table.py`: rule 3's docstring and `kind_of` say a
+  digit where the text has a `#` is the form's number;
+  `trade-game-forms-v1.toml` is its output (`--check` prints `ok`), its
+  header's counts as measured, its version by the convention found; the
+  commit names how many forms moved and that each was read.
+- `forms.rs`'s loader accepts such a form as `plural`, pinned in
+  `trade_forms.rs`; the test holding the refusal is changed, or retired
+  by a `retired X; held by Y` line.
+- `trade-translate.toml`: the implicit and the explicit at `min` 1 each
+  match an item displaying `Has 1 Abyssal Socket` of its kind and fail
+  one without; at `min` 2 each fails `Has 1` and matches `Has 2 Abyssal
+  Sockets`; no case's note names the singular as left out.
+- `trade_translate.rs`'s bound counts and the catalogue header's hold
+  what the test measures, each move said in the commit.
+- The sitting: ze01 to ze04's captures written by `trade-split.py
+  --write`, their inventory, and what steps 7 to 10 write; a `MANIFEST.md`
+  paragraph and row as round zd's; the claim in `trade-ground-truth.md`
+  as `5c04b657`'s was. A case in `trade_oracle.rs` translates each of the
+  four, none with a remainder, every fetched item matched; ze02's none
+  held as none; every count pin the last Find-first command finds holds
+  what the tests measure.
+- `web.rs`'s `an_abyssal_sockets_stat_is_found_and_its_form_row_runs`
+  gains the row with `min` 1, finding the abyssal belt alone.
+- `CLI-REFERENCE.md`, `MCP-REFERENCE.md` and the goldens regenerated
+  under `ACQ_UPDATE_FIXTURES=1`, each diff read.
+- `tools/gate.sh` exits 0 on the close's tree.
+
+## Not in scope
+- #316 (a weighted sum of pseudo totals), #309 (a bound of 0), #317.
+- Any other kind of form (`opposite`, `numberless`, an `other` that is
+  not a plural): their status and notes stay.
+- The pages beyond the one `web.rs` case; the look (#285).
+
+## Rules
+`TEMPLATE.md`. Every `acq` is in a mock world (the mock-session
+skill); tooling sends nothing to the trade site. Land the captures as
+the site-sitting skill says; the recording stays under `raw/`, never
+committed. A choice of shape with two defensible answers goes to the
+design session (C172, who designs); the rest carries on.
+
+## Report
+`TEMPLATE.md`.
