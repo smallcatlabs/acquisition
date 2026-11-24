@@ -1,7 +1,10 @@
 // The count (`acq web`): beside each form that submits a search, how
 // many items the form as it stands would match, asked of the server's
-// `count` route as the form's fields change. It writes numbers alone,
-// into the outputs the server rendered beside the form's button; every
+// `count` route as the form's fields change, and where the server
+// rendered a part for them, how many of the search's clauses would not
+// run (the answer's remainder). It writes numbers alone, into the
+// outputs the server rendered beside the form's button, and shows a
+// part only where its number is not zero; every
 // word is the server's, a refusal's its title. It keeps a timer, the ask
 // in flight and the fields it last asked, nothing else, and never
 // touches the answer's rows or the URL: Search is still how a count
@@ -20,6 +23,9 @@
     const undecided = elements.find((el) => el.matches('output[data-count="undecided"]'));
     if (!matched || !undecided) return;
     const part = undecided.parentElement;
+    // the clauses not run: a form whose search is the site's has the part
+    const unrun = elements.find((el) => el.matches('output[data-count="unrun"]'));
+    const unrunPart = unrun ? unrun.parentElement : null;
     let timer = null;
     let asking = null;
     // the fields the form sends, as the count asks them: a control marked
@@ -38,6 +44,7 @@
       matched.value = '–';
       matched.title = '';
       part.hidden = true;
+      if (unrunPart) unrunPart.hidden = true;
     };
     const ask = async () => {
       if (asking) asking.abort();
@@ -58,6 +65,11 @@
         matched.value = String(doc.total.matched);
         undecided.value = String(doc.total.undecided.count);
         part.hidden = doc.total.undecided.count === 0;
+        if (unrun) {
+          const left = doc.query.trade ? doc.query.trade.remainder.length : 0;
+          unrun.value = String(left);
+          unrunPart.hidden = left === 0;
+        }
       } catch (e) {
         // aborted by a newer ask, or failed: the dash stays
       }

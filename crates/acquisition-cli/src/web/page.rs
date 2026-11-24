@@ -88,7 +88,7 @@ pub(crate) struct Head {
     /// and its finders (`assets/lists.js`).
     pub lists: bool,
     /// The count's script: the number beside each form that submits a
-    /// search ([`COUNT`]).
+    /// search ([`COUNT`], [`SITE_COUNT`]).
     pub count: bool,
     /// The table's window script: the rows of a table asked a block at a
     /// time as they come into view (`assets/window.js`).
@@ -952,7 +952,7 @@ pub(crate) fn search_form(
         if tabled { " selected" } else { "" },
         valued(filled.view.count.as_deref()),
     ));
-    out.push_str(COUNT);
+    out.push_str(SITE_COUNT);
     out.push(' ');
     out.push_str(&clear(realm, filled.membership.as_deref()));
     // "Add a column", after the form's button (the value finder)
@@ -1376,12 +1376,37 @@ pub(crate) fn value_options(listed: &acquisition_search::trade::vocabulary::Valu
 /// `count.js` writes the numbers alone, a dash until a change is answered,
 /// and shows the undecided part only where it is not zero. It finds a
 /// form's outputs among the form's elements, so the site box's stand in
-/// the search form's bar, owned by its own form ([`count_of`]).
-const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched\">\u{2013}</output><span hidden> \u{b7} <output data-count=\"undecided\">\u{2013}</output> undecided</span></span>";
+/// the search form's bar, owned by its own form ([`count_of`]). The query
+/// box's is this; a form whose search is the site's is [`SITE_COUNT`].
+const COUNT: &str = count_words!("");
 
-/// [`COUNT`], its outputs owned by the form `id` names (`form=`).
+/// The count beside a form whose search is the site's (the search form and
+/// the site box): [`COUNT`]'s and a third part, the clauses of the search
+/// as it stands that would not run here (the answer's
+/// `query.trade.remainder`), which `count.js` writes as it writes the
+/// undecided and shows only where it is not zero, so a number counted
+/// without them never stands as the site's search's. A query in the
+/// language has no site clauses, and the query box no such part.
+const SITE_COUNT: &str = count_words!(
+    "<span hidden> \u{b7} not the site's search: <output data-count=\"unrun\">\u{2013}</output> of its clauses not run</span>"
+);
+
+/// The count's words, one literal for [`COUNT`] and [`SITE_COUNT`], with
+/// `$more` after the undecided part.
+macro_rules! count_words {
+    ($more:literal) => {
+        concat!(
+            "<span class=\"count\">Matches: <output data-count=\"matched\">\u{2013}</output><span hidden> \u{b7} <output data-count=\"undecided\">\u{2013}</output> undecided</span>",
+            $more,
+            "</span>"
+        )
+    };
+}
+use count_words;
+
+/// [`SITE_COUNT`], its outputs owned by the form `id` names (`form=`).
 fn count_of(id: &str) -> String {
-    COUNT.replace("<output ", &format!("<output form=\"{id}\" "))
+    SITE_COUNT.replace("<output ", &format!("<output form=\"{id}\" "))
 }
 
 /// The search form's id, which the switch at the page's foot names

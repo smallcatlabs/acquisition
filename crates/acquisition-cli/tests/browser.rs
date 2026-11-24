@@ -391,6 +391,38 @@ impl Page {
         self.follows(web, form)
     }
 
+    /// The clauses not run shown beside `form`'s button: its count's
+    /// `unrun` output's number, or null where its part is hidden.
+    fn unrun(&mut self, form: &str) -> Value {
+        self.cdp.eval(&format!(
+            "(() => {{ const o = Array.from({form}.elements).find((el) => el.matches('output[data-count=\"unrun\"]')); \
+             return o.parentElement.hidden ? null : o.value; }})()"
+        ))
+    }
+
+    /// The clauses of `form`'s search as it stands that would not run,
+    /// as the server's `count` route answers them (its remainder, none
+    /// where the search is no site's), checked against what `form` shows
+    /// once it shows the server's total: the number where there are any,
+    /// the part hidden where there are none.
+    fn marks(&mut self, web: &harness::WebUi, form: &str) -> usize {
+        self.follows(web, form);
+        let fields = self.cdp.eval(&format!(
+            "new URLSearchParams(new FormData({form})).toString()"
+        ));
+        let fields = fields.as_str().expect("the form's fields");
+        let answer = web.get_json(&format!("count?{fields}"));
+        let left = answer["query"]["trade"]["remainder"]
+            .as_array()
+            .map_or(0, Vec::len);
+        let shown = match left {
+            0 => Value::Null,
+            n => json!(n.to_string()),
+        };
+        assert_eq!(self.unrun(form), shown, "count?{fields}");
+        left
+    }
+
     /// Wait until `form` shows the total the server answers for it now.
     fn follows(&mut self, web: &harness::WebUi, form: &str) -> String {
         let expected = self.answered(web, form);
@@ -514,6 +546,107 @@ fn the_count_beside_the_button_follows_its_own_form() {
         json!("accessory.ring"),
         "the site search ran did not fill the form"
     );
+}
+
+/// The page seat's fault: the number beside Search went from 69 to 101 as
+/// a weighted sum's minimum was typed, the group of two pseudo totals
+/// having stopped running, and nothing beside the number said so. The
+/// count's rule (`count.js`) for the clauses not run: beside a form whose
+/// search is the site's, the number of the search's clauses that would
+/// not run (the `count` route's remainder) shows where it is not zero and
+/// is hidden where it is, as the form's fields change. A line that runs
+/// shows none; a weighted sum of a pseudo total with a minimum, which the
+/// translation cannot run, shows its clauses; the group removed, none
+/// again. The site box's count marks its own search, and the query box,
+/// a query in the language, has no such part.
+#[test]
+fn the_count_beside_search_says_how_many_clauses_would_not_run() {
+    let (scratch, web) = offline_web("browserunrun");
+    let mut page = Page::open(&profile_of(&scratch), &web.url);
+    let first = group(0);
+    let second = group(1);
+    let field = |of: &str, name: &str| format!("{of}.querySelector('[name=\"{name}\"]')");
+    assert_eq!(
+        page.cdp.eval(&format!(
+            "Array.from({QUERY_BOX}.elements).some((el) => el.matches('output[data-count=\"unrun\"]'))"
+        )),
+        json!(false),
+        "the query box has a part for site clauses"
+    );
+    assert_eq!(page.unrun(SEARCH_FORM), Value::Null, "the empty form");
+    page.cdp.call("Network.enable", json!({}));
+
+    // a line that runs: no clause left out, no mark
+    page.cdp.requests.clear();
+    pick(
+        &mut page,
+        &web,
+        &first,
+        "to maximum life",
+        "explicit.stat_3299347043",
+    );
+    page.asks(&web, SEARCH_FORM);
+    assert_eq!(page.marks(&web, SEARCH_FORM), 0);
+
+    // a weighted sum of a pseudo total, its weight and its minimum: each
+    // change's mark is the server's remainder, and the last is not none
+    page.cdp.requests.clear();
+    page.cdp
+        .click("document.querySelector('.add-group > summary')");
+    page.cdp.click(
+        "Array.from(document.querySelectorAll('.add-group button')).find((b) => b.textContent === 'Weighted Sum')",
+    );
+    page.asks(&web, SEARCH_FORM);
+    page.marks(&web, SEARCH_FORM);
+    page.cdp.requests.clear();
+    pick(
+        &mut page,
+        &web,
+        &second,
+        "maximum life",
+        "pseudo.pseudo_total_life",
+    );
+    page.asks(&web, SEARCH_FORM);
+    page.marks(&web, SEARCH_FORM);
+    for (box_, typed) in [
+        (field(&row(&second, 0), "stat.weight"), "1"),
+        (field(&second, "group.min"), "100"),
+    ] {
+        page.cdp.requests.clear();
+        page.cdp.click(&box_);
+        page.cdp.keys(typed);
+        page.asks(&web, SEARCH_FORM);
+        page.marks(&web, SEARCH_FORM);
+    }
+    let left = page.marks(&web, SEARCH_FORM);
+    assert!(left > 0, "the weighted pseudo group runs whole here");
+
+    // the site box: its own search's clauses, the search form's untouched
+    page.cdp.click("document.getElementById('trade-text')");
+    let weighted = r#"{"query": {"stats": [{"type": "weight", "filters": [{"id": "pseudo.pseudo_total_life", "value": {"weight": 1}}], "value": {"min": 100}}]}}"#;
+    page.cdp.eval(&format!(
+        "document.getElementById('trade-text').value = {}; true",
+        json!(weighted)
+    ));
+    page.cdp.keys(" ");
+    page.follows(&web, TRADE_BOX);
+    assert!(
+        page.marks(&web, TRADE_BOX) > 0,
+        "the site box's search runs whole"
+    );
+    assert_eq!(page.unrun(SEARCH_FORM), json!(left.to_string()));
+
+    // the group removed: the search runs whole, and the mark goes
+    page.cdp.requests.clear();
+    page.cdp
+        .click(&format!("{second}.querySelector('.filter [data-remove]')"));
+    assert_eq!(
+        page.cdp
+            .eval("document.querySelectorAll('.stat-group').length"),
+        json!(1)
+    );
+    page.asks(&web, SEARCH_FORM);
+    assert_eq!(page.marks(&web, SEARCH_FORM), 0);
 }
 
 /// What the switch hides (`4-full-1-form-rides.md`, Decisions 3 and 4),

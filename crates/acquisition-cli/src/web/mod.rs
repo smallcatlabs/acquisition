@@ -264,7 +264,13 @@
 //!   after the last such event that leaves those fields other than the
 //!   ones it last asked (the page's own, at its load), a new ask
 //!   aborting the one in flight, and writes the answer's two numbers alone,
-//!   a dash before and between; a refusal's words are the output's title. A
+//!   a dash before and between; a refusal's words are the output's title.
+//!   A form whose search is the site's (the search form and the site box)
+//!   has a third part, hidden as the undecided's is: the clauses of the
+//!   search as it stands that would not run, the answer's
+//!   `query.trade.remainder` counted, the server's words around it saying
+//!   the number is then not the site's search; the query box, a query in
+//!   the language, has none. A
 //!   control no form sends, a finder's box, changes no field and asks
 //!   nothing. `count` folds as `search` does and answers the answer
 //!   document with no row and no order ([`count`]), so its number is the
