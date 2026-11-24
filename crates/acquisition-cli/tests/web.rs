@@ -1281,12 +1281,11 @@ fn an_empty_search_form_asks_the_rows_every_other_door_asks() {
     assert_eq!(searched, shown(&answer.body, box_form));
 }
 
-/// The page seat's fault: an answer from the query box drew "Add a
-/// column" in both editors, and a pick in the search form's, which holds
-/// nothing of a typed query, landed on every item in scope. A search page
-/// draws one, in the editor that holds the search it shows: an answer
-/// from the query box inside the query box's form, where a pick keeps the
-/// query; a form answer and the empty page inside the search form.
+/// A pick from "Add a column" keeps the search the page shows: a search
+/// page draws one, in the editor that holds that search, never in one
+/// that holds none of it. An answer from the query box draws it inside
+/// the query box's form, where a pick keeps the query; a form answer and
+/// the empty page draw it inside the search form.
 #[test]
 fn add_a_column_stands_only_in_the_editor_that_holds_the_search() {
     let (_scratch, web) = offline_web("webcolumn");
