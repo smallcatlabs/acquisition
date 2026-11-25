@@ -1,0 +1,15 @@
+b1c1c653^..49c70542 — the brief’s done-when does not hold: search retention is incomplete.
+
+- **P2 — [web/mod.rs:3289](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-cli/src/web/mod.rs:3289), shapes 2 and 3:** The carried search survives links but is omitted from the tabs/characters list’s GET form. **Failing client interaction:** run `search?realm=pc&text=class%3Arings`, visit Stash tabs, then open a tab or press Show; the submission drops `from`, and Search returns to the empty form. The new test examines `href`s, missing these submissions. Saved’s “list every one” also drops the search through `saved_links`. These share incomplete propagation across navigation makers. Carry the search through each place’s self-navigation fields and test actual form submissions and list expansion.
+
+- **P2 — [web/page.rs:2110](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-cli/src/web/page.rs:2110):** A newly available selected-league link can lack its required omission notices. **Failing client input:** trade JSON with no league, `defences: "displayed"`, and an Armour minimum, with leagues available locally. The original `trade.link` is `None`, so `link_words` supplies no `left_out` or notes; this branch replaces its refusal with a working URL but never supplies the report explaining that displayed defences are omitted. Build the replacement link’s full report through the shared search code and render its omissions and notes.
+
+- **P3 — [web/mod.rs:1705](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-cli/src/web/mod.rs:1705):** The home handler remembers that a league was named but discards its value. **Failing client input:** `/<token>/?realm=pc&league=Hardcore` renders “every league,” because `Filled::empty` leaves `fill` empty and `(None, true)` selects `Chosen::Every`. Populate the fill with the named league before rendering, preserving the distinction between a named league and an explicitly empty one.
+
+- **P3 — [web/from.rs:261](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-cli/src/web/from.rs:261), shape 11:** New production comments embed sitting history, contrary to the project’s records rule. **Failing reading:** “stop 7 of the owner’s sitting,” with sibling stop/seat narratives in `mod.rs`, `page.rs`, `form.rs`, and `vocabulary.rs`. Keep the behavioral explanation and permitted ruling/issue references; leave the sitting narrative in the commit and audit record.
+
+- **Not checked:** builds, tests, browser behavior, and gate execution are **not verified**, as requested; referenced GitHub issue bodies and filing status were unavailable in the supplied local evidence.
+- **Nitpicks:** the manually constructed home-address case is unlikely in ordinary navigation; the history finding is editorial. The two P2 findings affect ordinary use.
+- **Brief:** include #317’s body and comments as fixed review inputs.
+- **Plan:** explicitly cover form submissions and list continuations when specifying search retention.
+- **Prompt:** no change suggested.
