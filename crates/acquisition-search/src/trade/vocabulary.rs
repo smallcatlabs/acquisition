@@ -13,7 +13,10 @@
 //!   pseudo group is the totals table's totals and readings, each by the
 //!   site's id and text, in that table's order; the stat table carries
 //!   none of them. The rest are the stat table's, category by category
-//!   ([`stats::StatTable::entries`]).
+//!   ([`stats::StatTable::entries`]), but that the entries matched of one
+//!   stat stand together at the place of the first of them, its implicit
+//!   variant beside its explicit line (#317, the page seat's: a reader of
+//!   the first screen stopped before the implicit ones).
 //! - **The words are matched here, not in a page** (C46, shared semantics
 //!   in Rust): each word of the ask, case aside, stands in one of the
 //!   entry's texts or in its group's name, so a kind's word narrows to
@@ -113,10 +116,12 @@ pub fn vocabulary(ask: &str, limit: usize) -> Result<Vocabulary, LanguageError> 
         .map(|total| (&total.site, &total.text))
         .chain(totals.readings().iter().map(|r| (&r.site, &r.text)))
         .filter_map(|(site, text)| named(site, text));
-    for (group, id, texts) in pseudo.chain(table.entries()) {
-        if !holds(&words, group, texts) {
-            continue;
-        }
+    let matched: Vec<_> = pseudo
+        .chain(table.entries())
+        .filter(|(group, _, texts)| holds(&words, group, texts))
+        .collect();
+    let matched = beside(matched, |(group, id, _)| (*group != PSEUDO).then_some(*id));
+    for (group, id, texts) in matched {
         if listed.len() < limit {
             listed.push((group, format!("{group}.{id}"), texts.to_vec()));
         } else {
@@ -390,10 +395,16 @@ pub fn values(ask: &str, limit: usize) -> Result<Values, LanguageError> {
     let words = words(ask);
     let mut entries = Vec::new();
     let mut left_out = 0;
-    for (group, id, texts) in asked()? {
-        if !holds(&words, group, texts) {
-            continue;
-        }
+    let matched: Vec<&Asked> = asked()?
+        .iter()
+        .filter(|(group, _, texts)| holds(&words, group, texts))
+        .collect();
+    let matched = beside(matched, |(group, id, _)| {
+        (!matches!(*group, PSEUDO | FILTER))
+            .then(|| id.split_once('.').map(|(_, stat)| stat))
+            .flatten()
+    });
+    for (group, id, texts) in matched {
         let entry = match *group {
             FILTER => Valued::Field(id),
             _ => Valued::Stat(id),
@@ -424,6 +435,27 @@ pub fn values(ask: &str, limit: usize) -> Result<Values, LanguageError> {
         entries,
         left_out,
     })
+}
+
+/// Each stat's entries of every category together, at the place of the
+/// first of them (#317: a line's implicit variant beside its explicit
+/// one, so a reader of the first screen meets both): a stable order by
+/// the first place an entry's stat (`key`, its id less its category)
+/// stands among `matched`. An entry with no stat of the table (a total,
+/// a form's field) keeps its place, and so does the order of the stats.
+fn beside<T>(matched: Vec<T>, key: impl Fn(&T) -> Option<&str>) -> Vec<T> {
+    let mut first: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    let places: Vec<usize> = matched
+        .iter()
+        .enumerate()
+        .map(|(at, entry)| match key(entry) {
+            Some(stat) => *first.entry(stat).or_insert(at),
+            None => at,
+        })
+        .collect();
+    let mut placed: Vec<(usize, T)> = places.into_iter().zip(matched).collect();
+    placed.sort_by_key(|(at, _)| *at);
+    placed.into_iter().map(|(_, entry)| entry).collect()
 }
 
 /// An ask's words, lower case, one `~` before it dropped: the site's mark

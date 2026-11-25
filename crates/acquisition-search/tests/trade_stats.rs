@@ -326,11 +326,28 @@ fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
     assert_eq!(ids("~pseudo life"), pseudo_life);
     // a piece of a word is a piece of any text: `pse` stands in
     // "pseudo" and in "corpses", so the four come first and the
-    // explicit lines of corpses and Life after them
+    // lines of corpses and Life after them, explicit first, each line's
+    // other categories beside it
     let pieces = ids("~lif pse");
     assert_eq!(pieces[..4], pseudo_life[..]);
-    assert!(pieces[4..].iter().all(|id| id.starts_with("explicit.")));
+    assert!(pieces[4].starts_with("explicit."), "{pieces:?}");
+    assert!(
+        pieces[4..].iter().all(|id| !id.starts_with("pseudo.")),
+        "{pieces:?}"
+    );
     assert_eq!(pieces, ids("lif pse"));
+    // a line's every category stands beside its first (#317, the page
+    // seat's: "the implicit of this line" was past the first screen)
+    let beside = ids("maximum life");
+    assert_eq!(
+        beside[..3],
+        [
+            "pseudo.pseudo_total_life",
+            "explicit.stat_3299347043",
+            "implicit.stat_3299347043"
+        ],
+        "{beside:?}"
+    );
     // a bare word lists the pseudo group before the explicit lines
     let bare = vocabulary("life", 5).unwrap();
     let groups: Vec<&str> = bare.entries.iter().map(|e| e.group).collect();
@@ -433,16 +450,35 @@ fn the_value_listing_is_every_entry_with_a_value_and_each_one_orders() {
             .entries()
             .map(|(category, id, _)| (format!("{category}.{id}"), false)),
     );
-    let valued: Vec<(String, String)> = every
+    let valued: Vec<(String, String, bool)> = every
         .iter()
         .filter_map(|(id, field)| {
             let entry = match field {
                 true => Valued::Field(id),
                 false => Valued::Stat(id),
             };
-            Some((id.clone(), value_of(entry)?))
+            Some((id.clone(), value_of(entry)?, *field))
         })
         .collect();
+    // in the order asked, but that each stat's entries of every category
+    // stand together at the place of its first (#317): a line's implicit
+    // beside its explicit
+    let stat = |(id, _, field): &(String, String, bool)| -> Option<String> {
+        (!field && !id.starts_with("pseudo."))
+            .then(|| id.split_once('.').map(|(_, stat)| stat.to_string()))
+            .flatten()
+    };
+    let mut firsts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut placed: Vec<(usize, (String, String))> = Vec::new();
+    for (at, entry) in valued.iter().enumerate() {
+        let place = match stat(entry) {
+            Some(stat) => *firsts.entry(stat).or_insert(at),
+            None => at,
+        };
+        placed.push((place, (entry.0.clone(), entry.1.clone())));
+    }
+    placed.sort_by_key(|(place, _)| *place);
+    let valued: Vec<(String, String)> = placed.into_iter().map(|(_, entry)| entry).collect();
     let listed = values("", usize::MAX).unwrap();
     assert_eq!(listed.left_out, 0);
     let ids: Vec<(String, String)> = listed
