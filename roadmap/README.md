@@ -21,21 +21,9 @@ better Acquisition that is agent-friendly and agent-forward.
   reshaping is designed and ruled (`briefs/4-full-1-form-design.md`)
   and built in the series of its §8, one brief a step
   (`git log --grep='^Step: 4-full-1-form'`). All nine steps are
-  closed:
-  a saved search keeps what was asked (C194); a search's page is its
-  source's editor, filled, above its answer; stat rows and groups are
-  added and removed on the page; the form carries its quality box,
-  its switch, the site box and Clear; a request that leaves a page
-  leads back to it; "Add a column" orders a page by a value picked by
-  name; with no sort asked a place's items stand as they lie, at
-  every door, a stack's count a column; an abyssal socket is asked
-  by its word, by the form's A boxes and by its stat, each as the
-  site reads it; the language's words are read on a page, its index
-  linked from the query box; and a site search's answer carries its
-  link back to the trade site (`briefs/4-full-1-form-link.md`). The
-  page seat over the series is sat, twice, and its fix round closed
-  (`audits/web-form/seat/README.md`); the owner's own sitting at the
-  pages is next.
+  closed. The page seat over the series is sat, twice, and its fix
+  round closed (`audits/web-form/seat/README.md`); the owner's own
+  sitting at the pages is next.
 
 ## Next
 
@@ -48,10 +36,13 @@ when its step closes or the owner strikes it.
    series of its §8, all nine steps closed, and its page seat sat and
    closed (`audits/web-form/seat/README.md`). What is left of it is
    the owner's: his sitting at the pages, and the first link the build
-   composed opened by a person. The look is #285; what an apply
-   brought, said on its job,
-   is #182's rest; the never-fetched tabs of a league the scope's link
-   does not name are #194's rest.
+   composed opened by a person. One fix round after his sitting closes
+   the item: what he finds, with the page seat's smaller asks (#317),
+   which wait for it so the pages' words and the form's address are
+   gone over once. The look is #285, and #317's column head goes with
+   it; what an apply brought, said on its job, is #182's rest; the
+   never-fetched tabs of a league the scope's link does not name are
+   #194's rest.
 2. The frontends' whole-code review, once item 1 closes.
 3. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
@@ -59,15 +50,19 @@ when its step closes or the owner strikes it.
 4. The test-shape group's t6, one canonical mock world and the door's
    corpus (#142), designed from the GUI's door; t7 (#143) only if t6
    shows the shape pays.
-5. The queued search and trade issues: #283 (the translation builds
-   two answers of the sitting of 2026-11-17), #316 (a weighted sum of
-   pseudo totals, ruled to be built and not now), #46, #47, and #37
-   once the owner has sat the site.
+5. The queued search and trade issues. First #316 (a weighted sum of
+   pseudo totals, ruled to be built), designed with #46, since both
+   ask what values the language has and how they combine. Then #283
+   (the translation builds two answers of the sitting of 2026-11-17)
+   and #47, and, once the owner has sat the site, #37 and #309 (a
+   filter's bound of 0), whose searches that sitting asks.
 6. `alpha.2` (milestone "League 3.30 and alpha.2"): the release, its
    `keyring-macos` job dispatched once by hand before it; the tables
-   stand at 3.30 (the close of `search-276`). Before it: #256, #222 and
-   the facts door (#212), which the prune verb (#43) waits on. #281,
-   the export's lost trade-id joins, waits on the next pin.
+   stand at 3.30 (the close of `search-276`). Before it: item 5's #316
+   and #309, #256, #222 and the facts door (#212), which the prune
+   verb (#43) waits on. #281, the export's lost trade-id joins, waits
+   on the next pin, and #318 (the forms table's missed plurals) is
+   regenerated with it.
 7. PoE2 (milestone "PoE2 launch"): the route flip and the
    first-contact checklist prepared unmerged; a first contact only if
    GGG ships the stash endpoint.
@@ -93,7 +88,8 @@ His queue is the open issues labelled `trigger:ruling`:
 - The site sitting #37 waits on; it can also ask what the sitting of
   2026-11-17 left open on #33 (which pair the site compares when an
   item's two differ, a prefixed map Base's refusal captured, what lifted
-  e043's ring) and #34's jewel question.
+  e043's ring), #34's jewel question, #309's searches of a bound of 0,
+  and one of #318's plurals under a bound.
 - Whether to tell the RePoE fork that its 3.30 export joins no trade
   id for a string with markup (#281): a post on another project's
   tracker.
