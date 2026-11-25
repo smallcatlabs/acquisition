@@ -28,7 +28,9 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. The frontends' whole-code review.
+1. The whole-project review, planned in
+   `audits/whole-review-2026-11/README.md` and charged in its
+   `BRIEF.md`; it takes in the frontends' whole-code review.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
