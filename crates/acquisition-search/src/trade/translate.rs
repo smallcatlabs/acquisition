@@ -62,7 +62,8 @@
 //! - **A minimum above its maximum matches nothing** (`query.inverted`):
 //!   the site answers such a pair with no results (T35), so the clause it
 //!   bounds — a filter, a stat filter, a count's or a weighted sum's own
-//!   value — is `false()`, exact, its note naming the pair: text the
+//!   value — is `false()`, exact (ambiguous on a filter whose maximum is
+//!   a 0 its row does not read, below), its note naming the pair: text the
 //!   reader accepts, which no item meets and none leaves undecided, a
 //!   hidden number included. A stat filter's presence stands beside it,
 //!   so `if` is the stat absent and `not` every item, each as the clause
@@ -1744,8 +1745,8 @@ impl Translator<'_> {
             rule(&mut rows, &mut notes, &mut status, "stat.text.rows")?;
         }
         // a scourge line in a weighted sum: the site sums one (y15, y16),
-        // and what lifted e043's ring under a wider sum is unexplained
-        // (`scourge-in-sum`)
+        // and counts a crafted line under its explicit id too, which lifted
+        // e043's ring under a wider sum (zf14, `scourge-in-sum`)
         if in_a_sum && category == "scourge" {
             rule(&mut rows, &mut notes, &mut status, "stat.scourge.summed")?;
         }

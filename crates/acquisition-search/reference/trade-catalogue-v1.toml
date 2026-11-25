@@ -1303,7 +1303,7 @@ says = "A number written into the stat's wording is a number of the line: the li
 [[row]]
 key = "stat.text.many"
 disposition = "ambiguous"
-note = "a text with three `#` or more and no single `# to #` among them, or two beside a number its text writes as a digit (a template of three numbers): the first is compared; a text of exactly two is compared by their mean, `stat.text.bounds` (round x). The site compares a pair's mean on a text of two `# to #`: y07 asked the heist weapon's `# to # added Fire Damage` and its minions' twin (one id) at 19 to 19, and all ten fetched read `16 to 22` twice (2026-11-17); this search compares 16 and misses them (`pair-mean`, tests/trade-oracle.toml). Which pair when an item's two differ, and which number on a text of three with no `# to #`, no sitting has asked"
+note = "a text with three `#` or more and no single `# to #` among them, or two beside a number its text writes as a digit (a template of three numbers): the first is compared; a text of exactly two is compared by their mean, `stat.text.bounds` (round x). The site compares a pair's mean on a text of two `# to #`: y07 asked the heist weapon's `# to # added Fire Damage` and its minions' twin (one id) at 19 to 19, and all ten fetched read `16 to 22` twice (2026-11-17); this search compares 16 and misses them (`pair-mean`, tests/trade-oracle.toml). Which pair when an item's two differ cannot be asked: every four-number text the site lists is one roll shown twice. On two `#` that are no `# to #` pair beside a written digit the site compares the first, as here: Kitava's Thirst's `#% chance … at least # Mana … 0.1 second Cooldown` was found at 50 and not at 75 or 100, every line at 100 Mana (zf17 to zf20, 2026-11-24). A text of three `#` with no pair among them no sitting has asked"
 says = "A stat with three numbers or more: the first is compared, and the site may compare another, such as the mean of a range."
 
 [[row]]
@@ -1334,8 +1334,8 @@ says = "This wording may be either of two stats; the search matches both."
 [[row]]
 key = "stat.scourge.summed"
 disposition = "ambiguous"
-note = "a scourge stat in a weighted sum: e043 and f005 returned an item of crafted `+28% to Fire Resistance` and scourge `-28%` under a sum of both ids at `min` 0.5, the site's sum 28, as if it left the scourge line out; the line is summed here. The site sums it too: the same ring under the two ids alone was found at `max` 0 (y15), and a belt of +34% and -17% at `min` 1 (y16, 2026-11-17); which id of e043's wider group lifted the ring is for a sitting (`scourge-in-sum`, tests/trade-oracle.toml)"
-says = "A scourge modifier in a weighted sum is counted here, as the site counts it; one item the site found in a wider sum is unexplained."
+note = "a scourge stat in a weighted sum: e043 and f005 returned an item of crafted `+28% to Fire Resistance` and scourge `-28%` under a sum of both ids at `min` 0.5, the site's sum 28, as if it left the scourge line out; the line is summed here. The site sums it too: the same ring under the two ids alone was found at `max` 0 (y15), and a belt of +34% and -17% at `min` 1 (y16, 2026-11-17); e043's ring is lifted by the explicit Fire Resistance id, under which the site counts the crafted line as well as under the crafted id: under that id alone the ring was found, its sum 28, and under the group's other 18 none (zf14, zf15, 2026-11-24), so a sum naming both ids counts the crafted line twice and this search once; whether every crafted line counts so is for a sitting (`scourge-in-sum`, tests/trade-oracle.toml)"
+says = "A scourge modifier in a weighted sum is counted here, as the site counts it; the site also counts a crafted line under its stat's explicit id, so a sum naming both may count it twice where this counts it once."
 other = "{without}"
 
 [[row]]

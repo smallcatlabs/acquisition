@@ -384,8 +384,8 @@ error: 'Failed to load search state. The search is no longer valid.'"
 The page refuses before any search is sent, so no capture of the
 refusal can exist; the Base is the unprefixed name (t55, y18; #33).
 
-**T48. On a text of two `#` beside a written digit, the site compares
-the first number.** [SITE — Confirmed; November 24, 2026, the owner's
+**T48. On a text of two `#` that are no `# to #` pair, beside a written
+digit, the site compares the first number.** [SITE — Confirmed; November 24, 2026, the owner's
 sitting, captured]
 Kitava's Thirst's `#% chance to Trigger Socketed Spells when you Spend
 at least # Mana on an Upfront Cost to Use or Trigger a Skill, with a 0.1
