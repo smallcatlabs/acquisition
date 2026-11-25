@@ -55,6 +55,16 @@ split-debuginfo = "packed"
 # gate jobs.
 opt-level = 1
 incremental = true
+# The workspace's own crates at debug level 1 (the owner's ruling): a
+# backtrace keeps its paths and line numbers and a debugger still stops
+# at a line, but shows no variable and no type. Nothing had read more:
+# the stacks taken of this workspace were backtraces and samples.
+# Against level 2, measured from an empty target dir, run alone: the
+# rebuild of every test binary after one store touch 18 s to 12 s, after
+# one CLI touch 6.5 s to 3.7 s; a fresh target/ 6.8 to 5.0 GB.
+# `CARGO_PROFILE_DEV_DEBUG=2` on one command brings the variables back
+# for a debugger session, and leaves an incremental set of its own.
+debug = 1
 
 # Dependencies optimised and without debug info, the workspace's own
 # crates as above. Against dependencies unoptimised, measured from an
