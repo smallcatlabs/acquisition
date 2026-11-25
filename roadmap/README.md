@@ -48,8 +48,8 @@ when its step closes or the owner strikes it.
    pseudo totals, ruled to be built), designed with #46, since both
    ask what values the language has and how they combine. Then #283
    (the translation builds two answers of the sitting of 2026-11-17)
-   and #47, and, once the owner has sat the site, #37 and #309 (a
-   filter's bound of 0), whose searches that sitting asks.
+   and #47, #37 (built from T25 and T26, no sitting first), and,
+   once the owner has sat round zf, #309 (a filter's bound of 0).
 6. `alpha.2` (milestone "League 3.30 and alpha.2"): the release, its
    `keyring-macos` job dispatched once by hand before it; the tables
    stand at 3.30 (the close of `search-276`). Before it: item 5's #316
@@ -79,11 +79,11 @@ His queue is the open issues labelled `trigger:ruling`:
   last edited.
 - At the next live run, `tools/tracer-rung.sh`, rewritten as the
   evidence run's driver (C189) and run against the mock alone.
-- The site sitting #37 waits on; it can also ask what the sitting of
-  2026-11-17 left open on #33 (which pair the site compares when an
-  item's two differ, a prefixed map Base's refusal captured, what lifted
-  e043's ring), #34's jewel question, #309's searches of a bound of 0,
-  and one of #318's plurals under a bound.
+- The site sitting of round zf (`raw/sitting/zf-1.html` under
+  `search/pseudo-stats/`, 15 searches), with y17 and y19 again
+  (`y-1.html`): #309's bounds of 0, #34's jewel, one of #318's plurals,
+  and #33's ring and prefixed map Base. Taken with his sitting at the
+  pages (item 1), in one session at the browser.
 - Whether to tell the RePoE fork that its 3.30 export joins no trade
   id for a string with markup (#281): a post on another project's
   tracker.
