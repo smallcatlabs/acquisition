@@ -2891,6 +2891,126 @@ def round_ze(earlier):
     return rows
 
 
+def round_zf(earlier):
+    """What the sittings of 2026-11-17 and 2026-11-23 left open, each
+    question one a build waits on: zf01-zf06 a bound of 0 (#309), a
+    maximum of 0 beside a minimum on a range, on Sockets and on Link
+    Groups, each beside the minimum alone; zf07-zf08 the jewel's line
+    under the ordinary id and the four totals (#34, za01's finding);
+    zf09-zf11 a plural the forms table's reader misses, under a bound
+    (#318); zf12-zf15 which id of e043's group lifts the ring
+    (`scourge-in-sum`, #33's item 11).
+
+    Not composed: #33's item 9 (`pair-mean`) asks of an item whose two
+    pairs differ, and none can: every text of four numbers the site lists
+    is the heist line's one roll shown twice (30 of 30 captured lines
+    alike), and the site lists no text of three `#` without a `# to #`.
+    #33's item 10 re-asks y17 and y19 with the recorder on: the same
+    queries, so the same rows, on round y's page (`trade-pages.py y`).
+
+    A capped total says nothing here: each decides by none or some and by
+    what the ten fetched display, a none read only beside its control
+    finding items the same day."""
+    composed = Composed("zf", 2, earlier)
+    add = composed.add
+
+    def chest(group_id, name, value):
+        filters = dict(category("armour.chest"))
+        filters[group_id] = {"disabled": False, "filters": {name: value}}
+        return batch_query([], filters)
+
+    # 1. A bound of 0 (#309). zc02 found the site reads a Sockets `max` of 0 as no bound; each pair here parts the
+    # readings with a minimum the maximum would contradict, so a capped total cannot hide the answer.
+    for group_id, name, low, what in [
+        ("misc_filters", "quality", 20, "a range's (`minmax`), zc03 having said little"),
+        ("socket_filters", "sockets", 6, "Sockets', where zc02 found 0 read as no bound and the abyssal build "
+                                         "reads a `min` beside it as the `min` alone"),
+        ("socket_filters", "links", 5, "Link Groups', the same widget as Sockets, not asked"),
+    ]:
+        add(f"a `max` of 0 beside a `min`: `{group_id}.{name}` at `min` {low} `max` 0 under `armour.chest`, "
+            f"{what}. Some, each fetched at {low} or more: the site reads the 0 as no bound; none, {{next}} "
+            "finding items: it reads the pair as a range, which nothing meets",
+            "{next}, the `min` alone", chest(group_id, name, {"min": low, "max": 0}))
+        add(f"`{group_id}.{name}` at `min` {low} alone under `armour.chest`, the control of the search before "
+            "it: must find items", "the control: must find items", chest(group_id, name, {"min": low}))
+
+    # 2. The jewel's line (#34): since 3.30 That Which Was Taken's `+# to Strength and Intelligence` sits under the
+    # ordinary id (za01's ten); whether the site counts it in the four totals as it counts that line elsewhere.
+    ordinary = "explicit.stat_1535626285"
+    totals = ["pseudo.pseudo_total_life", "pseudo.pseudo_total_strength", "pseudo.pseudo_total_intelligence",
+              "pseudo.pseudo_total_mana"]
+
+    def jewel(stats):
+        q = batch_query(stats, None, "Crimson Jewel")
+        return {"status": q["status"], "name": "That Which Was Taken", **{k: v for k, v in q.items() if k != "status"}}
+
+    add("the jewel's line in the four totals: `name` `That Which Was Taken` with `+# to Strength and Intelligence` "
+        "under the ordinary id required, and total life, Strength, Intelligence and mana in a `not`. None, {next} "
+        "finding the jewels: the site counts the line in one total at least, as the rows now do not; some: it "
+        "leaves the line out of all four, and the ten fetched show the line with no total",
+        "{next}, the same jewels with total life", jewel([group("and", [ordinary]), group("not", totals)]))
+    add("the same jewels with total life required: the ten fetched show each total beside the line; a total of "
+        "half the line plus the jewel's life lines is the site counting it at the life row's weight. The control "
+        "of the search before it", "za01 found the jewels on 2026-11-17", jewel([group("and", [ordinary] + totals[:1])]))
+
+    # 3. A plural the forms table's reader misses (#318): `# Added Passive Skills are Jewel Sockets` displays one
+    # socket as `1 Added Passive Skill is a Jewel Socket`, a form the table calls `other`, which a bound leaves out.
+    sockets = "explicit.stat_4079888060"
+
+    def cluster(value=None):
+        f = {"id": sockets, "disabled": False}
+        if value is not None:
+            f["value"] = value
+        return batch_query([{"type": "and", "filters": [f]}], category("jewel.cluster"))
+
+    add("a plural under a bound: `" + sockets + "` at `min` 1 `max` 1 under `jewel.cluster`. Some, each fetched "
+        "displaying `1 Added Passive Skill is a Jewel Socket`: the site reads the singular's 1 under a bound, as "
+        "the table's reader does not; none, {next} finding jewels of one: the bound skips the form",
+        "{next}, the line with no bound", cluster({"min": 1, "max": 1}))
+    add("the line with no bound under `jewel.cluster`: the ten fetched show which forms are listed. Must find items",
+        "the control: must find items", cluster())
+    add("the line at `min` 2, zf09's mutant: some, each fetched displaying `2 Added Passive Skills are Jewel "
+        "Sockets` or more and none the singular: the bound reads each form's number", "zf09, the ones",
+        cluster({"min": 2}))
+
+    # 4. Which id lifts the ring (#33's item 11). e043's group of 21 ids found the Maelström Finger ring at
+    # `min` 0.5 and showed its sum 28, where its crafted `+28%` and scourge `-28%` Fire Resistance sum to 0 (y15).
+    # Its body carries no other line under the 21: the likeliest reading is the crafted line counted again under
+    # the explicit id. The ring alone is y14's two lines on an Unset Ring (y14 found it beside a belt).
+    e043 = next(r for r in earlier if r["search"] == "e043")["query"]["stats"][0]["filters"]
+    ids = [f["id"] for f in e043]
+    if len(ids) != 21:
+        raise SystemExit(f"round zf: e043's group names {len(ids)} ids, not 21")
+    res = "stat_3372524247"
+    both = [{"id": f"crafted.{res}", "disabled": False, "value": {"min": 1}},
+            {"id": f"scourge.{res}", "disabled": False, "value": {"max": -1}}]
+
+    def ring(weighted=None):
+        stats = [{"type": "and", "filters": both}]
+        if weighted is not None:
+            stats.append({"type": "weight2", "filters": [{"id": i, "value": {"weight": 1.0}, "disabled": False}
+                                                         for i in weighted], "value": {"min": 0.5}})
+        return batch_query(stats, None, "Unset Ring")
+
+    add("the ring alone: y14's two lines on `type` `Unset Ring`. Must find the Maelström Finger ring, the "
+        "control of zf13 to zf15; none, the ring is gone and they say nothing", "the control: must find the ring",
+        ring())
+    add("the ring under e043's whole group at `min` 0.5: found, its sum shown 28 again, the lift holds today; "
+        "none, the ring found by zf12: the lift is gone and zf14 and zf15 say nothing", "zf12, the ring alone",
+        ring(ids))
+    add(f"the ring under `explicit.{res}` alone, weighted 1, at `min` 0.5. Found, its sum 28: the site counts the "
+        "crafted line under the explicit id too, which lifts e043; none: another id does", "zf12, the ring alone",
+        ring([f"explicit.{res}"]))
+    rest = [i for i in ids if i not in {f"explicit.{res}", f"crafted.{res}", f"scourge.{res}"}]
+    add(f"the ring under e043's group less the three Fire Resistance ids it carries a line of, the other {len(rest)} "
+        "at `min` 0.5. None, zf14 found: the explicit id alone lifts it; found: an id of these does, and a repair "
+        "halves them", "zf12, the ring alone", ring(rest))
+    rows = composed.done()
+    if len(rows) != 15:
+        raise SystemExit(f"round zf has {len(rows)} searches, its names written for 15")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2937,6 +3057,7 @@ def compose_sheet(method="site"):
         searches += round_zc(searches)
         searches += round_zd(searches)
         searches += round_ze(searches)
+        searches += round_zf(searches)
     return searches
 
 
