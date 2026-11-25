@@ -17,7 +17,8 @@
 //! block without asking it again, and loads the page again when the
 //! basis moves (`window.js`); and a place page's opener, on a page
 //! several viewports long, leaves the reader at the opened head with
-//! every tick kept; and a site link's league select swaps the link its
+//! every tick kept; a table head's edge dragged resizes its column in
+//! every row (`window.js`); and a site link's league select swaps the link its
 //! option holds into the anchor, asking nothing (`link.js`). The tests type, click and scroll as a
 //! user's keys and pointer would, and compare what the page shows with
 //! what the server answers for the same form or window.
@@ -805,7 +806,7 @@ fn an_answers_form_edited_and_sent_asks_the_edit_and_stands_refilled() {
 /// The site link's league (`link.js`; C195, a link may carry a league a
 /// person names for it alone): the anchor holds the link of the league
 /// its select shows, at load and after the select is changed, and the
-/// change asks the server nothing.
+/// change asks the server nothing and leaves the page where it is.
 #[test]
 fn the_site_links_league_select_swaps_the_link_and_asks_nothing() {
     use crate::search_json::TRADE_ID;
@@ -834,16 +835,87 @@ fn the_site_links_league_select_swaps_the_link_and_asks_nothing() {
             .is_some_and(|h| h.starts_with("https://www.pathofexile.com/trade/search/Standard/")),
         "{href}"
     );
+    let href_at_load = page.cdp.eval("location.href");
     page.cdp.call("Network.enable", json!({}));
     page.cdp.requests.clear();
-    page.cdp.eval(&format!(
-        "{SELECT}.selectedIndex = Array.from({SELECT}.options).findIndex((o) => o.text === 'Hardcore'); \
-         {SELECT}.dispatchEvent(new Event('change', {{ bubbles: true }})); true"
-    ));
+    // the link stands in the answer's details, below the rows: opened by
+    // its summary, then the select reached by the pointer and a key
+    page.cdp
+        .click("document.querySelector('details.about > summary')");
+    page.cdp.click(SELECT);
+    page.cdp.press("Escape");
+    page.cdp.type_ahead('H');
     page.cdp.until(&format!(
         "{LINK}.getAttribute('href') === {SELECT}.value && {SELECT}.value.includes('/Hardcore/')"
     ));
-    assert!(page.cdp.requests.is_empty(), "{:?}", page.cdp.requests);
+    // the table's window may fill as the page scrolls; nothing else is asked
+    assert!(
+        page.cdp.requests.iter().all(|url| url.contains("/rows?")),
+        "{:?}",
+        page.cdp.requests
+    );
+    assert_eq!(page.cdp.eval("location.href"), json!(href_at_load));
+}
+
+/// The table's columns (`window.js`; stop 6 of the owner's sitting): an
+/// answer opens as the table, and a head's right edge, dragged by the
+/// pointer, widens its column by the drag in the head and in every row
+/// alike; the drag follows no link and loads nothing, and the widths are
+/// the page's alone, gone at a reload.
+#[test]
+fn a_heads_edge_dragged_resizes_its_column_in_every_row() {
+    let (scratch, web) = offline_web("browserresize");
+    let mut page = Page::open(
+        &profile_of(&scratch),
+        &format!("{}search?realm=pc&text=class%3Arings#answer", web.url),
+    );
+    page.cdp.until("document.querySelector('.window .seg .r[data-id]') && document.querySelector('.window .r.head .edge')");
+    let width = |page: &mut Page, row: &str| {
+        page.cdp
+            .eval(&format!(
+                "document.querySelector('.window {row}').children[1].getBoundingClientRect().width"
+            ))
+            .as_f64()
+            .expect("a width")
+    };
+    let (head, row) = (width(&mut page, ".r.head"), width(&mut page, ".r[data-id]"));
+    assert!((head - row).abs() < 0.5, "{head} {row}");
+    let at = page.cdp.eval(
+        "(() => { const r = document.querySelector('.window .r.head').children[1].querySelector('.edge').getBoundingClientRect(); \
+         return [r.x + r.width / 2, r.y + r.height / 2]; })()",
+    );
+    let (x, y) = (at[0].as_f64().unwrap(), at[1].as_f64().unwrap());
+    let href = page.cdp.eval("location.href");
+    page.cdp.call(
+        "Input.dispatchMouseEvent",
+        json!({ "type": "mouseMoved", "x": x, "y": y }),
+    );
+    page.cdp.call(
+        "Input.dispatchMouseEvent",
+        json!({ "type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1 }),
+    );
+    for step in 1..=10 {
+        page.cdp.call(
+            "Input.dispatchMouseEvent",
+            json!({ "type": "mouseMoved", "x": x + f64::from(step) * 10.0, "y": y, "button": "left", "buttons": 1 }),
+        );
+    }
+    page.cdp.call(
+        "Input.dispatchMouseEvent",
+        json!({ "type": "mouseReleased", "x": x + 100.0, "y": y, "button": "left", "clickCount": 1 }),
+    );
+    let (wider, row) = (width(&mut page, ".r.head"), width(&mut page, ".r[data-id]"));
+    assert!((wider - head - 100.0).abs() < 2.0, "{head} → {wider}");
+    assert!((wider - row).abs() < 0.5, "{wider} {row}");
+    assert_eq!(page.cdp.eval("location.href"), href);
+    // the page's own: a reload draws the columns as the server's
+    page.cdp.eval("location.reload(); true");
+    page.loaded_again();
+    page.cdp
+        .until("document.querySelector('.window .seg .r[data-id]')");
+    page.cdp
+        .until("document.querySelector('.window .r.head .edge')");
+    assert!((width(&mut page, ".r.head") - head).abs() < 0.5);
 }
 
 /// The n-th stat group of the search form, as the page holds it.

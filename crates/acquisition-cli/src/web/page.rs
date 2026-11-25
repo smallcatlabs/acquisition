@@ -985,11 +985,9 @@ pub(crate) fn search_form(
     // named, which no control writes
     out.push_str("<div class=\"controls\">\n<div class=\"controls-left\">");
     out.push_str(&rows_shown(filled.view.limit));
-    let tabled = filled.view.table;
     out.push_str(&format!(
-        " <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\"{}>cards</option><option value=\"icon\"{}>a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\"{} placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ",
-        if tabled { "" } else { " selected" },
-        if tabled { " selected" } else { "" },
+        " {} <label class=\"control\">Or count by <input name=\"view.count\"{} placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ",
+        results_as(filled.view.cards),
         valued(filled.view.count.as_deref()),
     ));
     out.push_str(SITE_COUNT);
@@ -1472,8 +1470,8 @@ const TRADE_FORM: &str = "trade-form";
 /// realm, the sort, its direction, the values the URL named and a count's
 /// keys ([`view_hidden`]), so an edited query keeps the order and the
 /// columns its reader chose by a head or a card; the values the query gave
-/// unasked are never carried, so the edited query gives its own. Its "Results as" is the big form's: cards,
-/// sent empty, or the table, set on an answer to the way it showed, so an
+/// unasked are never carried, so the edited query gives its own. Its "Results as" is the big form's: the table,
+/// sent empty, or the cards, set on an answer to the way it showed, so an
 /// edited query keeps it. What it carries of the view is one [`BoxView`],
 /// an answer's or, on a refused search, the URL's as sent (#190), and the
 /// save note reads the same. It stands in a `details`, open where the
@@ -1500,14 +1498,8 @@ fn query_box(filled: &Filled, index: &str, finder: &str) -> String {
     // the view the URL named, hidden (the one renderer both editors
     // share), a count's keys among them, which the box has no control for
     carried.push_str(&view_hidden(view, true));
-    // the presentation, as the big form's "Results as": cards, the default
-    // sent empty, or the table, selected where the answer was one
-    let tabled = view.table;
-    let results_as = format!(
-        "<label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\"{}>cards</option><option value=\"icon\"{}>a table</option></select></label>",
-        if tabled { "" } else { " selected" },
-        if tabled { " selected" } else { "" }
-    );
+    // the presentation, as the big form's "Results as"
+    let results_as = results_as(view.cards);
     format!(
         "<details class=\"query-details\"{}><summary>The query, in the language</summary><p class=\"index\"><a href=\"{}\">{}</a></p><form class=\"query-box\" method=\"get\" action=\"search#{ANSWER}\" data-count>{carried}<textarea id=\"query-text\" aria-label=\"the query, in the language\" name=\"text\" rows=\"3\">{}</textarea>{} {results_as} <button type=\"submit\">Run this query</button> {COUNT}{}</form></details>\n",
         if filled.text_open { " open" } else { "" },
@@ -1546,9 +1538,26 @@ fn rows_shown(limit: Option<usize>) -> String {
     out
 }
 
+/// How the rows of a search's answer are drawn (stop 6 of the owner's
+/// sitting): `view.fields` sent empty, the page's default, the table; or
+/// [`CARDS`], selected where the answer was cards. Both editors' one
+/// control.
+fn results_as(cards: bool) -> String {
+    format!(
+        "<label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\"{}>a table</option><option value=\"{CARDS}\"{}>cards</option></select></label>",
+        if cards { "" } else { " selected" },
+        if cards { " selected" } else { "" }
+    )
+}
+
+/// The rows' fields that ask the cards, as the CLI's `--fields` names
+/// them: the item with its art. The table, the art alone, is the page's
+/// default and names none.
+pub(crate) const CARDS: &str = "icon,item";
+
 /// What both editors carry of the view: the sort and the values the URL
-/// named, never the values the query gave unasked, the table where the rows
-/// were one, a count's keys, and the rows' or the count's number. Made from
+/// named, never the values the query gave unasked, the cards where the rows
+/// were cards, a count's keys, and the rows' or the count's number. Made from
 /// an answer's rows, a request's count, or a refused search's fields as
 /// sent; the save note says what of it a save leaves behind.
 #[derive(Default)]
@@ -1556,7 +1565,9 @@ pub(crate) struct BoxView {
     pub sort: Option<String>,
     pub desc: bool,
     pub values: Vec<String>,
-    pub table: bool,
+    /// The rows as cards, asked (`view.fields=icon,item`); the table, the
+    /// page's default, otherwise.
+    pub cards: bool,
     pub limit: Option<usize>,
     /// A count's keys as the form's one field reads them.
     pub count: Option<String>,
@@ -1572,7 +1583,7 @@ impl BoxView {
                 true => Vec::new(),
                 false => rows.values.clone(),
             },
-            table: rows.fields == [RowField::Icon],
+            cards: rows.fields == [RowField::Icon, RowField::Item],
             limit: Some(rows.limit),
             count: None,
         }
@@ -1604,7 +1615,9 @@ impl BoxView {
                 .filter(|(k, v)| k == "view.value" && !v.is_empty())
                 .map(|(_, v)| v.clone())
                 .collect(),
-            table: named("view.fields") == Some("icon"),
+            cards: named("view.fields").is_some_and(|f| {
+                RowField::list(f).is_ok_and(|l| l == [RowField::Icon, RowField::Item])
+            }),
             limit: named("view.limit").and_then(|n| n.parse().ok()),
             count: named("view.count").map(str::to_string),
         }
@@ -1620,8 +1633,8 @@ impl BoxView {
         if !self.values.is_empty() {
             left.push("its columns");
         }
-        if self.table {
-            left.push("the table");
+        if self.cards {
+            left.push("the cards");
         }
         if self.count.is_some() {
             left.push("its count");
@@ -1796,7 +1809,9 @@ fn fact_row(label: &str, cell: &str) -> String {
 /// The answer page: the answer document rendered
 /// as HTML in C115's order — the count and the badges, a site search's
 /// translation, the opening (the query, the scope, the total), the rows
-/// with their continuation or a count's tables, what a zero answer
+/// with their continuation or a count's tables (rows first, what stands
+/// before them one `details` after them, closed where a row stands:
+/// stop 6 of the owner's sitting), what a zero answer
 /// offers, why items are undecided, the terms, the counts left without a
 /// route, the basis — then the query box and the save form. The words of
 /// each fact are the text's, made once in `search_cmd.rs`; every request
@@ -1837,23 +1852,33 @@ pub(crate) fn answer(
     let mut out = opened
         .map(|o| opened_notice(a, o, links))
         .unwrap_or_default();
-    out.push_str(&format!(
+    // what stands before the rows: the count, the badges, a site search's
+    // translation and the opening (the query, the scope, the total)
+    let mut about = format!(
         "<p class=\"count\">{}</p>\n",
         plural(a.total.matched, "match", "matches")
-    ));
+    );
     let carried = opened.map(|o| (o.id.as_str(), o.at));
     let carried_query = carried
         .map(|(id, at)| format!("&saved={}&saved_revision={at}", enc(id)))
         .unwrap_or_default();
-    out.push_str(&answer_badges(a));
+    about.push_str(&answer_badges(a));
     let (typed, typed_at) = match &a.set_aside {
         Some(aside) => (aside, "/set_aside"),
         None => (&a.query, "/query"),
     };
     if let Some(trade) = &typed.trade {
-        out.push_str(&trade_section(trade, typed_at, spell, site));
+        about.push_str(&trade_section(trade, typed_at, spell, site));
     }
-    out.push_str(&opening(a, now, spell));
+    about.push_str(&opening(a, now, spell));
+    match &a.view {
+        // rows open the answer (stop 6 of the owner's sitting: "Once I
+        // click a search, I mainly want to see the results table"): what
+        // stood before them is one `details` after them, closed, and open
+        // where no row stands to read first
+        ViewOut::Rows(_) => {}
+        _ => out.push_str(&about),
+    }
     match &a.view {
         ViewOut::Rows(rows) => {
             let presented: Vec<String> = rows_links
@@ -1929,6 +1954,14 @@ pub(crate) fn answer(
                 }
                 out.push_str(&format!("<p class=\"rows-shown\">{line}</p>\n"));
             }
+            out.push_str(&format!(
+                "<details class=\"about\"{}><summary>{}</summary>\n{about}</details>\n",
+                if a.total.matched == 0 { " open" } else { "" },
+                esc(&format!(
+                    "The search that ran: {}, its query, scope and total",
+                    plural(a.total.matched, "match", "matches")
+                ))
+            ));
         }
         ViewOut::Counts(counts) => {
             if let Some(sum) = &counts.sum {

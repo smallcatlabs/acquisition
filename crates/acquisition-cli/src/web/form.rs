@@ -51,8 +51,9 @@
 //!   `view.fields`, the row's fields as the CLI's `--fields` names them
 //!   (`icon`, or `icon,item`), read by the search's one reader, which
 //!   refuses a list naming no field: sent empty or not at all, the page's
-//!   default, the item with its art, so the answer page renders cards;
-//!   `icon`, the compact table. A count asks no row's fields, and one sent
+//!   default, the art alone, so the answer page renders the table (stop 6
+//!   of the owner's sitting); `icon,item`, the item with its art, the
+//!   cards; `icon`, the table named. A count asks no row's fields, and one sent
 //!   beside it is the view selection's refusal. A search sent with a
 //!   count lets go of `view.sort`, `view.desc` and `view.value`, which a
 //!   page carries hidden from the answer it stands under and a count shows
@@ -384,8 +385,8 @@ pub(crate) struct Folded {
 
 impl Folded {
     /// The request the MCP's `search` reads, as the page asks it: the
-    /// envelope as the trade input, each row with its icon (C140) and its
-    /// item where no other fields were sent, none under a count. The view
+    /// envelope as the trade input, each row with its icon (C140) where no
+    /// other fields were sent, the table, none under a count. The view
     /// is built by the shared view selection, `Shape::of`, as the CLI
     /// builds its own, so the page inherits its refusals — a sort beside a
     /// count among them — and builds no view itself (C46). A site search
@@ -419,12 +420,13 @@ impl Folded {
                 desc: self.desc,
                 after: None,
                 // the fields sent, which a count refuses; else none for a
-                // count, which shows no rows, and the item with its art for
-                // rows, the page's cards
+                // count, which shows no rows, and the art alone for rows,
+                // the page's table (stop 6 of the owner's sitting: "Once I
+                // click a search, I mainly want to see the results table")
                 fields: match (&self.fields, &self.count) {
                     (Some(fields), _) => fields.clone(),
                     (None, Some(_)) => Vec::new(),
-                    (None, None) => vec![RowField::Icon, RowField::Item],
+                    (None, None) => vec![RowField::Icon],
                 },
             },
         )?;
@@ -1142,8 +1144,8 @@ mod tests {
     }
 
     /// `view.fields` is the row's fields as the CLI's `--fields` names
-    /// them. Absent or empty, the page's default: the item with its art
-    /// (cards); `icon`, the table; an unknown word, or a list naming no
+    /// them. Absent or empty, the page's default: the art alone (the
+    /// table), as `icon` is; `icon,item`, the cards; an unknown word, or a list naming no
     /// field, a usage error; any of them beside a count, the view
     /// selection's refusal; a count alone asks none.
     #[test]
@@ -1153,12 +1155,10 @@ mod tests {
             fold(&form, &fields(pairs)).map(|folded| folded.request().map(|r| r["view"].clone()))
         };
         let cards = json!({ "rows": { "fields": ["icon", "item"] } });
-        assert_eq!(asked(&[]).unwrap().unwrap(), cards);
-        assert_eq!(asked(&[("view.fields", "")]).unwrap().unwrap(), cards);
-        assert_eq!(
-            asked(&[("view.fields", "icon")]).unwrap().unwrap(),
-            json!({ "rows": { "fields": ["icon"] } })
-        );
+        let table = json!({ "rows": { "fields": ["icon"] } });
+        assert_eq!(asked(&[]).unwrap().unwrap(), table);
+        assert_eq!(asked(&[("view.fields", "")]).unwrap().unwrap(), table);
+        assert_eq!(asked(&[("view.fields", "icon")]).unwrap().unwrap(), table);
         assert_eq!(
             asked(&[("view.fields", "icon,item")]).unwrap().unwrap(),
             cards

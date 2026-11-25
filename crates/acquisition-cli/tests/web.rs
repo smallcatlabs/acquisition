@@ -28,7 +28,7 @@ const ART: &str = "https://web.poecdn.com/gen/image/ring.png";
 /// The row fields the answer page asks by default, as `acq search
 /// --fields` names them: what each JSON comparison of a page with the CLI
 /// asks of the CLI, so the two compare whole.
-const PAGE_FIELDS: &str = "icon,item";
+const PAGE_FIELDS: &str = "icon";
 
 /// The league list (Standard, Hardcore, and Settlers with no tab on
 /// disk), and one league of two tabs: `Rings` with two life rings and Kaom's Heart,
@@ -1172,7 +1172,12 @@ fn every_search_stands_under_its_editor_filled_with_what_was_asked() {
     let rings = r#"{"query": {"filters": {"type_filters": {"filters": {"category": {"option": "accessory.ring"}}}}}}"#;
     let site_path = format!(
         "search?{}",
-        query_string(&[("realm", "pc"), ("trade", rings), ("view.limit", "1")])
+        query_string(&[
+            ("realm", "pc"),
+            ("trade", rings),
+            ("view.fields", "icon,item"),
+            ("view.limit", "1")
+        ])
     );
     let site = web.get(&site_path);
     assert_eq!(site.status, 200, "{}", site.body);
@@ -1638,6 +1643,7 @@ fn a_head_orders_by_its_value_and_flips_and_the_box_keeps_what_was_named() {
     // first rows link folds to the request the URL named
     let mut paged = named.to_vec();
     paged.retain(|(k, _)| *k != "view.fields");
+    paged.push(("view.fields", "icon,item"));
     paged.push(("view.limit", "1"));
     let cards = web.get_json(&format!("search?{}", query_string(&paged)));
     let token = serde_json::from_value::<acquisition_search::answer::Request>(
@@ -1668,7 +1674,11 @@ fn a_head_orders_by_its_value_and_flips_and_the_box_keeps_what_was_named() {
 fn a_cards_number_adds_its_value_and_a_full_list_adds_none() {
     let (_scratch, web) = offline_web("webcardnumber");
     let life = "sum(line(\"# to maximum Life\" source=explicit).arg1)";
-    let asked = [("realm", "pc"), ("text", "class:rings")];
+    let asked = [
+        ("realm", "pc"),
+        ("text", "class:rings"),
+        ("view.fields", "icon,item"),
+    ];
     let before = web.get_json(&format!("search?{}", query_string(&asked)));
     assert!(
         before["view"]["rows"]["values"].is_null(),
@@ -2064,62 +2074,18 @@ fn every_search_page_is_a_wording_golden() {
     ] {
         assert!(!form.body.contains(exact), "{exact}: {}", form.body);
     }
+    // the search opens as the table (stop 6 of the owner's sitting):
+    // every row in one table, its heads the fixed columns and the query's
+    // one value, its first block the server's, each row's price in the
+    // card's words, then the search that ran in its details, closed; the
+    // query box keeping the table, and the way to the cards
     let ring_path = format!("search?{}", query_string(&ring_search()));
     let answer = web.get(&ring_path);
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    assert!(!answer.body.contains("class=\"card\""), "{}", answer.body);
     pages.page(
         "GET search?<the ring search>",
         &answer,
-        &[
-            "from the query JSON: exact",
-            "<th>Total</th><td>2 matches",
-            "Doom Loop",
-            "Rune Coil",
-            "alt=\"Doom Loop Two-Stone Ring\"",
-            "class=\"name rarity-rare\"",
-            "<p class=\"count\">2 matches</p>",
-            "name=\"text\" rows=\"3\">league=Standard category=&quot;accessory.ring&quot;",
-            "+95 to maximum Life",
-            // the rows are cards by default: a line's kind, the price,
-            // the place with its age, and the way to the table
-            "<div class=\"cards\">",
-            "<span class=\"mod-kind\">explicit</span>",
-            "<p class=\"price\">price none (",
-            "#i-r1\">pc · Standard / Rings",
-            " ago</a></p>",
-            "<a class=\"presentation\" href=\"search?",
-            ">as a table</a>",
-            // the order the rows stand in, where no sort was asked: the
-            // store's
-            "rows 1–2 of 2 shown, as they lie in their place, top row first and left to right (no sort asked)",
-            // the query box's presentation, the big form's
-            "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>",
-        ],
-    );
-    assert!(!answer.body.contains("class=\"window\""), "{}", answer.body);
-    // a form search saves as the site's search, the form's envelope
-    // kept as given (C194), and the note says so
-    assert!(
-        answer.body.contains(
-            "<p class=\"save-note\">Saved, this keeps the site&#39;s search as given, \
-             translated again each time it opens.</p>"
-        ),
-        "{}",
-        answer.body
-    );
-    every_request_an_answer_carries_is_a_way_on_its_page(&web, &ring_path, &answer);
-    // the same search as the table, asked on the form: every row in one
-    // table, its heads the fixed columns and the query's one value, its
-    // first block the server's, each row's price in the card's words, the
-    // query box keeping it, and the way back to the cards, which answers
-    let mut tabled = ring_search();
-    tabled.push(("view.fields", "icon"));
-    let table_path = format!("search?{}", query_string(&tabled));
-    let table = web.get(&table_path);
-    assert_eq!(table.status, 200, "{}", table.body);
-    assert!(!table.body.contains("class=\"card\""), "{}", table.body);
-    pages.page(
-        "GET search?<the ring search as a table>",
-        &table,
         &[
             "<p class=\"rows-shown\">2 matching items in the table, as they lie in their place, top row first and left to right (no sort asked)",
             "<div class=\"window\" data-row-height=\"24\" data-block-rows=\"50\">",
@@ -2131,22 +2097,74 @@ fn every_search_page_is_a_wording_golden() {
             "<span>none (",
             "<span>Standard / Rings · x 0, y 0</span>",
             "<span>95</span>",
-            "<option value=\"icon\" selected>a table</option>",
+            // what stood above the rows, below them in its details
+            "<details class=\"about\"><summary>The search that ran: 2 matches, its query, scope and total</summary>",
+            "from the query JSON: exact",
+            "<th>Total</th><td>2 matches",
+            "<p class=\"count\">2 matches</p>",
+            "name=\"text\" rows=\"3\">league=Standard category=&quot;accessory.ring&quot;",
+            // the query box's presentation, the big form's
+            "Results as <select name=\"view.fields\"><option value=\"\" selected>a table</option>",
             ">as cards</a>",
         ],
     );
-    every_request_an_answer_carries_is_a_way_on_its_page(&web, &table_path, &table);
+    // the table stands before the search's details
+    assert!(
+        answer.body.find("class=\"window\"").unwrap()
+            < answer.body.find("<details class=\"about\">").unwrap(),
+        "{}",
+        answer.body
+    );
+    // a form search saves as the site's search, the form's envelope
+    // kept as given (C194), and the note says so
+    assert!(
+        answer.body.contains(
+            "<p class=\"save-note\">Saved, this keeps the site&#39;s search as given, \
+             translated again each time it opens.</p>"
+        ),
+        "{}",
+        answer.body
+    );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &ring_path, &answer);
+    // the same search as cards, asked on the form: a line's kind, the
+    // price, the place with its age, the query box keeping them, and the
+    // way back to the table, which answers
+    let mut carded = ring_search();
+    carded.push(("view.fields", "icon,item"));
+    let cards_path = format!("search?{}", query_string(&carded));
+    let cards = web.get(&cards_path);
+    assert_eq!(cards.status, 200, "{}", cards.body);
+    assert!(!cards.body.contains("class=\"window\""), "{}", cards.body);
+    pages.page(
+        "GET search?<the ring search as cards>",
+        &cards,
+        &[
+            "Doom Loop",
+            "Rune Coil",
+            "alt=\"Doom Loop Two-Stone Ring\"",
+            "class=\"name rarity-rare\"",
+            "+95 to maximum Life",
+            "<div class=\"cards\">",
+            "<span class=\"mod-kind\">explicit</span>",
+            "<p class=\"price\">price none (",
+            "#i-r1\">pc · Standard / Rings",
+            " ago</a></p>",
+            "<a class=\"presentation\" href=\"search?",
+            ">as a table</a>",
+            // the order the rows stand in, where no sort was asked: the
+            // store's
+            "rows 1–2 of 2 shown, as they lie in their place, top row first and left to right (no sort asked)",
+            "<option value=\"icon,item\" selected>cards</option>",
+        ],
+    );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &cards_path, &cards);
     let link = "<a class=\"presentation\" href=\"";
-    let back = &table.body[table.body.find(link).unwrap() + link.len()..];
+    let back = &cards.body[cards.body.find(link).unwrap() + link.len()..];
     let back = back[..back.find('"').unwrap()].replace("&amp;", "&");
     assert!(!back.contains("view.fields"), "{back}");
-    let cards = web.get(&back);
-    assert_eq!(cards.status, 200, "{}", cards.body);
-    assert!(
-        cards.body.contains("<div class=\"cards\">"),
-        "{}",
-        cards.body
-    );
+    let table = web.get(&back);
+    assert_eq!(table.status, 200, "{}", table.body);
+    assert!(table.body.contains("class=\"window\""), "{}", table.body);
     // the query box: the answer holds the text it ran, to edit; an edited
     // text runs as the user's own query, the trade input dropped — the
     // translation's section on the ring search's answer, none on the edit
@@ -2291,7 +2309,7 @@ fn every_search_page_is_a_wording_golden() {
     );
     every_request_an_answer_carries_is_a_way_on_its_page(&web, &counted_path, &counted);
     // rows left out: the continuation, a link that answers the next rows
-    let first_path = "search?realm=pc&text=class%3Arings&view.limit=1";
+    let first_path = "search?realm=pc&text=class%3Arings&view.fields=icon%2Citem&view.limit=1";
     let first = web.get(first_path);
     assert_eq!(first.status, 200, "{}", first.body);
     pages.page(
@@ -2455,7 +2473,7 @@ fn every_search_page_is_a_wording_golden() {
             "name=\"text\" rows=\"3\">class:rings sort:life</textarea>",
             "<input type=\"hidden\" name=\"view.sort\" value=\"ilvl\"><input type=\"hidden\" name=\"view.desc\" value=\"true\">",
             "<input type=\"hidden\" name=\"view.value\" value=\"ilvl\"><input type=\"hidden\" name=\"view.value\" value=\"pseudo.total_life\">",
-            "<option value=\"icon\" selected>a table</option>",
+            "<option value=\"\" selected>a table</option>",
         ],
     );
     let refused_doc = refused_json(
@@ -2465,18 +2483,18 @@ fn every_search_page_is_a_wording_golden() {
     );
     assert!(refused_doc["error"].is_string(), "{refused_doc}");
     // what a save leaves behind, said by the save form: a sorted table's
-    // order and table, a table's table alone
+    // order and its columns, the cards
     for (path, said, line) in [
         (
             "search?realm=pc&text=class%3Arings&view.fields=icon&view.sort=ilvl&view.desc=true",
-            "Saved without its order, its columns and the table: a saved search is its query and its scope.",
+            "Saved without its order and its columns: a saved search is its query and its scope.",
             "3 matching items in the table, by ilvl, largest first, as asked</p>",
         ),
         (
-            "search?realm=pc&text=class%3Arings&view.fields=icon",
-            "Saved without the table: a saved search is its query and its scope.",
+            "search?realm=pc&text=class%3Arings&view.fields=icon%2Citem",
+            "Saved without the cards: a saved search is its query and its scope.",
             // where no sort was asked, the way to one
-            "3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>",
+            "as they lie in their place, top row first and left to right (no sort asked) · press a number on a card to order the rows by it",
         ),
     ] {
         let saving = web.get(path);
@@ -2486,8 +2504,16 @@ fn every_search_page_is_a_wording_golden() {
             &[&format!("<p class=\"save-note\">{said}</p>"), line],
         );
     }
-    let cards = web.get("search?realm=pc&text=class%3Arings");
-    assert!(!cards.body.contains("Saved without"), "{}", cards.body);
+    // the table, the page's default, is no part of the view a save leaves
+    let table = web.get("search?realm=pc&text=class%3Arings");
+    assert!(!table.body.contains("Saved without"), "{}", table.body);
+    assert!(
+        table
+            .body
+            .contains("3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>"),
+        "{}",
+        table.body
+    );
     // a count asked of no realm over a store of two: each realm offered
     // keeps the count, and each link answers it — a key in another case
     // and a narrowing of two texts among them, which fold back through the
@@ -2962,7 +2988,8 @@ const RESTS_NO_FORM_READS: [&str; 0] = [];
 /// of the page's document holding a
 /// `request`, exactly one element marked `class="way"` names its pointer,
 /// and none names another; the scope's never-fetched tabs a way exactly
-/// where the answer points at them. Each link answers `200`: the tabs'
+/// where the answer points at them; a table's continuation is none, the
+/// table holding every row in one page. Each link answers `200`: the tabs'
 /// the refresh page, and every other with JSON asked the answer to its
 /// request — the members counted where its holder has a count, the next
 /// rows where it is the continuation, and the request's query, realm and
@@ -2981,6 +3008,10 @@ fn every_request_an_answer_carries_is_a_way_on_its_page(
     };
     let mut holders = Vec::new();
     holding_requests(&doc, "", &mut holders);
+    // a table holds every row in one page, so its continuation is no way
+    if doc.pointer("/view/rows/fields") == Some(&json!(["icon"])) {
+        holders.retain(|holder| holder != "/view/rows/next");
+    }
     let ways = ways_on(main_of(&page.body));
     for holder in &holders {
         assert_eq!(
@@ -3405,6 +3436,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             ("realm", "pc"),
             ("text", "line(template:spirit)"),
             ("view.sort", "sum(line(template:spirit).arg1)"),
+            ("view.fields", "icon,item"),
         ])
     ));
     assert!(
@@ -3507,6 +3539,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
                     "sum(line(\"# to maximum Life\" source=explicit).arg1)",
                 ),
                 ("view.desc", "true"),
+                ("view.fields", "icon,item"),
             ])
         ),
         &[
@@ -3895,7 +3928,9 @@ fn a_row_opens_under_itself_and_stays_open_as_the_view_changes() {
     );
     assert!(written(&stale.body, "item").contains(&id), "{}", stale.body);
     // a page of cards cuts nothing, and keeps no opened row
-    let cards = web.get(&format!("search?realm=pc&text=&item={id}"));
+    let cards = web.get(&format!(
+        "search?realm=pc&text=&view.fields=icon%2Citem&item={id}"
+    ));
     assert!(written(&cards.body, "item").is_empty(), "{}", cards.body);
 }
 
@@ -4450,7 +4485,8 @@ fn the_refresh_loop_runs_through_the_pages() {
     for (place, holds) in [("dump", "Dump"), ("m002", "(unnamed)")] {
         let row = &whole.body[at(&whole.body, &format!("id=\"p-{place}\""))..];
         let href = attribute(&row[row.find("<a class=\"way\"").unwrap()..], "href").unwrap();
-        assert!(href.contains("view.fields=icon"), "{href}");
+        // the table, the page's default, names no fields
+        assert!(!href.contains("view.fields"), "{href}");
         let table = follow(&web, &href);
         assert_eq!(table.status, 200, "{href}: {}", table.body);
         assert!(
@@ -4532,7 +4568,8 @@ fn the_refresh_loop_runs_through_the_pages() {
     let fetched = web.get("characters?realm=pc&league=Standard");
     let row = &fetched.body[at(&fetched.body, "name=\"character\" value=\"")..];
     let href = attribute(&row[row.find("<a class=\"way\"").unwrap()..], "href").unwrap();
-    assert!(href.contains("view.fields=icon"), "{href}");
+    // the table, the page's default, names no fields
+    assert!(!href.contains("view.fields"), "{href}");
     let table = follow(&web, &href);
     assert_eq!(table.status, 200, "{href}: {}", table.body);
     assert!(table.body.contains("class=\"window\""), "{}", table.body);
@@ -5797,7 +5834,7 @@ fn c16_every_page_s_basis_line_is_its_documents_own() {
         assert_eq!(line["answer"], json_at(&web, &at(&path))["basis"], "{path}");
     }
     // a continuation, followed as the page links it
-    let first = web.get("search?realm=pc&text=class%3Arings&view.limit=1");
+    let first = web.get("search?realm=pc&text=class%3Arings&view.fields=icon%2Citem&view.limit=1");
     let more = link_saying(&first.body, "more");
     let next = follow(&web, &more);
     assert_eq!(next.status, 200, "{}", next.body);
@@ -6403,7 +6440,7 @@ fn saved_open_runs_the_rows_search_and_writes_nothing() {
         .unwrap()
         .to_string();
     let edited = web.get(&format!(
-        "search?realm=pc&membership=all&text=class%3Arings&view.limit=1&saved={all}&saved_revision=1"
+        "search?realm=pc&membership=all&text=class%3Arings&view.fields=icon%2Citem&view.limit=1&saved={all}&saved_revision=1"
     ));
     assert_eq!(edited.status, 200, "{}", edited.body);
     assert_eq!(json_at(&web, &location)["scope"]["membership"], "all");

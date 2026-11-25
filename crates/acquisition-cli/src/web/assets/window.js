@@ -11,6 +11,9 @@
 // a block whose fetch fails is dropped, to be asked at the next fill.
 // A segment ends at an opened row, whose card stands after it in the
 // flow; the next segment goes on from the row after, on the same route.
+// A head's right edge drags its column's width: the widths are the
+// table's own style, kept for the page's life and lost on a reload, and
+// a drag asks nothing and follows no link.
 (function () {
   const table = document.querySelector('.window[data-row-height]');
   if (!table) return;
@@ -103,6 +106,39 @@
     queued = true;
     requestAnimationFrame(fill);
   };
+  // the columns: each head's right edge an element the drag holds; the
+  // widths every row's grid takes are the heads' as drawn, the dragged
+  // one moved by the pointer, written on the table
+  const head = table.querySelector('.r.head');
+  if (head) {
+    const cells = Array.from(head.children);
+    cells.forEach((cell, i) => {
+      const edge = document.createElement('span');
+      edge.className = 'edge';
+      edge.setAttribute('aria-hidden', 'true');
+      cell.appendChild(edge);
+      // a head that is a link is not followed from its edge
+      edge.addEventListener('click', (event) => event.preventDefault());
+      edge.addEventListener('pointerdown', (down) => {
+        down.preventDefault();
+        const widths = cells.map((c) => c.getBoundingClientRect().width);
+        const from = down.clientX;
+        const was = widths[i];
+        edge.setPointerCapture(down.pointerId);
+        const move = (event) => {
+          widths[i] = Math.max(24, was + event.clientX - from);
+          table.style.setProperty('--columns', widths.map((w) => w + 'px').join(' '));
+        };
+        const up = () => {
+          edge.removeEventListener('pointermove', move);
+          edge.removeEventListener('pointerup', up);
+        };
+        edge.addEventListener('pointermove', move);
+        edge.addEventListener('pointerup', up);
+      });
+    });
+  }
+
   window.addEventListener('scroll', queue, { passive: true });
   window.addEventListener('resize', queue);
   // the URL's anchor (a toggled head or row inside the table, or the

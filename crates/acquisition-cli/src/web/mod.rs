@@ -330,7 +330,8 @@
 //!   change names the longer list, so the page lands on the search's own
 //!   refusal of it ([`view_picked`]); a search refused as sent is that
 //!   refusal; a place page that draws no heads refuses it in words.
-//! - **The table**: an answer asked as a table (`view.fields=icon`) is
+//! - **The table**: an answer asked as a table (the page's default, stop 6
+//!   of the owner's sitting; `view.fields=icon` names it) is
 //!   every matching row in one scrolling page at one row height, the height
 //!   and the block's rows written on the table ([`page::ROW_HEIGHT`],
 //!   [`page::BLOCK_ROWS`]). Its line says how many items it holds and in
@@ -1105,9 +1106,9 @@ impl Web {
     /// `4-full-1-form-design.md` §2), a text beside it being the translation
     /// the read verified; else its text. A URL's realm is the search's, so
     /// none is carried beside one that names it. Its rows' fields are
-    /// `view.fields=icon` where they are the art alone, the table, and no
-    /// field where they are the art and the item or none, the page's
-    /// default, cards; any other list is no form's. Its membership is a
+    /// `view.fields=icon,item` where they are the art and the item, the
+    /// cards, and no field where they are the art alone or none, the
+    /// page's default, the table; any other list is no form's. Its membership is a
     /// field only where it is not `live`, the form's default, so every link
     /// made before the form carried one stands as it was. None for any other
     /// (a tree, another account or view: a crossed table, a sum, an explained
@@ -1157,13 +1158,15 @@ impl Web {
                 for value in &rows.values {
                     fields.push(("view.value", value.clone()));
                 }
-                // the row's fields: the table is `view.fields=icon`; the
-                // cards, and none (a route carries none), the page's
+                // the row's fields: the cards are `view.fields=icon,item`;
+                // the table, and none (a route carries none), the page's
                 // default; any other list is no form's
                 use acquisition_search::answer::RowField;
                 match rows.fields.as_slice() {
-                    [RowField::Icon] => fields.push(("view.fields", "icon".to_string())),
-                    [] | [RowField::Icon, RowField::Item] => {}
+                    [RowField::Icon, RowField::Item] => {
+                        fields.push(("view.fields", page::CARDS.to_string()))
+                    }
+                    [] | [RowField::Icon] => {}
                     _ => return None,
                 }
             }
@@ -2122,8 +2125,8 @@ impl Source {
 /// the other way — cards or the table — and, on a continuation's page,
 /// the same search from its first rows. Reached by the form's fields, the
 /// other way is the page's own URL, its fields as sent, with
-/// `view.fields=icon` added where it shows cards and taken out where it
-/// shows the table. Reached by a continuation, whose token holds its
+/// `view.fields=icon,item` added where it shows the table and taken out
+/// where it shows cards. Reached by a continuation, whose token holds its
 /// view whole, both are the continued request from its start — its place
 /// and basis dropped, the other way's fields swapped — spelt as the form
 /// would ask it, the saved search the page was opened from carried; none
@@ -2156,8 +2159,8 @@ fn rows_links(
             .filter(|(k, _)| k != "view.fields" && k != "item")
             .map(|(k, v)| (k.as_str(), v.as_str()))
             .collect();
-        if other == [RowField::Icon] {
-            fields.push(("view.fields", "icon"));
+        if other == [RowField::Icon, RowField::Item] {
+            fields.push(("view.fields", page::CARDS));
         }
         let query: Vec<String> = fields
             .iter()

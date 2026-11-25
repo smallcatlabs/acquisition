@@ -87,7 +87,7 @@ GET rows?<the first window, its basis moved>
 this continues an answer counted at another basis, and its place is no place in this one — snapshot 7 then, snapshot 8 now; recorded 1970-01-01 00:00:50 UTC then, recorded 1970-01-01 00:01:00 UTC now: ask again from the start
 </pre>
 <ul class="offers">
-<li><a href="/<token>/search?realm=pc&amp;text=&amp;view.limit=3">the same request from its start</a></li>
+<li><a href="/<token>/search?realm=pc&amp;text=&amp;view.limit=3&amp;view.fields=icon%2Citem">the same request from its start</a></li>
 </ul>
 </div>
 
@@ -104,18 +104,11 @@ GET search?<the table, its first two rows opened>
 <form id="trade-form" method="get" action="search#answer" data-count></form>
 <form id="search-form" method="get" action="search#answer" novalidate data-count>
 <the search form from its bar: golden web/search_form, filled with these lines>
-<div class="controls-left"><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <label class="control">Or count by <input name="view.count" placeholder="rarity"></label> <span class="fate">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>
 <div class="controls-right"></div>
-<details class="query-details" open><summary>The query, in the language</summary><p class="index"><a href="/<token>/describe?from=search%3Frealm%3Dpc%26text%3D%26view.fields%3Dicon%26item%3Dr1%26item%3Dkaom">The language&#39;s index: every entry by its name and one line</a></p><form class="query-box" method="get" action="search#answer" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><textarea id="query-text" aria-label="the query, in the language" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span><div class="filter value-finder" data-finder="stats?values=true&amp;q="><input type="search" placeholder="Add a column" aria-label="Add a column" autocomplete="off"><ul class="finder-list" role="listbox"></ul></div></form></details>
+<details class="query-details" open><summary>The query, in the language</summary><p class="index"><a href="/<token>/describe?from=search%3Frealm%3Dpc%26text%3D%26view.fields%3Dicon%26item%3Dr1%26item%3Dkaom">The language&#39;s index: every entry by its name and one line</a></p><form class="query-box" method="get" action="search#answer" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><textarea id="query-text" aria-label="the query, in the language" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="" selected>a table</option><option value="icon,item">cards</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span><div class="filter value-finder" data-finder="stats?values=true&amp;q="><input type="search" placeholder="Add a column" aria-label="Add a column" autocomplete="off"><ul class="finder-list" role="listbox"></ul></div></form></details>
 <form class="write" method="post" action="leagues"><input type="hidden" name="from" value="search?realm=pc&amp;text=&amp;view.fields=icon&amp;item=r1&amp;item=kaom"><button type="submit">Fetch the league list</button></form>
 <div id="answer">
-<p class="count">3 matches</p>
-<table class="opening">
-<tr><th>Query</th><td>(every item in scope)</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 3 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
-<tr><th>Total</th><td>3 matches (fetched <age> ago, pc · Standard / Rings)</td></tr>
-</table>
-<p><a class="presentation" href="search?realm=pc&amp;text=">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=">by character</a></p>
+<p><a class="presentation" href="search?realm=pc&amp;text=&amp;view.fields=icon%2Citem">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=">by character</a></p>
 <form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value=""><input type="hidden" name="view.fields" value="icon"><input type="hidden" name="item" value="r1"><input type="hidden" name="item" value="kaom">
 <p class="rows-shown">3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
 <div class="window" data-row-height="24" data-block-rows="50">
@@ -161,11 +154,18 @@ GET search?<the table, its first two rows opened>
 </div></div>
 </div>
 </form>
+<details class="about"><summary>The search that ran: 3 matches, its query, scope and total</summary>
+<p class="count">3 matches</p>
+<table class="opening">
+<tr><th>Query</th><td>(every item in scope)</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 3 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>3 matches (fetched <age> ago, pc · Standard / Rings)</td></tr>
+</table>
+</details>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 8 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
 <div class="save">
-<p class="save-note">Saved without the table: a saved search is its query and its scope.</p>
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="from" value="search?realm=pc&amp;text=&amp;view.fields=icon&amp;item=r1&amp;item=kaom"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 </div>
