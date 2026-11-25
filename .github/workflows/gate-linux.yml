@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   gate:
-    # A push to main runs on the owner's Linux runner VM when the
+    # A push to main runs on the project's Linux runner pool when the
     # repository variable SELF_HOSTED_LINUX is 'true' (C155); everything
     # else, every pull request and the weekly run above all, stays on a
     # hosted runner.
@@ -51,7 +51,7 @@ jobs:
         with:
           tool: cargo-nextest@0.9.149
 
-      # The self-hosted VM keeps its own target directory (CARGO_TARGET_DIR,
+      # The self-hosted runner keeps its own target directory (CARGO_TARGET_DIR,
       # outside the checkout); only a hosted runner restores a cache.
       - uses: Swatinem/rust-cache@v2
         if: runner.environment == 'github-hosted'
@@ -62,7 +62,7 @@ jobs:
       # advisories, the licences an archive may carry, bans and sources.
       # Here only — the local gate does not install cargo-deny. The
       # binary, not the action: the action is a container, and the
-      # self-hosted VM has no Docker.
+      # self-hosted runner has no Docker.
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny
@@ -70,7 +70,7 @@ jobs:
       - name: Dependencies
         run: cargo deny --locked check advisories licenses bans sources
 
-      # Preinstalled on the self-hosted VM, whose runner has no sudo.
+      # Preinstalled on the self-hosted runner, which has no sudo.
       - name: Install a Secret Service
         if: runner.environment == 'github-hosted'
         run: |
@@ -184,7 +184,7 @@ jobs:
   # moving under a case, which would otherwise fail unseen.
   # sign-acqd-breakers.sh is not here: it needs macOS's codesign, and runs
   # weekly on macOS (weekly.yml, `sign-acqd`).
-  # As the gate job (C155), on the same VM's second runner, so the two run
+  # As the gate job (C155), on the pool's second runner, so the two run
   # side by side and the gate's target directory stays the gate's.
   breakers:
     runs-on: ${{ (vars.SELF_HOSTED_LINUX == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main') && fromJSON('["self-hosted", "linux", "x64", "acq-breakers"]') || 'ubuntu-latest' }}
