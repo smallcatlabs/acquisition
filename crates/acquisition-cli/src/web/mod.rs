@@ -138,6 +138,16 @@
 //!   refused, the refusal in the shared words, then the save form as sent
 //!   where the write was a save and the refusal offers no write of its own,
 //!   then the way back ([`Web::failed`]).
+//!   **The search a page carries** (stop 7 of the owner's sitting: the
+//!   search survives a visit to another page, in the address, never in
+//!   browser storage; [`from::Here::carried_search`]): the search page
+//!   itself, or the search a page's `from` names. The nav bar's links to
+//!   the lists carry it as their `from` and its Search link leads back to
+//!   it (on the search page itself, to the empty form); a place page keeps
+//!   it in every link and redirect of its own ([`place_fields`]), and the
+//!   ways from a search to the place pages carry it. A step hands on the
+//!   place it left, as the landing rule has it, so a page a step lands on
+//!   carries the search no more.
 //! - **The language** (`roadmap/briefs/4-full-1-form-index.md`): `GET
 //!   describe` renders the search crate's `describe` document
 //!   ([`page::describe`]) for `names`, each field one list as one
@@ -825,10 +835,21 @@ impl Web {
         })
     }
 
-    /// A page drawn with `here`'s way back.
+    /// The search `here` carries, as the nav bar carries it on
+    /// ([`Here::carried_search`]).
+    fn searched(&self, here: &Here) -> Option<page::Searched> {
+        here.carried_search().map(|search| page::Searched {
+            href: search.href(self),
+            word: search.word(),
+            own: here.is_its_search(),
+        })
+    }
+
+    /// A page drawn with `here`'s way back and the search it carries.
     fn page_at(&self, title: &str, head: Head, body: &str, here: &Here) -> Response {
         let head = Head {
             back: self.back(here),
+            search: self.searched(here),
             ..head
         };
         self.page(title, head, body)
@@ -886,6 +907,7 @@ impl Web {
         };
         let head = Head {
             back: self.back(here),
+            search: self.searched(here),
             ..head
         };
         html(
@@ -926,6 +948,7 @@ impl Web {
                     lists: true,
                     count: true,
                     back: self.back(here),
+                    search: self.searched(here),
                     ..Head::default()
                 },
                 &format!(
@@ -1244,10 +1267,12 @@ impl Web {
     /// each place holding it open ([`Places::holders`]), no query, and no
     /// landing, which the card adds for its own item ([`page::card`]);
     /// none where that league's places document lacks it. Each realm,
-    /// league and kind's document is read once.
+    /// league and kind's document is read once. Each carries `carry`, the
+    /// search the page shows or carries, as its `from`.
     fn place_links(
         &self,
         shown: &[&acquisition_search::corpus::Place],
+        carry: Option<&FromPage>,
     ) -> Result<std::collections::HashMap<PlaceKey, String>, Failure> {
         let mut links = std::collections::HashMap::new();
         if shown.is_empty() {
@@ -1296,6 +1321,7 @@ impl Web {
                     league,
                     &Shown::default(),
                     Marked {
+                        carry,
                         open: &open,
                         ..Marked::default()
                     },
@@ -1751,6 +1777,9 @@ async fn search(
     let sent = fields.clone();
     let editing = fields.clone();
     let sent_items = opening.items.clone();
+    // the search as sent: what a link to a place page carries as its
+    // `from`, so the place keeps the search (stop 7 of the owner's sitting)
+    let searched = FromPage::here(Place::Search, &sent);
     let (asked, filled, leagues) = blocking(&web, move |web| {
         // the query as read, the fold's or a token's: what the editors are
         // filled from, answered or refused
@@ -1830,7 +1859,7 @@ async fn search(
             let placed = if json {
                 std::collections::HashMap::new()
             } else {
-                web.place_links(&shown)?
+                web.place_links(&shown, Some(&searched))?
             };
             let opened = match from {
                 Some((id, at)) if !json => {
@@ -1962,7 +1991,7 @@ async fn search(
                 })
                 .unwrap_or_default();
             let mut rows_links = rows_links(&web, &sent, continued.as_ref(), &answer);
-            rows_links.places = by_place(&web, &request, &answer, &held);
+            rows_links.places = by_place(&web, &request, &answer, &held, here.carried_search());
             let view_links = |value: &str| match &answer.view {
                 acquisition_search::answer::ViewOut::Rows(rows) => {
                     view_link(&web, &sent, continued.as_ref(), view_change(rows, value)?)
@@ -2205,12 +2234,14 @@ fn rows_links(
 /// the default's, with the canonical text and the view. None where the form
 /// cannot ask the request, under all realms, or under a membership other
 /// than live: a place page is one realm's live items. A league is named as
-/// the store holds it (`held`, the realm's leagues on disk).
+/// the store holds it (`held`, the realm's leagues on disk). Each carries
+/// `carry`, the search, as its `from`.
 fn by_place(
     web: &Web,
     request: &Request,
     answer: &acquisition_search::Answer,
     held: &[String],
+    carry: Option<&FromPage>,
 ) -> Vec<page::Presentation> {
     use acquisition_search::answer::{Membership, Shape, ViewOut};
     let (ViewOut::Rows(_), Shape::Rows(view)) = (&answer.view, &request.view.shape) else {
@@ -2250,7 +2281,16 @@ fn by_place(
     .map(|(listed, words)| page::Presentation {
         href: web.link(
             listed.route(),
-            &place_fields(listed, realm, league, &shown, Marked::default()),
+            &place_fields(
+                listed,
+                realm,
+                league,
+                &shown,
+                Marked {
+                    carry,
+                    ..Marked::default()
+                },
+            ),
         ),
         words,
     })
@@ -2621,6 +2661,7 @@ async fn item(
         Err(failure) => return web.failed("Item", &failure, &headers, &Here::none()),
     };
     let here = Here::place(FromPage::here(Place::Item(id.clone()), &fields), back);
+    let carry = here.carried_search().cloned();
     let against = fields
         .iter()
         .find(|(k, _)| k == "against")
@@ -2641,7 +2682,7 @@ async fn item(
         let placed = match json {
             true => None,
             false => web
-                .place_links(&[&shown.place])?
+                .place_links(&[&shown.place], carry.as_ref())?
                 .remove(&place_key(&shown.place)),
         };
         Ok((shown, placed))
@@ -2946,6 +2987,10 @@ async fn places(
         Listed::Characters => Place::Characters,
     };
     let here = Here::place(FromPage::here(place.clone(), &itself), back);
+    // the search the page was reached from, which every link of its own
+    // keeps as its `from` ([`place_fields`])
+    let searched = here.carried_search().cloned();
+    let carry = searched.as_ref();
     // "Refresh ticked" and "Plan under the policy" are this page's own
     // field, `refresh` (the landing rule: the place form never leaves): answered
     // `303` to `plan` with the selection as sent and this page as `from`
@@ -3087,6 +3132,7 @@ async fn places(
                 &league,
                 &shown,
                 Marked {
+                    carry,
                     deep,
                     open: &open,
                     items: &sent_items,
@@ -3105,6 +3151,7 @@ async fn places(
             &league,
             &shown,
             Marked {
+                carry,
                 deep,
                 open: &open,
                 items,
@@ -3126,6 +3173,7 @@ async fn places(
         &league,
         &shown,
         Marked {
+            carry,
             deep,
             open: &open,
             items: &kept,
@@ -3153,6 +3201,7 @@ async fn places(
         &league,
         &shown,
         Marked {
+            carry,
             deep,
             ..Marked::default()
         },
@@ -3177,6 +3226,7 @@ async fn places(
             &league,
             &never,
             Marked {
+                carry,
                 deep,
                 open: &open,
                 items: &kept,
@@ -3202,6 +3252,7 @@ async fn places(
                     &league,
                     &changed,
                     Marked {
+                        carry,
                         deep,
                         open: &open,
                         items: &kept,
@@ -3261,6 +3312,7 @@ async fn places(
                 &league,
                 &Shown::default(),
                 Marked {
+                    carry,
                     open: &open,
                     ..Marked::default()
                 },
@@ -3291,7 +3343,10 @@ async fn places(
                             view: shown.view.clone(),
                             ..Shown::default()
                         },
-                        Marked::default(),
+                        Marked {
+                            carry,
+                            ..Marked::default()
+                        },
                     ),
                 )
             })
@@ -3538,19 +3593,22 @@ impl Shown {
 }
 
 /// What a place page's URL marks beside what it asks: the substashes
-/// box, the open places, the opened rows and the ticks.
+/// box, the open places, the opened rows and the ticks; and the search
+/// the page carries (stop 7 of the owner's sitting), its `from`, last.
 #[derive(Clone, Copy, Default)]
 struct Marked<'a> {
     deep: bool,
     open: &'a [String],
     items: &'a [String],
     ticked: &'a [String],
+    carry: Option<&'a FromPage>,
 }
 
 /// A place page's URL fields, in the one order every link and redirect
 /// writes them: realm, league, the query's text, the filter's fields, the
 /// view's, the substashes box, each open place, each opened row, each
-/// tick.
+/// tick, and the search the page carries as its `from`, so a page reached
+/// from a search keeps it through every link of its own.
 fn place_fields(
     listed: Listed,
     realm: Realm,
@@ -3563,6 +3621,7 @@ fn place_fields(
         open,
         items,
         ticked,
+        carry,
     } = marked;
     let mut fields = vec![
         ("realm", realm.as_str().to_string()),
@@ -3582,6 +3641,7 @@ fn place_fields(
     fields.extend(open.iter().map(|o| ("open", o.clone())));
     fields.extend(items.iter().map(|i| ("item", i.clone())));
     fields.extend(ticked.iter().map(|t| (listed.tick(), t.clone())));
+    fields.extend(carry.map(|search| (from::FROM, search.word())));
     fields
 }
 

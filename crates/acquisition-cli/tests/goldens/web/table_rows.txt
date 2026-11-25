@@ -108,7 +108,7 @@ GET search?<the table, its first two rows opened>
 <details class="query-details" open><summary>The query, in the language</summary><p class="index"><a href="/<token>/describe?from=search%3Frealm%3Dpc%26text%3D%26view.fields%3Dicon%26item%3Dr1%26item%3Dkaom">The language&#39;s index: every entry by its name and one line</a></p><form class="query-box" method="get" action="search#answer" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><textarea id="query-text" aria-label="the query, in the language" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="" selected>a table</option><option value="icon,item">cards</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span><div class="filter value-finder" data-finder="stats?values=true&amp;q="><input type="search" placeholder="Add a column" aria-label="Add a column" autocomplete="off"><ul class="finder-list" role="listbox"></ul></div></form></details>
 <form class="write" method="post" action="leagues"><input type="hidden" name="from" value="search?realm=pc&amp;text=&amp;view.fields=icon&amp;item=r1&amp;item=kaom"><button type="submit">Fetch the league list</button></form>
 <div id="answer">
-<p><a class="presentation" href="search?realm=pc&amp;text=&amp;view.fields=icon%2Citem">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=">by character</a></p>
+<p><a class="presentation" href="search?realm=pc&amp;text=&amp;view.fields=icon%2Citem">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=&amp;from=search%3Frealm%3Dpc%26text%3D%26view.fields%3Dicon%26item%3Dr1%26item%3Dkaom">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=&amp;from=search%3Frealm%3Dpc%26text%3D%26view.fields%3Dicon%26item%3Dr1%26item%3Dkaom">by character</a></p>
 <form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value=""><input type="hidden" name="view.fields" value="icon"><input type="hidden" name="item" value="r1"><input type="hidden" name="item" value="kaom">
 <p class="rows-shown">3 matching items in the table, as they lie in their place, top row first and left to right (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
 <div class="window" data-row-height="24" data-block-rows="50">
@@ -127,7 +127,7 @@ GET search?<the table, its first two rows opened>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=kaom#i-kaom">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;from=search%3Frealm%3Dpc%26text%3D%26view.fields%3Dicon&amp;at=kaom#i-kaom">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="ways"><button type="submit" name="toggle_item" value="kaom">Close</button></p>
 </div>
@@ -145,7 +145,7 @@ GET search?<the table, its first two rows opened>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;from=search%3Frealm%3Dpc%26text%3D%26view.fields%3Dicon&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="ways"><button type="submit" name="toggle_item" value="r1">Close</button></p>
 </div>

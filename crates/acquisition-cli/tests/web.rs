@@ -5724,6 +5724,89 @@ fn field_names(script: &str) -> Vec<String> {
     out
 }
 
+/// The search survives a visit to another page (stop 7 of the owner's
+/// sitting), carried in the address, never in browser storage: a search
+/// page's nav bar carries it to each list as its `from`; the page reached
+/// draws its way back to it, carries it on in its own nav bar and in every
+/// link to a place page it writes, and its Search link leads back to it.
+/// On the search page itself the Search link is the empty form.
+#[test]
+fn the_search_survives_a_visit_to_another_page_in_its_address() {
+    let (_scratch, web) = offline_web("webcarried");
+    let nav = |body: &str| -> Vec<(String, String)> {
+        let nav = &body[body.find("<nav>").unwrap()..body.find("</nav>").unwrap()];
+        nav.split("<a href=\"")
+            .skip(1)
+            .map(|a| {
+                let href = unescaped(&a[..a.find('"').unwrap()]);
+                let words = a[a.find('>').unwrap() + 1..a.find("</a>").unwrap()].to_string();
+                (words, href)
+            })
+            .collect()
+    };
+    let link = |body: &str, words: &str| -> String {
+        nav(body)
+            .into_iter()
+            .find(|(w, _)| w == words)
+            .unwrap_or_else(|| panic!("no {words}: {body}"))
+            .1
+    };
+    let searched = "search?realm=pc&text=class%3Arings";
+    let carried = format!("from={}", "search%3Frealm%3Dpc%26text%3Dclass%253Arings");
+    let search = web.get(searched);
+    assert_eq!(link(&search.body, "Search"), format!("/{}/", web.token));
+    for words in ["Saved", "Stash tabs", "Characters", "Jobs"] {
+        assert!(
+            link(&search.body, words).ends_with(&carried),
+            "{words}: {:?}",
+            nav(&search.body)
+        );
+    }
+    // the stash tabs, reached from the search, and the characters reached
+    // from them: each leads back to the search
+    let tabs = follow(&web, &link(&search.body, "Stash tabs"));
+    assert_eq!(tabs.status, 200, "{}", tabs.body);
+    let back = format!("/{}/{searched}", web.token);
+    assert_eq!(link(&tabs.body, "Search"), back);
+    assert!(
+        tabs.body.contains("<p class=\"back\"><a href=\"")
+            && tabs.body.contains("Back to the search"),
+        "{}",
+        tabs.body
+    );
+    // every link the tabs page writes to a place page keeps the search
+    let places: Vec<String> = tabs
+        .body
+        .split("href=\"")
+        .skip(1)
+        .map(|h| unescaped(&h[..h.find('"').unwrap()]))
+        .filter(|h| h.contains("/tabs?") || h.contains("/characters?"))
+        .collect();
+    assert!(!places.is_empty(), "{}", tabs.body);
+    for href in &places {
+        assert!(href.contains(&carried), "{href}");
+    }
+    let characters = follow(&web, &link(&tabs.body, "Characters"));
+    assert_eq!(characters.status, 200, "{}", characters.body);
+    assert_eq!(link(&characters.body, "Search"), back);
+    for words in ["Saved", "Jobs"] {
+        let page = follow(&web, &link(&characters.body, words));
+        assert_eq!(page.status, 200, "{words}: {}", page.body);
+        assert_eq!(link(&page.body, "Search"), back, "{words}");
+    }
+    // the search the Search link leads to answers as it did
+    let again = follow(&web, &back);
+    assert_eq!(again.status, 200, "{}", again.body);
+    assert_eq!(
+        web.get_json(searched),
+        web.get_json(&back[web.token.len() + 2..])
+    );
+    // a page reached from no search carries none
+    let bare = web.get("tabs?realm=pc&league=Standard");
+    assert_eq!(link(&bare.body, "Search"), format!("/{}/", web.token));
+    assert!(!bare.body.contains("from=search"), "{}", bare.body);
+}
+
 /// C16's state sentence, as far as a lexical scan holds it: every page a
 /// golden records passes the harness's seam (`harness::no_state`: no
 /// cookie set, no script named off `harness::SCRIPTS`), and each script
@@ -7275,7 +7358,10 @@ fn the_grouped_table_is_a_wording_golden() {
     }
 
     // an answer's ways to the place pages: the league its query fixes, or
-    // the default's, the canonical text and the view
+    // the default's, the canonical text and the view, and the search as
+    // their `from`, which they carry on
+    const SORTED: &str =
+        "search%3Frealm%3Dpc%26text%3Dclass%253Arings%26view.fields%3Dicon%26view.sort%3Dilvl";
     let by = |path: &str| -> Vec<String> {
         let body = web.get(path).body;
         ["by stash tab", "by character"]
@@ -7291,11 +7377,11 @@ fn the_grouped_table_is_a_wording_golden() {
         by("search?realm=pc&text=class%3Arings&view.fields=icon&view.sort=ilvl"),
         [
             format!(
-                "/{}/tabs?realm=pc&league=Standard&text=class%3Arings&view.sort=ilvl",
+                "/{}/tabs?realm=pc&league=Standard&text=class%3Arings&view.sort=ilvl&from={SORTED}",
                 web.token
             ),
             format!(
-                "/{}/characters?realm=pc&league=Standard&text=class%3Arings&view.sort=ilvl",
+                "/{}/characters?realm=pc&league=Standard&text=class%3Arings&view.sort=ilvl&from={SORTED}",
                 web.token
             ),
         ]

@@ -257,6 +257,28 @@ impl Here {
     pub(crate) fn onward(&self) -> Option<&FromPage> {
         self.onward.as_ref()
     }
+
+    /// The search this page carries (stop 7 of the owner's sitting: the
+    /// search survives a visit to another page): the search page itself,
+    /// or a search its URL's `from` names — a place reached from a search,
+    /// or a step a search handed on. A place's own links keep it as their
+    /// `from`, and the nav bar's links carry it on, its Search link leading
+    /// back to it.
+    pub(crate) fn carried_search(&self) -> Option<&FromPage> {
+        [self.onward.as_ref(), self.back.as_ref()]
+            .into_iter()
+            .flatten()
+            .find(|page| page.place == Place::Search)
+    }
+
+    /// Whether this page is the search it carries: the search page, not a
+    /// step a search handed on.
+    pub(crate) fn is_its_search(&self) -> bool {
+        self.onward
+            .as_ref()
+            .is_some_and(|page| page.place == Place::Search)
+            && self.back != self.onward
+    }
 }
 
 #[cfg(test)]

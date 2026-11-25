@@ -107,6 +107,50 @@ pub(crate) struct Head {
     /// The page's one way back: the `from` its URL carries, drawn above
     /// its body (the landing rule, `super::from`).
     pub back: Option<Back>,
+    /// The search the page carries, which its nav bar carries on
+    /// ([`nav`]).
+    pub search: Option<Searched>,
+}
+
+/// The search a page carries (stop 7 of the owner's sitting: the search
+/// survives a visit to another page, in the address, never in browser
+/// storage): the search page itself, or the one its `from` names.
+pub(crate) struct Searched {
+    /// The search's page, under the token.
+    pub href: String,
+    /// The search as a `from` writes it.
+    pub word: String,
+    /// Whether the page is that search.
+    pub own: bool,
+}
+
+/// The nav bar's links: Search, and each list the pages hold. On a page
+/// that carries a search, each list's link carries it as its `from`, so
+/// the page it opens carries it on; and the Search link leads back to it,
+/// but on the search page itself, where it leads to the empty form.
+fn nav(token: &str, search: Option<&Searched>) -> String {
+    let home = match search {
+        Some(search) if !search.own => search.href.clone(),
+        _ => format!("/{token}/"),
+    };
+    let mut out = format!("<a href=\"{}\">Search</a>", esc(&home));
+    for (route, words) in [
+        ("saved", "Saved"),
+        ("tabs", "Stash tabs"),
+        ("characters", "Characters"),
+        ("jobs", "Jobs"),
+    ] {
+        let href = match search {
+            Some(search) => format!(
+                "/{token}/{route}?{}={}",
+                super::from::FROM,
+                enc(&search.word)
+            ),
+            None => format!("/{token}/{route}"),
+        };
+        out.push_str(&format!(" <a href=\"{}\">{words}</a>", esc(&href)));
+    }
+    out
 }
 
 /// A way back: the page a request left, as a link in its place's words.
@@ -180,6 +224,7 @@ pub(crate) fn page(
         .replace("{script}", &script)
         .replace("{title}", &esc(title))
         .replace("{token}", token)
+        .replace("{nav}", &nav(token, head.search.as_ref()))
         .replace("{account}", &esc(&account_words(account)))
         .replace("{basis}", &basis)
         .replace("{body}", &format!("{}{body}", back(head.back.as_ref())))
