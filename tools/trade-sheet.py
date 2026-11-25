@@ -3036,6 +3036,38 @@ def round_zf(earlier):
     return rows
 
 
+def round_zg(earlier):
+    """The repair of zf's bounds of 0 (#309), composed from its counts:
+    zf01 (`quality` 20..0) found chests that show no quality, where zf03
+    (`sockets` 6..0) found six-socket chests and zf05 (`links` 5..0) found
+    none. zg01 an inverted quality range with no 0 in it; zg02 `links`
+    `max` 0 alone; zg03 an inverted Link Groups range with no 0 in it.
+    Each beside zf02, zf06 or y03 (an inverted range found nothing)."""
+    composed = Composed("zg", 2, earlier)
+    add = composed.add
+
+    def chest(group_id, name, value):
+        filters = dict(category("armour.chest"))
+        filters[group_id] = {"disabled": False, "filters": {name: value}}
+        return batch_query([], filters)
+
+    add("`misc_filters.quality` `min` 20 `max` 5 under `armour.chest`: an inverted range with no 0. None, as y03's "
+        "inverted `ilvl`: zf01's 0 is read apart, the `max` alone kept; some, each fetched between 5 and 20 or "
+        "with none: the site swaps a quality range, and zf01's items are 0..20 read with no quality as 0",
+        "zf02, `min` 20 alone", chest("misc_filters", "quality", {"min": 20, "max": 5}))
+    add("`socket_filters.links` `max` 0 alone under `armour.chest`. Some, a fetched chest with linked sockets: a "
+        "Link Groups `max` of 0 alone is no bound, as Sockets' (zc02), and zf05's none is the pair read as a "
+        "range; each fetched with no link: 0 bounds", "zf06, `min` 5 alone",
+        chest("socket_filters", "links", {"max": 0}))
+    add("`socket_filters.links` `min` 5 `max` 1 under `armour.chest`: an inverted range with no 0. None, as zf05: "
+        "Link Groups reads an inverted pair as nothing, whatever its `max`", "zf06, `min` 5 alone",
+        chest("socket_filters", "links", {"min": 5, "max": 1}))
+    rows = composed.done()
+    if len(rows) != 3:
+        raise SystemExit(f"round zg has {len(rows)} searches, its names written for 3")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -3083,6 +3115,7 @@ def compose_sheet(method="site"):
         searches += round_zd(searches)
         searches += round_ze(searches)
         searches += round_zf(searches)
+        searches += round_zg(searches)
     return searches
 
 
