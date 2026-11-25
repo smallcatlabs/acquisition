@@ -3004,8 +3004,7 @@ def round_zf(earlier):
     add(f"the ring under e043's group less the three Fire Resistance ids it carries a line of, the other {len(rest)} "
         "at `min` 0.5. None, zf14 found: the explicit id alone lifts it; found: an id of these does, and a repair "
         "halves them", "zf12, the ring alone", ring(rest))
-    # Appended after the round's cold review (roadmap/reviews/sheet-zf-423547d0.md): a sat or committed row is
-    # never composed otherwise, so the answers follow zf15.
+    # A committed row is never composed otherwise, so what the round adds follows zf15.
     add("the jewels with the line required and the four totals in an `if` group, shown and not filtered by: the ten "
         "fetched show each total, or its absence, beside the line, so each total is read apart (zf08 shows life "
         "alone). A total that is the item's other lines alone leaves the line out of it",
