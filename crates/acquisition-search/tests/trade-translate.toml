@@ -342,11 +342,12 @@ fidelity = "partial"
 statuses = { "socket_filters.sockets" = "unsupported" }
 
 [[case]]
-name = "a Link Groups maximum of 0 is read as a bound, as before the sitting (#309: not asked)"
+name = "a Link Groups maximum of 0 is compared as written and ambiguous: the site takes an unlinked socket under it (zg02, #309)"
 query = '{"filters": {"socket_filters": {"filters": {"links": {"max": 0}}}}}'
 text = 'linked(size<=0)'
-fidelity = "exact"
-statuses = { "socket_filters.links" = "exact" }
+fidelity = "ambiguous"
+statuses = { "socket_filters.links" = "ambiguous" }
+notes = { "socket_filters.links" = ["a maximum of 0 is compared as written; the site reads a maximum of 0 its own way on each filter asked, and how it reads this one is not known"] }
 fails = ['{"baseType": "Stygian Vise", "typeLine": "Stygian Vise", "sockets": [{"group": 0, "attr": "A", "sColour": "A"}]}', '{"baseType": "Vaal Regalia", "typeLine": "Vaal Regalia", "sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 0, "attr": "G", "sColour": "W"}]}']
 
 # ---- req_filters ------------------------------------------------------------------------------
@@ -1130,6 +1131,15 @@ text = 'false()'
 fidelity = "exact"
 statuses = { "misc_filters.ilvl" = "exact" }
 fails = ['{"ilvl": 82}', '{"ilvl": 85}', '{"ilvl": 80}', '{}']
+
+[[case]]
+name = "a filter's range whose maximum is 0 matches nothing as written, and is ambiguous: the site leaves Quality's minimum out beside it (zf01, #309)"
+query = '{"filters": {"misc_filters": {"filters": {"ilvl": {"min": 80, "max": 0}}}}}'
+text = 'false()'
+fidelity = "ambiguous"
+statuses = { "misc_filters.ilvl" = "ambiguous" }
+notes = { "misc_filters.ilvl" = ["its minimum 80 is above its maximum 0", "a maximum of 0 is compared as written; the site reads a maximum of 0 its own way on each filter asked, and how it reads this one is not known"] }
+fails = ['{"ilvl": 80}', '{"ilvl": 0}', '{}']
 
 [[case]]
 name = "a disabled group is disabled before its filters are read: filters no list, misspelt, or none"

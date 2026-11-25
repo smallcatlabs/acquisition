@@ -67,7 +67,10 @@
 # `(F<=max or -has:F)` — the site's requirement filters (u061).
 # `max_zero = "no_bound"`, on a row of the shape `sockets` alone: a `max`
 # of 0 is no bound, dropped before the clause's bounds are read, and the
-# report says so — the site's Sockets filter (zb14, zc02).
+# report says so — the site's Sockets filter (zb14, zc02). A `max` of 0
+# on any other filter row is compared as written and the clause is
+# ambiguous by its row, with a note: the site reads such a maximum its
+# own way on each filter asked (Link Groups zg02, Quality zf01; #309).
 # `note` is the row's evidence, its citations among it, kept in this file
 # alone, and every ambiguous or unsupported clause has one. `says` is what
 # the report and `--describe trade` print for the clause, in a reader's

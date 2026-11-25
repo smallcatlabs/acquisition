@@ -151,6 +151,13 @@
 //!   `max` 0 (zb14, zc02, #185). A socket filter's keys are the socket
 //!   words' (`sockets::SOCKET_WORDS`), `a` the abyssal count; `d`, a
 //!   resonator's, is a key no row reads.
+//! - **A `max` of 0 no row reads** (any other filter): compared as
+//!   written, and the clause ambiguous by its row ([`MAX_ZERO_UNREAD`]).
+//!   The site reads each filter's own way: Sockets as no bound, Link
+//!   Groups as a bound an unlinked socket meets (zg02), Quality beside a
+//!   `min` as leaving the `min` out (zf01, the ten showing no quality),
+//!   where an inverted pair with no 0 in it finds nothing (zg01, zg03;
+//!   T43, #309).
 //! - **The text is the product.** The clauses' nodes are the conjuncts of
 //!   the query in the report's order — the URL's league, then the query
 //!   object's `status`, `term`, `name`, `type`, its filters in the
@@ -294,6 +301,22 @@ pub const INVERTED: &str = "query.inverted";
 /// bound (the module doc).
 pub const MAX_ZERO: &str =
     "a maximum of 0 is no bound, as the site reads it on this filter: no maximum is compared";
+
+/// What the report says of a clause with a `max` of 0 on a filter whose
+/// row gives no reading of it (the module doc): compared as written, and
+/// ambiguous, since the site reads such a maximum its own way on each
+/// filter asked (T38, T43; #309).
+pub const MAX_ZERO_UNREAD: &str = "a maximum of 0 is compared as written; the site reads a maximum of 0 its own way on each filter asked, and how it reads this one is not known";
+
+/// A clause with a `max` of 0 its row does not read ([`MAX_ZERO_UNREAD`]):
+/// ambiguous, its matching unchanged. A clause that does not run keeps
+/// its status.
+fn unread_zero(landed: &mut Landed) {
+    if landed.status == Status::Exact {
+        landed.status = Status::Ambiguous;
+    }
+    landed.notes.push(MAX_ZERO_UNREAD.to_string());
+}
 
 impl Clause {
     /// Whether the clause matches nothing ([`INVERTED`]).
@@ -1396,6 +1419,12 @@ impl Translator<'_> {
         if max_zero {
             numbers.retain(|(name, _)| *name != "max");
         }
+        // a `max` of 0 on any other filter is compared as written, and
+        // the clause is not called the site's ([`MAX_ZERO_UNREAD`])
+        let zero_unread = !row.max_zero_no_bound
+            && numbers
+                .iter()
+                .any(|(name, n)| *name == "max" && n.is_some_and(|n| n.as_f64() == 0.0));
         let n = |name: &str| {
             numbers
                 .iter()
@@ -1403,7 +1432,10 @@ impl Translator<'_> {
                 .and_then(|(_, v)| *v)
         };
         if inverted(n("min"), n("max")) {
-            let landed = self.nothing(Self::bare(vec![key.to_string()]), n("min"), n("max"))?;
+            let mut landed = self.nothing(Self::bare(vec![key.to_string()]), n("min"), n("max"))?;
+            if zero_unread {
+                unread_zero(&mut landed);
+            }
             self.conjunct(key, value, landed);
             return Ok(());
         }
@@ -1416,6 +1448,9 @@ impl Translator<'_> {
         // requirement meets any maximum), and fails a minimum as ever
         if max_zero {
             landed.notes.push(MAX_ZERO.to_string());
+        }
+        if zero_unread {
+            unread_zero(&mut landed);
         }
         if row.lacked_meets_maximum
             && n("min").is_none()
