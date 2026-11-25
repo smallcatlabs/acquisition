@@ -40,9 +40,9 @@ when its step closes or the owner strikes it.
    ask what values the language has and how they combine. Then #283
    (the translation builds two answers of the sitting of 2026-11-17)
    and #47, #37 (built from T25 and T26, no sitting first), and #309
-   (a filter's bound of 0), from round zf's captures: the owner sat
-   rounds zf and zg on 2026-11-24, their captures saved under
-   `search/pseudo-stats/raw/searches/zf-fragments`, not yet landed.
+   (a filter's bound of 0), from the captures of rounds zf and zg
+   (sat 2026-11-24, landed: T43 to T48 of
+   `docs/design/trade-ground-truth.md`).
 5. `alpha.2` (milestone "League 3.30 and alpha.2"): the release, its
    `keyring-macos` job dispatched once by hand before it; the tables
    stand at 3.30 (the close of `search-276`). Before it: item 4's #316

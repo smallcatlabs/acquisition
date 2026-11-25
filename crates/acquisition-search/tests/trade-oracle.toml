@@ -20,7 +20,10 @@
 # alone (the test holds both); it names no row and differs by no ruling,
 # the clause read as the site reads it. A `sitting` finding `asks` what the sitting
 # is to settle, each answered by searches with a mutant (the site-sitting
-# skill). Nothing here is a tolerance: each is the site reading a clause
+# skill). A `build` finding is a question a sitting has answered and the
+# translation does not build yet: it names its row, held ambiguous as a
+# question's is, asks nothing more, and its cites name the issue that
+# builds it. Nothing here is a tolerance: each is the site reading a clause
 # otherwise, and the translation is fixed when its finding is answered.
 #
 # A `row` is one search's items under one finding: `items` by their index in
@@ -28,8 +31,8 @@
 # `undecided`, `clauses` the paths of the top-level clauses whose term alone
 # refuses the item (the translation's report, `path`).
 #
-# Measured by the test: 816 searches run, 7,669 items, 7,039 matched,
-# 630 missed in 70 rows, none undecided; y10, of twenty crucible ids, is
+# Measured by the test: 832 searches run, 7,802 items, 7,141 matched,
+# 661 missed in 74 rows, none undecided; y10, of twenty crucible ids, is
 # partial. A row of a search a sitting ran is a search that asked its
 # question, classified by the search; a row of another search is
 # classified by a script from each item's lines; every row's items are
@@ -47,7 +50,7 @@ cites = "search/pseudo-stats/README.md, 'Two things the searches could not do': 
 key = "twin-counted"
 differs = true
 home = "ruling"
-cites = "the twin id of `+# to Strength and Intelligence` on That Which Was Taken, which the site leaves out of total life, Strength and Intelligence (c3, b1, b2, e053, e057) and the totals table counts — the owner, step 9c (search/LEDGER.md): \"I believe this is a bug. Let's count the mod\"; the park in decisions/search.md. Since 3.30 no listed item carries the twin id (y20, y21, za02 found none, 2026-11-17), and the jewel's line sits under the ordinary id (za01's two that show it); these rows are items fetched before, and whether the site now counts the line in the four totals is #34's"
+cites = "the twin id of `+# to Strength and Intelligence` on That Which Was Taken, which the site leaves out of total life, Strength and Intelligence (c3, b1, b2, e053, e057) and the totals table counts — the owner, step 9c (search/LEDGER.md): \"I believe this is a bug. Let's count the mod\"; the park in decisions/search.md. Since 3.30 no listed item carries the twin id (y20, y21, za02 found none, 2026-11-17), and the jewel's line sits under the ordinary id (za01's two that show it); these rows are items fetched before. The sitting of 2026-11-24 answered #34: the jewel with the line under the ordinary id and the four totals in a `not` found none (zf07), and with them shown (zf16) each of the ten shows the line counted at 1 in total Strength and Intelligence and at a half in total life and mana, as the ordinary line is elsewhere (T44)"
 
 [[finding]]
 key = "socketed-gems-counted"
@@ -71,7 +74,7 @@ cites = "the site files `No Physical Damage` under the id of `#% increased Physi
 key = "displayed-forms"
 home = "ruling"
 row = "stat.text.forms"
-cites = "the site files a stat's other displays under its id: an elided 100 % (`Trigger Commandment of Ire when Hit`, met at `min` 100, t10, t11), `an` for one (`Projectiles Pierce an additional Target`, met at 1..1, t12), a plural (`… for 4 seconds`, t27, t29); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" Built at 7e (reference/trade-forms-v1.toml): presence over every form and a plural summed, t11, t27 and t29 matched; a numberless form under a bound ambiguous by its row, never an alternative computed from the bound"
+cites = "the site files a stat's other displays under its id: an elided 100 % (`Trigger Commandment of Ire when Hit`, met at `min` 100, t10, t11), `an` for one (`Projectiles Pierce an additional Target`, met at 1..1, t12), a plural (`… for 4 seconds`, t27, t29); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" Built at 7e (reference/trade-forms-v1.toml): presence over every form and a plural summed, t11, t27 and t29 matched; a numberless form under a bound ambiguous by its row, never an alternative computed from the bound. A plural the forms table's reader misses is such a form: `# Added Passive Skills are Jewel Sockets` at 1..1 fetched ten cluster jewels each displaying `1 Added Passive Skill is a Jewel Socket` (zf09, the sitting of 2026-11-24), which the table calls `other`, and at `min` 2 only the plural (zf11): the site reads the singular's 1 under a bound (T45, #318)"
 
 [[finding]]
 key = "map-tier-unnamed"
@@ -83,22 +86,27 @@ cites = "the site gives Shaper Guardian Map, whose base names no tier, tier 16 (
 key = "scourge-in-sum"
 row = "stat.scourge.summed"
 home = "sitting"
-cites = "e043 and f005 returned one item, crafted `+28% to Fire Resistance` and scourge `-28% to Fire Resistance`, under a weighted group naming both ids with `min` 0.5; the site showed its sum as 28 and its total as nothing (a sum of nothing, search/pseudo-stats/README.md). The sitting of 2026-11-17 asked the two lines alone: y14 found two items carrying a crafted Fire Resistance of 1 or more and a scourge one below nothing, the same Maelström Finger Unset Ring (+28%, -28%) and a belt (+34%, -17%); the two ids weighted 1 each found the ring at `max` 0 (y15) and the belt alone at `min` 1 (y16). The site counts the scourge line in a weighted sum, as this search does; what lifted the ring to `min` 0.5 under e043's wider group of 21 ids is unexplained"
-asks = "which id of e043's group lifts the ring to `min` 0.5 when its crafted and scourge lines sum to 0: the ring under each of e043's ids alone, weighted 1, at `min` 0.5"
+cites = "e043 and f005 returned one item, crafted `+28% to Fire Resistance` and scourge `-28% to Fire Resistance`, under a weighted group naming both ids with `min` 0.5; the site showed its sum as 28 and its total as nothing (a sum of nothing, search/pseudo-stats/README.md). The sitting of 2026-11-17 asked the two lines alone: y14 found two items carrying a crafted Fire Resistance of 1 or more and a scourge one below nothing, the same Maelström Finger Unset Ring (+28%, -28%) and a belt (+34%, -17%); the two ids weighted 1 each found the ring at `max` 0 (y15) and the belt alone at `min` 1 (y16). The site counts the scourge line in a weighted sum, as this search does; what lifted the ring to `min` 0.5 under e043's wider group of 21 ids was unexplained. The sitting of 2026-11-24 answered it: the ring alone (zf12) and under e043's whole group at `min` 0.5 (zf13, its sum shown 28 again) were found, and under the explicit Fire Resistance id alone at `min` 0.5 (zf14) it was found with its sum shown 28, where the group's other 18 ids found none (zf15). The site counts the crafted line under the explicit id as well as the crafted, so a group naming both counts it twice, 28 + 28 - 28 (T46); the translation counts a line once, and is fixed when the build is taken up (#33)"
+asks = "whether the site counts every crafted line under its stat's explicit id as well, or this stat's alone, before the build reads it so of every stat: an item with another crafted line, under that stat's explicit id alone in a weighted group whose bound only the crafted line meets"
 
 [[finding]]
 key = "blighted-base"
 row = "query.type.map"
-home = "sitting"
-cites = "t55 asked `map_blighted` `true` under the Base `Map (Tier 13)`, and the site returned ten maps whose base the body names `Blighted Map (Tier 13)` (search/pseudo-stats/data/bodies.json): its Base reads a blighted map's base without the prefix; `base=` is the whole base (step 7f, when t55 first ran). The sitting of 2026-11-17 answered it for the other prefix: y18 asked `map_uberblighted` `true` under `Map (Tier 16)` and found 3,427, the ten fetched each a `Blight-ravaged Map (Tier 16)`; the site refused as a search the Base `Blighted Map (Tier 13)` (y17) and `Blight-ravaged Map (Tier 16)` (y19), which no capture holds: the owner, 2026-11-17, \"y17 and y19 returned a ggg error about an invalid search, so nothing was saved\". The Base is the unprefixed name, under both prefixes; the translation is fixed when the build is taken up"
-asks = "the refusal of a prefixed Base, captured: y17's and y19's searches again, the recording kept with the site's error, so that the site never naming a map by its prefixed base rests on a capture and not on a word alone"
+home = "build"
+cites = "t55 asked `map_blighted` `true` under the Base `Map (Tier 13)`, and the site returned ten maps whose base the body names `Blighted Map (Tier 13)` (search/pseudo-stats/data/bodies.json): its Base reads a blighted map's base without the prefix; `base=` is the whole base (step 7f, when t55 first ran). The sitting of 2026-11-17 answered it for the other prefix: y18 asked `map_uberblighted` `true` under `Map (Tier 16)` and found 3,427, the ten fetched each a `Blight-ravaged Map (Tier 16)`; the site refused as a search the Base `Blighted Map (Tier 13)` (y17) and `Blight-ravaged Map (Tier 16)` (y19), which no capture holds: the owner, 2026-11-17, \"y17 and y19 returned a ggg error about an invalid search, so nothing was saved\". The Base is the unprefixed name, under both prefixes; the translation is fixed when the build is taken up. The refusal cannot be captured: opened again on 2026-11-24, the page refused both before sending any search, the owner: \"return no results and raise an error: 'Failed to load search state. The search is no longer valid.'\" (T47). #283 builds it"
 
 [[finding]]
 key = "pair-mean"
 row = "stat.text.many"
+home = "build"
+cites = "y07 asked the heist weapon's `# to # added Fire Damage` and its minions' twin, one id of four numbers (stat_190652296), at `min` 19 `max` 19: the site found 29, and all ten fetched read `16 to 22` twice, the pair's mean 19 and no number of the line 19; y08, unbounded, showed other pairs (the sitting of 2026-11-17). The translation compares the first number, 16; the site compares the pair's mean, as on a text of exactly two `#` (round x, `stat.text.bounds`); the translation is fixed when the build is taken up. Which pair when an item's two differ cannot be asked: every four-number text the site lists is one roll shown twice. On a text of two `#` with no `# to #` beside a written digit the site compares the first number, as the translation does: Kitava's Thirst's `#% chance … at least # Mana … with a 0.1 second Cooldown`, every fetched line at 100 Mana, found items at 50..50 (zf19, each line 50%) and none at 75 or 100 (zf18, zf20; the sitting of 2026-11-24, T48). #283 builds it"
+
+[[finding]]
+key = "links-max-zero"
+row = "socket_filters.links"
 home = "sitting"
-cites = "y07 asked the heist weapon's `# to # added Fire Damage` and its minions' twin, one id of four numbers (stat_190652296), at `min` 19 `max` 19: the site found 29, and all ten fetched read `16 to 22` twice, the pair's mean 19 and no number of the line 19; y08, unbounded, showed other pairs (the sitting of 2026-11-17). The translation compares the first number, 16; the site compares the pair's mean, as on a text of exactly two `#` (round x, `stat.text.bounds`); the translation is fixed when the build is taken up"
-asks = "which pair the site compares when an item's two pairs differ, the first's mean or the four numbers' — y07's items carry one pair twice and cannot tell — and which number it compares on a text of three numbers with no `# to #` among them"
+cites = "zg02 asked `socket_filters.links` at `max` 0 alone under body armour (the sitting of 2026-11-24): the site found 10,000, and each of the ten fetched has no two sockets linked, one to three sockets each, where the ten of other body armour searches with no link bound have three or four such (zc02, zc03, zf01). The `min` 5 beside it found none (zf05), as the inverted 5..1 did (zg03), where `min` 5 alone found five- and six-links (zf06). So the site reads a Link Groups `max` of 0 as a bound, unlike Sockets' (T38), and an unlinked socket meets it; the translation's `linked(size<=0)` meets no item with a socket (T43, #309)"
+asks = "how the site counts a lone socket on Link Groups: a `max` of 0 takes it (zg02) and a `min` of 1 takes a lone abyssal one (zb10) — Link Groups `max` 0 under belts, beside `min` 1 under body armour, says whether a lone socket is a group of none or of one, and whether an item with no socket meets the `max`"
 
 [[finding]]
 key = "reworded-330"
@@ -114,8 +122,8 @@ cites = "zd04 (round zd, 2026-11-23, #303): the site's `name` Redbeak with `type
 key = "quality-max-zero"
 row = "misc_filters.quality"
 home = "sitting"
-cites = "zc03 asked `misc_filters.quality` at `max` 0 under body armour: the site found 10,000, and all ten fetched show no `Quality`, so the field is absent and `quality<=0` is false on each (C93). The sitting of 2026-11-23 found the site reads a Sockets `max` of 0 as no bound (zc02, T38); whether it reads a range's so, or bounds it and counts an item with no quality as meeting it, says little from zc03 alone, since nine of zc02's ten unbounded chests show no quality either (#309)"
-asks = "whether the site reads a range's `max` of 0 as no bound — `quality` at `min` 20 with `max` 0 parts the two readings and cannot be capped: items found, no bound; none, a bound — and, if it bounds, whether an item showing no quality meets it, so the row wants `lacked = \"meets_maximum\"` as the requirement rows have"
+cites = "zc03 asked `misc_filters.quality` at `max` 0 under body armour: the site found 10,000, and all ten fetched show no `Quality`, so the field is absent and `quality<=0` is false on each (C93). The sitting of 2026-11-23 found the site reads a Sockets `max` of 0 as no bound (zc02, T38). The sitting of 2026-11-24 asked the pair that parts the readings: `quality` at `min` 20 with `max` 0 found 10,000 and each of the ten fetched shows no quality (zf01), where `min` 20 alone fetched ten at 20 % or more (zf02) and the inverted 20..5 found none (zg01). So the site neither reads the 0 as no bound, which would keep the `min`, nor the pair as a range, which nothing meets: beside a `max` of 0 the `min` is left out. The translation reads the pair as a range that runs backwards, and the clause is ambiguous by its row and the `max` of 0 (T43, #309)"
+asks = "whether the site's Quality `max` of 0 bounds at all, or is the whole filter left out: `quality` `max` 0 under a category whose listed items mostly show a quality, such as skill gems — an item showing a quality found, no bound; each fetched with none, it bounds and an item with no quality meets it, so the row wants `lacked = \"meets_maximum\"` as the requirement rows have"
 
 [[row]]
 search = "c3"
@@ -606,3 +614,31 @@ items = [7]
 outcome = "missed"
 clauses = ["1"]
 finding = "unidentified-name"
+
+[[row]]
+search = "zf01"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "quality-max-zero"
+
+[[row]]
+search = "zf09"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "displayed-forms"
+
+[[row]]
+search = "zf13"
+items = [0]
+outcome = "missed"
+clauses = ["4"]
+finding = "scourge-in-sum"
+
+[[row]]
+search = "zg02"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "links-max-zero"

@@ -305,3 +305,23 @@ searches beyond the round's four).
 | File | Bytes | Captured | sha256 |
 | --- | --- | --- | --- |
 | `raw/searches/ze-fragments/` (7 files; as above) | 136429 | 2026-11-24 02:53 UTC | `ec88a019b4b42911ecec72514ba39b0852f8ed4f21c2d90f08f81357494770af` |
+
+Rounds zf and zg (#309, #34, #318, #33; zg the repair of zf's bounds of
+0, composed from its counts the same evening), the evening of
+2026-11-24 by the owner, 02:34 – 03:03 UTC on 2026-11-25 by the
+recorder's names, from the links of
+`search/pseudo-stats/data/search-sheet.csv` at `712188f3`; saved by
+`tools/sitting-recorder` in `~/Downloads/acq-sitting`, copied here. No
+cookie; 23 searches answered, 16 with a fetch: zf05, zf07, zf15, zf18,
+zf20, zg01 and zg03 found none, each beside its control finding items.
+`tools/trade-split.py --write` wrote all 23 (T43 to T46, T48). One more
+search in the directory, at 02:13 UTC, made from a link the pages
+composed, is no row of the sheet (total 144): the splitter refuses it
+and it is kept here unread. y17 and y19, opened again with the recorder
+on, were refused by the page before any search was sent, so nothing was
+saved (T47). The most the site's headers counted of its search limit:
+4 of 15 in 60 s and 8 of 60 in 300 s (the address's count).
+
+| File | Bytes | Captured | sha256 |
+| --- | --- | --- | --- |
+| `raw/searches/zf-fragments/` (41 files; as above) | 642077 | 2026-11-25 02:13 – 03:03 UTC | `f1d7fe68a1440a32c4e6af2126ded3060c9999563ced110b288f72a63aef1be0` |

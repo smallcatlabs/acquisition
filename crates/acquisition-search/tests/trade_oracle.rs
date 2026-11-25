@@ -246,7 +246,8 @@ fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
 /// the damage filter. Five ran partial (t37, t38, t55, t56, u059). Of the 31
 /// y searches, 11 have no item, y10 is a sixteenth crucible-node search,
 /// and 19 run. Of the 17 of rounds zb and zc, 4 have no item and 13 run,
-/// and of round ze's 4, ze02 has none and 3 run (the test below).
+/// and of round ze's 4, ze02 has none and 3 run (the test below). Of the
+/// 23 of rounds zf and zg, 7 have no item and 16 run.
 #[test]
 fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     let expected: Expected = toml::from_str(EXPECTED).unwrap();
@@ -258,12 +259,17 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     assert_eq!(findings.len(), expected.finding.len(), "a finding twice");
     for f in &expected.finding {
         assert!(
-            ["site", "ruling", "sitting", "patch", "body"].contains(&f.home.as_str()),
+            ["site", "ruling", "sitting", "build", "patch", "body"].contains(&f.home.as_str()),
             "{}: home {}",
             f.key,
             f.home
         );
         assert!(!f.cites.is_empty(), "{}", f.key);
+        assert!(
+            f.home != "build" || f.cites.contains(" builds it"),
+            "{}: a build's cites name the issue that builds it",
+            f.key
+        );
         // every disagreement under a label, but where the owner chose to
         // differ from the site
         assert_eq!(
@@ -330,7 +336,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (385, 816, 7669, 7039));
+    assert_eq!((none.len(), ran, items, matched), (392, 832, 7802, 7141));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(

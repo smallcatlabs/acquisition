@@ -315,6 +315,88 @@ the form's number (`tools/trade-forms-table.py`, rule 3), and a bound
 sums such a form with its text. The captures are
 `search/pseudo-stats/raw/searches/` (its manifest, round ze).
 
+**T43. A `max` of 0 is read its own way on each filter: Sockets as no
+bound (T38), Link Groups as a bound an unlinked socket meets, and on
+Quality the `min` beside it is left out.** [SITE — Confirmed; November
+24, 2026, the owner's sitting, captured]
+Under body armour: Link Groups `max` 0 alone found 10,000, each of the
+ten fetched with one to three sockets and no two linked (zg02), where
+ten fetched under no link bound have three or four such (zc02, zc03,
+zf01); Link Groups `min` 5 with `max` 0 found none (zf05), as `min` 5
+with `max` 1 did (zg03), and `min` 5 alone found five- and six-links
+(zf06). Sockets `min` 6 with `max` 0 found ten six-socket chests
+(zf03), as `min` 6 alone did (zf04): the `min` kept, the 0 no bound.
+Quality `min` 20 with `max` 0 found 10,000, each of the ten fetched
+showing no quality (zf01), where `min` 20 alone fetched ten at 20 % or
+more (zf02) and `min` 20 with `max` 5 found none (zg01): the 0 neither
+drops out leaving the `min`, nor makes a range nothing meets. Whether
+Quality's `max` of 0 bounds at all, or the filter is dropped whole, is
+not settled: chests mostly show no quality. How Link Groups counts a
+lone socket is not settled either: its `max` 0 takes an unlinked one
+here, and its `min` 1 took a lone abyssal one (zb10, T36). The
+translation compares a `max` of 0 on any filter but Sockets as written,
+and calls the clause ambiguous (#309).
+
+**T44. The site counts That Which Was Taken's `+# to Strength and
+Intelligence`, under the ordinary id since 3.30, in the four totals as
+the ordinary line: one to Strength and Intelligence, a half to life and
+mana.** [SITE — Confirmed; November 24, 2026, the owner's sitting,
+captured]
+The jewel by name with the line required and total life, Strength,
+Intelligence and mana in a `not` found none (zf07); with total life
+required it found 3,302, each of the ten showing total life at half the
+line (zf08), and with the four in an `if` group, 3,302, each of the ten
+showing total Strength and Intelligence at the line and total life and
+mana at half of it (zf16). The twin id the site left out of the totals
+is no longer on any listed item (#34, the sitting of November 17).
+
+**T45. The site reads `1 Added Passive Skill is a Jewel Socket` under a
+bound on `# Added Passive Skills are Jewel Sockets`, its 1 the stat's
+number.** [SITE — Confirmed; November 24, 2026, the owner's sitting,
+captured]
+`explicit.stat_4079888060` at `min` 1 `max` 1 under cluster jewels
+found 10,000, each of the ten displaying the singular (zf09); with no
+bound the ten fetched are the singular too (zf10), and at `min` 2 each
+of the ten displays `2 Added Passive Skills are Jewel Sockets` (zf11).
+The forms table's reader calls the singular `other`, so a bound leaves
+it out (#318).
+
+**T46. The site counts a crafted line under its stat's explicit id as
+well as its crafted id, so a weighted group naming both counts it
+twice.** [SITE — Confirmed for `#% to Fire Resistance`; November 24,
+2026, the owner's sitting, captured]
+The Maelström Finger Unset Ring (crafted `+28% to Fire Resistance`,
+scourge `-28%`) by its two lines alone was found (zf12); under e043's
+group of 21 ids at `min` 0.5 it was found, its sum shown 28 (zf13);
+under `explicit.stat_3372524247` alone, weighted 1, at `min` 0.5 it was
+found, its sum shown 28 (zf14); under the group's other 18 ids, none
+(zf15). With the crafted and scourge ids alone the ring sums to 0
+(y15), so e043's 28 is the crafted line under the explicit and crafted
+ids and the scourge line once. One stat was asked (#33).
+
+**T47. A search whose Base is a prefixed map name cannot be opened
+again: the page refuses it before sending.** [SITE — Confirmed;
+November 24, 2026, the owner's word]
+y17 (`Blighted Map (Tier 13)`) and y19 (`Blight-ravaged Map (Tier 16)`),
+refused as searches on November 17, were opened again with the
+recorder on. The owner, verbatim: both "return no results and raise an
+error: 'Failed to load search state. The search is no longer valid.'"
+The page refuses before any search is sent, so no capture of the
+refusal can exist; the Base is the unprefixed name (t55, y18; #33).
+
+**T48. On a text of two `#` beside a written digit, the site compares
+the first number.** [SITE — Confirmed; November 24, 2026, the owner's
+sitting, captured]
+Kitava's Thirst's `#% chance to Trigger Socketed Spells when you Spend
+at least # Mana on an Upfront Cost to Use or Trigger a Skill, with a 0.1
+second Cooldown` (`explicit.stat_723388324`) with no bound fetched ten,
+each at 100 Mana and 30 % or 50 % (zf17); at 50..50 it found 7,159, each
+of the ten at 50 % (zf19); at 75..75, the two numbers' mean, and at
+100..100, the Mana, none (zf18, zf20). The translation compares the
+first number. Which pair the site compares when an item's two `# to #`
+pairs differ cannot be asked: every four-number text it lists is one
+roll shown twice (#33).
+
 ### The API
 
 **T5. `Item` carries both `note` and `forum_note`, each "user-generated
