@@ -89,3 +89,14 @@ plan path stand the raw endpoint verbs (`profile`, `characters`,
 - The persisted queue (track D5) is not only a design question. On the
   owner's disk it is 41% of the store's bytes and a second copy of the
   facts.
+
+## Corrected later
+
+- The job rows span 2026-11-03 to 11-20 with three active days, and the
+  ledger prunes only when a daemon starts (`queue.rs:326`), so "kept
+  seven days" understates it.
+- "A second copy of the facts" is too strong. A stored response has its
+  item arrays removed and `items` keeps one current row per item, so a
+  done job's payload is the only place that response survives as it was
+  (`dissent/theses-6-10.md`, thesis 6).
+- `acq --help` is 13,250 bytes.

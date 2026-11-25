@@ -1,0 +1,443 @@
+diff --git a/crates/acquisition-daemon/src/gate.rs b/crates/acquisition-daemon/src/gate.rs
+index 94cdb6f1..68465ff7 100644
+--- a/crates/acquisition-daemon/src/gate.rs
++++ b/crates/acquisition-daemon/src/gate.rs
+@@ -450,3 +450,438 @@ mod tests {
+         drop((independent, next_a));
+     }
+ }
++
++#[cfg(test)]
++mod explore_trial {
++    //! Trial: bounded exhaustive exploration of the gate's event sequences
++    //! against an independent model of live permits.
++    use std::collections::BTreeMap;
++    use std::future::Future;
++    use std::panic::{AssertUnwindSafe, catch_unwind};
++    use std::pin::Pin;
++    use std::task::{Context, Poll, Waker};
++    use std::time::Instant;
++
++    use super::*;
++
++    const KEYS: [&str; 3] = ["a", "b", "c"];
++    const TASKS: usize = 3;
++    const CAP: usize = 2;
++
++    #[derive(Clone, Copy, Debug)]
++    enum Ev {
++        Acquire(usize, usize),
++        Head(usize),
++        Rekey(usize, usize),
++        Release(usize),
++        Cancel(usize),
++        ReleaseThenCancel(usize, usize),
++    }
++
++    type Fut = Pin<Box<dyn Future<Output = SendPermit>>>;
++
++    enum Task {
++        Idle,
++        Waiting { key: Option<usize>, fut: Fut },
++        Live { key: Option<usize>, _permit: SendPermit },
++    }
++
++    impl Task {
++        fn key(&self) -> Option<Option<usize>> {
++            match self {
++                Task::Idle => None,
++                Task::Waiting { key, .. } | Task::Live { key, .. } => Some(*key),
++            }
++        }
++    }
++
++    struct World {
++        gate: SendGate,
++        tasks: Vec<Task>,
++    }
++
++    fn enabled(tasks: &[Task]) -> Vec<Ev> {
++        let mut out = Vec::new();
++        for t in 0..TASKS {
++            match &tasks[t] {
++                Task::Idle => {
++                    for k in 0..KEYS.len() {
++                        out.push(Ev::Acquire(t, k));
++                    }
++                    out.push(Ev::Head(t));
++                }
++                Task::Live { .. } => {
++                    out.push(Ev::Release(t));
++                    for u in 0..TASKS {
++                        if matches!(tasks[u], Task::Waiting { .. }) {
++                            out.push(Ev::ReleaseThenCancel(t, u));
++                        }
++                    }
++                }
++                Task::Waiting { .. } => out.push(Ev::Cancel(t)),
++            }
++        }
++        for r in 0..KEYS.len() {
++            if tasks.iter().any(|t| t.key() == Some(Some(r))) {
++                for p in 0..KEYS.len() {
++                    if p != r {
++                        out.push(Ev::Rekey(r, p));
++                    }
++                }
++            }
++        }
++        out
++    }
++
++    /// One step, then poll every waiter (a woken task), then the oracle.
++    /// `Err` is a violation; `Ok(info)` may carry a non-failing note.
++    fn step(w: &mut World, ev: Ev) -> Result<Option<String>, String> {
++        let mut info = None;
++        match ev {
++            Ev::Acquire(t, k) => {
++                let g = w.gate.clone();
++                let key = KEYS[k];
++                w.tasks[t] = Task::Waiting {
++                    key: Some(k),
++                    fut: Box::pin(async move { g.acquire(key).await }),
++                };
++            }
++            Ev::Head(t) => {
++                let g = w.gate.clone();
++                w.tasks[t] = Task::Waiting {
++                    key: None,
++                    fut: Box::pin(async move { g.acquire_head().await }),
++                };
++            }
++            Ev::Rekey(r, p) => {
++                let live_r = w
++                    .tasks
++                    .iter()
++                    .any(|t| matches!(t, Task::Live { key: Some(k), .. } if *k == r));
++                let live_p = w
++                    .tasks
++                    .iter()
++                    .any(|t| matches!(t, Task::Live { key: Some(k), .. } if *k == p));
++                if live_r && live_p {
++                    info = Some("INFO rekey merged two live permits onto one key".into());
++                }
++                w.gate.rekey_policy(KEYS[r], KEYS[p]);
++                for t in &mut w.tasks {
++                    match t {
++                        Task::Waiting { key, .. } | Task::Live { key, .. } if *key == Some(r) => {
++                            *key = Some(p)
++                        }
++                        _ => {}
++                    }
++                }
++            }
++            Ev::Release(t) | Ev::Cancel(t) => w.tasks[t] = Task::Idle,
++            Ev::ReleaseThenCancel(t, u) => {
++                w.tasks[t] = Task::Idle;
++                w.tasks[u] = Task::Idle;
++            }
++        }
++        let mut newly = Vec::new();
++        for i in 0..TASKS {
++            if let Task::Waiting { key, fut } = &mut w.tasks[i] {
++                let mut cx = Context::from_waker(Waker::noop());
++                if let Poll::Ready(permit) = fut.as_mut().poll(&mut cx) {
++                    let key = *key;
++                    w.tasks[i] = Task::Live {
++                        key,
++                        _permit: permit,
++                    };
++                    newly.push(i);
++                }
++            }
++        }
++        // The oracle: the model's keys, never the gate's bookkeeping.
++        let live: Vec<(usize, Option<usize>)> = w
++            .tasks
++            .iter()
++            .enumerate()
++            .filter_map(|(i, t)| match t {
++                Task::Live { key, .. } => Some((i, *key)),
++                _ => None,
++            })
++            .collect();
++        let heads_live = live.iter().filter(|(_, k)| k.is_none()).count();
++        if heads_live > 0 && live.len() > 1 {
++            return Err("(c) a HEAD is live beside another permit".into());
++        }
++        if live.len() > CAP {
++            return Err(format!("(a) {} permits live, cap {CAP}", live.len()));
++        }
++        for &i in &newly {
++            if let Some(Some(k)) = w.tasks[i].key()
++                && live.iter().any(|&(j, kj)| j != i && kj == Some(k))
++            {
++                return Err("(b) a new permit was granted on a key that already has a live one".into());
++            }
++        }
++        // Work conservation: nothing grantable is left waiting.
++        let head_waiting = w
++            .tasks
++            .iter()
++            .any(|t| matches!(t, Task::Waiting { key: None, .. }));
++        if head_waiting && live.is_empty() {
++            return Err("(d) a HEAD waits with nothing live".into());
++        }
++        if !head_waiting && heads_live == 0 && live.len() < CAP {
++            for t in &w.tasks {
++                if let Task::Waiting { key: Some(k), .. } = t
++                    && !live.iter().any(|(_, kl)| *kl == Some(*k))
++                {
++                    return Err("(e) an eligible ordinary waiter is held with a slot free".into());
++                }
++            }
++        }
++        Ok(info)
++    }
++
++    enum Outcome {
++        Ok(Vec<Ev>, Option<String>),
++        Bad(String),
++    }
++
++    fn replay(seq: &[Ev], last: Ev) -> (Outcome, Vec<Ev>) {
++        let mut world = World {
++            gate: SendGate::new(),
++            tasks: (0..TASKS).map(|_| Task::Idle).collect(),
++        };
++        let result = catch_unwind(AssertUnwindSafe(|| {
++            for &ev in seq {
++                step(&mut world, ev).expect("prefix was clean");
++            }
++            step(&mut world, last)
++        }));
++        match result {
++            Ok(Ok(info)) => {
++                let next = enabled(&world.tasks);
++                (Outcome::Ok(next.clone(), info), next)
++            }
++            Ok(Err(violation)) => {
++                std::mem::forget(world);
++                (Outcome::Bad(violation), Vec::new())
++            }
++            Err(panic) => {
++                // The gate's mutex may be poisoned: dropping the world
++                // would panic again while unwinding. Leak it.
++                std::mem::forget(world);
++                let msg = panic
++                    .downcast_ref::<&str>()
++                    .map(|s| s.to_string())
++                    .or_else(|| panic.downcast_ref::<String>().cloned())
++                    .unwrap_or_default();
++                (Outcome::Bad(format!("PANIC {msg}")), Vec::new())
++            }
++        }
++    }
++
++    struct Stats {
++        sequences: u64,
++        found: BTreeMap<String, Vec<Ev>>,
++    }
++
++    fn dfs(prefix: &mut Vec<Ev>, next: &[Ev], depth: usize, stats: &mut Stats) {
++        for &ev in next {
++            stats.sequences += 1;
++            let (outcome, after) = replay(prefix, ev);
++            prefix.push(ev);
++            match outcome {
++                Outcome::Bad(label) => {
++                    let keep = stats
++                        .found
++                        .get(&label)
++                        .is_none_or(|old| old.len() > prefix.len());
++                    if keep {
++                        stats.found.insert(label, prefix.clone());
++                    }
++                }
++                Outcome::Ok(_, info) => {
++                    if let Some(label) = info {
++                        let keep = stats
++                            .found
++                            .get(&label)
++                            .is_none_or(|old| old.len() > prefix.len());
++                        if keep {
++                            stats.found.insert(label, prefix.clone());
++                        }
++                    }
++                    if prefix.len() < depth {
++                        dfs(prefix, &after, depth, stats);
++                    }
++                }
++            }
++            prefix.pop();
++        }
++    }
++
++    #[test]
++    fn explore_gate_trial() {
++        let max: usize = std::env::var("EXPLORE_DEPTH")
++            .ok()
++            .and_then(|s| s.parse().ok())
++            .unwrap_or(6);
++        let hook = std::panic::take_hook();
++        std::panic::set_hook(Box::new(|_| {}));
++        let start = Instant::now();
++        let initial: Vec<Ev> = enabled(&(0..TASKS).map(|_| Task::Idle).collect::<Vec<_>>());
++        for depth in 1..=max {
++            let mut stats = Stats {
++                sequences: 0,
++                found: BTreeMap::new(),
++            };
++            let t0 = Instant::now();
++            dfs(&mut Vec::new(), &initial, depth, &mut stats);
++            println!(
++                "depth {depth}: {} sequences in {:.2?} (total {:.2?})",
++                stats.sequences,
++                t0.elapsed(),
++                start.elapsed()
++            );
++            for (label, seq) in &stats.found {
++                println!("  [{}] {label}\n      {seq:?}", seq.len());
++            }
++        }
++        std::panic::set_hook(hook);
++    }
++
++    // ---- the limiter: a counting server beside the prediction ----
++
++    use crate::ratelimit::{Limiter, Policy, PolicyParseError};
++    use std::time::Duration;
++
++    const MAX_HITS: usize = 2;
++    const PERIOD: u64 = 10;
++
++    #[derive(Clone, Copy, Debug)]
++    enum Land {
++        Ok,
++        Headerless,
++        Mismatch,
++        Lost,
++    }
++
++    #[derive(Clone, Copy, Debug)]
++    enum LEv {
++        Send(Land),
++        Tick(u64),
++        Probe,
++    }
++
++    fn headers(name: &str, count: usize) -> Result<Policy, PolicyParseError> {
++        let state = format!("{count}:{PERIOD}:0");
++        let limit = format!("{MAX_HITS}:{PERIOD}:60");
++        let name = name.to_string();
++        Policy::parse(move |k| match k {
++            "x-rate-limit-policy" => Some(name.clone()),
++            "x-rate-limit-rules" => Some("Account".into()),
++            "x-rate-limit-account" => Some(limit.clone()),
++            "x-rate-limit-account-state" => Some(state.clone()),
++            _ => None,
++        })
++    }
++
++    /// Replays `seq`; `Err` names the first step whose landing leaves the
++    /// server's window full while the limiter would admit the next send.
++    fn run_limiter(seq: &[LEv]) -> Result<bool, String> {
++        let base = Instant::now();
++        let mut now = base;
++        let mut limiter = Limiter::new();
++        let mut server: Vec<Instant> = Vec::new();
++        let ep = "/route";
++        let mut last_ok = true;
++        for (i, ev) in seq.iter().enumerate() {
++            match *ev {
++                LEv::Tick(s) => now += Duration::from_secs(s),
++                LEv::Probe => {
++                    server.retain(|t| now.saturating_duration_since(*t) < Duration::from_secs(PERIOD));
++                    let _ = limiter.observe(ep, headers("p", server.len()), serde_json::json!({"x-rate-limit-policy":"p"}), false, now);
++                }
++                LEv::Send(land) => {
++                    if !matches!(limiter.endpoint_state(ep, now), crate::ratelimit::EndpointState::Policy(_))
++                        || limiter.wait_for(ep, now) > Duration::ZERO
++                    {
++                        last_ok = false;
++                        return Ok(last_ok); // not admissible: prune
++                    }
++                    server.retain(|t| now.saturating_duration_since(*t) < Duration::from_secs(PERIOD));
++                    server.push(now);
++                    let count = server.len();
++                    if count > MAX_HITS {
++                        return Err(format!("step {i}: server counted {count} > {MAX_HITS}"));
++                    }
++                    let _ = match land {
++                        Land::Ok => {
++                            limiter.observe(ep, headers("p", count), serde_json::json!({"x-rate-limit-policy":"p"}), true, now)
++                        }
++                        Land::Headerless => limiter.observe(ep, Policy::parse(|_| None), serde_json::json!({}), true, now),
++                        Land::Mismatch => limiter.observe(ep, headers("q", count), serde_json::json!({"x-rate-limit-policy":"q"}), true, now),
++                        Land::Lost => {
++                            limiter.note_lost_send(ep, now);
++                            Ok(())
++                        }
++                    };
++                    if count >= MAX_HITS && limiter.wait_for(ep, now) == Duration::ZERO {
++                        return Err(format!(
++                            "step {i}: server window full ({count}/{MAX_HITS}) but the limiter admits the next send now"
++                        ));
++                    }
++                }
++            }
++        }
++        Ok(last_ok)
++    }
++
++    #[test]
++    fn explore_limiter_trial() {
++        let alphabet = [
++            LEv::Send(Land::Ok),
++            LEv::Send(Land::Headerless),
++            LEv::Send(Land::Mismatch),
++            LEv::Send(Land::Lost),
++            LEv::Tick(1),
++            LEv::Tick(5),
++            LEv::Tick(11),
++            LEv::Probe,
++        ];
++        let max: usize = std::env::var("EXPLORE_DEPTH")
++            .ok()
++            .and_then(|s| s.parse().ok())
++            .unwrap_or(6);
++        let start = Instant::now();
++        let mut found: BTreeMap<String, Vec<LEv>> = BTreeMap::new();
++        let mut frontier: Vec<Vec<LEv>> = vec![Vec::new()];
++        let mut sequences = 0u64;
++        for depth in 1..=max {
++            let mut next = Vec::new();
++            for prefix in &frontier {
++                for &ev in &alphabet {
++                    let mut seq = prefix.clone();
++                    seq.push(ev);
++                    sequences += 1;
++                    match run_limiter(&seq) {
++                        Ok(true) => next.push(seq),
++                        Ok(false) => {}
++                        Err(msg) => {
++                            let skip = std::env::var("NO_MISMATCH").is_ok()
++                                && seq.iter().any(|e| matches!(e, LEv::Send(Land::Mismatch)));
++                            if !skip && depth <= 4 {
++                                println!("  fail d{depth}: {seq:?} -- {msg}");
++                            }
++                            if skip { continue; }
++                            let label = msg.split_once(": ").map(|(_, m)| m.split(" (").next().unwrap_or(m).to_string()).unwrap_or(msg);
++                            found.entry(label).or_insert(seq);
++                        }
++                    }
++                }
++            }
++            frontier = next;
++            println!("depth {depth}: {sequences} sequences total, {:.2?}", start.elapsed());
++        }
++        for (label, seq) in &found {
++            println!("  [{}] {label}\n      {seq:?}", seq.len());
++        }
++    }
++}
