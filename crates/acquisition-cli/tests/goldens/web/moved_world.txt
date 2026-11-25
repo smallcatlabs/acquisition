@@ -92,7 +92,7 @@ GET search?<a stat the table lacks>
 <section class="trade">
 <p>from the query JSON: PARTIAL — 1 clause not run, so this is not the site&#39;s search</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
-<p class="link">Link: none — the search names no league, and a site link is one league&#39;s: a search id names none, and the query JSON names one as `league` beside its `query`</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_z2LQQqAIBRE7zLraJ9XiQjJH3yQkJyFIt5dRXBm9x6vINIywpwFzEFgYD-HDa96yj-Fuo4lBa-Pch_BfayhXv0NES0dyUgAAAA" target="_blank" rel="noopener" data-link>the search on the trade site</a> in <select data-link-league aria-label="The trade site's league for this link"><option value="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_z2LQQqAIBRE7zLraJ9XiQjJH3yQkJyFIt5dRXBm9x6vINIywpwFzEFgYD-HDa96yj-Fuo4lBa-Pch_BfayhXv0NES0dyUgAAAA" selected>Standard</option><option value="https://www.pathofexile.com/trade/search/Hardcore/H4sIAAAAAAAA_z2LQQqAIBRE7zLraJ9XiQjJH3yQkJyFIt5dRXBm9x6vINIywpwFzEFgYD-HDa96yj-Fuo4lBa-Pch_BfayhXv0NES0dyUgAAAA">Hardcore</option><option value="https://www.pathofexile.com/trade/search/Settlers/H4sIAAAAAAAA_z2LQQqAIBRE7zLraJ9XiQjJH3yQkJyFIt5dRXBm9x6vINIywpwFzEFgYD-HDa96yj-Fuo4lBa-Pch_BfayhXv0NES0dyUgAAAA">Settlers</option></select> <span class="fate">the link's own league: changing it changes nothing searched here</span></p>
 <table class="clauses">
 <tr><th>Status</th><th>Clause</th><th>Says</th></tr>
 <tr><td>NOT RUN</td><td>stats.0.0</td><td>no row of the stat table is `explicit.stat_9999999999`</td></tr>
@@ -202,7 +202,7 @@ GET search?<every ring>
 <section class="trade">
 <p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
 <p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
-<p class="link">Link: none — the search names no league, and a site link is one league&#39;s: a search id names none, and the query JSON names one as `league` beside its `query`</p>
+<p class="link">Link: <a href="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_02IwQkAIQwEe9kCrgCbOSTkJHAYSfIRsXf157xmZuCTP9gcaSB64_fqSykHF7V-XFuIViRkInbf9zGpBfOwAIdYPopRAAAA" target="_blank" rel="noopener" data-link>the search on the trade site</a> in <select data-link-league aria-label="The trade site's league for this link"><option value="https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_02IwQkAIQwEe9kCrgCbOSTkJHAYSfIRsXf157xmZuCTP9gcaSB64_fqSykHF7V-XFuIViRkInbf9zGpBfOwAIdYPopRAAAA" selected>Standard</option><option value="https://www.pathofexile.com/trade/search/Hardcore/H4sIAAAAAAAA_02IwQkAIQwEe9kCrgCbOSTkJHAYSfIRsXf157xmZuCTP9gcaSB64_fqSykHF7V-XFuIViRkInbf9zGpBfOwAIdYPopRAAAA">Hardcore</option><option value="https://www.pathofexile.com/trade/search/Settlers/H4sIAAAAAAAA_02IwQkAIQwEe9kCrgCbOSTkJHAYSfIRsXf157xmZuCTP9gcaSB64_fqSykHF7V-XFuIViRkInbf9zGpBfOwAIdYPopRAAAA">Settlers</option></select> <span class="fate">the link's own league: changing it changes nothing searched here</span></p>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>category=&quot;accessory.ring&quot;</td></tr>

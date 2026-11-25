@@ -93,6 +93,9 @@ pub(crate) struct Head {
     /// The table's window script: the rows of a table asked a block at a
     /// time as they come into view (`assets/window.js`).
     pub window: bool,
+    /// The site link's league select: the link a league's option holds
+    /// swapped into the anchor (`assets/link.js`).
+    pub link: bool,
     /// The versions of the documents the page renders (C16, every
     /// document carries its basis): each keyed by its document — `answer`,
     /// `item`, `plan`, `saved_searches`, `saved_search` — its value the
@@ -150,6 +153,7 @@ pub(crate) fn page(
         (head.lists, "lists"),
         (head.count, "count"),
         (head.window, "window"),
+        (head.link, "link"),
     ]
     .into_iter()
     .filter(|(wanted, _)| *wanted)
@@ -1820,6 +1824,7 @@ pub(crate) fn answer(
         window,
         placed,
         fields: table_fields,
+        site,
     } = *shown;
     let Saving {
         source,
@@ -1846,7 +1851,7 @@ pub(crate) fn answer(
         None => (&a.query, "/query"),
     };
     if let Some(trade) = &typed.trade {
-        out.push_str(&trade_section(trade, typed_at, spell));
+        out.push_str(&trade_section(trade, typed_at, spell, site));
     }
     out.push_str(&opening(a, now, spell));
     match &a.view {
@@ -1965,6 +1970,21 @@ pub(crate) struct Shows<'a> {
     pub window: Option<&'a Window>,
     pub placed: Placed<'a>,
     pub fields: &'a [(String, String)],
+    /// A site search's link in each league the form names, the handler's
+    /// ([`SiteLinks`]); none where the answer runs no site search or the
+    /// composer refused it.
+    pub site: Option<&'a SiteLinks>,
+}
+
+/// A site search's link back to the site once per league (C195, a link
+/// may carry a league a person names for it alone), each written by the
+/// search crate's composer, and the one shown first: the select beside
+/// the link swaps between them (`assets/link.js`), composing nothing.
+pub(crate) struct SiteLinks {
+    /// Each league with its link, in the league control's order.
+    pub links: Vec<(String, String)>,
+    /// The one the link starts at.
+    pub start: usize,
 }
 
 /// The basis at the foot of an answer or an item, in the text's words:
@@ -1984,15 +2004,38 @@ fn basis_foot(words: &str) -> String {
 /// or reported, each its status, where it stands and what it says, an
 /// ambiguous clause's other reading with its adds and drops as ways.
 /// `at` is the pointer of the query holding it.
-fn trade_section(trade: &TradeOut, at: &str, spell: Spell) -> String {
+fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLinks>) -> String {
     let mut out = format!(
         "<section class=\"trade\">\n<p>{}</p>\n<p>{}</p>\n",
         esc(&search_cmd::fidelity_words(trade)),
         esc(&format!("Over {}", search_cmd::TRADE_OVER))
     );
     for (word, said) in search_cmd::link_words(&trade.link) {
-        let said = match &trade.link {
-            Link::Url { url, .. } if word == "link" => format!(
+        let said = match (&trade.link, site) {
+            // the link in its own league: a select beside it of the
+            // leagues the form names, each option's value its link,
+            // which the select swaps into the anchor; changing it asks
+            // nothing here
+            (_, Some(site)) if word == "link" => {
+                let options: String = site
+                    .links
+                    .iter()
+                    .enumerate()
+                    .map(|(n, (league, url))| {
+                        format!(
+                            "<option value=\"{}\"{}>{}</option>",
+                            esc(url),
+                            if n == site.start { " selected" } else { "" },
+                            esc(league)
+                        )
+                    })
+                    .collect();
+                format!(
+                    "<a href=\"{}\" target=\"_blank\" rel=\"noopener\" data-link>the search on the trade site</a> in <select data-link-league aria-label=\"The trade site's league for this link\">{options}</select> <span class=\"fate\">the link's own league: changing it changes nothing searched here</span>",
+                    esc(&site.links[site.start].1)
+                )
+            }
+            (Link::Url { url, .. }, None) if word == "link" => format!(
                 "<a href=\"{}\" target=\"_blank\" rel=\"noopener\">the search on the trade site</a>",
                 esc(url)
             ),
@@ -5426,6 +5469,7 @@ mod tests {
             include_str!("assets/lists.js"),
             include_str!("assets/count.js"),
             include_str!("assets/window.js"),
+            include_str!("assets/link.js"),
         ];
         for (k, _, _) in &form.stat_types {
             for named in [format!("\"{k}\""), format!("'{k}'"), format!("={k}]")] {

@@ -438,6 +438,16 @@
 //!   the decode gave, the site box holding a search the decode refused,
 //!   the query box a text and the view as sent, the form empty where the
 //!   fold refused.
+//! - **The site link's league** (C195, a link may carry a league a
+//!   person names for it alone): an answer to a site search draws its link
+//!   back to the site with a select beside it of the leagues the form's
+//!   league control names, never "every league", each option's value the
+//!   link in that league as the search crate's composer writes it
+//!   ([`site_links`]); `assets/link.js` swaps the chosen one into the
+//!   anchor, and nothing reruns. It starts at the search's league, or, for
+//!   a search over every league, at the one a fresh form selects. Where
+//!   the composer refuses the realm or the query, the answer says why, as
+//!   its document does; the document's own link stays the search's.
 //! - **What rides on the form** (`roadmap/briefs/4-full-1-form-rides.md`):
 //!   the armour panel's quality box, "assume 20% quality", ticked by
 //!   default (C142, the defences' reading beside the query); a fate said
@@ -496,12 +506,13 @@ use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, refusal};
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
 
-/// The stylesheet, the stat pane's script, the count's and the table's
-/// window, served as written.
+/// The stylesheet, the stat pane's script, the count's, the table's
+/// window and the site link's league, served as written.
 const CSS: &str = include_str!("assets/page.css");
 const LISTS: &str = include_str!("assets/lists.js");
 const COUNT: &str = include_str!("assets/count.js");
 const WINDOW: &str = include_str!("assets/window.js");
+const LINK: &str = include_str!("assets/link.js");
 
 /// How many stats a finder lists for one ask; the rest are counted.
 const PICKED: usize = 50;
@@ -635,6 +646,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/assets/lists.js"), get(lists_script))
         .route(&at("/assets/count.js"), get(count_script))
         .route(&at("/assets/window.js"), get(window_script))
+        .route(&at("/assets/link.js"), get(link_script))
         .fallback(no_such_page)
         .layer(middleware::from_fn_with_state(Arc::clone(&web), guard))
         .with_state(web);
@@ -1919,10 +1931,12 @@ async fn search(
                 .into_iter()
                 .chain(kept.into_iter().map(|id| ("item".to_string(), id)))
                 .collect();
+            let site = site_links(&request, &answer.scope.realm, leagues.as_deref());
             let mut head = Head {
                 lists: true,
                 count: true,
                 window: window.is_some(),
+                link: site.is_some(),
                 ..Head::default()
             }
             .with("answer", &answer.basis);
@@ -1982,6 +1996,7 @@ async fn search(
                             window: window.as_ref(),
                             placed: &|place| placed.get(&place_key(place)).cloned(),
                             fields: &sent,
+                            site: site.as_ref(),
                         },
                     ),
                     page::switch(all_fields)
@@ -2000,6 +2015,49 @@ async fn search(
             &here,
         ),
     }
+}
+
+/// The site search's link once per league the form's league control
+/// names (stop 10 of the owner's sitting; C195, a link may carry a league
+/// a person names for it alone): the request's own site search, decoded
+/// as the editors decode it, written by the search crate's one composer
+/// (`trade::link`) in each league, the search's own league first where
+/// the control does not list it. It starts at the search's league, or,
+/// for a search over every league, at the one a fresh form selects
+/// ([`page::fullest`]), else the first. None where the request holds no
+/// site search, or where the composer refuses the realm or the query,
+/// which it does alike in every league: the answer's link then says why.
+fn site_links(
+    request: &Request,
+    realm: &acquisition_search::Realm,
+    leagues: Option<&[page::League]>,
+) -> Option<page::SiteLinks> {
+    let decoded = match request.query.trade.as_ref()? {
+        Value::String(word) => acquisition_search::trade::decode(word),
+        value => acquisition_search::trade::decode_json(value),
+    }
+    .ok()?;
+    let leagues = leagues.unwrap_or_default();
+    let own = decoded.league.clone();
+    let named: Vec<&str> = own
+        .as_deref()
+        .filter(|own| !leagues.iter().any(|l| l.id == *own))
+        .into_iter()
+        .chain(leagues.iter().map(|l| l.id.as_str()))
+        .collect();
+    let mut links = Vec::new();
+    for league in named {
+        let mut asked = decoded.clone();
+        asked.league = Some(league.to_string());
+        let url = acquisition_search::trade::link(&asked, realm.as_str()).ok()?;
+        links.push((league.to_string(), url));
+    }
+    let start = own
+        .as_deref()
+        .or_else(|| page::fullest(leagues))
+        .and_then(|start| links.iter().position(|(league, _)| league == start))
+        .unwrap_or(0);
+    (!links.is_empty()).then_some(page::SiteLinks { links, start })
 }
 
 /// A request's fields as a page sends them, in order.
@@ -4346,6 +4404,14 @@ async fn lists_script() -> Response {
     (
         [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
         LISTS,
+    )
+        .into_response()
+}
+
+async fn link_script() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+        LINK,
     )
         .into_response()
 }

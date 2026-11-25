@@ -17,7 +17,8 @@
 //! block without asking it again, and loads the page again when the
 //! basis moves (`window.js`); and a place page's opener, on a page
 //! several viewports long, leaves the reader at the opened head with
-//! every tick kept. The tests type, click and scroll as a
+//! every tick kept; and a site link's league select swaps the link its
+//! option holds into the anchor, asking nothing (`link.js`). The tests type, click and scroll as a
 //! user's keys and pointer would, and compare what the page shows with
 //! what the server answers for the same form or window.
 //!
@@ -799,6 +800,50 @@ fn an_answers_form_edited_and_sent_asks_the_edit_and_stands_refilled() {
             .eval("document.querySelector('#answer p.count').textContent"),
         json!(counted)
     );
+}
+
+/// The site link's league (`link.js`; C195, a link may carry a league a
+/// person names for it alone): the anchor holds the link of the league
+/// its select shows, at load and after the select is changed, and the
+/// change asks the server nothing.
+#[test]
+fn the_site_links_league_select_swaps_the_link_and_asks_nothing() {
+    use crate::search_json::TRADE_ID;
+    let (scratch, web) = offline_web("browserlink");
+    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
+    let mut page = Page::open(
+        &profile_of(&scratch),
+        &format!(
+            "{}search?realm=pc&trade={}",
+            web.url,
+            url.replace(':', "%3A").replace('/', "%2F")
+        ),
+    );
+    const SELECT: &str = "document.querySelector('select[data-link-league]')";
+    const LINK: &str = "document.querySelector('a[data-link]')";
+    let shown = |page: &mut Page| {
+        (
+            page.cdp.eval(&format!("{LINK}.getAttribute('href')")),
+            page.cdp.eval(&format!("{SELECT}.value")),
+        )
+    };
+    let (href, value) = shown(&mut page);
+    assert_eq!(href, value);
+    assert!(
+        href.as_str()
+            .is_some_and(|h| h.starts_with("https://www.pathofexile.com/trade/search/Standard/")),
+        "{href}"
+    );
+    page.cdp.call("Network.enable", json!({}));
+    page.cdp.requests.clear();
+    page.cdp.eval(&format!(
+        "{SELECT}.selectedIndex = Array.from({SELECT}.options).findIndex((o) => o.text === 'Hardcore'); \
+         {SELECT}.dispatchEvent(new Event('change', {{ bubbles: true }})); true"
+    ));
+    page.cdp.until(&format!(
+        "{LINK}.getAttribute('href') === {SELECT}.value && {SELECT}.value.includes('/Hardcore/')"
+    ));
+    assert!(page.cdp.requests.is_empty(), "{:?}", page.cdp.requests);
 }
 
 /// The n-th stat group of the search form, as the page holds it.

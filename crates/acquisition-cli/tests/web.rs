@@ -879,9 +879,77 @@ fn c195_the_one_link_that_leaves_the_server_opens_apart_and_sends_no_referrer() 
         "{anchor}"
     );
     assert!(
-        anchor.ends_with("\" target=\"_blank\" rel=\"noopener\""),
+        anchor.ends_with("\" target=\"_blank\" rel=\"noopener\" data-link"),
         "{anchor}"
     );
+    // the link's own league (C195 as amended, stop 10 of the owner's
+    // sitting): a select beside it of the leagues the form names, never
+    // "every league", starting at the search's, each option's value the
+    // link in its league, which decodes to the same query
+    let decoded = acquisition_search::trade::decode(&url).unwrap();
+    let options = link_options(&answer.body);
+    assert_eq!(
+        options
+            .iter()
+            .map(|(league, _, selected)| (league.as_str(), *selected))
+            .collect::<Vec<_>>(),
+        [("Standard", true), ("Hardcore", false), ("Settlers", false)],
+        "{}",
+        answer.body
+    );
+    for (league, link, _) in &options {
+        let back = acquisition_search::trade::decode(link).unwrap();
+        assert_eq!(back.league.as_deref(), Some(league.as_str()), "{link}");
+        assert_eq!(back.query, decoded.query, "{link}");
+    }
+    // a form search over every league starts at the league a fresh form
+    // selects, the one holding the most tabs; the search names none, and
+    // its document still says so
+    let every = web.get("search?realm=pc&league=&query.term=Doom+Loop");
+    let options = link_options(&every.body);
+    assert_eq!(
+        options
+            .iter()
+            .map(|(league, _, selected)| (league.as_str(), *selected))
+            .collect::<Vec<_>>(),
+        [("Standard", true), ("Hardcore", false), ("Settlers", false)],
+        "{}",
+        every.body
+    );
+    let every = web.get_json("search?realm=pc&league=&query.term=Doom+Loop");
+    assert!(
+        every["query"]["trade"]["link"]["none"]
+            .as_str()
+            .is_some_and(|none| none.contains("names no league")),
+        "{every}"
+    );
+    // a realm the site lacks: no select, the answer saying why
+    let all = web.get("search?realm=all&league=Standard&query.term=Doom+Loop");
+    assert!(link_options(&all.body).is_empty(), "{}", all.body);
+    assert!(
+        unescaped(&all.body).contains("a site link is one realm's"),
+        "{}",
+        all.body
+    );
+}
+
+/// The site link's league select of a page: each option's league, its
+/// link and whether it is selected.
+fn link_options(body: &str) -> Vec<(String, String, bool)> {
+    let Some(at) = body.find("<select data-link-league") else {
+        return Vec::new();
+    };
+    let select = &body[at..at + body[at..].find("</select>").unwrap()];
+    select
+        .split("<option value=\"")
+        .skip(1)
+        .map(|option| {
+            let link = unescaped(&option[..option.find('"').unwrap()]);
+            let selected = option[option.find('"').unwrap()..].starts_with("\" selected");
+            let league = &option[option.find('>').unwrap() + 1..option.find("</option>").unwrap()];
+            (unescaped(league), link, selected)
+        })
+        .collect()
 }
 
 /// #188: the two boxes are two searches, so both sent is a usage
