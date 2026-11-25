@@ -71,3 +71,42 @@ at anything, or file an issue. Thirty-three issues are drafted under
 Where it goes next is yours. If it helps: page 1 is small and protects
 the thing you care most about; page 3 is the one decision that gates
 the road; page 10 is the question I could not answer.
+
+## After: what to build next (2026-11-25)
+
+You asked what set of changes I would orchestrate, for the agents who
+build this and use it, with nothing off the table. It is `NEXT.md`,
+with its evidence under `next/`.
+
+What surprised me:
+
+- **The tool gave GGG a choke point, a journal and an oracle, and gave
+  its readers none of the three.** Three pages of the portfolio are
+  that one absence. The plan is to build the reader's side to the
+  sender's standard: one seeded world like yours, a count of what each
+  task costs an agent, and the ways on carried in the answer.
+- **The agents who build the tool almost never run it.** 886 of 63,555
+  shell calls in six weeks. A populated world costs a daemon, a login
+  and three applies, so nobody checks a change by using it.
+- **We read as much governance as source,** and three quarters of the
+  turns are Opus's; Sonnet has done 0.4%. Much of what is planned is a
+  move under a rule with a compiler to check it.
+- **Every one of my first ideas was narrowed by a reader sent to
+  break it.** One of them wanted the MCP to answer in text; the code
+  and C53 say no, and I dropped it. One found that the account is
+  already resolved in one place and the fault is smaller than I drew
+  it.
+- **Nothing tests that a page escapes a hostile tab name or note.**
+  The markup goldens hold it by the accident of one apostrophe. It is
+  the first line of the step that changes what those goldens hold.
+- **A second build lane costs a minute and 2.5 GB,** from a
+  copy-on-write clone of the cache. I tried it once in scratch.
+
+- **Codex then broke the draft, as it broke the theses.** It showed
+  that the rule I wanted for an unnamed league needs your ruling, and
+  it named what I had set aside: a rename at GGG orphans your facts'
+  history, and before a release is the cheap time to fix that. Both
+  are in the plan now.
+
+What I need from you is on one page of `NEXT.md`, "What is the
+owner's": seven decisions, of which only the order holds everything.
