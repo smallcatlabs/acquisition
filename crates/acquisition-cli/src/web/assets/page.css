@@ -118,6 +118,7 @@ a.presentation { font-size: 12.5px; }
 .actions form { display: inline; }
 details.list > summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
 details.pages > summary { cursor: pointer; color: var(--muted); }
+h2.ran { font-size: 1rem; margin: .75rem 0 .25rem; }
 details.about > summary { cursor: pointer; color: var(--muted); padding: .3rem 0; }
 details.folder > summary { cursor: pointer; padding: .3rem .5rem; color: var(--muted); }
 /* a place's head: a line of five cells in the

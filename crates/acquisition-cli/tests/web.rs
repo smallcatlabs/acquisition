@@ -2035,6 +2035,10 @@ fn every_search_page_is_a_wording_golden() {
         "GET <the form>",
         &form,
         &[
+            // what the site box does and what a count takes, said on
+            // hover (stop 1 of the owner's sitting)
+            "title=\"Translated here and sent nowhere; a URL&#39;s realm is the search&#39;s\">Run the site's search</button>",
+            "<label class=\"control\" title=\"Keys as the CLI&#39;s count takes them: rarity, league, tab, class, category, line:resist,life\">Or count by",
             "Item Category",
             "name=\"query.filters.type_filters.filters.category.option\"",
             "<option value=\"Standard\" selected>Standard \u{2014} 2 tabs, 0 characters</option>",
@@ -2064,6 +2068,41 @@ fn every_search_page_is_a_wording_golden() {
             "<summary>The query, in the language</summary><p class=\"index\"><a href=\"",
             "/describe?from=.\">The language&#39;s index: every entry by its name and one line</a></p><form class=\"query-box\"",
         ],
+    );
+    // the words are hover text, no line of their own
+    for said in [
+        "<span class=\"fate\">translated here",
+        "<span class=\"fate\">keys as the CLI",
+    ] {
+        assert!(!form.body.contains(said), "{said}: {}", form.body);
+    }
+    // a listing control shows no value, the form sending none (#317): a
+    // site search holding a status fills no Status, which stands at a
+    // dash, the status named above the form with what no control holds
+    let status = web.get(&format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            ("trade", r#"{"query": {"status": {"option": "online"}}}"#),
+        ])
+    ));
+    assert_eq!(status.status, 200, "{}", status.body);
+    assert!(
+        status.body.contains(
+            "<select name=\"query.status.option\" disabled><option value=\"\" selected>\u{2014}</option>"
+        ),
+        "{}",
+        status.body
+    );
+    assert!(
+        !status.body.contains("value=\"online\" selected"),
+        "{}",
+        status.body
+    );
+    assert!(
+        status.body.contains("query.status.option"),
+        "{}",
+        status.body
     );
     // a fate is said where it is not exact (`4-full-1-form-rides.md`,
     // Decision 2): no mark, title or label word for an exact one
@@ -2102,7 +2141,12 @@ fn every_search_page_is_a_wording_golden() {
             "<span>Standard / Rings · x 0, y 0</span>",
             "<span>95</span>",
             // what stood above the rows, below them in its details
-            "<details class=\"about\"><summary>The search that ran: 2 matches, its query, scope and total</summary>",
+            "<details class=\"about\"><summary>Its query, scope and total: 2 matches</summary>",
+            // the answer is the search that ran, whatever the form holds
+            // now, and the count beside Search is the form's as it stands
+            // (#317)
+            "<div id=\"answer\">\n<h2 class=\"ran\">The search that ran</h2>",
+            "Matches as it stands: <output",
             "from the query JSON: exact",
             "<th>Total</th><td>2 matches",
             "<p class=\"count\">2 matches</p>",
@@ -2668,7 +2712,7 @@ fn every_search_page_is_a_wording_golden() {
     pages.page(
         "GET search?<a site search the decode refuses>",
         &web.get(&undecoded),
-        &["aria-label=\"A trade site search: its URL, its id or its query JSON\">not an id</textarea>"],
+        &["aria-label=\"A trade site search: its URL, its id or its query JSON\" title=\"Translated here and sent nowhere; a URL&#39;s realm is the search&#39;s\">not an id</textarea>"],
     );
     // a finder's listing: each option holding its row's template, the
     // vocabulary document where JSON is asked

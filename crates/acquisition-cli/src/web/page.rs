@@ -1031,7 +1031,7 @@ pub(crate) fn search_form(
     out.push_str("<div class=\"controls\">\n<div class=\"controls-left\">");
     out.push_str(&rows_shown(filled.view.limit));
     out.push_str(&format!(
-        " {} <label class=\"control\">Or count by <input name=\"view.count\"{} placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ",
+        " {} <label class=\"control\" title=\"Keys as the CLI&#39;s count takes them: rarity, league, tab, class, category, line:resist,life\">Or count by <input name=\"view.count\"{} placeholder=\"rarity\"></label></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ",
         results_as(filled.view.cards),
         valued(filled.view.count.as_deref()),
     ));
@@ -1479,7 +1479,7 @@ const SITE_COUNT: &str = count_words!(
 macro_rules! count_words {
     ($more:literal) => {
         concat!(
-            "<span class=\"count\">Matches: <output data-count=\"matched\">\u{2013}</output><span hidden> \u{b7} <output data-count=\"undecided\">\u{2013}</output> undecided</span>",
+            "<span class=\"count\">Matches as it stands: <output data-count=\"matched\">\u{2013}</output><span hidden> \u{b7} <output data-count=\"undecided\">\u{2013}</output> undecided</span>",
             $more,
             "</span>"
         )
@@ -1699,8 +1699,12 @@ impl BoxView {
 /// own, which wins. It holds `text` where a site search's decode refused
 /// it; one that decodes fills the form instead.
 fn trade_box(realm: &str, text: &str) -> String {
+    // what the box does with a search, said on hover (stop 1 of the
+    // owner's sitting: the words stood on the page and read as clutter)
+    const SITE_BOX_SAYS: &str =
+        "Translated here and sent nowhere; a URL&#39;s realm is the search&#39;s";
     format!(
-        "<span class=\"site-search\"><input type=\"hidden\" name=\"realm\" value=\"{}\" form=\"{TRADE_FORM}\"><textarea id=\"trade-text\" name=\"trade\" form=\"{TRADE_FORM}\" rows=\"1\" placeholder=\"A trade site search: its URL, its id or its query JSON\" aria-label=\"A trade site search: its URL, its id or its query JSON\">{}</textarea><button type=\"submit\" form=\"{TRADE_FORM}\">Run the site's search</button> {} <span class=\"fate\">translated here, sent nowhere; a URL's realm is the search's</span></span>",
+        "<span class=\"site-search\"><input type=\"hidden\" name=\"realm\" value=\"{}\" form=\"{TRADE_FORM}\"><textarea id=\"trade-text\" name=\"trade\" form=\"{TRADE_FORM}\" rows=\"1\" placeholder=\"A trade site search: its URL, its id or its query JSON\" aria-label=\"A trade site search: its URL, its id or its query JSON\" title=\"{SITE_BOX_SAYS}\">{}</textarea><button type=\"submit\" form=\"{TRADE_FORM}\" title=\"{SITE_BOX_SAYS}\">Run the site's search</button> {}</span>",
         esc(realm),
         esc(text),
         count_of(TRADE_FORM)
@@ -1709,7 +1713,8 @@ fn trade_box(realm: &str, text: &str) -> String {
 
 /// One filter's control, named by its path, its fate beside it, its value
 /// the fill's at that path; a listing-only row's disabled, its `says` as
-/// the title, showing what the fill holds there and holding none of it.
+/// the title, showing no value and holding none (a select at a dash):
+/// what the fill holds there is named above the form ([`Fill::left`]).
 fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> String {
     let fate = form.fate(key);
     let listing = fate.is_some_and(|f| f.status == "listing_only");
@@ -1730,13 +1735,17 @@ fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> 
         .as_ref()
         .map(|t| format!(" title=\"{}\"", esc(t)))
         .unwrap_or_default();
-    // a control's value: held where it is sent, shown where it is not
+    // a control's value: held where it is sent; a listing control, which
+    // sends nothing, shows none (#317, the page seat's: a Status reading
+    // "In Person (Online)" beside the words that the form leaves it out),
+    // the value it would show named above the form with the rest no
+    // control holds
     let text = |at: &str| match listing {
-        true => fill.shown(at),
+        true => None,
         false => fill.text(at),
     };
     let number = |at: &str| match listing {
-        true => fill.shown(at),
+        true => None,
         false => fill.number(at),
     };
     let mut out = format!(
@@ -1746,12 +1755,16 @@ fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> 
     if let Some(options) = &filter.options {
         let at = format!("{path}.option");
         let chosen = match listing {
-            true => fill.shown(&at),
+            true => None,
             false => fill.option(&at, |v| {
                 options.iter().any(|(id, _)| id.as_deref() == Some(v))
             }),
         };
         out.push_str(&format!("<select name=\"{at}\"{disabled}>"));
+        // a listing select stands at no option of its own: none is sent
+        if listing {
+            out.push_str("<option value=\"\" selected>\u{2014}</option>");
+        }
         for (id, text) in options {
             let value = id.as_deref().unwrap_or("");
             let fate = id.as_ref().and_then(|id| form.fate(&format!("{key}={id}")));
@@ -1894,9 +1907,15 @@ pub(crate) fn answer(
     } = saving;
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
-    let mut out = opened
-        .map(|o| opened_notice(a, o, links))
-        .unwrap_or_default();
+    // the answer is the search that ran, whatever the editors above hold
+    // now (#317, the page seat's: an edited form's count read 0 beside an
+    // answer of 4 matches, nothing tying the two)
+    let mut out = String::from("<h2 class=\"ran\">The search that ran</h2>\n");
+    out.push_str(
+        &opened
+            .map(|o| opened_notice(a, o, links))
+            .unwrap_or_default(),
+    );
     // what stands before the rows: the count, the badges, a site search's
     // translation and the opening (the query, the scope, the total)
     let mut about = format!(
@@ -2003,7 +2022,7 @@ pub(crate) fn answer(
                 "<details class=\"about\"{}><summary>{}</summary>\n{about}</details>\n",
                 if a.total.matched == 0 { " open" } else { "" },
                 esc(&format!(
-                    "The search that ran: {}, its query, scope and total",
+                    "Its query, scope and total: {}",
                     plural(a.total.matched, "match", "matches")
                 ))
             ));

@@ -14,8 +14,9 @@
 //!   option, a number box's JSON number as serde writes it, a text box's
 //!   string equal to its trim, a box's `true` (or the quality box's
 //!   `displayed`, which leaves it unticked). The taking marks the path held. A listing control shows
-//!   the value and holds nothing: a browser sends nothing of a disabled
-//!   control.
+//!   no value and holds nothing: a browser sends nothing of a disabled
+//!   control, and a value it showed read as one the form would send
+//!   (#317), so its value is named above the form as the rest are.
 //! - **What no control holds is named.** Every leaf of the normal envelope
 //!   left unheld once the form is rendered ([`Fill::left`]) is listed above
 //!   the form by the site's path, so the fill never drops silently. The
@@ -120,16 +121,6 @@ impl Fill {
     /// the box sends, as the fold types it (`true` for a `disabled`).
     pub(crate) fn ticked(&self, path: &str, sent: &str) -> bool {
         self.at(path).is_some() && self.hold(path, sent.to_string()).is_some()
-    }
-
-    /// What a listing control shows: the value at `path` as text, held by
-    /// nothing, since the control sends nothing.
-    pub(crate) fn shown(&self, path: &str) -> Option<String> {
-        match self.at(path)? {
-            Value::String(s) => Some(s.clone()),
-            Value::Object(_) | Value::Array(_) => None,
-            other => Some(other.to_string()),
-        }
     }
 
     /// Whether anything stands under `path`: a panel holding a value

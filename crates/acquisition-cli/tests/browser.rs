@@ -655,8 +655,10 @@ fn the_count_beside_search_says_how_many_clauses_would_not_run() {
 /// Stat Group" are not displayed; ticked, all are, the tick asking no
 /// count; an empty control not run given a value while ticked stays
 /// displayed once unticked; adding and removing a group still asks the
-/// form's count. A page filled with a value in a control not run and in a
-/// listing field shows both, the listing's panel with it.
+/// form's count. A page filled with a value in a control not run shows
+/// it; one in a listing field shows no value there (#317: a listing
+/// control showed a value the form would not send), so the field and its
+/// panel stay hidden, the value named above the form.
 #[test]
 fn the_switch_shows_what_a_search_does_not_run_and_a_held_value_always() {
     let (scratch, web) = offline_web("browserswitch");
@@ -737,23 +739,38 @@ fn the_switch_shows_what_a_search_does_not_run_and_a_held_value_always() {
     );
     page.asks(&web, SEARCH_FORM);
     // a page filled with a value in a control not run and in a listing
-    // field: both shown, the listing's panel with it; an empty panel not
-    // run still hidden
+    // field: the first shown; the listing shows none, so it and its panel
+    // stay hidden, the value named above the form; an empty panel not run
+    // still hidden
     page.navigate(&format!(
         "{}search?realm=pc&query.filters.weapon_filters.filters.damage.min=10\
          &query.filters.trade_filters.filters.account.option=someone#answer",
         web.url
     ));
     assert_eq!(page.cdp.eval(&format!("{damage}.value")), json!("10"));
-    for element in [damage_control.as_str(), account.as_str(), trade.as_str()] {
-        assert!(
-            shows(&mut page, element),
-            "{element} holding a value hidden"
-        );
-    }
-    for element in [status.as_str(), ultimatum.as_str()] {
+    assert!(
+        shows(&mut page, &damage_control),
+        "{damage_control} holding a value hidden"
+    );
+    assert_eq!(
+        page.cdp
+            .eval(&format!("{account}.querySelector('input').value")),
+        json!("")
+    );
+    for element in [
+        account.as_str(),
+        trade.as_str(),
+        status.as_str(),
+        ultimatum.as_str(),
+    ] {
         assert!(!shows(&mut page, element), "{element} shown empty");
     }
+    assert_eq!(
+        page.cdp.eval(
+            "document.querySelector('main').textContent.includes('query.filters.trade_filters.filters.account.option')"
+        ),
+        json!(true)
+    );
 }
 
 /// The one page in a browser (`4-full-1-form-design.md` §2): an answer

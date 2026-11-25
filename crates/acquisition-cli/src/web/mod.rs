@@ -264,7 +264,8 @@
 //!   between is refused as stale and offered again over the row as it
 //!   stands.
 //! - **The count**: every form that submits to `search` carries
-//!   `data-count` and, beside its button, the words "Matches:" and an
+//!   `data-count` and, beside its button, the words "Matches as it
+//!   stands:" (the form's count, not the answer's: #317) and an
 //!   `<output>`, then a hidden undecided part with its own, found among
 //!   the form's elements, so the site box's, owned by its form through
 //!   `form=`, stand in the search form's bar. `count.js` hears the page's
