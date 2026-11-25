@@ -1582,8 +1582,7 @@ fn rows_shown(limit: Option<usize>) -> String {
     out
 }
 
-/// How the rows of a search's answer are drawn (stop 6 of the owner's
-/// sitting): `view.fields` sent empty, the page's default, the table; or
+/// How the rows of a search's answer are drawn: `view.fields` sent empty, the page's default, the table; or
 /// [`CARDS`], selected where the answer was cards. Both editors' one
 /// control.
 fn results_as(cards: bool) -> String {

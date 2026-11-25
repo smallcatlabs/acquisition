@@ -39,3 +39,22 @@ split of the same evening ("Yes, as split").
 - The first link the build composed was opened by a person and the site
   ran it (stop 9): the road's waiting line is done.
 - The terms table earned its place in a real task (stop 11).
+
+## The fix round's fates
+
+The stops marked **now**, as the fix round built them
+(`roadmap/briefs/4-full-1-sitting-round.md`; its close is
+`git log --grep='^Step: 4-full-1-sitting-round'`):
+
+| Stop | Built | Commit |
+| --- | --- | --- |
+| 1 | The site box's line and the count's keys line are hover text on the box, its button and the count's control | `49c70542` |
+| 3 | The league select is filled at load, each league with its tabs and characters on disk; a fresh form selects the league holding the most tabs | `b1c1c653` |
+| 6 | An answer opens as the table, what stood above the rows in one closed `details` below it; a head's edge drags its column's width | `89369431` |
+| 7 | The search is carried in the address as the pages' `from`: the nav bar and a place page's own links and forms keep it, and the Search link leads back to it | `dd276759`, `42dfe873` |
+| 8 | The stat columns sort as before; name, base, price, location and fetched say on hover why they do not, the values they lack filed as #327 | `04d13af6` |
+| 10 | A site search's link has a league select of its own beside it, the server writing the link once per league | `49df1784`, `42dfe873` |
+
+#317's entries went with them: the finder's order (`847f0a53`), the
+stale answer and the Status control (`49c70542`); its saved list's door
+is #326, its canonical address #325, its column head #285's.
