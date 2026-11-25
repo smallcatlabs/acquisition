@@ -80,7 +80,7 @@ His queue is the open issues labelled `trigger:ruling`:
 - At the next live run, `tools/tracer-rung.sh`, rewritten as the
   evidence run's driver (C189) and run against the mock alone.
 - The site sitting of round zf (`raw/sitting/zf-1.html` under
-  `search/pseudo-stats/`, 15 searches), with y17 and y19 again
+  `search/pseudo-stats/`, 20 searches), with y17 and y19 again
   (`y-1.html`): #309's bounds of 0, #34's jewel, one of #318's plurals,
   and #33's ring and prefixed map Base. Taken with his sitting at the
   pages (item 1), in one session at the browser.

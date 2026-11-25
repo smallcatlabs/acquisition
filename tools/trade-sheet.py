@@ -2892,21 +2892,20 @@ def round_ze(earlier):
 
 
 def round_zf(earlier):
-    """What the sittings of 2026-11-17 and 2026-11-23 left open, each
-    question one a build waits on: zf01-zf06 a bound of 0 (#309), a
-    maximum of 0 beside a minimum on a range, on Sockets and on Link
-    Groups, each beside the minimum alone; zf07-zf08 the jewel's line
-    under the ordinary id and the four totals (#34, za01's finding);
-    zf09-zf11 a plural the forms table's reader misses, under a bound
-    (#318); zf12-zf15 which id of e043's group lifts the ring
-    (`scourge-in-sum`, #33's item 11).
+    """What a build waits on the site for: zf01-zf06 a bound of 0 (#309),
+    a maximum of 0 beside a minimum on a range, on Sockets and on Link
+    Groups, each beside the minimum alone; zf07-zf08 and zf16 the jewel's
+    line under the ordinary id and the four totals (#34); zf09-zf11 a
+    plural the forms table's reader misses, under a bound (#318);
+    zf12-zf15 which id of e043's group lifts the ring (`scourge-in-sum`,
+    #33); zf17-zf20 which number the site compares on a text of two `#`
+    beside a written digit (`stat.text.many`, #33).
 
-    Not composed: #33's item 9 (`pair-mean`) asks of an item whose two
-    pairs differ, and none can: every text of four numbers the site lists
-    is the heist line's one roll shown twice (30 of 30 captured lines
-    alike), and the site lists no text of three `#` without a `# to #`.
-    #33's item 10 re-asks y17 and y19 with the recorder on: the same
-    queries, so the same rows, on round y's page (`trade-pages.py y`).
+    `pair-mean` is not asked: it wants an item whose two pairs differ,
+    and every four-number text the site lists is a heist line's one roll
+    shown twice (every captured line alike). y17 and y19 are
+    asked again with the recorder on (`blighted-base`): the same queries,
+    so the same rows, on round y's page (`trade-pages.py y`).
 
     A capped total says nothing here: each decides by none or some and by
     what the ten fetched display, a none read only beside its control
@@ -3005,9 +3004,36 @@ def round_zf(earlier):
     add(f"the ring under e043's group less the three Fire Resistance ids it carries a line of, the other {len(rest)} "
         "at `min` 0.5. None, zf14 found: the explicit id alone lifts it; found: an id of these does, and a repair "
         "halves them", "zf12, the ring alone", ring(rest))
+    # Appended after the round's cold review (roadmap/reviews/sheet-zf-423547d0.md): a sat or committed row is
+    # never composed otherwise, so the answers follow zf15.
+    add("the jewels with the line required and the four totals in an `if` group, shown and not filtered by: the ten "
+        "fetched show each total, or its absence, beside the line, so each total is read apart (zf08 shows life "
+        "alone). A total that is the item's other lines alone leaves the line out of it",
+        "zf08, the same jewels", jewel([group("and", [ordinary]), group("if", totals)]))
+    # A text of two `#` beside a written digit: Kitava's Thirst's `#% chance ... at least # Mana ... with a 0.1
+    # second Cooldown`, read 50% and 100 Mana on the capture that holds it. The translation compares the first.
+    kitava = "explicit.stat_723388324"
+
+    def thirst(value=None):
+        f = {"id": kitava, "disabled": False}
+        if value is not None:
+            f["value"] = value
+        q = batch_query([{"type": "and", "filters": [f]}], None, "Zealot Helmet")
+        return {"status": q["status"], "name": "Kitava's Thirst", **{k: v for k, v in q.items() if k != "status"}}
+
+    add("Kitava's Thirst with `" + kitava + "` and no bound: the ten fetched show the line's two numbers. Must find "
+        "items; the control of {next} and the two after it", "the control: must find items", thirst())
+    add("the same at `min` 75 `max` 75, the two numbers' mean on a 50% and 100 Mana line: found, the site compares "
+        "the mean of the two `#`, the written 0.1 left out, as on a text of two (round x)", "zf17, no bound",
+        thirst({"min": 75, "max": 75}))
+    add("the same at `min` 50 `max` 50: found and zf18 none, the site compares the first number, as the "
+        "translation does", "zf17, no bound", thirst({"min": 50, "max": 50}))
+    add("the same at `min` 100 `max` 100: found and zf18 and zf19 none, the site compares the Mana; all three none, "
+        "zf17 finding items: another number, read from the ten fetched", "zf17, no bound",
+        thirst({"min": 100, "max": 100}))
     rows = composed.done()
-    if len(rows) != 15:
-        raise SystemExit(f"round zf has {len(rows)} searches, its names written for 15")
+    if len(rows) != 20:
+        raise SystemExit(f"round zf has {len(rows)} searches, its names written for 20")
     return rows
 
 
