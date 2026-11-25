@@ -112,9 +112,8 @@ pub(crate) struct Head {
     pub search: Option<Searched>,
 }
 
-/// The search a page carries (stop 7 of the owner's sitting: the search
-/// survives a visit to another page, in the address, never in browser
-/// storage): the search page itself, or the one its `from` names.
+/// The search a page carries (it survives a visit to another page, in
+/// the address, never in browser storage): the search page itself, or the one its `from` names.
 pub(crate) struct Searched {
     /// The search's page, under the token.
     pub href: String,
@@ -1699,8 +1698,7 @@ impl BoxView {
 /// own, which wins. It holds `text` where a site search's decode refused
 /// it; one that decodes fills the form instead.
 fn trade_box(realm: &str, text: &str) -> String {
-    // what the box does with a search, said on hover (stop 1 of the
-    // owner's sitting: the words stood on the page and read as clutter)
+    // what the box does with a search, said on hover
     const SITE_BOX_SAYS: &str =
         "Translated here and sent nowhere; a URL&#39;s realm is the search&#39;s";
     format!(
@@ -1736,9 +1734,8 @@ fn control(form: &Form, fill: &Fill, filter: &Filter, path: &str, key: &str) -> 
         .map(|t| format!(" title=\"{}\"", esc(t)))
         .unwrap_or_default();
     // a control's value: held where it is sent; a listing control, which
-    // sends nothing, shows none (#317, the page seat's: a Status reading
-    // "In Person (Online)" beside the words that the form leaves it out),
-    // the value it would show named above the form with the rest no
+    // sends nothing, shows none (#317): a value it showed would read as
+    // one the form sends; it is named above the form with the rest no
     // control holds
     let text = |at: &str| match listing {
         true => None,
@@ -1868,8 +1865,8 @@ fn fact_row(label: &str, cell: &str) -> String {
 /// as HTML in C115's order — the count and the badges, a site search's
 /// translation, the opening (the query, the scope, the total), the rows
 /// with their continuation or a count's tables (rows first, what stands
-/// before them one `details` after them, closed where a row stands:
-/// stop 6 of the owner's sitting), what a zero answer
+/// before them one `details` after them, closed where a row stands),
+/// what a zero answer
 /// offers, why items are undecided, the terms, the counts left without a
 /// route, the basis — then the query box and the save form. The words of
 /// each fact are the text's, made once in `search_cmd.rs`; every request
@@ -1908,8 +1905,8 @@ pub(crate) fn answer(
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
     // the answer is the search that ran, whatever the editors above hold
-    // now (#317, the page seat's: an edited form's count read 0 beside an
-    // answer of 4 matches, nothing tying the two)
+    // now, the count beside each button being the form's as it stands
+    // (#317)
     let mut out = String::from("<h2 class=\"ran\">The search that ran</h2>\n");
     out.push_str(
         &opened
@@ -1936,9 +1933,7 @@ pub(crate) fn answer(
     }
     about.push_str(&opening(a, now, spell));
     match &a.view {
-        // rows open the answer (stop 6 of the owner's sitting: "Once I
-        // click a search, I mainly want to see the results table"): what
-        // stood before them is one `details` after them, closed, and open
+        // rows open the answer: what stood before them is one `details` after them, closed, and open
         // where no row stands to read first
         ViewOut::Rows(_) => {}
         _ => out.push_str(&about),
@@ -2078,8 +2073,10 @@ pub(crate) struct Shows<'a> {
 /// search crate's composer, and the one shown first: the select beside
 /// the link swaps between them (`assets/link.js`), composing nothing.
 pub(crate) struct SiteLinks {
-    /// Each league with its link, in the league control's order.
-    pub links: Vec<(String, String)>,
+    /// Each league with its link, in the league control's order: every
+    /// one a URL, with what the site cannot be asked and its notes, the
+    /// same in every league.
+    pub links: Vec<(String, Link)>,
     /// The one the link starts at.
     pub start: usize,
 }
@@ -2107,7 +2104,14 @@ fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLin
         esc(&search_cmd::fidelity_words(trade)),
         esc(&format!("Over {}", search_cmd::TRADE_OVER))
     );
-    for (word, said) in search_cmd::link_words(&trade.link) {
+    // the link drawn: the league select's first, whole, where there is
+    // one, else the answer's own
+    let drawn = site.map_or(&trade.link, |site| &site.links[site.start].1);
+    let url_of = |link: &Link| match link {
+        Link::Url { url, .. } => url.clone(),
+        Link::None { .. } => String::new(),
+    };
+    for (word, said) in search_cmd::link_words(drawn) {
         let said = match (&trade.link, site) {
             // the link in its own league: a select beside it of the
             // leagues the form names, each option's value its link,
@@ -2118,10 +2122,10 @@ fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLin
                     .links
                     .iter()
                     .enumerate()
-                    .map(|(n, (league, url))| {
+                    .map(|(n, (league, link))| {
                         format!(
                             "<option value=\"{}\"{}>{}</option>",
-                            esc(url),
+                            esc(&url_of(link)),
                             if n == site.start { " selected" } else { "" },
                             esc(league)
                         )
@@ -2129,7 +2133,7 @@ fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLin
                     .collect();
                 format!(
                     "<a href=\"{}\" target=\"_blank\" rel=\"noopener\" data-link>the search on the trade site</a> in <select data-link-league aria-label=\"The trade site's league for this link\">{options}</select> <span class=\"fate\">the link's own league: changing it changes nothing searched here</span>",
-                    esc(&site.links[site.start].1)
+                    esc(&url_of(&site.links[site.start].1))
                 )
             }
             (Link::Url { url, .. }, None) if word == "link" => format!(
@@ -2771,7 +2775,7 @@ fn order_way(rows: &RowsOut, shape: Presented) -> Option<String> {
 }
 
 /// The table's fixed heads, each with why it does not order the rows
-/// (stop 8 of the owner's sitting): the page sorts nothing itself, and
+/// (#327): the page sorts nothing itself, and
 /// the language's sort takes a number alone, which none of them is. Said
 /// on hover, as the head's title; the values that would order them wait
 /// on the language.
@@ -3478,7 +3482,7 @@ impl League {
     }
 }
 
-/// The league a fresh form selects (stop 3 of the owner's sitting): the
+/// The league a fresh form selects: the
 /// one holding the most tabs, a tie going to the first in the control's
 /// order; none where no league holds a tab.
 pub(crate) fn fullest(leagues: &[League]) -> Option<&str> {

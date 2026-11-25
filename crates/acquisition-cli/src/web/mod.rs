@@ -138,9 +138,9 @@
 //!   refused, the refusal in the shared words, then the save form as sent
 //!   where the write was a save and the refusal offers no write of its own,
 //!   then the way back ([`Web::failed`]).
-//!   **The search a page carries** (stop 7 of the owner's sitting: the
-//!   search survives a visit to another page, in the address, never in
-//!   browser storage; [`from::Here::carried_search`]): the search page
+//!   **The search a page carries** (the search survives a visit to
+//!   another page, in the address, never in browser storage;
+//!   [`from::Here::carried_search`]): the search page
 //!   itself, or the search a page's `from` names. The nav bar's links to
 //!   the lists carry it as their `from` and its Search link leads back to
 //!   it (on the search page itself, to the empty form); a place page keeps
@@ -341,8 +341,8 @@
 //!   change names the longer list, so the page lands on the search's own
 //!   refusal of it ([`view_picked`]); a search refused as sent is that
 //!   refusal; a place page that draws no heads refuses it in words.
-//! - **The table**: an answer asked as a table (the page's default, stop 6
-//!   of the owner's sitting; `view.fields=icon` names it) is
+//! - **The table**: an answer asked as a table (the page's default;
+//!   `view.fields=icon` names it) is
 //!   every matching row in one scrolling page at one row height, the height
 //!   and the block's rows written on the table ([`page::ROW_HEIGHT`],
 //!   [`page::BLOCK_ROWS`]). Its line says how many items it holds and in
@@ -1090,11 +1090,16 @@ impl Web {
         }
     }
 
-    /// The saved pages' links and forms, absolute under the token.
-    fn saved_links(&self) -> SavedLinks {
+    /// The saved pages' links and forms, absolute under the token: the
+    /// list's links carrying `carry`, the search the page carries, as
+    /// their `from`.
+    fn saved_links(&self, carry: Option<&FromPage>) -> SavedLinks {
         SavedLinks {
-            list: self.link("saved", &[]),
-            every: self.link("saved", &[("expand", "true".to_string())]),
+            list: from::onward(&self.link("saved", &[]), carry),
+            every: from::onward(
+                &self.link("saved", &[("expand", "true".to_string())]),
+                carry,
+            ),
             write: self.link("saved", &[]),
             clear: self.link("saved/clear", &[]),
         }
@@ -1702,7 +1707,12 @@ async fn home(
     // the scope's membership, as `search` reads it: the word sent, which
     // the form's select shows (Clear carries it)
     filled.membership = pick(&fields, "membership").map(str::to_string);
+    // a league the address names fills the form's control; "every league"
+    // (`league=` empty) keeps it, and none at all is a fresh form
     filled.league_named = pick(&fields, "league").is_some();
+    if let Some(league) = pick(&fields, "league").filter(|l| !l.is_empty()) {
+        filled.fill = fill::Fill::of(&json!({ "league": league }));
+    }
     let (leagues, said) = blocking(&web, move |web| match web.leagues(&realm) {
         Ok(leagues) => (leagues, Ok(())),
         Err(failure) => (None, Err(failure)),
@@ -1779,7 +1789,7 @@ async fn search(
     let editing = fields.clone();
     let sent_items = opening.items.clone();
     // the search as sent: what a link to a place page carries as its
-    // `from`, so the place keeps the search (stop 7 of the owner's sitting)
+    // `from`, so the place keeps the search
     let searched = FromPage::here(Place::Search, &sent);
     let (asked, filled, leagues) = blocking(&web, move |web| {
         // the query as read, the fold's or a token's: what the editors are
@@ -1964,7 +1974,7 @@ async fn search(
                 .into_iter()
                 .chain(kept.into_iter().map(|id| ("item".to_string(), id)))
                 .collect();
-            let site = site_links(&request, &answer.scope.realm, leagues.as_deref());
+            let site = site_links(&request, &answer, leagues.as_deref());
             let mut head = Head {
                 lists: true,
                 count: true,
@@ -2013,7 +2023,7 @@ async fn search(
                             view: &filled.view,
                             from: here.onward(),
                         },
-                        &web.saved_links(),
+                        &web.saved_links(here.carried_search()),
                         &|way| {
                             use acquisition_verbs::refusal::Surface as _;
                             Paged {
@@ -2051,20 +2061,31 @@ async fn search(
 }
 
 /// The site search's link once per league the form's league control
-/// names (stop 10 of the owner's sitting; C195, a link may carry a league
-/// a person names for it alone): the request's own site search, decoded
+/// names (C195, a link may carry a league a person names for it alone): the request's own site search, decoded
 /// as the editors decode it, written by the search crate's one composer
 /// (`trade::link`) in each league, the search's own league first where
 /// the control does not list it. It starts at the search's league, or,
 /// for a search over every league, at the one a fresh form selects
-/// ([`page::fullest`]), else the first. None where the request holds no
+/// ([`page::fullest`]), else the first. Each is the whole link the
+/// answer's would be in that league (`Link::asked`): its URL, what the
+/// site cannot be asked and its notes. None where the request holds no
 /// site search, or where the composer refuses the realm or the query,
 /// which it does alike in every league: the answer's link then says why.
 fn site_links(
     request: &Request,
-    realm: &acquisition_search::Realm,
+    answer: &acquisition_search::Answer,
     leagues: Option<&[page::League]>,
 ) -> Option<page::SiteLinks> {
+    use acquisition_search::answer::Link;
+    // the clauses not run here, the answer's translation's: a link's
+    // notes say them, in every league alike
+    let remainder = &answer
+        .set_aside
+        .as_ref()
+        .unwrap_or(&answer.query)
+        .trade
+        .as_ref()?
+        .remainder;
     let decoded = match request.query.trade.as_ref()? {
         Value::String(word) => acquisition_search::trade::decode(word),
         value => acquisition_search::trade::decode_json(value),
@@ -2082,8 +2103,11 @@ fn site_links(
     for league in named {
         let mut asked = decoded.clone();
         asked.league = Some(league.to_string());
-        let url = acquisition_search::trade::link(&asked, realm.as_str()).ok()?;
-        links.push((league.to_string(), url));
+        let link = Link::asked(&asked, remainder, answer.scope.realm.as_str());
+        if matches!(link, Link::None { .. }) {
+            return None;
+        }
+        links.push((league.to_string(), link));
     }
     let start = own
         .as_deref()
@@ -3286,7 +3310,10 @@ async fn places(
             }
         };
     }
-    let hidden_view: Vec<(&'static str, String)> = shown.view_fields();
+    // the list form's hidden fields: the view the URL names, and the
+    // search the page carries, so a toggle or "Show" keeps it
+    let mut hidden_view: Vec<(&'static str, String)> = shown.view_fields();
+    hidden_view.extend(carry.map(|search| (from::FROM, search.word())));
     // an opened row's place: this page with it and its holders open, no
     // query, the card adding its landing
     let placed = |place: &acquisition_search::corpus::Place| {
@@ -3595,7 +3622,7 @@ impl Shown {
 
 /// What a place page's URL marks beside what it asks: the substashes
 /// box, the open places, the opened rows and the ticks; and the search
-/// the page carries (stop 7 of the owner's sitting), its `from`, last.
+/// the page carries, its `from`, last.
 #[derive(Clone, Copy, Default)]
 struct Marked<'a> {
     deep: bool,
@@ -4141,7 +4168,7 @@ async fn saved_list(
             Head::default().with("saved_searches", listed.revision),
             &page::saved_list(
                 &listed,
-                &web.saved_links(),
+                &web.saved_links(here.carried_search()),
                 &|id| {
                     from::onward(
                         &web.link("saved/open", &[("id", id.to_string())]),
@@ -4351,7 +4378,7 @@ async fn saved_ask(
             web.page_at(
                 "Clear a saved search",
                 Head::default().with("saved_search", row.revision()),
-                &page::saved_ask(&doc, &web.saved_links(), here.onward()),
+                &page::saved_ask(&doc, &web.saved_links(here.carried_search()), here.onward()),
                 &here,
             )
         }
@@ -4435,7 +4462,7 @@ fn as_sent(web: &Web, sent: &Fields, here: &Here) -> String {
     format!(
         "<div class=\"save\">\n{}\n</div>\n",
         page::save_form(
-            &web.saved_links().write,
+            &web.saved_links(None).write,
             here.onward(),
             hidden,
             sent_name(sent),

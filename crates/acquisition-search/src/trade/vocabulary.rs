@@ -15,8 +15,8 @@
 //!   none of them. The rest are the stat table's, category by category
 //!   ([`stats::StatTable::entries`]), but that the entries matched of one
 //!   stat stand together at the place of the first of them, its implicit
-//!   variant beside its explicit line (#317, the page seat's: a reader of
-//!   the first screen stopped before the implicit ones).
+//!   variant beside its explicit line, so a reader of the first screen
+//!   meets both (#317).
 //! - **The words are matched here, not in a page** (C46, shared semantics
 //!   in Rust): each word of the ask, case aside, stands in one of the
 //!   entry's texts or in its group's name, so a kind's word narrows to

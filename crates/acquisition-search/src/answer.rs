@@ -1555,8 +1555,17 @@ pub const LINK_NO_STATUS: &str = "the search names no status, and the site fills
 
 impl Link {
     fn of(t: &Translation, realm: &Realm) -> Link {
-        let asked = &t.asked;
-        let url = match trade::link(asked, realm.as_str()) {
+        Link::asked(&t.asked, &t.remainder, realm.as_str())
+    }
+
+    /// The link a decoded site search makes in `realm` (C195), with what
+    /// beside its query the site cannot be asked and its notes, the
+    /// clauses not run here being `remainder` (a translation's): what an
+    /// answer reports, made for a search a frontend asks in another
+    /// league than the answer's (C195, a link may carry a league a person
+    /// names for it alone), so its words are the answer's own.
+    pub fn asked(asked: &trade::Decoded, remainder: &[String], realm: &str) -> Link {
+        let url = match trade::link(asked, realm) {
             Ok(url) => url,
             Err(none) => return Link::None { none },
         };
@@ -1577,7 +1586,7 @@ impl Link {
                 .map(|(k, _)| k.clone()),
         );
         let mut notes = Vec::new();
-        if t.remainder.iter().any(|at| trade::translate::of_query(at)) {
+        if remainder.iter().any(|at| trade::translate::of_query(at)) {
             notes.push(LINK_RUNS_THERE.to_string());
         }
         if asked.query.get("status").is_none_or(Json::is_null) {

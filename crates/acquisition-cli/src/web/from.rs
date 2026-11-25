@@ -258,8 +258,9 @@ impl Here {
         self.onward.as_ref()
     }
 
-    /// The search this page carries (stop 7 of the owner's sitting: the
-    /// search survives a visit to another page): the search page itself,
+    /// The search this page carries, so it survives a visit to another
+    /// page in the address (C16, a page's state is its URL): the search
+    /// page itself,
     /// or a search its URL's `from` names — a place reached from a search,
     /// or a step a search handed on. A place's own links keep it as their
     /// `from`, and the nav bar's links carry it on, its Search link leading

@@ -923,6 +923,29 @@ fn c195_the_one_link_that_leaves_the_server_opens_apart_and_sends_no_referrer() 
             .is_some_and(|none| none.contains("names no league")),
         "{every}"
     );
+    // the link a search over every league is drawn in says what the
+    // answer's would in that league: what the site cannot be asked beside
+    // its query (the displayed defences) and its notes
+    let displayed = web.get(
+        "search?realm=pc&league=&query.filters.armour_filters.filters.ar.min=100&defences=displayed",
+    );
+    assert_eq!(displayed.status, 200, "{}", displayed.body);
+    let section = unescaped(&displayed.body);
+    assert!(
+        !link_options(&displayed.body).is_empty(),
+        "{}",
+        displayed.body
+    );
+    assert!(
+        section.contains("<p class=\"link\">Left out: defences \u{2014} beside the query, the site cannot be asked it</p>"),
+        "{}",
+        displayed.body
+    );
+    assert!(
+        section.contains("<p class=\"link\">Note: the search names no status"),
+        "{}",
+        displayed.body
+    );
     // a realm the site lacks: no select, the answer saying why
     let all = web.get("search?realm=all&league=Standard&query.term=Doom+Loop");
     assert!(link_options(&all.body).is_empty(), "{}", all.body);
@@ -5830,6 +5853,27 @@ fn the_search_survives_a_visit_to_another_page_in_its_address() {
     for href in &places {
         assert!(href.contains(&carried), "{href}");
     }
+    // and so does every form of its own, as a browser submits it: the
+    // selects' form and the list form (its "Show", a toggle's)
+    let word = "search?realm=pc&text=class%3Arings";
+    for form in [
+        "<form method=\"get\" action=\"tabs\"><label class=\"control\">Realm",
+        "<form method=\"get\" action=\"tabs\">\n<input type=\"hidden\" name=\"realm\"",
+    ] {
+        let sent = submitted(&tabs.body, form);
+        assert_eq!(
+            sent.iter()
+                .filter(|(k, v)| k == "from" && v == word)
+                .count(),
+            1,
+            "{form}: {sent:?}"
+        );
+        let fields: Vec<(&str, &str)> =
+            sent.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+        let shown = web.get(&format!("tabs?{}", query_string(&fields)));
+        assert_eq!(shown.status, 200, "{form}: {}", shown.body);
+        assert_eq!(link(&shown.body, "Search"), back, "{form}");
+    }
     let characters = follow(&web, &link(&tabs.body, "Characters"));
     assert_eq!(characters.status, 200, "{}", characters.body);
     assert_eq!(link(&characters.body, "Search"), back);
@@ -5844,6 +5888,13 @@ fn the_search_survives_a_visit_to_another_page_in_its_address() {
     assert_eq!(
         web.get_json(searched),
         web.get_json(&back[web.token.len() + 2..])
+    );
+    // a league the form's address names is the one its control selects
+    let named = web.get("?realm=pc&league=Settlers");
+    assert!(
+        named.body.contains("<option value=\"Settlers\" selected>"),
+        "{}",
+        named.body
     );
     // a page reached from no search carries none
     let bare = web.get("tabs?realm=pc&league=Standard");

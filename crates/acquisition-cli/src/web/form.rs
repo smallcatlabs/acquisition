@@ -51,8 +51,8 @@
 //!   `view.fields`, the row's fields as the CLI's `--fields` names them
 //!   (`icon`, or `icon,item`), read by the search's one reader, which
 //!   refuses a list naming no field: sent empty or not at all, the page's
-//!   default, the art alone, so the answer page renders the table (stop 6
-//!   of the owner's sitting); `icon,item`, the item with its art, the
+//!   default, the art alone, so the answer page renders the table;
+//!   `icon,item`, the item with its art, the
 //!   cards; `icon`, the table named. A count asks no row's fields, and one sent
 //!   beside it is the view selection's refusal. A search sent with a
 //!   count lets go of `view.sort`, `view.desc` and `view.value`, which a
@@ -421,8 +421,7 @@ impl Folded {
                 after: None,
                 // the fields sent, which a count refuses; else none for a
                 // count, which shows no rows, and the art alone for rows,
-                // the page's table (stop 6 of the owner's sitting: "Once I
-                // click a search, I mainly want to see the results table")
+                // the page's table, which an answer opens as
                 fields: match (&self.fields, &self.count) {
                     (Some(fields), _) => fields.clone(),
                     (None, Some(_)) => Vec::new(),
