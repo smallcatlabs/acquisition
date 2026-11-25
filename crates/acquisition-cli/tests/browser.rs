@@ -2357,4 +2357,10 @@ fn no_browser_found_is_a_refusal_naming_the_variable_and_each_path() {
 
     std::fs::write(&known[1], b"").expect("a stand-in file");
     assert_eq!(harness::locate_browser(None, &known), Ok(known[1].clone()));
+
+    // Brave on Linux is found as its binary, never as the script on the
+    // PATH, which outlives the process the harness ends (#322).
+    let listed = harness::known_browsers();
+    assert!(listed.contains(&"/opt/brave.com/brave/brave".into()));
+    assert!(!listed.contains(&"/usr/bin/brave-browser".into()));
 }

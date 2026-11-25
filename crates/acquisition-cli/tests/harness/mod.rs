@@ -1883,9 +1883,15 @@ fn pid_words(text: &str) -> String {
 /// The Chromium-family browsers the locator knows, in the order it tries
 /// them: macOS's Chrome and Brave; the Linux paths the hosted Ubuntu
 /// image installs (`/usr/bin/google-chrome`, and `/usr/bin/chromium`
-/// linked to its Chromium); on Windows, Chrome and Edge under `Program
-/// Files` and `Program Files (x86)`, read from the environment's own
-/// names for those folders.
+/// linked to its Chromium), then Brave's own binary where its Linux
+/// package puts it; on Windows, Chrome and Edge under `Program Files`
+/// and `Program Files (x86)`, read from the environment's own names for
+/// those folders.
+///
+/// Brave on Linux is `/opt/brave.com/brave/brave`, never the
+/// `/usr/bin/brave-browser` on the PATH: that one is a script which
+/// starts the binary as a child, so ending the process the harness
+/// spawned ends the script and leaves the browser running (#322).
 pub fn known_browsers() -> Vec<PathBuf> {
     let mut known: Vec<PathBuf> = vec![
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome".into(),
@@ -1898,6 +1904,7 @@ pub fn known_browsers() -> Vec<PathBuf> {
     }
     known.push("/usr/bin/google-chrome".into());
     known.push("/usr/bin/chromium".into());
+    known.push("/opt/brave.com/brave/brave".into());
     for folder in ["ProgramFiles", "ProgramFiles(x86)"] {
         if let Some(dir) = std::env::var_os(folder) {
             let dir = PathBuf::from(dir);
