@@ -10,20 +10,14 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
-- **The #293 removals** (`audits/assessment-6-5/README.md`, "The
-  candidates, ranked", items 1 to 5): all five cuts are closed
-  (`git log --grep='^Step: cut-293'`); the last, cut 5, took history out
-  of the code and the current documents (`AGENTS.md`, "Where things
-  live", History). #293 stays open.
+- **The #293 removals**: the five ranked cuts of
+  `audits/assessment-6-5/README.md` are closed
+  (`git log --grep='^Step: cut-293'`). #293 stays open.
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
-  milestone "4-full, the GUI"). Steps 1 to 6 are closed, step 6 in its
-  parts (`git log --grep='^Step: 4-full-1'`). The search form's
-  reshaping is designed and ruled (`briefs/4-full-1-form-design.md`)
-  and built in the series of its §8, one brief a step
-  (`git log --grep='^Step: 4-full-1-form'`). All nine steps are
-  closed. The page seat over the series is sat, twice, and its fix
-  round closed (`audits/web-form/seat/README.md`); the owner's own
-  sitting at the pages is next.
+  milestone "4-full, the GUI"): steps 1 to 6 and the search form's
+  nine are closed (step 6's parts and the form's:
+  `git log --grep='^Step: 4-full-1'`), and its page seat is sat. It
+  waits on the owner, as item 1 below says.
 
 ## Next
 
@@ -31,10 +25,10 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. 4-full part 1, the search form's reshaping, its
-   design ruled (`briefs/4-full-1-form-design.md`) and built in the
-   series of its §8, all nine steps closed, and its page seat sat and
-   closed (`audits/web-form/seat/README.md`). What is left of it is
+1. 4-full part 1, the search form's reshaping
+   (`briefs/4-full-1-form-design.md`, the series of its §8), built,
+   and its page seat sat twice and closed
+   (`audits/web-form/seat/README.md`). What is left of it is
    the owner's: his sitting at the pages, and the first link the build
    composed opened by a person. One fix round after his sitting closes
    the item: what he finds, with the page seat's smaller asks (#317),
