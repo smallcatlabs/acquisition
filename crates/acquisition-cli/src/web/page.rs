@@ -745,6 +745,11 @@ pub(crate) struct Filled {
     pub trade: String,
     pub view: BoxView,
     pub saved: Option<(String, i64)>,
+    /// Whether the page names its league: the address carries a `league`
+    /// field, empty ("every league") or not, or a search was read, which
+    /// names its league or none. A form that does not is fresh, and its
+    /// league control selects the fullest league ([`Chosen::Fresh`]).
+    pub league_named: bool,
 }
 
 impl Filled {
@@ -761,6 +766,7 @@ impl Filled {
             trade: String::new(),
             view: BoxView::default(),
             saved: None,
+            league_named: false,
         }
     }
 }
@@ -785,7 +791,7 @@ pub(crate) enum Holder {
 pub(crate) fn editor(
     form: &Form,
     filled: &Filled,
-    leagues: Option<&[(String, bool)]>,
+    leagues: Option<&[League]>,
     from: Option<&FromPage>,
     index: &str,
 ) -> String {
@@ -869,7 +875,7 @@ fn checked(ticked: bool) -> &'static str {
 pub(crate) fn search_form(
     form: &Form,
     filled: &Filled,
-    leagues: Option<&[(String, bool)]>,
+    leagues: Option<&[League]>,
     finder: &str,
 ) -> String {
     let fill = &filled.fill;
@@ -894,11 +900,16 @@ pub(crate) fn search_form(
         "</select></label> <button type=\"submit\" form=\"realm-form\">Show this realm's leagues</button>\n<input type=\"hidden\" name=\"realm\" value=\"{}\">",
         esc(realm)
     ));
-    out.push_str(&league_select(
-        leagues,
-        fill.text("league").as_deref(),
-        true,
-    ));
+    // the league the search names; else "every league" where the address
+    // named it or a search was read, which names its league or none; else
+    // a fresh form's fullest
+    let named = fill.text("league");
+    let chosen = match (&named, filled.league_named) {
+        (Some(league), _) => Chosen::Named(league),
+        (None, true) => Chosen::Every,
+        (None, false) => Chosen::Fresh,
+    };
+    out.push_str(&league_select(leagues, chosen, true));
     out.push_str(&fate_span(form.fate("url.league")));
     for group in form.groups.iter().filter(|g| g.id == "status_filters") {
         for filter in &group.filters {
@@ -3265,20 +3276,75 @@ pub(crate) fn item_badges(parts: ItemParts<'_>) -> String {
     format!("<p>{}</p>\n", out.join(" "))
 }
 
-/// The league control both pages carry: a
-/// select over the store's league list, each league marked with whether
-/// tabs of it are on disk in the realm shown; with no list on disk, the
-/// leagues the store holds places in. A page's own league the control
-/// does not list stands first, selected and unmarked, and alone where
-/// there is nothing else to list; a page that names no league and has
-/// none to list has no select, the fetch button its only control. `any`
-/// adds the
-/// search's "every league", which names no league term.
-pub(crate) fn league_select(
-    leagues: Option<&[(String, bool)]>,
-    selected: Option<&str>,
-    any: bool,
-) -> String {
+/// One league the league control lists: its id, and what the store holds
+/// of it in the realm shown — its live tabs and characters, the counts the
+/// place pages read (`acquisition_verbs::LeaguesHeld`) — where it holds
+/// either; none for a league the league list names and the store holds
+/// nothing of.
+pub(crate) struct League {
+    pub id: String,
+    pub held: Option<(i64, i64)>,
+}
+
+impl League {
+    /// The league's option words: its name, then what is on disk of it.
+    fn words(&self) -> String {
+        match self.held {
+            Some((tabs, characters)) => format!(
+                "{} \u{2014} {}, {}",
+                self.id,
+                plural(usize::try_from(tabs).unwrap_or(0), "tab", "tabs"),
+                plural(
+                    usize::try_from(characters).unwrap_or(0),
+                    "character",
+                    "characters"
+                )
+            ),
+            None => format!("{} \u{2014} nothing on disk", self.id),
+        }
+    }
+}
+
+/// The league a fresh form selects (stop 3 of the owner's sitting): the
+/// one holding the most tabs, a tie going to the first in the control's
+/// order; none where no league holds a tab.
+pub(crate) fn fullest(leagues: &[League]) -> Option<&str> {
+    let mut best: Option<(&str, i64)> = None;
+    for league in leagues {
+        let tabs = league.held.map_or(0, |(tabs, _)| tabs);
+        if tabs > 0 && best.is_none_or(|(_, most)| tabs > most) {
+            best = Some((league.id.as_str(), tabs));
+        }
+    }
+    best.map(|(id, _)| id)
+}
+
+/// Which league the control shows: one the page names, the search's
+/// "every league", or, on a fresh form (an address naming no league at
+/// all), the fullest ([`fullest`]).
+#[derive(Clone, Copy)]
+pub(crate) enum Chosen<'a> {
+    Named(&'a str),
+    Every,
+    Fresh,
+}
+
+/// The league control both pages carry: a select over the store's league
+/// list, each league saying what the realm shown holds of it on disk, its
+/// tabs and characters ([`League`]); with no list on disk, the leagues
+/// the store holds places in. A page's own league the control does not
+/// list stands first, selected and unmarked, and alone where there is
+/// nothing else to list; a page that names no league and has none to
+/// list has no select, the fetch button its only control. `any` adds the
+/// search's "every league", which names no league term, last; a fresh
+/// form selects the fullest league, or "every league" where no league
+/// holds a tab.
+pub(crate) fn league_select(leagues: Option<&[League]>, chosen: Chosen, any: bool) -> String {
+    let selected = match chosen {
+        Chosen::Named(own) => Some(own),
+        Chosen::Every => None,
+        Chosen::Fresh => leagues.and_then(fullest),
+    };
     // no league to offer: the page's own alone, so the selects' form sends
     // it back across a realm that holds none; none where the page names
     // none either
@@ -3288,34 +3354,32 @@ pub(crate) fn league_select(
         (None, None) => return String::new(),
     };
     let mut out = String::from("<label class=\"control\">League <select name=\"league\">");
-    if any {
-        out.push_str("<option value=\"\">every league</option>");
-    }
     // the page's own league, where the control does not list it, stands
     // first and selected, unmarked: a select showing another league than
     // the page would send that one with its next form
-    if let Some(own) = selected.filter(|own| !leagues.iter().any(|(l, _)| l == own)) {
+    if let Some(own) = selected.filter(|own| !leagues.iter().any(|l| l.id == *own)) {
         out.push_str(&format!(
             "<option value=\"{}\" selected>{}</option>",
             esc(own),
             esc(own)
         ));
     }
-    for (league, on_disk) in leagues {
+    for league in leagues {
         out.push_str(&format!(
-            "<option value=\"{}\"{}>{} ({})</option>",
-            esc(league),
-            if selected == Some(league.as_str()) {
+            "<option value=\"{}\"{}>{}</option>",
+            esc(&league.id),
+            if selected == Some(league.id.as_str()) {
                 " selected"
             } else {
                 ""
             },
-            esc(league),
-            if *on_disk {
-                "tabs on disk"
-            } else {
-                "no tabs on disk"
-            }
+            esc(&league.words())
+        ));
+    }
+    if any {
+        out.push_str(&format!(
+            "<option value=\"\"{}>every league</option>",
+            if selected.is_none() { " selected" } else { "" }
         ));
     }
     out.push_str("</select></label> ");
@@ -3346,7 +3410,7 @@ pub(crate) struct PlacesPage<'a> {
     pub realm: Realm,
     pub league: &'a str,
     /// The realm's leagues, where the league list was fetched.
-    pub leagues: Option<&'a [(String, bool)]>,
+    pub leagues: Option<&'a [League]>,
     pub places: &'a Places,
     /// A characters page's sentence where the league holds none.
     pub none: Option<&'a str>,
@@ -3453,7 +3517,7 @@ pub(crate) fn places(view: &PlacesPage) -> String {
     let mut body = format!(
         "<form method=\"get\" action=\"{}\"><label class=\"control\">Realm <select name=\"realm\">{realms}</select></label> {}{}<button type=\"submit\">Show</button></form>\n<div class=\"actions\">{}{}</div>\n",
         view.listed,
-        league_select(view.leagues, Some(view.league), false),
+        league_select(view.leagues, Chosen::Named(view.league), false),
         hidden_fields(view.carried),
         fetch_leagues(view.onward),
         if empty { "" } else { listing.as_str() },

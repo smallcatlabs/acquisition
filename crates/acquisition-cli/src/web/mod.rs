@@ -944,6 +944,9 @@ impl Web {
         use acquisition_search::answer::ViewOut;
         let named = |name: &str| pick(sent, name).map(str::to_string);
         let mut filled = page::Filled::empty(Realm::DEFAULT.as_str());
+        // the address names its league, "every league" among them; a site
+        // search decoded names its own below
+        filled.league_named = pick(sent, "league").is_some();
         filled.saved = pick(sent, "saved")
             .zip(pick(sent, "saved_revision").and_then(|at| at.parse::<i64>().ok()))
             .map(|(id, at)| (id.to_string(), at));
@@ -979,6 +982,7 @@ impl Web {
                         // a URL's realm is the search's (#188)
                         realm = decoded.realm.clone().or(realm);
                         filled.fill = fill::Fill::decoded(&decoded);
+                        filled.league_named = true;
                         filled.text = canonical.unwrap_or_default();
                         filled.text_open = false;
                     }
@@ -1304,12 +1308,12 @@ impl Web {
     }
 
     /// The store's league list (the `leagues` job's latest answer), whole,
-    /// each league marked with whether this realm has tabs of it on disk:
-    /// what both pages' league control lists, through the verbs' two
-    /// reads (C46), the list and what the realm holds; a word that is no
-    /// realm holds nothing. Where no list was fetched, the leagues the
-    /// realm holds places in; none where it holds none either.
-    fn leagues(&self, realm: &str) -> Result<Option<Vec<(String, bool)>>, Failure> {
+    /// each league beside what this realm holds of it on disk, its tabs
+    /// and characters: what both pages' league control lists, through the
+    /// verbs' two reads (C46), the list and what the realm holds; a word
+    /// that is no realm holds nothing. Where no list was fetched, the
+    /// leagues the realm holds places in; none where it holds none either.
+    fn leagues(&self, realm: &str) -> Result<Option<Vec<page::League>>, Failure> {
         let account = self.served()?;
         let list = account.league_list(true)?;
         let held = match Realm::parse(realm) {
@@ -1330,9 +1334,14 @@ impl Web {
         // over a copied store still moves between its leagues; none where
         // it holds none
         if list.fetched_at.is_none() {
-            let leagues: Vec<(String, bool)> = held
+            let leagues: Vec<page::League> = held
                 .into_iter()
-                .filter_map(|h| h.league.map(|league| (league, h.tabs > 0)))
+                .filter_map(|h| {
+                    h.league.map(|id| page::League {
+                        id,
+                        held: Some((h.tabs, h.characters)),
+                    })
+                })
                 .collect();
             return Ok((!leagues.is_empty()).then_some(leagues));
         }
@@ -1340,10 +1349,11 @@ impl Web {
             list.leagues
                 .into_iter()
                 .map(|l| {
-                    let on_disk = held
+                    let held = held
                         .iter()
-                        .any(|h| h.league.as_deref() == Some(l.id.as_str()) && h.tabs > 0);
-                    (l.id, on_disk)
+                        .find(|h| h.league.as_deref() == Some(l.id.as_str()))
+                        .map(|h| (h.tabs, h.characters));
+                    page::League { id: l.id, held }
                 })
                 .collect(),
         ))
@@ -1631,8 +1641,8 @@ fn realm_of(fields: &[(String, String)]) -> Result<Realm, Failure> {
 
 // ---- the search pages ---------------------------------------------------------------------------
 
-/// The form, its league list the counts by league over the corpus, of
-/// the realm and the membership the URL names (Clear's link names them).
+/// The form, its league list what the realm holds of each league on disk,
+/// of the realm and the membership the URL names (Clear's link names them).
 async fn home(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -1650,6 +1660,7 @@ async fn home(
     // the scope's membership, as `search` reads it: the word sent, which
     // the form's select shows (Clear carries it)
     filled.membership = pick(&fields, "membership").map(str::to_string);
+    filled.league_named = pick(&fields, "league").is_some();
     let (leagues, said) = blocking(&web, move |web| match web.leagues(&realm) {
         Ok(leagues) => (leagues, Ok(())),
         Err(failure) => (None, Err(failure)),

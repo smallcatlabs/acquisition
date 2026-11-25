@@ -245,14 +245,19 @@ mod tests {
 
     /// The page an envelope fills, and the fill's normal envelope.
     fn filled_page(form: &Form, fill: Fill) -> (String, Value) {
+        // a search read names its league or none (`Web::editors`)
         let filled = Filled {
             fill,
+            league_named: true,
             ..Filled::empty("pc")
         };
         let html = page::editor(
             form,
             &filled,
-            Some(&[("Standard".to_string(), true)]),
+            Some(&[page::League {
+                id: "Standard".to_string(),
+                held: Some((1, 0)),
+            }]),
             None,
             "describe",
         );
@@ -448,9 +453,18 @@ mod tests {
                 values: vec!["ilvl".into()],
                 ..BoxView::default()
             },
+            league_named: true,
             ..Filled::empty("pc")
         };
-        let html = page::search_form(&form, &filled, Some(&[("Standard".to_string(), true)]), "");
+        let html = page::search_form(
+            &form,
+            &filled,
+            Some(&[page::League {
+                id: "Standard".to_string(),
+                held: Some((1, 0)),
+            }]),
+            "",
+        );
         let mut rendered = BTreeSet::new();
         for part in html.split("name=\"").skip(1) {
             rendered.insert(part[..part.find('"').unwrap()].to_string());

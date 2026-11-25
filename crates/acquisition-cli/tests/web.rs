@@ -313,9 +313,31 @@ fn a_store_with_no_league_list_moves_between_the_leagues_it_holds() {
     let tabs = web.get("tabs?realm=pc&league=Standard");
     assert_eq!(tabs.status, 200, "{}", tabs.body);
     assert!(
-        tabs.body.contains("<label class=\"control\">League <select name=\"league\"><option value=\"Settlers\">Settlers (tabs on disk)</option><option value=\"Standard\" selected>Standard (tabs on disk)</option></select></label>"),
+        tabs.body.contains("<label class=\"control\">League <select name=\"league\"><option value=\"Settlers\">Settlers \u{2014} 1 tab, 0 characters</option><option value=\"Standard\" selected>Standard \u{2014} 1 tab, 0 characters</option></select></label>"),
         "{}",
         tabs.body
+    );
+    // the form's league is filled at load, each league with what is on
+    // disk of it: a fresh form selects the league holding the most tabs, a
+    // tie going to the first listed, "every league" last; an address
+    // naming "every league" keeps it, and one naming a league keeps that
+    let fresh = web.get("?realm=pc");
+    assert!(
+        fresh.body.contains("<select name=\"league\"><option value=\"Settlers\" selected>Settlers \u{2014} 1 tab, 0 characters</option><option value=\"Standard\">Standard \u{2014} 1 tab, 0 characters</option><option value=\"\">every league</option></select>"),
+        "{}",
+        fresh.body
+    );
+    let every = web.get("search?realm=pc&league=&query.term=Doom+Loop");
+    assert!(
+        every.body.contains("<option value=\"Standard\">Standard \u{2014} 1 tab, 0 characters</option><option value=\"\" selected>every league</option></select>"),
+        "{}",
+        every.body
+    );
+    let named = web.get("search?realm=pc&league=Standard&query.term=Doom+Loop");
+    assert!(
+        named.body.contains("<option value=\"Settlers\">Settlers \u{2014} 1 tab, 0 characters</option><option value=\"Standard\" selected>"),
+        "{}",
+        named.body
     );
     let queried = web.get("tabs?realm=pc&league=Standard&text=class%3Arings");
     let settlers = format!(
@@ -1937,8 +1959,9 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "Item Category",
             "name=\"query.filters.type_filters.filters.category.option\"",
-            "Standard (tabs on disk)",
-            "Settlers (no tabs on disk)",
+            "<option value=\"Standard\" selected>Standard \u{2014} 2 tabs, 0 characters</option>",
+            "Settlers \u{2014} nothing on disk",
+            "<option value=\"\">every league</option>",
             "Fetch the league list",
             "disabled",
             "The seller&#39;s account is the listing&#39;s",
@@ -2660,7 +2683,7 @@ fn the_form_renders_the_realm_it_is_asked_for() {
     // the league list is the account's, across realms; whether a league
     // has tabs on disk is the realm's
     assert!(
-        form.body.contains("Standard (no tabs on disk)"),
+        form.body.contains("Standard \u{2014} nothing on disk"),
         "{}",
         form.body
     );
@@ -2671,7 +2694,7 @@ fn the_form_renders_the_realm_it_is_asked_for() {
             "<option value=\"xbox\" selected>",
             "Show this realm's leagues",
             "name=\"realm\" value=\"xbox\"",
-            "Hardcore (tabs on disk)",
+            "Hardcore \u{2014} 1 tab, 0 characters",
         ],
     );
     // a league with no tabs: the stash tabs page's facts line, an empty
