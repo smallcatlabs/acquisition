@@ -2706,15 +2706,48 @@ fn order_way(rows: &RowsOut, shape: Presented) -> Option<String> {
     })
 }
 
+/// The table's fixed heads, each with why it does not order the rows
+/// (stop 8 of the owner's sitting): the page sorts nothing itself, and
+/// the language's sort takes a number alone, which none of them is. Said
+/// on hover, as the head's title; the values that would order them wait
+/// on the language.
+const FIXED_HEADS: [(&str, &str); 5] = [
+    (
+        "Item",
+        "Not sortable yet: the search orders rows by a number, and an item's name is text",
+    ),
+    (
+        "Base",
+        "Not sortable yet: the search orders rows by a number, and a base is text",
+    ),
+    (
+        "Price",
+        "Not sortable yet: each price is in its own currency, so an order by its amount would put 5 divines below 10 chaos, and the search holds no price in one currency",
+    ),
+    (
+        "Location",
+        "Not sortable yet: the search orders rows by a number, and a location is text",
+    ),
+    (
+        "Fetched",
+        "Not sortable yet: when a place was fetched is no value the search orders rows by",
+    ),
+];
+
 /// A table's heads, one line: the item, its base, its price, its location
-/// and when that was fetched, as text, none a value the sort takes; then
+/// and when that was fetched, as text, none a value the sort takes, each
+/// saying on hover why ([`FIXED_HEADS`]); then
 /// each value the rows carry by its own text, the link that orders the
 /// rows by it, the ordered one marked ([`ordered`]). The flat table's
 /// and a place page's, which stands once above its places.
 fn item_heads(rows: &RowsOut, view: ViewLinks) -> String {
-    let fixed = ["Item", "Base", "Price", "Location", "Fetched"]
-        .iter()
-        .map(|h| format!("<span>{}</span>", esc(h)));
+    let fixed = FIXED_HEADS.iter().map(|(h, why)| {
+        format!(
+            "<span class=\"unsorted\" title=\"{}\">{}</span>",
+            esc(why),
+            esc(h)
+        )
+    });
     let valued = rows.values.iter().map(|value| match view(value) {
         Some(link) => format!(
             "<a class=\"head\" href=\"{}\">{}</a>",

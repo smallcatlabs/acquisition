@@ -149,6 +149,7 @@ p.fold, p.own, p.matched { color: var(--muted); font-size: 12.5px; margin: .2rem
 /* a head's right edge drags its column's width (window.js), for the
    page's life */
 .window .r.head > * { position: relative; }
+.window .r.head .unsorted { cursor: help; }
 .window .r.head .edge { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: col-resize; touch-action: none; }
 /* a row a toggle lands at stands below the sticky heads */
 .window .r[id] { scroll-margin-top: calc(2 * var(--row, 24px)); }

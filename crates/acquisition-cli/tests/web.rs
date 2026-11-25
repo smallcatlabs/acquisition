@@ -2089,7 +2089,11 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "<p class=\"rows-shown\">2 matching items in the table, as they lie in their place, top row first and left to right (no sort asked)",
             "<div class=\"window\" data-row-height=\"24\" data-block-rows=\"50\">",
-            "<span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class=\"head\" href=\"search?realm=pc&amp;league=Standard&amp;",
+            // every column sorts by its head through the language or says
+            // on hover why not (stop 8 of the owner's sitting)
+            "<span class=\"unsorted\" title=\"Not sortable yet: the search orders rows by a number, and an item&#39;s name is text\">Item</span>",
+            "<span class=\"unsorted\" title=\"Not sortable yet: each price is in its own currency, so an order by its amount would put 5 divines below 10 chaos, and the search holds no price in one currency\">Price</span>",
+            "Fetched</span><a class=\"head\" href=\"search?realm=pc&amp;league=Standard&amp;",
             "/rows?next=acq1.",
             "data-count=\"2\"",
             "<div class=\"block\" data-block=\"0\">",
@@ -3490,7 +3494,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             ])
         ),
         &[
-            "<span>Fetched</span><a class=\"head\" href=\"search?",
+            ">Fetched</span><a class=\"head\" href=\"search?",
             "view.sort=ilvl&amp;view.desc=true\">ilvl</a><a class=\"head\" href=\"search?",
             "value=\"lp\">Ledger Priced Iron Ring · rare</button><span>Iron Ring</span><span>5 chaos",
             "value=\"lo\">Ledger Open Iron Ring · rare</button><span>Iron Ring</span><span>undecided: the note cannot be read",
@@ -7091,7 +7095,7 @@ fn the_grouped_table_is_a_wording_golden() {
             "<input type=\"hidden\" name=\"tab\" value=\"t3\">",
             "1 page not shown, <a href=",
             // an open place's segment under the columns' heads, once
-            "<div class=\"r head\"><span>Item</span>",
+            "<div class=\"r head\"><span class=\"unsorted\" title=\"",
             "<div class=\"seg\" data-route=\"",
             "data-count=\"2\" data-base=\"0\"",
             "ilvl<span class=\"sr\">, ordered largest first</span></a>",
