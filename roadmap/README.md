@@ -13,10 +13,11 @@ better Acquisition that is agent-friendly and agent-forward.
 - **The programme after the whole-project review**
   (`audits/whole-review-2026-11/NEXT.md`, run as
   `audits/meta-2026-11/README.md` amends it; its closes are
-  `git log --grep='^Step: next-'`). Its first series is the owner's
-  yes of 2026-11-25: A1 (one seeded world, one command) and A3 (the
-  send gate's fault and its search) are closed; A2 (tasks counted
-  through both doors, `briefs/next-a2.md`) is building.
+  `git log --grep='^Step: next-'`). Its first series is closed: A1
+  (one seeded world, one command), A2 (ten player tasks counted
+  through both doors, `acquisition-mcp/tests/goldens/counted_tasks.txt`)
+  and A3 (the send gate's fault and its search). A later step that
+  claims the tool got easier shows that golden's diff.
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
   (`git log --grep='^Step: cut-293'`). #293 stays open.
