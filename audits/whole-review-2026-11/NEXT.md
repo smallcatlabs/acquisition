@@ -385,7 +385,7 @@ reviewed intent of a person, which is a promise and not a capability.
 | The smallest model that can do the tasks | Sits blind at the tool in A1's world |
 | Codex | Cold review (C177, the cold-review skill). The skeptic of each design note. A second builder where a design has two defensible shapes, the two compared by A2's table |
 
-Three quarters of the turns here have been Opus's and 0.4% Sonnet's,
+Four fifths of the calls here have been Opus's and 0.4% Sonnet's,
 so Sonnet's fitness for these moves is a bet. Its bound: a mechanical
 step that fails the gate twice goes to Opus.
 

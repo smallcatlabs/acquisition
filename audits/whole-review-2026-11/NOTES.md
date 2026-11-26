@@ -88,8 +88,8 @@ What surprised me:
 - **The agents who build the tool almost never run it.** 886 of 63,555
   shell calls in six weeks. A populated world costs a daemon, a login
   and three applies, so nobody checks a change by using it.
-- **We read as much governance as source,** and three quarters of the
-  turns are Opus's; Sonnet has done 0.4%. Much of what is planned is a
+- **We read as much governance as source,** and four fifths of the
+  calls are Opus's; Sonnet has done 0.4%. Much of what is planned is a
   move under a rule with a compiler to check it.
 - **Every one of my first ideas was narrowed by a reader sent to
   break it.** One of them wanted the MCP to answer in text; the code

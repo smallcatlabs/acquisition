@@ -14,22 +14,34 @@ evenly. Read the shares, not the digits.
 
 ## Who did the work
 
-| Model | Turns | Output tokens | Cache read |
-| --- | --- | --- | --- |
-| Opus 5.5 | 102,539 | 75.5 M | 22,221 M |
-| Fable 5.1 and 5.2 | 34,457 | 57.1 M | 9,518 M |
-| Sonnet 5.5 | 502 | 0.3 M | 45 M |
-| Haiku 5.5 | 62 | 0.0 M | 3 M |
+| Model | API calls | Share |
+| --- | --- | --- |
+| Opus 5.5 | 46,025 | 82% |
+| Fable 5.1 and 5.2 | 9,921 | 18% |
+| Sonnet 5.5 | 241 | 0.4% |
+| Haiku 5.5 | 26 | |
+
+Corrected on 2026-11-25 by the meta review's reader
+(`audits/meta-2026-11/reports/where-tokens-go.md`). This table first
+counted transcript events, not calls: one call is written as two or
+three events carrying the same usage, and a resumed session copies
+earlier calls into its own file. It gave 102,539 Opus turns and 31.8 B
+tokens of context read; the calls are 56,213 in all and the context
+read 13.3 B. The shares and the average survive, since both sides were
+inflated alike. `scripts/trace.py` still counts events; the reader's
+scripts under `audits/meta-2026-11/scripts/tokens/` count calls.
 
 The sessions' own cost records sum to about $5,300 for the six weeks.
-An Opus turn re-reads 217k tokens of context on average. Cost here is
-turns times context, and three quarters of the turns are Opus's.
+An Opus call re-reads about 220k tokens of context on average. Cache
+reads are about half the bill, and four fifths of the calls are
+Opus's.
 
 ## What a turn is
 
 63,555 shell calls against 1,196 uses of the file reader and 1,785 of
 the file editor and writer. Agents here read and edit through the
-shell.
+shell. These counts include history copied into resumed
+sessions, so they run somewhat high; read the shares.
 
 | Shell calls, by kind | Calls | Wall time |
 | --- | --- | --- |
@@ -98,7 +110,7 @@ bothy 1, artifacts 1, trade 0.
 - The cheapest seat there is, a builder running the tool on a world
   while building, is not happening, because a populated world costs a
   daemon, a login and three applies.
-- Sonnet has done 0.4% of the turns. Whatever is a move under a rule
+- Sonnet has done 0.4% of the calls. Whatever is a move under a rule
   with a compiler and a golden to check it is being done by Opus.
 
 ## Not checked
