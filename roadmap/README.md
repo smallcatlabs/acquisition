@@ -10,6 +10,14 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
+- **The programme after the whole-project review**
+  (`audits/whole-review-2026-11/NEXT.md`, run as
+  `audits/meta-2026-11/README.md` amends it; its closes are
+  `git log --grep='^Step: next-'`). Its first series is the owner's
+  yes of 2026-11-25: A3 (the send gate's fault and its search) is
+  closed; A1 (one seeded world, one command) is built and reviewed,
+  its close next; A2 (tasks counted through both doors,
+  `briefs/next-a2.md`) builds after it.
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
   (`git log --grep='^Step: cut-293'`). #293 stays open.
@@ -28,9 +36,9 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. The whole-project review, planned in
-   `audits/whole-review-2026-11/README.md` and charged in its
-   `BRIEF.md`; it takes in the frontends' whole-code review.
+1. The programme's later steps, as `NEXT.md` orders them: A4, then
+   B1 to B6, each waiting on what that file names. Where they stand
+   against the items below is the owner's (its decision 1).
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
@@ -65,6 +73,8 @@ label: `gh issue list --label trigger:step`.
 His queue is the open issues labelled `trigger:ruling`:
 `gh issue list --label trigger:ruling`. What only he can do:
 
+- The decisions `NEXT.md` lists as his ("What is the owner's"), four
+  of them put in plain words in `audits/meta-2026-11/README.md`.
 - The league run under the rails, at his word: count the undecided
   classes and the untranslated mods.
 - At the next live login, deny once: whether GGG's authorize page
