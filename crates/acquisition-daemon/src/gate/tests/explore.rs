@@ -258,34 +258,32 @@ fn replay(prefix: &[Ev], last: Ev) -> Result<(Stepped, Vec<Ev>), String> {
 struct Search {
     sequences: u64,
     joins: u64,
-    /// The shortest failing sequence found, and what it broke.
-    shortest: Option<(Vec<Ev>, String)>,
 }
 
-fn search(prefix: &mut Vec<Ev>, next: &[Ev], depth: usize, found: &mut Search) {
+/// Every sequence of exactly `depth` events extending `prefix`; the first
+/// that fails ends the search, with what it broke.
+fn search(
+    prefix: &mut Vec<Ev>,
+    next: &[Ev],
+    depth: usize,
+    found: &mut Search,
+) -> Result<(), (Vec<Ev>, String)> {
     for &ev in next {
         found.sequences += 1;
         let outcome = replay(prefix, ev);
         prefix.push(ev);
         match outcome {
-            Err(violation) => {
-                if found
-                    .shortest
-                    .as_ref()
-                    .is_none_or(|(s, _)| s.len() > prefix.len())
-                {
-                    found.shortest = Some((prefix.clone(), violation));
-                }
-            }
+            Err(violation) => return Err((prefix.clone(), violation)),
             Ok((stepped, after)) => {
                 found.joins += u64::from(stepped.joined);
                 if prefix.len() < depth {
-                    search(prefix, &after, depth, found);
+                    search(prefix, &after, depth, found)?;
                 }
             }
         }
         prefix.pop();
     }
+    Ok(())
 }
 
 #[test]
@@ -295,27 +293,26 @@ fn c21_every_sequence_of_the_gates_events_to_its_depth_holds_one_live_permit_per
         .and_then(|s| s.parse().ok())
         .map_or(DEPTH, |d: usize| d.max(DEPTH));
 
-    let hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
+    // Deepening one event at a time: every shorter sequence has passed
+    // before a longer one runs, so the first failure is a shortest one.
     let started = std::time::Instant::now();
     let mut found = Search::default();
-    search(
-        &mut Vec::new(),
-        &enabled(&World::new().tasks),
-        depth,
-        &mut found,
-    );
-    std::panic::set_hook(hook);
+    for bound in 1..=depth {
+        if let Err((sequence, violation)) = search(
+            &mut Vec::new(),
+            &enabled(&World::new().tasks),
+            bound,
+            &mut found,
+        ) {
+            panic!("{violation}, after {sequence:?}");
+        }
+    }
     println!(
         "depth {depth}: {} sequences in {:.2?}, {} rekeys joining two live permits",
         found.sequences,
         started.elapsed(),
         found.joins
     );
-
-    if let Some((sequence, violation)) = found.shortest {
-        panic!("{violation}, after {sequence:?}");
-    }
     assert!(
         found.joins > 0,
         "the search never reached a rekey that joins two live permits, so it no longer covers \

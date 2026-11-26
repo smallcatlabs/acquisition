@@ -87,7 +87,9 @@ impl SendGate {
 
     /// Acquire one ordinary actual-send slot under `policy`.
     ///
-    /// At most one permit for a policy can be live. Waiters are considered in
+    /// No permit is granted on a policy while a live one names it (a route
+    /// that learns its policy's name can join two live permits on one
+    /// policy, and none is granted until both drop). Waiters are considered in
     /// arrival order, while a waiter blocked by its already-live policy does
     /// not idle a free global slot that an independent policy can use.
     pub(crate) async fn acquire(&self, policy: impl Into<String>) -> SendPermit {
