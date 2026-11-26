@@ -79,7 +79,12 @@ prompt is not saved: it is the standing file at that commit.
   a promise an agent relies on is closed, not caveated; and a finding
   for a case nobody will meet is named as not taken, with the reason,
   in the round's commit message.
-- A finding that would change a ruling's words, or that has two
+- When a second round on one step still finds faults, read before
+  any third round for what could be removed so that these findings
+  cannot occur. A marker, a state or a default that several paths
+  must each remember is the sign. Say what the read found in the
+  round's commit message.
+- A finding that would change what a ruling means, or that has two
   defensible answers in the owner's classes, goes to his queue
   (`decisions/process.md`, C179) before it is built.
 - A clean round ends the reviewing. Whether a fix round needs a review

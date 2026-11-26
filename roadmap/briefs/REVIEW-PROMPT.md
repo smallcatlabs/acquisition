@@ -66,7 +66,8 @@ Report in this form, nothing else:
 - One line: the commit, and whether the brief's done-when holds.
 - Findings, most severe first, each: file:line, the shape number if
   one applies, what is wrong in one sentence, the concrete failing
-  input or reading, and the smallest fix you believe sufficient. Where
+  input or reading, and the rule a fix must hold, or what could be
+  removed instead. Where
   several findings share one cause, say so once. Mark each finding P1
   (an invariant, data loss or a wrong answer), P2 (a fault a user or
   an agent will meet) or P3 (a fault in a case unlikely in practice,
