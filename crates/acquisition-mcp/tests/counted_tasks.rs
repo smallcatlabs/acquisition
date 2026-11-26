@@ -32,7 +32,9 @@
 //! - A refusal is a non-zero exit, a JSON-RPC error or a result marked as
 //!   an error. A byte is one the reader was sent: a command's two streams;
 //!   a tool's answer as its line is received, without the line's
-//!   terminator. The test's scratch path counts as [`SCRATCH`]. Counts
+//!   terminator. A value the machine or the clock decides counts as a
+//!   fixed placeholder: the test's scratch path as [`SCRATCH`], and in a
+//!   row over the live daemon each age or duration as [`TIME`]. Counts
 //!   are rounded up to two significant figures. A job's polls are
 //!   neither calls nor bytes: the golden says only whether there were
 //!   any.
@@ -67,6 +69,36 @@ use harness::seeded::*;
 /// What the test's scratch path counts as in a reader's bytes, so the
 /// process's id in it moves no count.
 const SCRATCH: &str = "<scratch>";
+
+/// What an age or a duration counts as in a row over the live daemon,
+/// whose wall clock decides its digits.
+const TIME: &str = "<time>";
+
+/// `text` with each age or duration as [`TIME`]: a number at a word's
+/// start with a time unit ending the word (`0s`, `12ms`, `3m`), or the
+/// value of a key ending `seconds` (`"age_seconds":14`).
+fn timeless(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(c) = rest.chars().next() {
+        let number = rest.len() - rest.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+        if number > 0 && out.chars().last().is_none_or(|p| !p.is_alphanumeric()) {
+            let after = &rest[number..];
+            let unit = ["ms", "s", "m", "h", "d"].into_iter().find(|u| {
+                after.starts_with(u) && !after[u.len()..].starts_with(char::is_alphanumeric)
+            });
+            match (unit, out.ends_with("seconds\":")) {
+                (Some(u), _) => (out.push_str(TIME), rest = &after[u.len()..]),
+                (None, true) => (out.push_str(TIME), rest = after),
+                (None, false) => (out.push_str(&rest[..number]), rest = after),
+            };
+            continue;
+        }
+        out.push(c);
+        rest = &rest[c.len_utf8()..];
+    }
+    out
+}
 
 const GOLDEN: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -125,6 +157,8 @@ struct Reader<'a> {
     answers: Vec<Answer>,
     owed: Option<Owed>,
     polled: bool,
+    /// Whether the row is over the live daemon, whose clock decides ages.
+    live: bool,
     /// The facts the row wants, and the latest answer that spoke of each.
     wanted: Vec<Fact>,
     spoken: Vec<Option<usize>>,
@@ -237,6 +271,7 @@ impl<'a> Reader<'a> {
             answers: Vec::new(),
             owed: None,
             polled: false,
+            live: false,
             wanted: Vec::new(),
             spoken: Vec::new(),
         };
@@ -245,6 +280,17 @@ impl<'a> Reader<'a> {
             reader.mcp = Some(Mcp::start(base, env));
         }
         reader
+    }
+
+    /// The bytes of `text` a reader was sent, each value the machine or
+    /// the clock decides counted as its placeholder.
+    fn counted(&self, text: &str) -> usize {
+        let text = text.replace(self.base.to_str().unwrap_or_default(), SCRATCH);
+        if self.live {
+            timeless(&text).len()
+        } else {
+            text.len()
+        }
     }
 
     fn learn(&mut self, text: &str) {
@@ -370,9 +416,7 @@ impl<'a> Reader<'a> {
         }
         let out = harness::acq(self.base, args);
         let text = harness::text(&out);
-        let bytes = text
-            .replace(self.base.to_str().unwrap_or_default(), SCRATCH)
-            .len();
+        let bytes = self.counted(&text);
         let answer = Answer {
             text,
             doc: Value::Null,
@@ -417,8 +461,7 @@ impl<'a> Reader<'a> {
             ),
         };
         harness::c143_a_text_speaks_no_frontend(name, &text);
-        let scratch = self.base.to_str().unwrap_or_default();
-        let bytes = bytes - (text.len() - text.replace(scratch, SCRATCH).len());
+        let bytes = bytes + self.counted(&text) - text.len();
         let doc = serde_json::from_str(&text).unwrap_or(Value::Null);
         self.sent(shown, refused, bytes, Answer { text, doc });
         &self.last().doc
@@ -1245,6 +1288,7 @@ fn script(task: &Task, door: Door, base: &Path, env: &[(&str, &str)]) -> Row {
     reader.first_turn();
     reader.calls.clear();
     reader.answers.clear();
+    reader.live = task.world.seeded().is_none();
     reader.wanted = task.wanted.clone();
     reader.spoken = vec![None; task.wanted.len()];
     match door {
@@ -1525,4 +1569,28 @@ fn a_missed_count_says_the_league_and_count_it_got() {
         assert_eq!(league_count(Door::Cli, &cli), want);
         assert_eq!(league_count(Door::Mcp, &mcp), want);
     }
+}
+
+/// An age or a duration the clock decides counts the same bytes whatever
+/// its digits; a count that is no time keeps its own.
+#[test]
+fn an_age_or_a_duration_counts_the_same_bytes_whatever_its_digits() {
+    let pairs = [
+        (
+            "job 2 done; submitted 0s ago, took 9ms",
+            "job 2 done; submitted 125s ago, took 1250ms",
+        ),
+        (
+            r#"{"age_seconds":4,"at_age":"1m ago"}"#,
+            r#"{"age_seconds":4000,"at_age":"59m ago"}"#,
+        ),
+    ];
+    for (one, other) in pairs {
+        assert_eq!(
+            timeless(one).len(),
+            timeless(other).len(),
+            "{one} / {other}"
+        );
+    }
+    assert_eq!(timeless("Chaos Orb x5, 37 items"), "Chaos Orb x5, 37 items");
 }

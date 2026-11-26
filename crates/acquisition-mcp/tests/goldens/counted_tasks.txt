@@ -13,7 +13,7 @@ task  door  calls  refused  bytes    polled  answer
 4     mcp   3      1        8100     no      reached
 5     cli   6      1        39000    no      reached
 5     mcp   4      1        30000    no      reached
-6     cli   9      1        4100     no      reached
+6     cli   9      1        4200     no      reached
 6     mcp   12     1        19000    yes     reached
 7     cli   1      0        950      no      missed: Hardcore, 1 item; got: Standard, 1 item
 7     mcp   1      0        2600     no      missed: Hardcore, 1 item; got: Standard, 1 item
@@ -103,26 +103,26 @@ task  door  calls  refused  bytes    polled  answer
   refused    250  acq refresh --plan
              240  acq policy set --account ExileTester --if-revision 0 '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}'
              430  acq refresh --plan --account ExileTester --realm pc --league Standard
-             570  acq refresh --apply --account ExileTester --realm pc --league Standard
-             690  acq refresh --plan --account ExileTester --realm pc --league Standard
              580  acq refresh --apply --account ExileTester --realm pc --league Standard
-             710  acq refresh --plan --account ExileTester --realm pc --league Standard
-             360  acq refresh --apply --account ExileTester --realm pc --league Standard
-             270  acq refresh --plan --account ExileTester --realm pc --league Standard
+             700  acq refresh --plan --account ExileTester --realm pc --league Standard
+             590  acq refresh --apply --account ExileTester --realm pc --league Standard
+             730  acq refresh --plan --account ExileTester --realm pc --league Standard
+             370  acq refresh --apply --account ExileTester --realm pc --league Standard
+             290  acq refresh --plan --account ExileTester --realm pc --league Standard
 
 ## 6 mcp: Bring my stash up to date wanted: a plan that names no request
   refused    210  refresh_plan {}
             1200  set_sync_policy {"value":{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}}
             2500  refresh_plan {}
              210  apply_plan {"plan":<the plan refresh_plan returned>}
-             480  job_result {"id":<the job apply_plan returned>}
-            4700  refresh_plan {}
+             490  job_result {"id":<the job apply_plan returned>}
+            4800  refresh_plan {}
              210  apply_plan {"plan":<the plan refresh_plan returned>}
-             500  job_result {"id":<the job apply_plan returned>}
-            5100  refresh_plan {}
+             510  job_result {"id":<the job apply_plan returned>}
+            5200  refresh_plan {}
              210  apply_plan {"plan":<the plan refresh_plan returned>}
-             500  job_result {"id":<the job apply_plan returned>}
-            2700  refresh_plan {}
+             510  job_result {"id":<the job apply_plan returned>}
+            2800  refresh_plan {}
 
 ## 7 cli: I play one league: what is priced? wanted: Hardcore, 1 item
              950  acq price
