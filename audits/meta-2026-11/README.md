@@ -389,23 +389,25 @@ above. *Follow-up* is a fault to file, not a change of method.
 
 ## Follow-ups this turned up
 
-Faults, not method. None is filed.
+Faults, not method. Three are filed, at the owner's word of
+2026-11-26; the other two are held elsewhere.
 
-- **No verb makes a backup.** The registry promises a backup of the
+- **No verb makes a backup** (issue 329). The registry promises a backup of the
   owner's annotations (C35). The functions exist and are tested
   nine times, and no verb reaches them:
   `git grep -n -E '\.export\(' -- 'crates/*/src'` finds no caller
   outside tests, and `CLI-REFERENCE.md` has no backup or export. The
   facts' history has no backup function at all. A fix is a verb, a
   restore, and a rehearsal of both.
-- **Two messages tell a user to delete the history.** They say facts
+- **Two messages tell a user to delete the history** (issue 330).
+  They say facts
   are refetchable (`crates/acquisition-store/src/lib.rs:260`,
   `crates/acquisition-store/src/index.rs:213`). The current state
   is; the history is not.
 - **Escaping on the pages is a convention.** No test feeds a hostile
   name through a page (`reports/technology.md`). The programme's B4
   holds the fix.
-- **A skipped check prints `ok`.** The check that generated tables
+- **A skipped check prints `ok`** (issue 331). The check that generated tables
   match their generators is skipped where the game's export is not
   cloned, which is everywhere but this Mac, and says `ok`
   (`tools/trade-check.sh:74`).
