@@ -3,7 +3,7 @@
 task  door  calls  refused  bytes    polled  answer
 0     cli   1      0        14000    no      the first turn
 0     mcp   2      0        43000    no      the first turn
-1     cli   5      1        4800     no      reached over 2 answers
+1     cli   5      1        4700     no      reached over 2 answers
 1     mcp   5      2        6100     no      reached over 2 answers
 2     cli   5      1        42000    no      reached
 2     mcp   5      1        42000    no      reached
@@ -13,7 +13,7 @@ task  door  calls  refused  bytes    polled  answer
 4     mcp   3      1        8100     no      reached
 5     cli   6      1        39000    no      reached
 5     mcp   4      1        30000    no      reached
-6     cli   9      1        4200     no      reached
+6     cli   9      1        4100     no      reached
 6     mcp   12     1        19000    yes     reached
 7     cli   1      0        950      no      missed: Hardcore, 1 item; got: Standard, 1 item
 7     mcp   1      0        2600     no      missed: Hardcore, 1 item; got: Standard, 1 item
@@ -34,7 +34,7 @@ task  door  calls  refused  bytes    polled  answer
 ## 1 cli: What do I hold, and how old is it? wanted: Standard on pc; Hardcore on pc; Standard on poe2; the tab Never never fetched; an age
             2900  acq store --help
   refused    240  acq store status
-             430  acq --account 'Alice#1234' store status
+             410  acq --account 'Alice#1234' store status
              250  acq --account 'Alice#1234' leagues --stored
              940  acq --account 'Alice#1234' tabs
 
@@ -103,11 +103,11 @@ task  door  calls  refused  bytes    polled  answer
   refused    250  acq refresh --plan
              240  acq policy set --account ExileTester --if-revision 0 '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}'
              430  acq refresh --plan --account ExileTester --realm pc --league Standard
-             580  acq refresh --apply --account ExileTester --realm pc --league Standard
+             540  acq refresh --apply --account ExileTester --realm pc --league Standard
              700  acq refresh --plan --account ExileTester --realm pc --league Standard
-             590  acq refresh --apply --account ExileTester --realm pc --league Standard
+             550  acq refresh --apply --account ExileTester --realm pc --league Standard
              730  acq refresh --plan --account ExileTester --realm pc --league Standard
-             370  acq refresh --apply --account ExileTester --realm pc --league Standard
+             320  acq refresh --apply --account ExileTester --realm pc --league Standard
              290  acq refresh --plan --account ExileTester --realm pc --league Standard
 
 ## 6 mcp: Bring my stash up to date wanted: a plan that names no request

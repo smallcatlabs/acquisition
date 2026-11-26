@@ -33,7 +33,8 @@
 //!   an error. A byte is one the reader was sent: a command's two streams;
 //!   a tool's answer as its line is received, without the line's
 //!   terminator. A value the machine or the clock decides counts as a
-//!   fixed placeholder: the test's scratch path as [`SCRATCH`], and in a
+//!   fixed placeholder: a path under the test's scratch directory, whole
+//!   and however the answer escapes it, as [`SCRATCH`], and in a
 //!   row over the live daemon each age or duration as [`TIME`]. Counts
 //!   are rounded up to two significant figures. A job's polls are
 //!   neither calls nor bytes: the golden says only whether there were
@@ -69,6 +70,43 @@ use harness::seeded::*;
 /// What the test's scratch path counts as in a reader's bytes, so the
 /// process's id in it moves no count.
 const SCRATCH: &str = "<scratch>";
+
+/// `text` with each path under `base` as [`SCRATCH`], from the base, as
+/// written or as JSON escapes it, to the path's end: its separators and
+/// their escaping are the platform's.
+fn pathless(text: &str, base: &str) -> String {
+    let escaped = serde_json::to_string(base).unwrap_or_default();
+    let escaped = escaped.trim_matches('"');
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(at) = [base, escaped].iter().filter_map(|b| rest.find(b)).min() {
+        out.push_str(&rest[..at]);
+        out.push_str(SCRATCH);
+        let path = &rest[at..];
+        let end = path.find(['"', ' ', '\n', ')']).unwrap_or(path.len());
+        rest = &path[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// `text` as a terminal leaves it: a job's progress line that a later line
+/// of the same job supersedes is gone, since a terminal redraws it in
+/// place and how many a pipe gets is the machine's speed (the MCP's polls,
+/// likewise, count nothing).
+fn as_drawn(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    fn job(l: &str) -> Option<&str> {
+        l.starts_with("job ").then(|| l.split(':').next()).flatten()
+    }
+    let superseded =
+        |i: usize| job(lines[i]).is_some_and(|j| lines[i + 1..].iter().any(|l| job(l) == Some(j)));
+    let kept: Vec<&str> = (0..lines.len())
+        .filter(|&i| !superseded(i))
+        .map(|i| lines[i])
+        .collect();
+    kept.join("\n") + if text.ends_with('\n') { "\n" } else { "" }
+}
 
 /// What an age or a duration counts as in a row over the live daemon,
 /// whose wall clock decides its digits.
@@ -285,9 +323,9 @@ impl<'a> Reader<'a> {
     /// The bytes of `text` a reader was sent, each value the machine or
     /// the clock decides counted as its placeholder.
     fn counted(&self, text: &str) -> usize {
-        let text = text.replace(self.base.to_str().unwrap_or_default(), SCRATCH);
+        let text = pathless(text, self.base.to_str().unwrap_or_default());
         if self.live {
-            timeless(&text).len()
+            timeless(&as_drawn(&text)).len()
         } else {
             text.len()
         }
@@ -1569,6 +1607,32 @@ fn a_missed_count_says_the_league_and_count_it_got() {
         assert_eq!(league_count(Door::Cli, &cli), want);
         assert_eq!(league_count(Door::Mcp, &mcp), want);
     }
+}
+
+/// A path under the scratch directory counts the same bytes whatever the
+/// platform's separators and however JSON escapes them.
+#[test]
+fn a_scratch_path_counts_the_same_bytes_on_every_platform() {
+    let (unix, windows) = ("/tmp/acq-counted-1", r"D:\a\acq-counted-1");
+    let json = |path: &str| format!("{{{}:{}}}", r#""path""#, json!(path));
+    let one = json(&format!("{unix}/store/mock/Alice_1234.db"));
+    let other = json(&format!(r"{windows}\store\mock\Alice_1234.db"));
+    assert_eq!(pathless(&one, unix), pathless(&other, windows));
+    let text = |base: &str, sep: &str| format!("{base}{sep}store{sep}mock{sep}A.db  (0.1 MB)");
+    assert_eq!(
+        pathless(&text(unix, "/"), unix),
+        pathless(&text(windows, r"\"), windows)
+    );
+}
+
+/// A job's progress lines a later one supersedes count nothing: an apply
+/// that printed one more on a slower machine counts the same bytes.
+#[test]
+fn a_superseded_progress_line_counts_nothing() {
+    let done = "job 2 (ExileTester): 2/2 done; submitted 0s ago\njob 2 done: 2 requests\n";
+    let slower = format!("job 2 (ExileTester): 0/2 done, 2 waiting\n{done}");
+    assert_eq!(as_drawn(&slower), done);
+    assert_eq!(as_drawn(done), done);
 }
 
 /// An age or a duration the clock decides counts the same bytes whatever
