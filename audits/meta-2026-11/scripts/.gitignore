@@ -1,0 +1,6 @@
+# Intermediate files the scripts write beside themselves: derived from
+# private session transcripts, never committed.
+*.json
+*.jsonl
+*.txt
+__pycache__/
