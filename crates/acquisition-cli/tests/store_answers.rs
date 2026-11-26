@@ -463,9 +463,11 @@ fn c149_every_json_answer_the_step_wrapped_is_one_object() {
 /// what the world holds — the three accounts, the realms and leagues, the
 /// never-fetched tab, both prices, the saved search and the policy's
 /// league held nowhere; the hostile tab name and note come back as
-/// written. A leaf that needs a daemon (a fetch, `auth check`), writes
-/// (a set, a clear, `store rebuild`), serves (`web`) or answers nothing of
-/// the store (`version`, `reference currency`) is not read here.
+/// written. A leaf that needs a daemon (a fetch, `auth check`, `dash`),
+/// writes (a set, a clear, `store rebuild`), serves (`web`) or reads
+/// nothing the world wrote (`version`, `reference currency`, `jobs` and
+/// `daemon status`, which read only a daemon's queue and rails) is not
+/// read here.
 #[test]
 fn every_read_leaf_answers_over_the_seeded_world_with_no_daemon() {
     use harness::seeded::{
@@ -485,6 +487,15 @@ fn every_read_leaf_answers_over_the_seeded_world_with_no_daemon() {
     let price_item = format!("item/{PRICED_ITEM}");
     let reads: Vec<(Vec<&str>, Vec<&str>)> = vec![
         (vec!["accounts"], vec![ALICE, BOB, CAROL]),
+        (
+            vec!["auth", "status"],
+            vec![ALICE, BOB, CAROL, "not persisted"],
+        ),
+        // names are redacted, a tab's name is kept
+        (
+            as_(ALICE, &["diagnose"]),
+            vec!["responses 15 ", HOSTILE_TAB_NAME],
+        ),
         (
             as_(ALICE, &["leagues", "--stored"]),
             vec![

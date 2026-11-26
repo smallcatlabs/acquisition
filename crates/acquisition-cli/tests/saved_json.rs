@@ -123,7 +123,12 @@ fn id_named(base: &Path, name: &str) -> String {
 fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
     let scratch = harness::scratch("saved");
     let base = scratch.0.clone();
-    let mock = world(&base);
+    // the life rings' tabs never fetched, so the site search's zero
+    // answer, and what it offers, is read where it is asked
+    let mock = crate::price_json::world()
+        .without_saved()
+        .unfetched(&["t1", "t2"])
+        .write(&base, harness::now());
     let mut t = Transcript::offline(&base);
     t.run(
         &["saved"],

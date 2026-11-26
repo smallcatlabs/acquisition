@@ -72,8 +72,7 @@ pub const SAVED_TEXT: &str = "line(template:life arg1>=90)";
 
 /// An instant to write the world at when a test then records facts of
 /// its own at fixed instants after it (40, 50 …), so that its records are
-/// the newer fetches: the instant the search tests' worlds were written
-/// at before this table.
+/// the newer fetches.
 pub const EARLY: i64 = 30;
 
 /// Counts the world decides, read by both doors. Alice's pc Standard
@@ -84,6 +83,10 @@ pub const ALICE_PC_STANDARD_ITEMS: usize = 10;
 /// its substash, the three search tabs (one never fetched) and the
 /// character.
 pub const ALICE_PC_STANDARD_CONTAINERS: usize = 8;
+/// What the site search of explicit life summing to 70 or more
+/// (`sum(line("# to maximum Life" source=explicit).arg1)>=70`) matches in
+/// Alice's pc Standard: `r1` (95), `r2` (75 explicit) and `kaom` (500).
+pub const EXPLICIT_LIFE_70: usize = 3;
 /// Bob's items, all in one pc Standard tab.
 pub const BOB_ITEMS: usize = 3;
 
@@ -210,14 +213,6 @@ impl Seeded {
         Seeded::owner().alone(ALICE).scopes(&[(PC, STANDARD)])
     }
 
-    /// [`Seeded::home`] with Bob beside Alice, in pc Standard alone: two
-    /// accounts, so a request naming none is ambiguous.
-    pub fn home_and_bob() -> Seeded {
-        Seeded::owner()
-            .accounts(&[ALICE, BOB])
-            .scopes(&[(PC, STANDARD)])
-    }
-
     /// What this table holds beyond `written`, a table already on disk:
     /// the responses `written` lacks, of the accounts that have any, with
     /// no intent and no saved search. Written after `written`, it brings
@@ -279,6 +274,17 @@ impl Seeded {
                 }
                 Endpoint::Leagues | Endpoint::Profile => true,
             });
+        }
+        self
+    }
+
+    /// The tabs named listed and never fetched: their fetches dropped, on
+    /// every account.
+    pub fn unfetched(mut self, tabs: &[&str]) -> Seeded {
+        for a in &mut self.accounts {
+            a.responses.retain(
+                |r| !matches!(&r.endpoint, Endpoint::Stash { id, .. } if tabs.contains(&id.as_str())),
+            );
         }
         self
     }

@@ -14,7 +14,9 @@ use crate::harness;
 use std::path::{Path, PathBuf};
 
 use acquisition_store::{Endpoint, Store, account_path};
-use harness::seeded::{ALICE, ALICE_PC_STANDARD_ITEMS, EARLY, Seeded};
+use harness::seeded::{
+    ALICE, ALICE_PC_STANDARD_ITEMS, BOB, EARLY, EXPLICIT_LIFE_70, PC, STANDARD, Seeded,
+};
 use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared};
 use harness::{Scratch, scratch};
 use serde_json::{Value, json};
@@ -88,7 +90,9 @@ pub(crate) fn written(base: &Path) -> PathBuf {
 /// [`written`] and Bob, a second account with items of his own, added to
 /// the store `written` wrote.
 pub(crate) fn add_bob(base: &Path) {
-    Seeded::home_and_bob()
+    Seeded::owner()
+        .accounts(&[ALICE, BOB])
+        .scopes(&[(PC, STANDARD)])
         .beyond(&Seeded::home())
         .write(&base.join("store"), EARLY);
 }
@@ -748,7 +752,7 @@ fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
     let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
     let (first, refused) = seat.search(&json!({ "query": { "trade": url } }));
     assert!(!refused, "{first}");
-    assert_eq!(first["total"]["matched"], 3);
+    assert_eq!(first["total"]["matched"], EXPLICIT_LIFE_70);
     // the link back to the site is the report's, handed on whole (C195)
     let link = &first["query"]["trade"]["link"];
     assert!(

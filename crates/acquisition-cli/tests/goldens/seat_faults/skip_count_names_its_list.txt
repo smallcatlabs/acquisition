@@ -3,8 +3,8 @@
 $ acq price status
 # holds "3 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text skip` lists them)"
 --- stdout
-13 items in Standard: 4 the game decides, 1 decided by hand, 8 nothing applies
-facts: 7 locations, 6 fetched (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / ~price 3 chaos); stash listing <age> ago, characters listed <age> ago
+7 items in Standard: 4 the game decides, 1 decided by hand, 2 nothing applies
+facts: 7 locations, 4 fetched (fetched <age> ago, pc · Standard / ~price 3 chaos); stash listing <age> ago, characters listed <age> ago
 leagues: Standard (this); none other
 sides: 5 priced by hand (0 by hand alone, 4 agree with the game's price, 1 conflict with it); 2 priced in game
 1 item carries price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text residue` lists them

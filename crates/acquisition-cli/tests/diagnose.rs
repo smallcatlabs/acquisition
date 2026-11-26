@@ -13,14 +13,14 @@ use acquisition_store::world::World;
 use serde_json::json;
 
 use crate::harness;
-use harness::seeded::{ALICE, ALICE_UUID, Seeded};
+use harness::seeded::{CAROL, CAROL_UUID, Seeded};
 
 use harness::{Transcript, acq, golden, no_daemon_appeared, sole_json};
 
 /// What the test plants: the account's name and uuid in the index, the
 /// store file's name and the log, and five tokens in the log.
-const USER: &str = ALICE;
-const UUID: &str = ALICE_UUID;
+const USER: &str = CAROL;
+const UUID: &str = CAROL_UUID;
 const TOKEN: &str = "sentinel-code-7f3a";
 /// Two more token shapes: a quoted value after `=`, and a JSON body's
 /// spacing.
@@ -30,8 +30,9 @@ const SPACED: &str = "sentinel-code-q2";
 const TABBED: &str = "sentinel-code-t1";
 const TABBED_BEARER: &str = "sentinel-bearer-t2";
 
-/// The seeded world's owner alone (her facts, her intent, the saved
-/// search), and the log and journal a last daemon of this world would
+/// The seeded world's account that only logged in, alone: its profile on
+/// record and no location, so the store section says what an empty
+/// store's facts are; and the log and journal a last daemon of this world would
 /// have left under the isolation's log directory: two sends of two
 /// accounts and a torn last line.
 fn seed(base: &Path) {
@@ -93,8 +94,9 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
             "Replaced before printing: 7 occurrences of account names and uuids",
             "5 occurrences of token-shaped strings",
             "== daemon\ndaemon is not running; no queue on disk\nlast log: <logs>",
-            // the owner's profile, league list and thirteen fetches
-            "responses 15 ",
+            // the profile alone
+            "responses 1 ",
+            "facts: no locations; no location list seen",
             "holds\nnothing: no block mark, no trip, no account's refresh disabled",
             "== journal: the last 3 lines of <logs>/mock/sends.jsonl (the world's)",
             "\"route\":\"stash@<account 1>\"",

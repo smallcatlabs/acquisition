@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 use crate::harness;
 use harness::seeded::{
-    ALICE, ALICE_PC_STANDARD_ITEMS, ALICE_UUID, EARLY, PC, POE2, STANDARD, Seeded,
+    ALICE, ALICE_PC_STANDARD_ITEMS, ALICE_UUID, EARLY, EXPLICIT_LIFE_70, PC, POE2, STANDARD, Seeded,
 };
 
 use harness::{Transcript, golden, offline_acq as acq, offline_command as command, sole_json};
@@ -2628,7 +2628,7 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
     let answer = sole_json(&acq(&base, &["--json", "search", "--trade", &url]));
     assert_eq!(answer["query"]["text"], TRADE_TEXT);
     assert_eq!(answer["scope"]["realm"], "pc");
-    assert_eq!(answer["total"]["matched"], 3);
+    assert_eq!(answer["total"]["matched"], EXPLICIT_LIFE_70);
     let trade = &answer["query"]["trade"];
     assert_eq!(trade["source"], "url");
     assert_eq!(trade["fidelity"], "partial");
@@ -2770,7 +2770,7 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
         by_id["query"]["text"],
         r##"sum(line("# to maximum Life" source=explicit).arg1)>=70"##
     );
-    assert_eq!(by_id["total"]["matched"], 3);
+    assert_eq!(by_id["total"]["matched"], EXPLICIT_LIFE_70);
 
     let file = base.join("request.json");
     std::fs::write(

@@ -2275,10 +2275,13 @@ fn cli13_a_counts_heading_counts_every_line_it_prints() {
 fn cli10_the_skip_count_names_the_list_that_holds_them() {
     let scratch = harness::scratch("seat-skip-route");
     let base = scratch.0.clone();
-    // the refetch shares the seed's time: two seconds would print the
-    // facts line's two-time form
+    // the refetch shares the seed's time, and the search tabs, fetched
+    // earlier, are left unfetched: two times would print the facts line's
+    // two-time form
     let at = harness::now();
-    let mock = crate::price_json::world().write(&base, at);
+    let mock = crate::price_json::world()
+        .unfetched(&["t1", "t2"])
+        .write(&base, at);
     // the public tab refetched with three `~skip` notes beside its two
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     let orb = |id: &str, note: Option<&str>| {
