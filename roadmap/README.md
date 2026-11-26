@@ -14,10 +14,9 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/whole-review-2026-11/NEXT.md`, run as
   `audits/meta-2026-11/README.md` amends it; its closes are
   `git log --grep='^Step: next-'`). Its first series is the owner's
-  yes of 2026-11-25: A3 (the send gate's fault and its search) is
-  closed; A1 (one seeded world, one command) is built and reviewed,
-  its close next; A2 (tasks counted through both doors,
-  `briefs/next-a2.md`) builds after it.
+  yes of 2026-11-25: A1 (one seeded world, one command) and A3 (the
+  send gate's fault and its search) are closed; A2 (tasks counted
+  through both doors, `briefs/next-a2.md`) is building.
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
   (`git log --grep='^Step: cut-293'`). #293 stays open.
@@ -42,9 +41,9 @@ when its step closes or the owner strikes it.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
-3. The test-shape group's t6, one canonical mock world and the door's
-   corpus (#142), designed from the GUI's door; t7 (#143) only if t6
-   shows the shape pays.
+3. The rest of the test-shape group's t6 (#142): its world is built
+   (`Step: next-a1`); the seeds not yet read from it and the door's
+   corpus remain. t7 (#143) only if t6 shows the shape pays.
 4. The queued search and trade issues. First #316 (a weighted sum of
    pseudo totals, ruled to be built), designed with #46, since both
    ask what values the language has and how they combine. Then #283
