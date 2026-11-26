@@ -6,6 +6,7 @@
 
 mod harness;
 
+mod counted_tasks;
 mod daemon_status;
 mod ggg_refusal;
 mod journey;

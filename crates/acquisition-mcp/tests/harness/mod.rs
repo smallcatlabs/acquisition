@@ -173,6 +173,9 @@ pub struct Mcp {
     pub instructions: String,
     /// The `initialize` result, as sent.
     pub initialize: Value,
+    /// The bytes of the `initialize` answer as received: what a reader's
+    /// first turn reads before `tools/list`.
+    pub initialize_bytes: usize,
 }
 
 impl Drop for Mcp {
@@ -210,8 +213,9 @@ impl Mcp {
             next_id: 0,
             instructions: String::new(),
             initialize: Value::Null,
+            initialize_bytes: 0,
         };
-        let init = mcp.rpc(
+        let (init, bytes) = mcp.exchange(
             "initialize",
             json!({
                 "protocolVersion": "2025-06-18",
@@ -220,6 +224,7 @@ impl Mcp {
             }),
         );
         assert!(init.get("result").is_some(), "initialize failed: {init}");
+        mcp.initialize_bytes = bytes;
         mcp.instructions = init["result"]["instructions"]
             .as_str()
             .unwrap_or_default()
@@ -273,6 +278,13 @@ impl Mcp {
     }
 
     fn rpc(&mut self, method: &str, params: Value) -> Value {
+        self.exchange(method, params).0
+    }
+
+    /// One JSON-RPC request and the message answering it, beside the bytes
+    /// of that answer's line as received: what a reader was sent (the
+    /// counted tasks, `counted_tasks.rs`).
+    pub fn exchange(&mut self, method: &str, params: Value) -> (Value, usize) {
         self.next_id += 1;
         let id = self.next_id;
         self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }));
@@ -285,7 +297,7 @@ impl Mcp {
             let msg: Value = serde_json::from_str(&line)
                 .unwrap_or_else(|e| panic!("not JSON-RPC ({e}): {line}"));
             if msg["id"] == json!(id) {
-                return msg;
+                return (msg, line.len());
             }
         }
     }
