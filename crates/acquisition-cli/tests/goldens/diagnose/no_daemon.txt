@@ -4,7 +4,7 @@ $ acq diagnose
 # holds "Replaced before printing: 7 occurrences of account names and uuids"
 # holds "5 occurrences of token-shaped strings"
 # holds "== daemon\ndaemon is not running; no queue on disk\nlast log: <logs>"
-# holds "responses 1"
+# holds "responses 15 "
 # holds "holds\nnothing: no block mark, no trip, no account's refresh disabled"
 # holds "== journal: the last 3 lines of <logs>/mock/sends.jsonl (the world's)"
 # holds "\"route\":\"stash@<account 1>\""
@@ -29,8 +29,8 @@ last log: <logs>/mock/daemon.log
 
 == store
 <store>/mock/<account 1>.db  (0.1 MB)
-responses 1  league ids seen across every league fetch: 0 (never fetched: `acq leagues`)  characters 0  tabs 0 (every realm and league)  items 0 (+0 removed)  events 0
-facts: no locations; no location list seen
+responses 15  league ids seen across every league fetch: 3 (the latest fetch: 4 leagues, <age> ago)  characters 1  tabs 9 (every realm and league)  items 13 (+1 removed)  events 15
+facts: 9 locations, 8 fetched (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Hardcore / <script>alert("tab")</script> & <b>"Loot"</b>); location lists seen, the oldest <age> ago
 
 == rails
 no daemon of this client's runs; the world's rails file (<store>/mock/rails.json) holds

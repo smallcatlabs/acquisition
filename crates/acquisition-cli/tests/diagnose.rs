@@ -8,18 +8,19 @@
 
 use std::path::Path;
 
+use acquisition_store::account_path;
 use acquisition_store::world::World;
-use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::json;
 
 use crate::harness;
+use harness::seeded::{ALICE, ALICE_UUID, Seeded};
 
 use harness::{Transcript, acq, golden, no_daemon_appeared, sole_json};
 
 /// What the test plants: the account's name and uuid in the index, the
 /// store file's name and the log, and five tokens in the log.
-const USER: &str = "Alice#1234";
-const UUID: &str = "u-diagnose-cli";
+const USER: &str = ALICE;
+const UUID: &str = ALICE_UUID;
 const TOKEN: &str = "sentinel-code-7f3a";
 /// Two more token shapes: a quoted value after `=`, and a JSON body's
 /// spacing.
@@ -29,27 +30,15 @@ const SPACED: &str = "sentinel-code-q2";
 const TABBED: &str = "sentinel-code-t1";
 const TABBED_BEARER: &str = "sentinel-bearer-t2";
 
-/// One account with its profile on record, and the log and journal a
-/// last daemon of this world would have left under the isolation's log
-/// directory: two sends of two accounts and a torn last line.
+/// The seeded world's owner alone (her facts, her intent, the saved
+/// search), and the log and journal a last daemon of this world would
+/// have left under the isolation's log directory: two sends of two
+/// accounts and a torn last line.
 fn seed(base: &Path) {
-    let mock = base.join("store").join("mock");
-    std::fs::create_dir_all(&mock).unwrap();
-    Index::load(&mock)
-        .unwrap()
-        .record_login(USER, UUID, false, 1_000, &[])
-        .unwrap();
+    let mock = Seeded::owner()
+        .alone(USER)
+        .write(&base.join("store"), 1_000);
     let store_file = account_path(&mock, USER);
-    Store::open(&store_file)
-        .unwrap()
-        .record(
-            &Endpoint::Profile,
-            &json!({}),
-            200,
-            &json!({ "uuid": UUID, "name": USER }),
-            1_000,
-        )
-        .unwrap();
     let world = World::observe_at(&base.join("store")).unwrap();
     let logs = base.join("logs").join(world.id()).join("mock");
     std::fs::create_dir_all(&logs).unwrap();
@@ -104,7 +93,8 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
             "Replaced before printing: 7 occurrences of account names and uuids",
             "5 occurrences of token-shaped strings",
             "== daemon\ndaemon is not running; no queue on disk\nlast log: <logs>",
-            "responses 1",
+            // the owner's profile, league list and thirteen fetches
+            "responses 15 ",
             "holds\nnothing: no block mark, no trip, no account's refresh disabled",
             "== journal: the last 3 lines of <logs>/mock/sends.jsonl (the world's)",
             "\"route\":\"stash@<account 1>\"",

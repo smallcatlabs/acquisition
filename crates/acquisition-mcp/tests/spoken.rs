@@ -19,81 +19,16 @@ use crate::harness;
 
 use std::path::Path;
 
-use acquisition_store::{Endpoint, Index, Store, account_path};
+use harness::seeded::{ALICE, GONE_TAB, Seeded};
 use harness::{Mcp, scratch};
 use serde_json::{Value, json};
 
-const USER: &str = "Alice#1234";
-
-/// One account with a public tab of one item in pc's Standard and a tab
-/// of one item in poe2's, so a search naming no realm is refused; and a
-/// tab, `t-gone`, fetched and then left out of pc's listing, so it is no
-/// longer in the account and `show` of its id is refused as no item.
+/// The seeded world, whole: three accounts, Alice's two realms, so a
+/// search naming her and no realm is refused; and in her pc Hardcore a
+/// tab fetched and then left out of the listing, so it is no longer in
+/// the account and `show` of its id is refused as no item.
 pub(crate) fn seed(base: &Path) {
-    let dir = base.join("store").join("mock");
-    std::fs::create_dir_all(&dir).unwrap();
-    Index::load(&dir)
-        .unwrap()
-        .record_login(USER, "u-spoken", false, 1, &[])
-        .unwrap();
-    let mut store = Store::open(&account_path(&dir, USER)).unwrap();
-    store
-        .record(
-            &Endpoint::Profile,
-            &json!({}),
-            200,
-            &json!({ "uuid": "u-spoken", "name": USER }),
-            1,
-        )
-        .unwrap();
-    let gone = json!({ "id": "i-gone", "name": "", "typeLine": "Chaos Orb",
-                       "baseType": "Chaos Orb", "x": 0, "y": 0, "stackSize": 1 });
-    store
-        .record(
-            &Endpoint::Stash {
-                realm: "pc".into(),
-                league: "Standard".into(),
-                id: "t-gone".into(),
-                sub: None,
-            },
-            &json!({ "realm": "pc", "league": "Standard" }),
-            200,
-            &json!({ "stash": { "id": "t-gone", "name": "Old", "type": "PremiumStash",
-                                 "items": [gone] } }),
-            5,
-        )
-        .unwrap();
-    store
-        .record(
-            &Endpoint::Stashes {
-                realm: "pc".into(),
-                league: "Standard".into(),
-            },
-            &json!({ "realm": "pc", "league": "Standard" }),
-            200,
-            &json!({ "stashes": [ { "id": "t-pc", "name": "Sale", "type": "PremiumStash" } ] }),
-            8,
-        )
-        .unwrap();
-    for realm in ["pc", "poe2"] {
-        let item = json!({ "id": format!("i-{realm}"), "name": "", "typeLine": "Chaos Orb",
-                           "baseType": "Chaos Orb", "x": 0, "y": 0, "stackSize": 5 });
-        store
-            .record(
-                &Endpoint::Stash {
-                    realm: realm.into(),
-                    league: "Standard".into(),
-                    id: format!("t-{realm}"),
-                    sub: None,
-                },
-                &json!({ "realm": realm, "league": "Standard" }),
-                200,
-                &json!({ "stash": { "id": format!("t-{realm}"), "name": "Sale",
-                                     "type": "PremiumStash", "items": [item] } }),
-                10,
-            )
-            .unwrap();
-    }
+    Seeded::owner().write(&base.join("store"), harness::now());
 }
 
 /// Every shape below is read whole, every string not payload, and none
@@ -111,21 +46,29 @@ fn every_text_the_server_sends_speaks_its_own_words() {
         // facts lack
         ("describe", json!({}), false),
         ("describe", json!({ "names": ["all"] }), false),
-        ("search", json!({}), true),
-        ("shop_render", json!({ "realm": "pc" }), false),
+        ("search", json!({ "scope": { "account": ALICE } }), true),
+        (
+            "shop_render",
+            json!({ "realm": "pc", "account": ALICE }),
+            false,
+        ),
         ("tabs", json!({ "account": "Alicia#1234" }), true),
-        ("price_show", json!({ "target": "tab/pc/ffffffffff" }), true),
+        (
+            "price_show",
+            json!({ "target": "tab/pc/ffffffffff", "account": ALICE }),
+            true,
+        ),
         // and two more: a name describe does not know lists every name,
         // the flags among them; a clear of a row there is not
         ("describe", json!({ "names": ["nonsense"] }), true),
         (
             "price_clear",
-            json!({ "target": "tab/pc/t-pc", "if_revision": 1 }),
+            json!({ "target": "tab/pc/t1", "if_revision": 1, "account": ALICE }),
             true,
         ),
         // a tab no longer in the account, shown, is no
         // item, and its reading is a search under `--membership all`
-        ("show", json!({ "id": "t-gone" }), true),
+        ("show", json!({ "id": GONE_TAB, "account": ALICE }), true),
     ] {
         let result = mcp.result(tool, args.clone());
         assert_eq!(result["isError"], json!(refused), "{tool} {args}: {result}");
@@ -156,7 +99,10 @@ fn a_refusals_offer_sent_back_as_printed_is_answered() {
     seed(&dir.0);
     let mut mcp = Mcp::start(&dir.0, &[]);
     let text = "name:\"acq search --count\"";
-    let result = mcp.result("search", json!({ "query": { "text": text } }));
+    let result = mcp.result(
+        "search",
+        json!({ "scope": { "account": ALICE }, "query": { "text": text } }),
+    );
     assert_eq!(result["isError"], json!(true), "{result}");
     let refusal = &harness::document(&result);
     assert_eq!(refusal["kind"], "realm_needed", "{refusal}");
