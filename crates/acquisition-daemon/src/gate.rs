@@ -20,8 +20,14 @@
 //!   active job task per scheduling key to preserve priority and FIFO, and
 //!   has no global job-task cap; auth and pacing waits therefore cannot
 //!   block progress on independent keys.
+//!
+//!   Whether a policy is busy is read from the live permits, never kept
+//!   beside them. A route that learns its policy's name can join two live
+//!   permits on one policy; those sends are out and cannot be recalled, and
+//!   no new permit is granted on that policy until every live one naming it
+//!   is dropped.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::oneshot;
@@ -44,7 +50,6 @@ struct State {
     next_id: u64,
     waiters: VecDeque<Waiter>,
     active: HashMap<u64, Active>,
-    active_policies: HashSet<String>,
 }
 
 #[derive(Debug)]
@@ -107,11 +112,6 @@ impl SendGate {
             return;
         }
         let mut state = self.inner.state.lock().unwrap();
-        let active = state.active_policies.remove(route);
-        if active {
-            let inserted = state.active_policies.insert(policy.to_string());
-            debug_assert!(inserted, "learned policy must not already be active");
-        }
         for active in state.active.values_mut() {
             if let Kind::Ordinary { policy: key } = &mut active.kind
                 && key == route
@@ -199,11 +199,8 @@ impl Inner {
         let mut state = self.state.lock().unwrap();
         if let Some(position) = state.waiters.iter().position(|waiter| waiter.id == id) {
             state.waiters.remove(position);
-        } else if let Some(active) = state.active.remove(&id)
-            && let Kind::Ordinary { policy } = active.kind
-        {
-            let removed = state.active_policies.remove(&policy);
-            debug_assert!(removed, "active policy must accompany its permit");
+        } else {
+            state.active.remove(&id);
         }
         state.grant_waiters();
     }
@@ -232,13 +229,21 @@ impl State {
             }
 
             let Some(reader) = self.waiters.iter().position(|waiter| match &waiter.kind {
-                Kind::Ordinary { policy } => !self.active_policies.contains(policy),
+                Kind::Ordinary { policy } => !self.policy_is_live(policy),
                 Kind::Head => unreachable!("writers were handled above"),
             }) else {
                 return;
             };
             self.grant(reader);
         }
+    }
+
+    /// Whether a live permit names `policy`: read from the permits
+    /// themselves, which the cap keeps to [`MAX_ACTUAL_SENDS`].
+    fn policy_is_live(&self, policy: &str) -> bool {
+        self.active
+            .values()
+            .any(|active| matches!(&active.kind, Kind::Ordinary { policy: live } if live == policy))
     }
 
     fn grant(&mut self, position: usize) {
@@ -251,14 +256,14 @@ impl State {
             return;
         }
 
-        if let Kind::Ordinary { policy } = &kind {
-            let inserted = self.active_policies.insert(policy.clone());
-            debug_assert!(inserted, "a policy cannot receive two live permits");
-        }
         let replaced = self.active.insert(waiter.id, Active { kind });
         debug_assert!(replaced.is_none(), "waiter IDs are unique");
     }
 }
+
+#[cfg(test)]
+#[path = "gate/tests/explore.rs"]
+mod explore;
 
 #[cfg(test)]
 mod tests {
