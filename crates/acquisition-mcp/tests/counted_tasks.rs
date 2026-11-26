@@ -19,12 +19,12 @@
 //!   value, each word of a query) occurs in the task's own words, the
 //!   first turn, or what the row was sent before that call; one that does
 //!   not fails the test, naming it. Reading help is a call.
-//! - A row ends at the first answer, not refused, to a call that asks her
-//!   question. It goes on past a refusal: by the refusal's offer, as
-//!   printed, where it offers a way on (the reader fails a next call that
-//!   takes none), else by the plainest guess. A call before the end is
-//!   there only to get a word a later call needs. No row ends on a
-//!   refusal (the reader fails one that does).
+//! - A script is only the calls she would try, in order; the reader ends
+//!   the row (the stop rule below). It goes on past a refusal by the
+//!   refusal's offer, as printed, where it offers a way on (the reader
+//!   fails a next call that takes none), else by the plainest guess. No
+//!   row ends on a refusal, and a script with calls left after its row
+//!   ended fails.
 //! - Where a reader would guess, the script takes the plainest guess and
 //!   says so. She reads a verb's help when the first turn did not give her
 //!   what the call needs, calls a verb bare when it did, and keeps an
@@ -36,13 +36,15 @@
 //!   are rounded up to two significant figures. A job's polls are
 //!   neither calls nor bytes: the golden says only whether there were
 //!   any.
-//! - A wanted fact is a value said of a subject: in the CLI's text, the
-//!   subject's own row and its lines under their section; in the MCP's
-//!   document, the subject's own entry with the keys above it. Each is
-//!   checked against every answer the row was sent, and the golden says
-//!   `reached` when one answer holds them all, `reached over N answers`
-//!   when they came across several (N the fewest that together hold
-//!   them), or what was missed and what came instead.
+//! - A wanted fact is a subject, what is asked of it, and the value
+//!   wanted. An answer speaks of a fact when the subject's own row (the
+//!   CLI's text) or entry (the MCP's document) carries what is asked,
+//!   whatever its value. The row ends at the first answer, not refused,
+//!   after which every fact has been spoken of, and each value is judged
+//!   from the latest answer that spoke of it: `reached` when one answer
+//!   holds them all, `reached over N answers` when N did, else what was
+//!   missed and what came instead; a script that runs out first is
+//!   missed.
 //!
 //! The seeded tasks run over the seeded world (`harness::seeded`) with no
 //! daemon, and hold that none appeared; the refresh runs over the mock,
@@ -123,6 +125,9 @@ struct Reader<'a> {
     answers: Vec<Answer>,
     owed: Option<Owed>,
     polled: bool,
+    /// The facts the row wants, and the latest answer that spoke of each.
+    wanted: Vec<Fact>,
+    spoken: Vec<Option<usize>>,
 }
 
 /// The words of a text, as the rule reads them: split at anything but a
@@ -232,6 +237,8 @@ impl<'a> Reader<'a> {
             answers: Vec::new(),
             owed: None,
             polled: false,
+            wanted: Vec::new(),
+            spoken: Vec::new(),
         };
         reader.learn(&format!("{} {} {ALICE}", task.asks, task.knows));
         if door == Door::Mcp {
@@ -242,6 +249,20 @@ impl<'a> Reader<'a> {
 
     fn learn(&mut self, text: &str) {
         self.known.extend(words(text).map(str::to_string));
+    }
+
+    /// Whether the row has ended: every wanted fact spoken of.
+    fn done(&self) -> bool {
+        !self.wanted.is_empty() && self.spoken.iter().all(Option::is_some)
+    }
+
+    /// Fail a call the script makes after its row ended.
+    fn calling(&self, shown: &str) {
+        assert!(
+            !self.done(),
+            "{} `{shown}` is a call left after its row ended",
+            self.door.name()
+        );
     }
 
     fn last(&self) -> &Answer {
@@ -279,6 +300,14 @@ impl<'a> Reader<'a> {
             bytes,
         });
         self.answers.push(answer);
+        if !refused {
+            let at = self.answers.len() - 1;
+            for (fact, spoken) in self.wanted.iter().zip(&mut self.spoken) {
+                if fact.spoken_by(self.door, &self.answers[at]) {
+                    *spoken = Some(at);
+                }
+            }
+        }
     }
 
     /// The first turn, counted as a call of its own row and learnt.
@@ -323,6 +352,7 @@ impl<'a> Reader<'a> {
     fn acq(&mut self, args: &[&str]) {
         assert!(self.door == Door::Cli, "acq from the mcp door");
         let shown = printed(args);
+        self.calling(&shown);
         let said: Vec<String> = args
             .iter()
             .flat_map(|a| words(a).map(str::to_string))
@@ -361,6 +391,7 @@ impl<'a> Reader<'a> {
     /// door minted in this row, named by where it came from.
     fn tool_shown(&mut self, name: &str, args: Value, shown: String) -> &Value {
         assert!(self.door == Door::Mcp, "a tool from the cli door");
+        self.calling(&shown);
         let mut said: Vec<String> = words(name).map(str::to_string).collect();
         json_words(&args, &mut said);
         self.check(&shown, &said);
@@ -433,23 +464,24 @@ impl<'a> Reader<'a> {
 /// What a fact is said of.
 #[derive(Clone)]
 enum Subject {
-    /// An item, a tab or a league named, or an id: in the CLI's text the
-    /// row that names it, with its lines and its section's label; in the
-    /// MCP's document the list entry holding a field that is exactly it,
-    /// with the keys above it, or the whole document where it is in no
-    /// list.
+    /// An item, a tab, a league or a target named, or an id: in the CLI's
+    /// text the row that names it, with its indented lines and its
+    /// section's label, or the whole answer when its first line opens
+    /// with it; in the MCP's document the list entry holding a field that
+    /// is exactly it, with the keys above it, or the whole document where
+    /// it is in no list.
     Named(String),
-    /// A section of the answer: the CLI's label, the MCP's key.
-    Part(&'static str),
-    /// The answer as a whole: what a one-subject answer says.
+    /// The answer as a whole.
     Whole,
 }
 
-/// One door's reading of a fact: where it is said, and the values that
-/// must all be said there.
+/// One door's reading of a fact: where it is said, what is asked of it
+/// (any of `asked`, whatever its value; none asked, the value itself),
+/// and the value wanted (every one of `values`).
 #[derive(Clone)]
 struct Side {
     subject: Subject,
+    asked: Vec<String>,
     values: Vec<String>,
 }
 
@@ -462,23 +494,11 @@ struct Fact {
     mcp: Side,
 }
 
-fn named(subject: &str, values: &[String]) -> Side {
+/// A side of a fact: of the subject named, or of the whole answer.
+fn side(subject: Option<&str>, asked: &[&str], values: &[String]) -> Side {
     Side {
-        subject: Subject::Named(subject.to_string()),
-        values: values.to_vec(),
-    }
-}
-
-fn part(subject: &'static str, values: &[String]) -> Side {
-    Side {
-        subject: Subject::Part(subject),
-        values: values.to_vec(),
-    }
-}
-
-fn whole(values: &[String]) -> Side {
-    Side {
-        subject: Subject::Whole,
+        subject: subject.map_or(Subject::Whole, |s| Subject::Named(s.to_string())),
+        asked: asked.iter().map(|a| a.to_string()).collect(),
         values: values.to_vec(),
     }
 }
@@ -519,21 +539,8 @@ fn section<'t>(lines: &[&'t str], at: usize) -> &'t str {
 /// Where a door's answer says things of `subject`, each as one text.
 fn contexts(door: Door, subject: &Subject, answer: &Answer) -> Vec<String> {
     match (door, subject) {
-        (_, Subject::Whole) => vec![match door {
-            Door::Cli => answer.text.clone(),
-            Door::Mcp => answer.doc.to_string(),
-        }],
-        (Door::Cli, Subject::Part(label)) => {
-            let lines: Vec<&str> = answer.text.lines().collect();
-            let held: Vec<&str> = (0..lines.len())
-                .filter(|&i| section(&lines, i) == *label)
-                .map(|i| lines[i])
-                .collect();
-            match held.is_empty() {
-                true => Vec::new(),
-                false => vec![held.join("\n")],
-            }
-        }
+        (Door::Cli, Subject::Whole) => vec![answer.text.clone()],
+        (Door::Mcp, Subject::Whole) => vec![answer.doc.to_string()],
         (Door::Cli, Subject::Named(name)) => {
             let lines: Vec<&str> = answer.text.lines().collect();
             // an answer whose first line opens with the subject is that
@@ -557,32 +564,11 @@ fn contexts(door: Door, subject: &Subject, answer: &Answer) -> Vec<String> {
             }
             out
         }
-        (Door::Mcp, Subject::Part(key)) => {
-            let mut out = Vec::new();
-            under_key(&answer.doc, key, &mut out);
-            out
-        }
         (Door::Mcp, Subject::Named(name)) => {
             let mut out = Vec::new();
             entries_naming(&answer.doc, name, &mut Vec::new(), &answer.doc, &mut out);
             out
         }
-    }
-}
-
-/// Every value under `key`, anywhere in `doc`.
-fn under_key(doc: &Value, key: &str, out: &mut Vec<String>) {
-    match doc {
-        Value::Object(map) => {
-            for (k, v) in map {
-                if k == key {
-                    out.push(format!("{k} {v}"));
-                }
-                under_key(v, key, out);
-            }
-        }
-        Value::Array(items) => items.iter().for_each(|v| under_key(v, key, out)),
-        _ => {}
     }
 }
 
@@ -623,73 +609,46 @@ impl Fact {
         }
     }
 
+    /// Whether the answer speaks of this fact: the subject's own row or
+    /// entry carries what is asked, whatever its value.
+    fn spoken_by(&self, door: Door, answer: &Answer) -> bool {
+        let side = self.side(door);
+        let asked = |c: &String| match side.asked.is_empty() {
+            true => side.values.iter().all(|v| c.contains(v.as_str())),
+            false => side.asked.iter().any(|a| c.contains(a.as_str())),
+        };
+        contexts(door, &side.subject, answer).iter().any(asked)
+    }
+
+    /// Whether the answer says the value wanted of the subject.
     fn held_by(&self, door: Door, answer: &Answer) -> bool {
         let side = self.side(door);
         contexts(door, &side.subject, answer)
             .iter()
             .any(|c| side.values.iter().all(|v| c.contains(v.as_str())))
     }
+}
 
-    /// What came instead, from the answers' own subjects: the subject
-    /// named without the value, or not named at all.
-    fn instead(&self, door: Door, answers: &[Answer]) -> String {
-        let side = self.side(door);
-        let said = answers
-            .iter()
-            .any(|a| !contexts(door, &side.subject, a).is_empty());
-        match (&side.subject, said) {
-            (Subject::Named(name), true) => format!("{name} named without it"),
-            (Subject::Named(name), false) => format!("{name} not named"),
-            (Subject::Part(key), true) => format!("its {key} without it"),
-            (Subject::Part(key), false) => format!("no {key}"),
-            (Subject::Whole, _) => "no answer says it".into(),
+/// The answer column, each fact judged from the latest answer that spoke
+/// of it: `reached` when one answer holds them all, `reached over N
+/// answers` when N did, else each missed fact and what came instead.
+fn judged(reader: &Reader) -> String {
+    let mut by = Vec::new();
+    let mut missed = Vec::new();
+    for (fact, spoken) in reader.wanted.iter().zip(&reader.spoken) {
+        match spoken {
+            Some(at) if fact.held_by(reader.door, &reader.answers[*at]) => by.push(*at),
+            Some(_) => missed.push(format!("{}; got: spoken of otherwise", fact.label)),
+            None => missed.push(format!("{}; got: never spoken of", fact.label)),
         }
     }
-}
-
-/// The answer column: `reached` when one answer holds every fact,
-/// `reached over N answers` when N together do (the fewest), else each
-/// missed fact and what came instead.
-fn reached(task: &Task, door: Door, answers: &[Answer]) -> String {
-    let holders: Vec<u64> = task
-        .wanted
-        .iter()
-        .map(|f| {
-            answers
-                .iter()
-                .enumerate()
-                .filter(|(_, a)| f.held_by(door, a))
-                .fold(0u64, |set, (i, _)| set | 1 << i)
-        })
-        .collect();
-    let missed: Vec<&Fact> = task
-        .wanted
-        .iter()
-        .zip(&holders)
-        .filter(|(_, h)| **h == 0)
-        .map(|(f, _)| f)
-        .collect();
-    if !missed.is_empty() {
-        let missed: Vec<String> = missed
-            .iter()
-            .map(|f| format!("{}; got: {}", f.label, (task.instead)(door, f, answers)))
-            .collect();
-        return format!("missed: {}", missed.join(" | "));
+    by.sort_unstable();
+    by.dedup();
+    match (missed.is_empty(), by.len()) {
+        (false, _) => format!("missed: {}", missed.join(" | ")),
+        (true, 1) => "reached".into(),
+        (true, n) => format!("reached over {n} answers"),
     }
-    let fewest = (1u64..1 << answers.len())
-        .filter(|set| holders.iter().all(|h| h & set != 0))
-        .map(|set| set.count_ones())
-        .min()
-        .unwrap_or(0);
-    match fewest {
-        1 => "reached".into(),
-        n => format!("reached over {n} answers"),
-    }
-}
-
-/// What came instead of a missed fact, by default: from its subject.
-fn instead_of(door: Door, fact: &Fact, answers: &[Answer]) -> String {
-    fact.instead(door, answers)
 }
 
 // ---- the tasks -------------------------------------------------------------
@@ -725,8 +684,6 @@ struct Task {
     knows: &'static str,
     world: World,
     wanted: Vec<Fact>,
-    /// What came instead of a missed fact, said from the answer's fields.
-    instead: fn(Door, &Fact, &[Answer]) -> String,
     cli: fn(&mut Reader),
     mcp: fn(&mut Reader),
 }
@@ -735,59 +692,40 @@ struct Task {
 /// note's item; the tab `t-gone` is left out of the league's listing.
 const HARDCORE_ITEMS: u64 = 1;
 
-/// An item's life total as each door says it of the item.
-fn life_total(name: &str, total: u64) -> Fact {
-    fact(
-        format!("{name}, {total} life"),
-        named(name, &[format!("pseudo.total_life {total}")]),
-        named(
-            name,
-            &[format!("\"name\":\"pseudo.total_life\",\"value\":{total}")],
-        ),
-    )
-}
-
-/// An item's life line as each door says it of the item.
-fn life_line(name: &str, total: u64) -> Fact {
-    let line = format!("+{total} to maximum Life");
-    fact(
-        format!("{name}, {line}"),
-        named(name, std::slice::from_ref(&line)),
-        named(name, &[format!("\"text\":\"{line}\"")]),
-    )
-}
-
-/// The ring whose life total cannot be decided, said so of it.
-/// The MCP names it by its id: an example's name holds its base too.
-fn hex_band_undecided() -> Fact {
-    let undecided = vec!["undecided".to_string()];
-    fact(
-        format!("{HEX_BAND} undecided"),
-        named(HEX_BAND, &undecided),
-        named(HEX_BAND_ID, &undecided),
-    )
-}
-
+/// Task 2's facts, and task 8's: each item's life total, and the ring
+/// whose total cannot be decided, said so of it (the MCP names it by its
+/// id: an example's name holds its base too).
 fn life_90() -> Vec<Fact> {
+    let total = |name: &str, total: u64| {
+        fact(
+            format!("{name}, {total} life"),
+            side(
+                Some(name),
+                &["pseudo.total_life "],
+                &[format!("pseudo.total_life {total}")],
+            ),
+            side(
+                Some(name),
+                &["\"name\":\"pseudo.total_life\""],
+                &[format!("\"name\":\"pseudo.total_life\",\"value\":{total}")],
+            ),
+        )
+    };
+    let undecided = ["undecided".to_string()];
     vec![
-        life_total(DOOM_LOOP, DOOM_LOOP_LIFE),
-        life_total(RUNE_COIL, RUNE_COIL_LIFE),
-        life_total(KAOM, KAOM_LIFE),
-        hex_band_undecided(),
+        total(DOOM_LOOP, DOOM_LOOP_LIFE),
+        total(RUNE_COIL, RUNE_COIL_LIFE),
+        total(KAOM, KAOM_LIFE),
+        fact(
+            format!("{HEX_BAND} undecided"),
+            side(Some(HEX_BAND), &[], &undecided),
+            side(Some(HEX_BAND_ID), &[], &undecided),
+        ),
     ]
 }
 
-/// A league held, with its realm.
-fn league_on(league: &str, realm: &str) -> Fact {
-    fact(
-        format!("{league} on {realm}"),
-        named(league, &[format!("{league} ({realm}")]),
-        named(league, &[format!("\"realm\":\"{realm}\"")]),
-    )
-}
-
-/// The searches that find an item's id by its name, as tasks 5 and 9
-/// make them: the help, the fields, then the name.
+/// The calls that find an item's id by its name, as tasks 5 and 9 make
+/// them: the help, the fields, then the name.
 fn cli_find(r: &mut Reader, query: &str) {
     r.acq(&["search", "--help"]);
     // the help's place to start, which lists `name`
@@ -810,6 +748,30 @@ fn mcp_find(r: &mut Reader, query: &str) {
 
 fn tasks() -> Vec<Task> {
     let s = |v: &str| v.to_string();
+    // a league held, with its realm: the pair is the subject
+    let league_on = |league: &str, realm: &str| {
+        fact(
+            format!("{league} on {realm}"),
+            side(Some(league), &[], &[format!("{league} ({realm}")]),
+            side(Some(league), &[], &[format!("\"realm\":\"{realm}\"")]),
+        )
+    };
+    let life_line = |name: &str, total: u64| {
+        let line = format!("+{total} to maximum Life");
+        fact(
+            format!("{name}, {line}"),
+            side(
+                Some(name),
+                &["to maximum Life"],
+                std::slice::from_ref(&line),
+            ),
+            side(
+                Some(name),
+                &["\"text\":\""],
+                &[format!("\"text\":\"{line}\"")],
+            ),
+        )
+    };
     let sockets_cli = {
         let mut groups: Vec<Vec<&str>> = Vec::new();
         for (group, colour) in KAOM_SOCKETS {
@@ -842,24 +804,37 @@ fn tasks() -> Vec<Task> {
                 league_on(STANDARD, POE2),
                 fact(
                     format!("the tab {NEVER_FETCHED_NAME} never fetched"),
-                    named(NEVER_FETCHED_NAME, &[s("never")]),
-                    named(NEVER_FETCHED_NAME, &[s("\"fetched_at\":null")]),
+                    side(Some(NEVER_FETCHED_NAME), &["never", " ago"], &[s("never")]),
+                    side(
+                        Some(NEVER_FETCHED_NAME),
+                        &["\"fetched_at\":"],
+                        &[s("\"fetched_at\":null")],
+                    ),
                 ),
-                fact("an age", whole(&[s(" ago")]), whole(&[s("_age\":\"")])),
+                fact(
+                    "an age",
+                    side(None, &[], &[s(" ago")]),
+                    side(None, &[], &[s("_age\":\"")]),
+                ),
             ],
-            instead: instead_of,
             cli: |r| {
-                // the first turn's line for what the store holds:
-                // `leagues --stored`
-                r.acq(&["leagues", "--stored"]);
+                // `store` takes a subcommand the first turn does not name
+                r.acq(&["store", "--help"]);
+                r.acq(&["store", "status"]);
+                r.acq(&["--account", ALICE, "store", "status"]);
+                // the first turn's `leagues --stored`: what the store holds
                 r.acq(&["--account", ALICE, "leagues", "--stored"]);
+                // `tabs` lists every tab with its age
+                r.acq(&["--account", ALICE, "tabs"]);
             },
             mcp: |r| {
-                r.tool("leagues", json!({}));
-                // no way on offered: the field it names, and the plainest value
-                r.tool("leagues", json!({ "stored": true }));
+                r.tool("store_status", json!({}));
                 let alice = r.offer("the same request as Alice#1234");
-                r.tool("leagues", alice);
+                r.tool("store_status", alice);
+                r.tool("leagues", json!({ "account": ALICE }));
+                // no way on offered: the field it names, and the plainest value
+                r.tool("leagues", json!({ "account": ALICE, "stored": true }));
+                r.tool("tabs", json!({ "account": ALICE }));
             },
         },
         Task {
@@ -868,7 +843,6 @@ fn tasks() -> Vec<Task> {
             knows: "",
             world: World::Pc,
             wanted: life_90(),
-            instead: instead_of,
             cli: |r| {
                 // a query the first turn does not give: the verb's help
                 r.acq(&["search", "--help"]);
@@ -905,21 +879,38 @@ fn tasks() -> Vec<Task> {
                 .map(|ring| {
                     fact(
                         format!("{ring} in {RINGS_TAB_NAME}"),
-                        named(ring, &[format!("/ {RINGS_TAB_NAME}")]),
-                        named(ring, &[format!("\"name\":\"{RINGS_TAB_NAME}\"")]),
+                        side(Some(ring), &["/ "], &[format!("/ {RINGS_TAB_NAME}")]),
+                        side(
+                            Some(ring),
+                            &["\"place\":"],
+                            &[format!("\"name\":\"{RINGS_TAB_NAME}\"")],
+                        ),
                     )
                 })
                 .collect(),
-            instead: instead_of,
             cli: |r| {
                 // her word: `tabs`
                 r.acq(&["tabs"]);
                 r.acq(&["--account", ALICE, "tabs"]);
+                // a count and no names: the search lists items
+                r.acq(&["search", "--help"]);
+                r.acq(&["search", "--describe", "fields"]);
+                r.acq(&["--account", ALICE, "search", "tab=Rings"]);
+                // the tabs she read were pc's
+                r.acq(&["--account", ALICE, "search", "--realm", "pc", "tab=Rings"]);
             },
             mcp: |r| {
                 r.tool("tabs", json!({}));
                 let alice = r.offer("the same request as Alice#1234");
                 r.tool("tabs", alice);
+                r.tool("describe", json!({ "names": ["fields"] }));
+                r.tool(
+                    "search",
+                    json!({ "query": { "text": "tab=Rings" }, "scope": { "account": ALICE } }),
+                );
+                // the tabs she read were pc's
+                let pc = r.offer("realm pc");
+                r.tool("search", pc);
             },
         },
         Task {
@@ -929,25 +920,34 @@ fn tasks() -> Vec<Task> {
             world: World::Whole,
             wanted: vec![fact(
                 format!("{PRICED_AMOUNT} {PRICED_CURRENCY} on {PRICED_ITEM}"),
-                named(PRICED_ITEM, &[format!("{PRICED_AMOUNT} {PRICED_CURRENCY}")]),
-                named(
-                    PRICED_ITEM,
+                side(
+                    Some(PRICED_ITEM),
+                    &[PRICED_CURRENCY, "skip", "none"],
+                    &[format!("{PRICED_AMOUNT} {PRICED_CURRENCY}")],
+                ),
+                side(
+                    Some(PRICED_ITEM),
+                    &["\"effective\":"],
                     &[
                         format!("\"amount\":\"{PRICED_AMOUNT}\""),
                         format!("\"{PRICED_CURRENCY}\""),
                     ],
                 ),
             )],
-            instead: instead_of,
             cli: |r| {
                 // her word: `price`, the listing state
                 r.acq(&["price"]);
                 r.acq(&["--account", ALICE, "price"]);
+                // counts and no items: the help names the list
+                r.acq(&["price", "--help"]);
+                r.acq(&["--account", ALICE, "price", "list"]);
             },
             mcp: |r| {
                 r.tool("price_status", json!({}));
                 let alice = r.offer("the same request as Alice#1234");
                 r.tool("price_status", alice);
+                // counts and no items: the tool that names them
+                r.tool("price_list", json!({ "account": ALICE }));
             },
         },
         Task {
@@ -958,16 +958,27 @@ fn tasks() -> Vec<Task> {
             wanted: vec![
                 fact(
                     format!("{KAOM}, {KAOM_LIFE_LINE}"),
-                    named(KAOM, &[s(KAOM_LIFE_LINE)]),
-                    named(KAOM, &[format!("\"text\":\"{KAOM_LIFE_LINE}\"")]),
+                    side(Some(KAOM), &["lines "], &[s(KAOM_LIFE_LINE)]),
+                    side(
+                        Some(KAOM),
+                        &["\"lines\":"],
+                        &[format!("\"text\":\"{KAOM_LIFE_LINE}\"")],
+                    ),
                 ),
                 fact(
                     format!("{KAOM}, its sockets {sockets_cli}"),
-                    named(KAOM, std::slice::from_ref(&sockets_cli)),
-                    named(KAOM, &[format!("\"sockets\":{sockets_mcp}")]),
+                    side(
+                        Some(KAOM),
+                        &["sockets "],
+                        std::slice::from_ref(&sockets_cli),
+                    ),
+                    side(
+                        Some(KAOM),
+                        &["\"sockets\":"],
+                        &[format!("\"sockets\":{sockets_mcp}")],
+                    ),
                 ),
             ],
-            instead: instead_of,
             cli: |r| {
                 // `show` takes an id: find it by her name for it
                 r.acq(&["show", "--help"]);
@@ -987,14 +998,14 @@ fn tasks() -> Vec<Task> {
             world: World::Mock,
             wanted: vec![fact(
                 "a plan that names no request",
-                whole(&[s("nothing to do")]),
-                part("plan", &[s("\"logical_requests\":0")]),
+                // the plan's own words of its league, not the apply's
+                // "until the plan says nothing to do"
+                side(None, &[], &[format!("nothing to do in {STANDARD}")]),
+                side(None, &[], &[s("\"logical_requests\":0")]),
             )],
-            instead: instead_of,
-            // Her question is asked by the plan: "until the plan says
-            // nothing to do", the first turn's words. A plan that names
-            // requests prints the apply as its way on, and each apply the
-            // next plan, which the row takes as it takes a refusal's offer.
+            // The first turn's words: plan and apply until the plan says
+            // nothing to do. The script repeats the round; the reader ends
+            // the row at the plan that names nothing.
             cli: |r| {
                 r.acq(&["refresh", "--plan"]);
                 r.acq(&[
@@ -1014,12 +1025,11 @@ fn tasks() -> Vec<Task> {
                     "--league",
                     "Standard",
                 ];
-                for _ in 0..6 {
+                while !r.done() {
                     r.acq(&[&["refresh", "--plan"][..], &scope].concat());
-                    if r.last().text.contains("nothing to do") {
-                        break;
+                    if !r.done() {
+                        r.acq(&[&["refresh", "--apply"][..], &scope].concat());
                     }
-                    r.acq(&[&["refresh", "--apply"][..], &scope].concat());
                 }
             },
             mcp: |r| {
@@ -1028,9 +1038,9 @@ fn tasks() -> Vec<Task> {
                 // example gives it
                 let policy: Value = serde_json::from_str(MOCK_POLICY).expect("JSON");
                 r.tool("set_sync_policy", json!({ "value": policy }));
-                for _ in 0..6 {
+                while !r.done() {
                     let plan = r.tool("refresh_plan", json!({}))["plan"].clone();
-                    if plan["logical_requests"] == json!(0) {
+                    if r.done() {
                         break;
                     }
                     let job = r.tool_shown(
@@ -1053,29 +1063,20 @@ fn tasks() -> Vec<Task> {
             asks: "I play one league: what is priced?",
             knows: "",
             world: World::Hardcore,
+            // the subject is the league the count is for
             wanted: vec![fact(
                 format!("{HARDCORE}, {HARDCORE_ITEMS} item"),
-                named(HARDCORE, &[format!("{HARDCORE_ITEMS} item in {HARDCORE}")]),
-                named(
-                    HARDCORE,
+                side(
+                    Some(HARDCORE),
+                    &[&format!(" in {HARDCORE}:")],
+                    &[format!("{HARDCORE_ITEMS} item in {HARDCORE}")],
+                ),
+                side(
+                    Some(HARDCORE),
+                    &["\"counts\":"],
                     &[format!("\"counts\":{{\"items\":{HARDCORE_ITEMS},")],
                 ),
             )],
-            // the league the answer is of, and its count of items
-            instead: |door, _, answers| {
-                let answer = answers.last().expect("an answer");
-                match door {
-                    Door::Cli => {
-                        let head: Vec<&str> = answer.text.split_whitespace().take(4).collect();
-                        format!("{}, {} item", head[3].trim_end_matches(':'), head[0])
-                    }
-                    Door::Mcp => format!(
-                        "{}, {} item",
-                        answer.doc["league"].as_str().unwrap_or_default(),
-                        answer.doc["counts"]["items"]
-                    ),
-                }
-            },
             cli: |r| {
                 // her word: `price`, the listing state
                 r.acq(&["price"]);
@@ -1089,16 +1090,8 @@ fn tasks() -> Vec<Task> {
             asks: "Which items have at least 90 life in all? I hold both games.",
             knows: "",
             world: World::Whole,
-            wanted: [
-                life_90(),
-                vec![fact(
-                    format!("{POE2} searched, said in the scope"),
-                    part("scope", &[s("· all ·")]),
-                    part("scope", &[s("\"realm\":\"all\"")]),
-                )],
-            ]
-            .concat(),
-            instead: instead_of,
+            // task 2's facts: what this row adds is in its calls
+            wanted: life_90(),
             cli: |r| {
                 r.acq(&["search", "--help"]);
                 r.acq(&["search", "--describe", "fields"]);
@@ -1137,14 +1130,20 @@ fn tasks() -> Vec<Task> {
             asks: "Price my Doom Loop at 10 chaos",
             knows: "the name, the price",
             world: World::Whole,
+            // said of the target the write names: its receipt answers her
             wanted: vec![fact(
-                "a read after the write says 10 chaos",
-                whole(&[s("10 chaos")]),
-                part("listing", &[s("\"amount\":\"10\""), s("\"chaos\"")]),
+                format!("{DOOM_LOOP} at 10 chaos"),
+                side(
+                    Some("item/r1"),
+                    &["chaos", "skip", "none"],
+                    &[s("10 chaos")],
+                ),
+                side(
+                    Some("r1"),
+                    &["\"written\":"],
+                    &[s("\"amount\":\"10\""), s("\"chaos\"")],
+                ),
             )],
-            instead: instead_of,
-            // Her question, as the task's wanted column puts it, is asked by
-            // the read after the write: the write is a step, as a word is.
             cli: |r| {
                 r.acq(&["price", "--help"]);
                 r.acq(&["price", "set", "--help"]);
@@ -1160,7 +1159,6 @@ fn tasks() -> Vec<Task> {
                     "10",
                     "chaos",
                 ]);
-                r.acq(&["--account", ALICE, "price", "show", "item/r1"]);
             },
             mcp: |r| {
                 // a target is `item/<id>`: find the id by her name for it
@@ -1169,10 +1167,6 @@ fn tasks() -> Vec<Task> {
                     "price_set",
                     json!({ "target": "item/r1", "type": "exact", "amount": "10",
                             "currency": "chaos", "account": ALICE }),
-                );
-                r.tool(
-                    "price_show",
-                    json!({ "target": "item/r1", "account": ALICE }),
                 );
             },
         },
@@ -1185,7 +1179,6 @@ fn tasks() -> Vec<Task> {
                 life_line(DOOM_LOOP, DOOM_LOOP_LIFE),
                 life_line(KAOM, KAOM_LIFE),
             ],
-            instead: instead_of,
             cli: |r| {
                 // the help says a saved search runs through `search --saved`
                 r.acq(&["saved", "--help"]);
@@ -1220,6 +1213,8 @@ fn script(task: &Task, door: Door, base: &Path, env: &[(&str, &str)]) -> Row {
     reader.first_turn();
     reader.calls.clear();
     reader.answers.clear();
+    reader.wanted = task.wanted.clone();
+    reader.spoken = vec![None; task.wanted.len()];
     match door {
         Door::Cli => (task.cli)(&mut reader),
         Door::Mcp => (task.mcp)(&mut reader),
@@ -1235,7 +1230,7 @@ fn script(task: &Task, door: Door, base: &Path, env: &[(&str, &str)]) -> Row {
     Row {
         task: task.n,
         door,
-        answer: reached(task, door, &reader.answers),
+        answer: judged(&reader),
         calls: reader.calls,
         polled: reader.polled,
     }
@@ -1280,7 +1275,6 @@ fn first_turn_row(door: Door) -> Row {
         knows: "",
         world: World::Whole,
         wanted: Vec::new(),
-        instead: instead_of,
         cli: |_| {},
         mcp: |_| {},
     };
@@ -1393,45 +1387,34 @@ fn a_call_with_an_id_its_row_has_not_been_sent_fails() {
     reader.acq(&["--account", ALICE, "show", "kaom"]);
 }
 
-/// A fact is its value said of its subject, never the words anywhere: an
-/// answer that names Kaom's Heart with no sockets, says `undecided` of
-/// another item than Hex Band, or names poe2 outside its scope holds none
-/// of those facts, though each holds the words.
+/// A value said of another subject does not count, as the lookup matches
+/// each side's identity: in the CLI's text, Hex Band's own row beside a
+/// section that says `undecided` of Doom Loop; in the MCP's document, the
+/// row whose id is Hex Band's beside an undecided reason given for Doom
+/// Loop's id. Each answer holds both words, and neither speaks of the fact.
 #[test]
-fn a_fact_is_its_value_said_of_its_subject() {
-    let mcp = |doc: Value| Answer {
+fn a_value_said_of_another_subject_does_not_count() {
+    let fact = &life_90()[3];
+    let cli = Answer {
+        text: format!(
+            "rows    {HEX_BAND} Two-Stone Ring\n            id {HEX_BAND_ID}\n\
+             undecided implicit lines unread — e.g. {DOOM_LOOP} · id r1"
+        ),
+        doc: Value::Null,
+    };
+    let doc = json!({ "rows": [{ "id": HEX_BAND_ID, "name": HEX_BAND }],
+                      "total": { "undecided_reasons": [{ "unread": "implicit lines",
+                                 "example": { "id": "r1", "name": DOOM_LOOP } }] } });
+    let mcp = Answer {
         text: doc.to_string(),
         doc,
     };
-    let cli = |text: &str| Answer {
-        text: text.into(),
-        doc: Value::Null,
-    };
-    let task = |n: usize| tasks().into_iter().find(|t| t.n == n).expect("a task");
-    let sockets = &task(5).wanted[1];
-    let socketless = mcp(json!({ "item": { "name": KAOM, "sockets": [] }, "lines": [] }));
-    assert!(!sockets.held_by(Door::Mcp, &socketless));
-    assert!(!sockets.held_by(
-        Door::Cli,
-        &cli(&format!("{KAOM} Glorious Plate\nsockets none"))
-    ));
-
-    let hex = &task(2).wanted[3];
-    let other = mcp(json!({ "rows": [{ "name": HEX_BAND }],
-                            "undecided_reasons": [{ "example": { "name": DOOM_LOOP } }] }));
-    assert!(!hex.held_by(Door::Mcp, &other));
-    let said = cli(&format!(
-        "rows    {HEX_BAND} Two-Stone Ring\nundecided implicit lines unread — e.g. {DOOM_LOOP}"
-    ));
-    assert!(!hex.held_by(Door::Cli, &said));
-
-    let poe2 = task(8).wanted.last().expect("the scope's fact").clone();
-    let elsewhere = cli(&format!(
-        "scope   account {ALICE} · pc · live\nundecided no totals table for realm all"
-    ));
-    assert!(!poe2.held_by(Door::Cli, &elsewhere));
-    let pc = mcp(json!({ "scope": { "realm": "pc" }, "terms": [{ "realm": "all" }] }));
-    assert!(!poe2.held_by(Door::Mcp, &pc));
+    for (door, answer) in [(Door::Cli, &cli), (Door::Mcp, &mcp)] {
+        let words = [HEX_BAND, "undecided"]
+            .iter()
+            .all(|w| answer.text.contains(w));
+        assert!(words && !fact.spoken_by(door, answer), "{}", door.name());
+    }
 }
 
 /// A call is printed so that pasting it sends what the test sent: each
