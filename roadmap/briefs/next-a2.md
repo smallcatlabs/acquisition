@@ -4,7 +4,9 @@ Step A2 of `audits/whole-review-2026-11/NEXT.md`, cut from its "A2.
 The counted tasks" and from `next/reports/world.md` §3 beside it (a
 reading: the tree holds). Written by the orchestrating session on
 2026-11-25, after next-a1; re-cut once, answering its cold review
-(`roadmap/reviews/next-a2-brief-e55a41db.md`). No new ruling.
+(`roadmap/reviews/next-a2-brief-e55a41db.md`), and amended once after
+the build's reviews: tasks 8 and 9 want less, and decision 5 says how
+an answer is judged as built. No new ruling.
 
 ## Goal
 
@@ -45,8 +47,8 @@ is it cut to her pc Hardcore.
 | 5 | Show me my Kaom's Heart whole | whole | the name | its life line and its sockets |
 | 6 | Bring my stash up to date | the mock, logged in | | a plan that names no request |
 | 7 | I play one league: what is priced? (none named) | Hardcore | | Hardcore's own count of items |
-| 8 | Task 2, holding both games | whole | | task 2's items, and poe2's said to be answered or left out |
-| 9 | Price my Doom Loop at 10 chaos | whole | name, price | a read after the write says 10 chaos |
+| 8 | Task 2, holding both games | whole | | task 2's items; the extra refusal is in its calls |
+| 9 | Price my Doom Loop at 10 chaos | whole | name, price | Doom Loop at 10 chaos, which the write's receipt says |
 | 10 | Run my saved search Life rings | whole | its name | the rows its query matches |
 
 ## Decisions
@@ -69,10 +71,14 @@ is it cut to her pc Hardcore.
 4. **Where a reader would guess, the script takes the plainest guess**
    and a comment says what and why. After a refusal that offers a way
    on, the next call is the offer as printed.
-5. **The answer is checked, not judged:** `reached` is the wanted
-   facts found in the row's last output, each written from the world's
-   constants. A wrong answer stays a row: task 7 may reach an empty
-   Standard today.
+5. **The answer is checked, not judged.** A fact is a subject, what
+   is asked of it and the value wanted, written from the world's
+   constants. An answer speaks of a fact when the subject's own row or
+   entry carries what is asked, whatever its value. The reader ends a
+   row at the first unrefused answer after which every fact has been
+   spoken of, and judges each from the latest answer that spoke of
+   it. A wrong answer stays a row and says what came instead: task 7
+   answers for Standard today.
 6. **Counts.** A call is one command or one tool call. A refusal is a
    non-zero exit, a JSON-RPC error, or a result marked as an error. A
    job's polls are left out of calls and bytes, and the golden holds
