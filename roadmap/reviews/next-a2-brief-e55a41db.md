@@ -1,0 +1,27 @@
+`roadmap/briefs/next-a2.md` at `e55a41db`: a builder needs the measurement rules and task inputs resolved before starting.
+
+Findings, most severe first:
+
+1. **Rules — changes what gets built.** “Order no cold review” conflicts with the requirement to review shared test-harness changes. The brief directs counter work into `crates/acquisition-mcp/tests/harness/mod.rs`, whose `Mcp` driver serves the existing MCP tests; `decisions/process.md` C175 requires cold review when the shared harness changes. **Smallest change:** retain C175’s review requirement for harness changes, or keep the instrumentation entirely within the new test.
+
+2. **Rules — changes what gets built.** Forbidding changes to “the road” prevents the step from closing under the registry’s rules. C178 and C180 require the close commit to rewrite `roadmap/README.md`. **Smallest change:** allow that update, or explicitly assign the close and its road update to the orchestrator after the builder’s commit.
+
+3. **The tasks / Decisions 5 and 7 — changes what gets built.** The scenarios leave choices open that determine the baseline. `Seeded::owner()` creates three accounts, whereas `Seeded::home()` creates one account and one league; both satisfy “the seeded world or a variation” but produce different refusal counts. Tasks 4, 5 and 9 leave “this item” unidentified, and task 9 supplies no desired price. **Smallest change:** fix each row’s world variation, player-known target and requested outcome before scripting. The first builder guess is whether task 1 starts in `owner()` or `home()`.
+
+4. **Decision 6 — changes what gets built.** Separating poll counts does not make the byte measurement deterministic while poll replies remain included. `finish_job` repeatedly calls `job_status` until completion, so scheduling changes the bytes received; rounding cannot remove that variation. Rounding also cannot guarantee that rewording leaves a golden unchanged: 1,000 bytes rounds to 1,000, while 1,001 rounds to 1,100. **Smallest change:** exclude poll traffic from the stable byte column, report it separately, and specify whether the golden compares rounded measurements or enforces fixed upper bounds.
+
+5. **Goal / Decision 2 / Done when — changes what gets built.** The required golden format omits the expected-answer column promised by the goal. Decision 2 permits only `reached` or a short wrong answer, while the first completion criterion explicitly requires that format; task 7 could therefore record “empty Standard” without recording the non-Standard prices it should have returned. **Smallest change:** require expected facts beside observed facts, with the outcome derived from checks against the captured output. Otherwise the completion list permits a table that records costs without showing whether those costs bought the required answer.
+
+6. **Decision 3 / Done when — changes what gets built.** The discovery check specified for completion does not enforce the rule for argument values. After `tools/list`, the names `show` and `id` are known, so a script can pass the stated check while supplying `PRICED_ITEM` directly from the seed without having discovered it. **Smallest change:** require provenance checks for task-specific values as well as names, and stage an undiscovered-value failure. Treat the “plainest guess” as a documented script choice; name occurrence alone cannot establish why its author chose it.
+
+7. **Find first — changes what gets built.** The manual discovery command cannot create its world as written, and prescribing that world for every task contradicts the refresh scenario. `seeded-world.rs:14–15` requires a store-directory argument, and its documentation warns that a mock login over the seeded world orphans its intent. **Smallest change:** give the complete isolated read-world command, including `-- <scratch>/store`, and separate task 6’s fresh mock-world login procedure. Specify how manual runs obtain the same variations as the tests; exclude extending the example’s interface merely to support this measurement.
+
+8. **Decision 6 — changes what gets built.** The refusal definition misses MCP failures returned as JSON-RPC errors. `Mcp::call` handles both a top-level `error` and `result.isError`, and `tool_refusals.rs:235` exercises the former with `job_status` for an unknown job. **Smallest change:** count either response form as a refused call.
+
+9. **Inputs — wording.** Several claims about the tree lack an accompanying discovery command, contrary to C174. For example, the brief says both journeys exclude login from the record, but no command inspects their login and recording paths; the seeded-world command lists public functions rather than the constants named as answer sources. **Smallest change:** add focused searches for those claims or phrase the inputs as instructions to inspect those properties.
+
+What I did not check and why: I built nothing, ran no tests, started no binaries or daemons, and did not execute the manual task procedures, as requested. I ran the read-only discovery searches against `e55a41db`; runtime correctness, gate status and measured totals remain unverified.
+
+Brief form: the expected answer is distributed between the goal and decisions rather than stated consistently in the required table format.
+
+Prompt: the working tree contained local edits, so I used commit-qualified reads and adapted the searches to inspect the requested tree.
