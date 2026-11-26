@@ -28,8 +28,9 @@ that as the method getting heavier. For every hour an agent was
 running, the project landed about as much in its slowest week as in
 its fastest. What fell was the hours: 78 a week at the end of
 October, 14 in the third week of November. Agents work when you are
-here. You have also told me that twice the output would read to you
-as cruft. So nothing here is meant to make the project faster.
+here. So what limits the project is how many hours agents run, and
+you have named what limits those: when you are present to click a
+card, your usage limits, and a session's context.
 
 **The method asks one question well and leaves three to you.** It is
 good at "is what we built faulty?". "Is there something simpler?",
@@ -139,6 +140,14 @@ so you can still see it moving and step in.
   which is one cause of the asks; the trial finds out whether it
   still does.
 - **Undone by** reverting the sentence.
+- **His three reasons to care when a step starts** (his answer,
+  2026-11-25), and what the series does about each. *A session's
+  context:* the orchestrator decides whether a step reuses a session
+  or starts a fresh one, and says which in its line. *His presence
+  to click a card, which the app does not allow from a phone:* the
+  series uses no card after its first; one worker is started at the
+  yes and messaged for each step. *His usage limits:* the series
+  stops cleanly at a limit and its last line says where it is.
 
 ### 2. A question arrives in plain words
 
@@ -149,10 +158,14 @@ simplest thing it considered. You should not have to translate it
 before you can judge it.
 
 - **What changes.** In the rule for how a question reaches him
-  (C179), a question states in plain words what happens under each
-  answer, what the session recommends, and the simplest shape it
-  considered and why that is not enough. One question at a time,
-  never a list.
+  (C179), a question states in plain words the options that were
+  really considered, what each one costs and buys in this case, and
+  what the session recommends. Where the session found a way of
+  seeing the problem that makes it smaller, it leads with that. One
+  question at a time, never a list. He asked for this form on
+  2026-11-25: a plain recommendation alone does not show him that
+  the thinking was done, and a reframing that simplifies is the
+  sign he looks for.
 - **What goes.** The list of decisions: the six that were filed
   waited 11 to 14 days, and the same items put singly were all
   answered within 25 minutes. And the question in the agents' own
@@ -168,7 +181,9 @@ before you can judge it.
 - **What it loses.** Precision, sometimes: a plain question can hide
   the case that makes it hard. So the question still names the test
   or the ruling it rests on, after the plain words, for the session
-  that acts on his answer.
+  that acts on his answer. And it can turn into a form: three
+  options listed because the form has three slots. An option that
+  was not really weighed is left out.
 - **What it costs.** One sentence in C179.
 - **Undone by** reverting the sentence.
 
@@ -243,6 +258,9 @@ of them rewordings of entries, you reversed none.
 This is one sentence of C170. I have not folded it into the three
 changes, because it moves authority and the others do not.
 
+**Answered, 2026-11-25:** "i agree agents should own their own
+rulebook." C170 is amended in the commit that records this.
+
 ## One act that is the owner's
 
 Use by a person with a purpose has redirected this project more than
@@ -257,10 +275,13 @@ method had closed. There is little of it, and none from outside.
   not establish. Its author could be asked to point an agent at
   `acq-mcp` and say whether the first useful answer came, and after
   how many calls. It needs no release and freezes nothing. Whether
-  and how to ask is his alone.
-- **His own use.** Still open with him: whether he uses the tool for
-  its purpose in an ordinary week. The store says pricing and the
-  shop were used in one sitting.
+  and how to ask is his alone. His answer: that person is busy with
+  a new job, and might be drawn back when Path of Exile 2 launches
+  next month.
+- **His own use.** His answer: he does not use the tool much and is
+  not a serious player, which makes him "a poor proxy for human
+  users, but the best we have" until the tool is good enough to
+  offer for beta testing.
 - **What to count.** Not issues by author: a reply he relays would
   leave that at zero. Count reports of use from outside, and whether
   the task was done.
@@ -272,10 +293,12 @@ method had closed. There is little of it, and none from outside.
 
 The programme is sound. Start it; nothing here is a reason to wait.
 
-1. **Start with A1, in one lane.** The second lane's trial compiled
-   and ran no test, and agents ran one session at a time in 84% to
-   89% of active minutes while two were allowed. A second lane stays
-   an option for A3, which touches only the daemon.
+1. **Start with A1; the second lane is that file's to use.** My
+   draft said one lane, partly because I had misread the owner as
+   not wanting more to land. He does. What still stands against a
+   second lane is only that its trial compiled and ran no test, so
+   its first use, for A3, is itself a trial: one build at a time
+   until a lane's own gate has gone green once.
 2. **Four of its seven decisions, in plain words.** For him to
    answer, or to send back as unclear:
    - *The order.* Shall the agents spend about a week first on two
@@ -333,7 +356,7 @@ above. *Follow-up* is a fault to file, not a change of method.
 | Deciding | Moving what a person sees into his classes | Would widen what he must approve; the skeptic stopped it | Never as an approval; shown at a sitting |
 | Deciding | A standing view of the work's state | He asked "where are we" 16 times | Later, after change 1's line is tried |
 | Deciding | The owner as transport between sessions | 6% of his messages paste a review or a prompt | Later; partly the harness's |
-| Process | Process weight as the limit on output | Output follows hours; ceremony inside an hour unmeasured | Later, if he wants more |
+| Process | Process weight as the limit on output | Output follows hours; ceremony inside an hour unmeasured | Later; the hours come first |
 | Process | First build review, fix-round reviews | Find the faults | Keep |
 | Process | A brief's second review | Always raises something; worth unknown | Now (3), as a test |
 | Process | "The smallest fix" and the removal read | Review grows what it reviews | Now (3) |
@@ -346,8 +369,10 @@ above. *Follow-up* is a fault to file, not a change of method.
 | Documents | Byte caps | 21 of 29 briefs end within 500 bytes of the cap; trims in 10 of 12 sessions | Later |
 | Documents | Orchestration knowledge in private memory | 47 KB, one agent's | Later, but for the one note in change 3 |
 | Documents | The saved reviews | On no reading path | Keep |
-| Tooling | A second build lane, swarms, unattended runs | Buy output he has not asked for | Later, if he wants it |
-| Tooling | Cost of a session | Starts at 77k tokens, three quarters of it the harness's tool descriptions | Later; one probe of a lean builder |
+| Tooling | Hours agents run with nobody present | 16% to 19% of active time; nothing ran in 58% of the last two weeks | Now (1) |
+| Tooling | A second build lane | Cheap to make; untested under a real gate | The programme's own trial, on A3 |
+| Tooling | Swarms | He cannot afford them | Never |
+| Tooling | Cost of a session, against his usage limits | Starts at 77k tokens, three quarters of it the harness's tool descriptions; 68% of cost comes after 200k | Next after the trials; the series reports its cost for each step |
 | Tooling | Mechanical turns on large models | 14.6% of cost | Later; the programme's bet on Sonnet tests it |
 | Tooling | Agent definitions, hooks, scripted workflows | Exist; would hold what memory holds now | Later; nothing needs them yet |
 | Tooling | Issue trackers built for agents | The tracker here is labelled, young and agrees with the road | Never |
@@ -384,10 +409,10 @@ Faults, not method. None is filed.
   match their generators is skipped where the game's export is not
   cloned, which is everywhere but this Mac, and says `ok`
   (`tools/trade-check.sh:74`).
-- **`audits/whole-review-2026-11/next/traces.md` overstates its turn
+- **`audits/whole-review-2026-11/next/traces.md` overstated its turn
   counts about 2.4 times.** It counted transcript events, not calls,
-  and copied sessions twice. Its shares and its 217k average stand
-  (`reports/where-tokens-go.md`).
+  and copied sessions twice (`reports/where-tokens-go.md`).
+  Corrected by its own session in `c8a36c54`.
 
 ## After the skeptic
 
@@ -408,17 +433,46 @@ whole in `dissent.md`. I checked its citations; they hold.
 | No backup can be made | The functions exist; no verb exposes them | "No verb makes a backup" |
 | The eight verdicts, as stated | Each leaned on one measure further than it reaches | Each now says what its number does not show |
 
-Two of its points I do not take whole. It says low concurrency does
-not show that parallel work has no value; true, and the map says
-"later, if he wants it", but the owner's own answer is the reason,
-not the count. And it says the plain questions cannot test the
-workload of a new rule; true, and that rule is no longer proposed.
+One more of its points turned out to matter. It said low concurrency
+does not show that parallel work has no value. I kept "one lane"
+then, on my reading of the owner's answer; that reading was wrong,
+and the next section says what replaced it.
+
+## After the owner read it
+
+His answers of 2026-11-25, and what each changed here.
+
+- **I had misread one answer.** I asked what he would do "if agents
+  landed twice as much per week", and he answered about output. He
+  meant the words he has to read, not commits, features or fixes. My
+  draft concluded that speed was not wanted and proposed nothing to
+  serve it. That was wrong and is corrected above: speed matters,
+  the limit on it is the hours agents run, and change 1 is the one
+  that serves it.
+- **Who it is for.** In his words, "the most important stakeholders
+  are longstanding users of the c++ app who will feel abandoned if
+  we can't reach feature and performance parity, as well as new
+  players from Path of Exile 2", a player base he puts at four to
+  ten times larger. Some of both will be "more AI forward and will
+  hack acquisition with computer use or forks if we do not give them
+  an elegant agentic interface." He notes the three pull against
+  each other, and that each is a user of the product. His own use
+  and a study of the method matter where they serve those users.
+  This bears on the order of `NEXT.md` and of the road, which this
+  page does not settle: parity for the first group is a GUI at the
+  C++ app's speed, and nothing on the road builds that yet.
+- **The three trials: "yes to all."** With the form of a question
+  changed as change 2 now says.
+- **The registry's wording: agents own it.** C170 is amended.
+- **A watch he asked for.** When a decision is put to him he wants
+  to see thinking that is about this case, and he watches for cruft
+  and creep, "although that's slipped by both of us on the
+  governance side with the rulings."
 
 ## What I did not check
 
 - The published prompts the owner named. The page likely needs a
   sign-in; I did not open it.
-- Whether the owner uses the tool weekly. Asked; not yet answered.
 - Whether the harness still refuses a session start on an event's
   turn. Change 1's trial finds out.
 - What was posted on the C++ tracker's issue 187, and who the 23
@@ -439,9 +493,9 @@ workload of a new rule; true, and that rule is no longer proposed.
 
 ## How this was made
 
-Seven questions went to the owner first. He answered five; his
-answers set what this optimises (less to read and plainer, not more
-output). Ten readers ran, nine Opus and one the harness's guide:
+Seven questions went to the owner first. He answered five before
+the draft and the rest after it; "After the owner read it" says
+what the later answers corrected. Ten readers ran, nine Opus and one the harness's guide:
 eight handed a hypothesis to break, two looking outward with no
 detail of this project in any query. Their reports are whole in
 `reports/`, saved from their transcripts by `scripts/save_report.py`
