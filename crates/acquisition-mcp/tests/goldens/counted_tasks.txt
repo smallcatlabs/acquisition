@@ -15,8 +15,8 @@ task  door  calls  refused  bytes    polled  answer
 5     mcp   4      1        30000    no      reached
 6     cli   9      1        4100     no      reached
 6     mcp   12     1        19000    yes     reached
-7     cli   1      0        950      no      missed: Hardcore, 1 item; got: never spoken of
-7     mcp   1      0        2600     no      missed: Hardcore, 1 item; got: never spoken of
+7     cli   1      0        950      no      missed: Hardcore, 1 item; got: Standard, 1 item
+7     mcp   1      0        2600     no      missed: Hardcore, 1 item; got: Standard, 1 item
 8     cli   6      2        42000    no      reached
 8     mcp   6      2        43000    no      reached
 9     cli   7      1        42000    no      reached

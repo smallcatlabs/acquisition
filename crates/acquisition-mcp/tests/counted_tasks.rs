@@ -492,6 +492,10 @@ struct Fact {
     label: String,
     cli: Side,
     mcp: Side,
+    /// Where it was never spoken of, what the last answer gave in its
+    /// place, read from that answer's fields: a hook, since what is asked
+    /// is a substring that holds whatever the value.
+    got: Option<fn(Door, &Answer) -> String>,
 }
 
 /// A side of a fact: of the subject named, or of the whole answer.
@@ -508,6 +512,7 @@ fn fact(label: impl Into<String>, cli: Side, mcp: Side) -> Fact {
         label: label.into(),
         cli,
         mcp,
+        got: None,
     }
 }
 
@@ -639,7 +644,13 @@ fn judged(reader: &Reader) -> String {
         match spoken {
             Some(at) if fact.held_by(reader.door, &reader.answers[*at]) => by.push(*at),
             Some(_) => missed.push(format!("{}; got: spoken of otherwise", fact.label)),
-            None => missed.push(format!("{}; got: never spoken of", fact.label)),
+            None => {
+                let last = reader.answers.last().expect("an answer");
+                let got = fact
+                    .got
+                    .map_or("never spoken of".into(), |g| g(reader.door, last));
+                missed.push(format!("{}; got: {got}", fact.label));
+            }
         }
     }
     by.sort_unstable();
@@ -691,6 +702,24 @@ struct Task {
 /// Hardcore's own items in the seeded world: `h1`'s one, the hostile
 /// note's item; the tab `t-gone` is left out of the league's listing.
 const HARDCORE_ITEMS: u64 = 1;
+
+/// The league a price status counted and its count of items: the MCP's
+/// `league` and `counts.items`, the CLI's head line (`<count> item(s) in
+/// <league>:`).
+fn league_count(door: Door, answer: &Answer) -> String {
+    let (doc, head) = (
+        &answer.doc,
+        answer.text.split_whitespace().collect::<Vec<_>>(),
+    );
+    match door {
+        Door::Cli => format!("{}, {} item", head[3].trim_end_matches(':'), head[0]),
+        Door::Mcp => format!(
+            "{}, {} item",
+            doc["league"].as_str().unwrap_or(""),
+            doc["counts"]["items"]
+        ),
+    }
+}
 
 /// Task 2's facts, and task 8's: each item's life total, and the ring
 /// whose total cannot be decided, said so of it (the MCP names it by its
@@ -1064,19 +1093,22 @@ fn tasks() -> Vec<Task> {
             knows: "",
             world: World::Hardcore,
             // the subject is the league the count is for
-            wanted: vec![fact(
-                format!("{HARDCORE}, {HARDCORE_ITEMS} item"),
-                side(
-                    Some(HARDCORE),
-                    &[&format!(" in {HARDCORE}:")],
-                    &[format!("{HARDCORE_ITEMS} item in {HARDCORE}")],
-                ),
-                side(
-                    Some(HARDCORE),
-                    &["\"counts\":"],
-                    &[format!("\"counts\":{{\"items\":{HARDCORE_ITEMS},")],
-                ),
-            )],
+            wanted: vec![Fact {
+                got: Some(league_count),
+                ..fact(
+                    format!("{HARDCORE}, {HARDCORE_ITEMS} item"),
+                    side(
+                        Some(HARDCORE),
+                        &[&format!(" in {HARDCORE}:")],
+                        &[format!("{HARDCORE_ITEMS} item in {HARDCORE}")],
+                    ),
+                    side(
+                        Some(HARDCORE),
+                        &["\"counts\":"],
+                        &[format!("\"counts\":{{\"items\":{HARDCORE_ITEMS},")],
+                    ),
+                )
+            }],
             cli: |r| {
                 // her word: `price`, the listing state
                 r.acq(&["price"]);
@@ -1472,4 +1504,25 @@ fn unquoted_posix(line: &str) -> Vec<String> {
         out.push(word);
     }
     out
+}
+
+/// A missed row says what came instead: task 7's answer for Standard reads
+/// as its league and count, so another count changes the row.
+#[test]
+fn a_missed_count_says_the_league_and_count_it_got() {
+    for items in [1, 2] {
+        let text = format!("{items} item in {STANDARD}: 0 the game decides");
+        let doc = json!({ "league": STANDARD, "counts": { "items": items } });
+        let want = format!("{STANDARD}, {items} item");
+        let mcp = Answer {
+            text: doc.to_string(),
+            doc,
+        };
+        let cli = Answer {
+            text,
+            doc: Value::Null,
+        };
+        assert_eq!(league_count(Door::Cli, &cli), want);
+        assert_eq!(league_count(Door::Mcp, &mcp), want);
+    }
 }
