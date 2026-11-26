@@ -15,6 +15,11 @@ mod shared;
 #[path = "../../../acquisition-client/tests/harness/journey.rs"]
 pub mod journey;
 
+/// The seeded world: one owner-shaped table and its writer, read by
+/// both doors and the verbs crate's `seeded-world` example.
+#[path = "../../../acquisition-client/tests/harness/seeded.rs"]
+pub mod seeded;
+
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};

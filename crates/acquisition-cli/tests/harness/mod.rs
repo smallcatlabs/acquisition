@@ -14,6 +14,11 @@ mod shared;
 #[path = "../../../acquisition-client/tests/harness/journey.rs"]
 pub mod journey;
 
+/// The seeded world: one owner-shaped table and its writer, read by
+/// both doors and the verbs crate's `seeded-world` example.
+#[path = "../../../acquisition-client/tests/harness/seeded.rs"]
+pub mod seeded;
+
 /// A form as a browser submits it, shared with the fill's pin.
 pub mod submitted;
 

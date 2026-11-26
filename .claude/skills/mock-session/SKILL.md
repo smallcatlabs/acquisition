@@ -28,6 +28,23 @@ alias acq=./target/debug/acq
 acq daemon status                                             # a fresh socket: "daemon is not running" (status never spawns, C10); after the login below it says provider mock
 ```
 
+## Read work: a seeded world, no daemon
+
+For a read (a search, a tab list, prices, a page), skip the login: one
+command writes an owner-shaped world (three accounts, two realms, three
+leagues, prices, a sync policy, a saved search, a hostile tab name)
+through the store's own ingest, and prints the directory it wrote.
+
+```sh
+cargo run -q -p acquisition-verbs --example seeded-world -- <scratch>/store
+export ACQ_PROVIDER=mock ACQ_STORE_DIR=<scratch>/store ACQ_NO_SPAWN=1   # no daemon: any contact is an error
+acq accounts                                                             # Alice#1234, Bob#9, Carol#77; name one with --account
+```
+
+It is for reads: a mock login over it orphans its prices and policy,
+and an apply runs over the mock's own world. Its table is
+`crates/acquisition-client/tests/harness/seeded.rs`.
+
 ## Log in without a browser
 
 ```sh

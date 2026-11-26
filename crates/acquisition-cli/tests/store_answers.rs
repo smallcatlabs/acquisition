@@ -456,3 +456,181 @@ fn c149_every_json_answer_the_step_wrapped_is_one_object() {
         "{refused}"
     );
 }
+
+/// The seeded world (`acquisition-client/tests/harness/seeded.rs`) read
+/// through every leaf that answers from the store, with no daemon: each
+/// is given its account, realm and league by name, exits 0, and answers
+/// what the world holds — the three accounts, the realms and leagues, the
+/// never-fetched tab, both prices, the saved search and the policy's
+/// league held nowhere; the hostile tab name and note come back as
+/// written. A leaf that needs a daemon (a fetch, `auth check`), writes
+/// (a set, a clear, `store rebuild`), serves (`web`) or answers nothing of
+/// the store (`version`, `reference currency`) is not read here.
+#[test]
+fn every_read_leaf_answers_over_the_seeded_world_with_no_daemon() {
+    use harness::seeded::{
+        ALICE, BOB, CAROL, HARDCORE, HOSTILE_ITEM, HOSTILE_NOTE, HOSTILE_TAB_NAME,
+        NEVER_FETCHED_NAME, NEVER_FETCHED_TAB, POE2, PRICED_ITEM, PRICED_TAB, SAVED_ID, SAVED_NAME,
+        SAVED_TEXT, SETTLERS, STANDARD, Seeded,
+    };
+    let scratch = harness::scratch("seeded-reads");
+    let base = scratch.0.clone();
+    Seeded::owner().write(&base, harness::now());
+    let pc = ["--realm", "pc"];
+    let standard = ["--league", STANDARD];
+    let as_ = |account: &'static str, leaf: &[&'static str]| -> Vec<&'static str> {
+        [&["--account", account][..], leaf].concat()
+    };
+    let price_tab = format!("tab/{PRICED_TAB}");
+    let price_item = format!("item/{PRICED_ITEM}");
+    let reads: Vec<(Vec<&str>, Vec<&str>)> = vec![
+        (vec!["accounts"], vec![ALICE, BOB, CAROL]),
+        (
+            as_(ALICE, &["leagues", "--stored"]),
+            vec![
+                "Standard (pc",
+                "Hardcore (pc",
+                "Standard (poe2",
+                "Settlers (pc, no start given, named, nothing on disk)",
+            ],
+        ),
+        (
+            [
+                as_(ALICE, &["tabs"]),
+                pc.to_vec(),
+                standard.to_vec(),
+                vec!["--never-fetched"],
+            ]
+            .concat(),
+            vec![NEVER_FETCHED_NAME, NEVER_FETCHED_TAB, "never"],
+        ),
+        (
+            [
+                as_(ALICE, &["tabs"]),
+                pc.to_vec(),
+                vec!["--league", HARDCORE],
+            ]
+            .concat(),
+            vec![HOSTILE_TAB_NAME],
+        ),
+        (
+            [as_(BOB, &["tabs"]), pc.to_vec(), standard.to_vec()].concat(),
+            vec!["Bobs"],
+        ),
+        (
+            [as_(CAROL, &["tabs"]), pc.to_vec(), standard.to_vec()].concat(),
+            vec!["no tabs known"],
+        ),
+        (
+            [as_(ALICE, &["search"]), pc.to_vec(), vec!["rarity=unique"]].concat(),
+            vec!["Kaom's Heart"],
+        ),
+        (
+            [as_(
+                ALICE,
+                &["search", "--realm", POE2, "line(template:spirit)"],
+            )]
+            .concat(),
+            vec!["poe2 · live"],
+        ),
+        (
+            [as_(BOB, &["search"]), pc.to_vec()].concat(),
+            vec!["3 matches"],
+        ),
+        (
+            as_(ALICE, &["show", HOSTILE_ITEM]),
+            vec![HOSTILE_TAB_NAME, HOSTILE_NOTE],
+        ),
+        (as_(ALICE, &["store", "status"]), vec!["tabs 9"]),
+        (
+            [
+                as_(ALICE, &["store", "characters"]),
+                pc.to_vec(),
+                standard.to_vec(),
+            ]
+            .concat(),
+            vec!["Exile"],
+        ),
+        (as_(ALICE, &["store", "events"]), vec!["events"]),
+        (as_(ALICE, &["store", "refused"]), vec!["0 refused bodies"]),
+        (as_(CAROL, &["store", "status"]), vec!["responses 1 "]),
+        (
+            [
+                as_(ALICE, &["refresh", "--plan"]),
+                pc.to_vec(),
+                standard.to_vec(),
+            ]
+            .concat(),
+            vec!["policy 1"],
+        ),
+        (as_(ALICE, &["policy", "show"]), vec![SETTLERS]),
+        (
+            [
+                as_(ALICE, &["price", "status"]),
+                pc.to_vec(),
+                standard.to_vec(),
+            ]
+            .concat(),
+            vec!["1 decided by hand"],
+        ),
+        (
+            [
+                as_(ALICE, &["price", "list"]),
+                pc.to_vec(),
+                standard.to_vec(),
+            ]
+            .concat(),
+            vec![PRICED_ITEM, "3 chaos"],
+        ),
+        (
+            [
+                as_(ALICE, &["price", "show"]),
+                pc.to_vec(),
+                standard.to_vec(),
+                vec![price_item.as_str()],
+            ]
+            .concat(),
+            vec!["3 chaos"],
+        ),
+        (
+            [
+                as_(ALICE, &["price", "show"]),
+                pc.to_vec(),
+                standard.to_vec(),
+                vec![price_tab.as_str()],
+            ]
+            .concat(),
+            vec!["by hand: skip"],
+        ),
+        (vec!["saved", "list"], vec![SAVED_NAME, SAVED_ID]),
+        (
+            vec!["saved", "show", SAVED_ID],
+            vec![SAVED_NAME, SAVED_TEXT],
+        ),
+        (
+            [
+                as_(ALICE, &["shop", "render"]),
+                pc.to_vec(),
+                standard.to_vec(),
+            ]
+            .concat(),
+            vec!["1 item to post"],
+        ),
+    ];
+    for (args, holds) in &reads {
+        let out = acq(&base, args);
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            out.status.success(),
+            "acq {args:?}: {stdout}{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        for held in holds {
+            assert!(
+                stdout.contains(held),
+                "acq {args:?} lacks `{held}`:\n{stdout}"
+            );
+        }
+    }
+    assert!(harness::no_daemon_appeared(&base));
+}
