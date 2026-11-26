@@ -5,8 +5,9 @@ The gate's fault, and its search", from
 `audits/whole-review-2026-11/findings/admission.md` (its move 1 and
 move 3, the gate's half) and from the trial beside it,
 `trials/admission-explorer.md` with its `.patch`. Written by the
-orchestrating session on 2026-11-25 against `4e0cf51f`. It closes
-#206. No new ruling: the step strengthens invariant 1 (every send
+orchestrating session on 2026-11-25 against `4e0cf51f`; re-cut once,
+answering its cold review
+(`roadmap/reviews/next-a3-brief-33586b6f.md`). It closes #206. No new ruling: the step strengthens invariant 1 (every send
 passes one rate-limit choke point and one send-lifetime gate) and
 changes no boundary.
 
@@ -31,19 +32,22 @@ same-name policies share counters).
   `crates/acquisition-daemon/src/gate.rs`.
 - C47 (a panic is for a broken internal invariant only).
 - C200 (an excluded mutant's named line must still hold its pattern):
-  `.cargo/mutants.toml` names lines of `gate.rs`.
+  `.cargo/mutants.toml` has `gate.rs` among the files it mutates.
 - #206 (`gh issue view 206`): the hazard as first filed.
 - `trials/admission-explorer.md`: what the search explores, its
   oracle, the sequence it found, its cost by depth.
 - `trials/admission-explorer.patch`: the trial's module. Take its
   gate half as a start; it prints what it finds and passes.
-- CI at `4e0cf51f`: read `gh run list --branch main --limit 4` and
-  name a red run in the report; it is not this step's to fix.
+- CI: `gh run list --branch main --workflow "Gate (Linux)" --limit 1`
+  and the same for `"Gate (Windows)"`; name each run and its
+  conclusion in the report. A red one is the orchestrator's to file.
 
 ## Decisions
 
 1. **Derive, never record.** "This policy is busy" is read from the
-   live permits, of which there are at most two, and the second record
+   live permits, which the gate's own cap bounds
+   (`git grep -n MAX_ACTUAL_SENDS -- crates/acquisition-daemon/src/gate.rs`),
+   and the second record
    is deleted with the three assertions that kept it in step. Rules
    out #206's first proposal, promoting the assertions to a refused
    rekey or an abort: each adds an outcome the choke point must
@@ -61,8 +65,11 @@ same-name policies share counters).
    that joins two live permits is not itself a failure.
 4. **A test that fails.** It asserts, and its message is the shortest
    failing sequence. It runs to depth 6 in the gate's own profile; an
-   environment variable may deepen it by hand, never shallow it. If
-   depth 6 costs more than nextest's slow period there
+   environment variable may deepen it by hand, never shallow it. Its
+   seconds are measured with no other build running
+   (`pgrep -fl 'cargo|rustc'` shows only yours; C185, a measurement
+   runs alone), and what it took under lane 1's load is reported
+   apart. If depth 6 alone costs more than nextest's slow period
    (`.config/nextest.toml`), the lever is the search's own (states
    seen before, the symmetry of the keys), never a smaller depth;
    raise it in the report if neither is small.
@@ -79,8 +86,9 @@ same-name policies share counters).
   the record and its assertions.
 - `git grep -n 'rekey_policy\|\.occupancy()' -- crates/acquisition-daemon/src`:
   the callers, and whether any reads what the record held.
-- `grep -n -B3 -A8 'gate\.rs' .cargo/mutants.toml`, and check 16 in
-  `tools/arch-check.sh`: each exclusion whose line moves.
+- `grep -n -A6 'exclude_re\|gate\.rs' .cargo/mutants.toml`, and check
+  16 in `tools/arch-check.sh`: whether any exclusion names a line of
+  `gate.rs`; if one does, it moves with its line.
 - `git apply --check audits/whole-review-2026-11/trials/admission-explorer.patch`:
   whether the trial still applies.
 - `git grep -n -e '#206' -e 'active_policies' -- decisions docs REVIEW-CHECKLIST.md crates`:
@@ -101,9 +109,11 @@ same-name policies share counters).
   release, and the seconds depth 6 took with the fix in the gate's
   profile. The test and the fix are one commit (a test rides with the
   fix it pins), and its message says `Closes #206`.
-- `git diff --stat 4e0cf51f -- crates ':!crates/acquisition-daemon'`
-  prints nothing, and so does
-  `git diff 4e0cf51f -- crates/acquisition-daemon/src/ratelimit/tests`.
+- With `B` the lane's head after the Rules' fast-forward, named in the
+  fix's commit message:
+  `git diff --stat B -- crates ':!crates/acquisition-daemon'` prints
+  nothing, and so does
+  `git diff B -- crates/acquisition-daemon/src/ratelimit/tests`.
   The scenario tests in `gate.rs` change only where one names the
   deleted record.
 - `tools/gate.sh` exits 0 on the step's tree, in the lane.
@@ -136,5 +146,6 @@ same-name policies share counters).
 
 ## Report
 
-`TEMPLATE.md`, and with it: what the lane cost this step (the gate's
-wall time beside lane 1's work, anything that failed under load).
+`TEMPLATE.md`, and with it, apart from the measurement above: what
+the lane cost this step (its gate's wall time, whether lane 1 was
+building then, anything that failed under load).
