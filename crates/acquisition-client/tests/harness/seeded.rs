@@ -65,6 +65,30 @@ pub const PRICED_ITEM: &str = "i-plain";
 pub const PRICED_TAB: &str = "pc/f1";
 pub const PRICED_NOWHERE: &str = "i-elsewhere";
 
+/// The plain orbs' price by hand, as the world writes it on `i-plain`.
+pub const PRICED_AMOUNT: &str = "3";
+pub const PRICED_CURRENCY: &str = "chaos";
+
+/// Alice's pc Standard tab `t1` and the two rings it holds, each with its
+/// life summed over its lines: `r1`'s one line, `r2`'s implicit 20 and
+/// explicit 75.
+pub const RINGS_TAB_NAME: &str = "Rings";
+pub const DOOM_LOOP: &str = "Doom Loop";
+pub const DOOM_LOOP_LIFE: u64 = 95;
+pub const RUNE_COIL: &str = "Rune Coil";
+pub const RUNE_COIL_LIFE: u64 = 95;
+/// Tab `t2`'s unique, its one life line and its sockets as (group,
+/// colour): three linked, one apart.
+pub const KAOM: &str = "Kaom's Heart";
+pub const KAOM_LIFE: u64 = 500;
+/// [`KAOM_LIFE`] as its line reads.
+pub const KAOM_LIFE_LINE: &str = "+500 to maximum Life";
+pub const KAOM_SOCKETS: [(u64, &str); 4] = [(0, "R"), (0, "R"), (0, "G"), (1, "B")];
+/// Tab `t2`'s ring whose implicit lines cannot be read, so its life total
+/// is undecided.
+pub const HEX_BAND: &str = "Hex Band";
+pub const HEX_BAND_ID: &str = "r3";
+
 /// The world's one saved search (C167: the world's, in `user.db`).
 pub const SAVED_ID: &str = "5eed5eed5eed";
 pub const SAVED_NAME: &str = "Life rings";
@@ -167,6 +191,19 @@ pub fn gear(id: &str, name: &str, base: &str, rarity: &str, more: Value) -> Valu
         v[k] = value.clone();
     }
     v
+}
+
+/// Kaom's sockets as GGG writes them: [`KAOM_SOCKETS`], each a socket.
+fn kaom_sockets() -> Value {
+    let attr = |colour: &str| match colour {
+        "R" => "S",
+        "G" => "D",
+        _ => "I",
+    };
+    KAOM_SOCKETS
+        .iter()
+        .map(|(group, colour)| json!({ "group": group, "attr": attr(colour), "sColour": colour }))
+        .collect()
 }
 
 /// A rare Iron Ring of level 84 carrying `mods`.
@@ -441,6 +478,7 @@ fn params(endpoint: &Endpoint) -> Value {
 
 fn alice() -> Account {
     let tab = |id: &str, name: &str, index: u64| json!({ "id": id, "name": name, "type": "PremiumStash", "index": index });
+    let life = |n: u64| format!("+{n} to maximum Life");
     let responses = vec![
         Response {
             endpoint: Endpoint::Leagues,
@@ -456,7 +494,7 @@ fn alice() -> Account {
                 { "id": "f1", "name": "Sale", "type": "Folder", "index": 0,
                   "children": [ { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] },
                 { "id": "m1", "name": "Maps", "type": "MapStash", "index": 2 },
-                tab("t1", "Rings", 3),
+                tab("t1", RINGS_TAB_NAME, 3),
                 tab("t2", "Dump", 4),
                 tab(NEVER_FETCHED_TAB, NEVER_FETCHED_NAME, 5),
             ]),
@@ -493,11 +531,11 @@ fn alice() -> Account {
             STANDARD,
             "t1",
             None,
-            json!({ "id": "t1", "name": "Rings", "type": "PremiumStash", "items": [
-                gear("r1", "Doom Loop", "Two-Stone Ring", "Rare", json!({ "explicitMods":
-                    ["+95 to maximum Life", "+65% to Fire Resistance"] })),
-                gear("r2", "Rune Coil", "Two-Stone Ring", "Rare", json!({ "implicitMods": ["+20 to maximum Life"],
-                    "explicitMods": ["+75 to maximum Life", "+40% to Fire Resistance"] })),
+            json!({ "id": "t1", "name": RINGS_TAB_NAME, "type": "PremiumStash", "items": [
+                gear("r1", DOOM_LOOP, "Two-Stone Ring", "Rare", json!({ "explicitMods":
+                    [life(DOOM_LOOP_LIFE), "+65% to Fire Resistance".to_string()] })),
+                gear("r2", RUNE_COIL, "Two-Stone Ring", "Rare", json!({ "implicitMods": [life(20)],
+                    "explicitMods": [life(RUNE_COIL_LIFE - 20), "+40% to Fire Resistance".to_string()] })),
             ] }),
             20,
         ),
@@ -507,10 +545,9 @@ fn alice() -> Account {
             "t2",
             None,
             json!({ "id": "t2", "name": "Dump", "type": "PremiumStash", "items": [
-                gear("kaom", "Kaom's Heart", "Glorious Plate", "Unique", json!({ "explicitMods": ["+500 to maximum Life"],
-                    "sockets": [{ "group": 0, "attr": "S", "sColour": "R" }, { "group": 0, "attr": "S", "sColour": "R" },
-                                { "group": 0, "attr": "D", "sColour": "G" }, { "group": 1, "attr": "I", "sColour": "B" }] })),
-                gear("r3", "Hex Band", "Two-Stone Ring", "Rare", json!({ "implicitMods": "unreadable", "explicitMods": ["+40 to maximum Life"] })),
+                gear("kaom", KAOM, "Glorious Plate", "Unique", json!({ "explicitMods": [KAOM_LIFE_LINE],
+                    "sockets": kaom_sockets() })),
+                gear(HEX_BAND_ID, HEX_BAND, "Two-Stone Ring", "Rare", json!({ "implicitMods": "unreadable", "explicitMods": ["+40 to maximum Life"] })),
                 gear("plain", "Dull Turn", "Iron Ring", "Rare", json!({ "explicitMods": ["+20 to maximum Mana"] })),
                 gear("str", "Grim Knot", "Iron Ring", "Rare", json!({ "explicitMods": ["+25 to Strength"] })),
             ] }),
@@ -577,7 +614,7 @@ fn alice() -> Account {
             price(
                 "item",
                 PRICED_ITEM,
-                json!({ "version": 1, "type": "exact", "amount": "3", "currency": "chaos" }),
+                json!({ "version": 1, "type": "exact", "amount": PRICED_AMOUNT, "currency": PRICED_CURRENCY }),
             ),
             price("tab", PRICED_TAB, json!({ "version": 1, "type": "skip" })),
             price(

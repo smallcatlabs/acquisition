@@ -1,22 +1,22 @@
-# The counted tasks: what each task costs a reader through each door (crates/acquisition-mcp/tests/counted_tasks.rs). Bytes are rounded up to two significant figures; polls are left out of calls and bytes. Regenerate with `ACQ_UPDATE_FIXTURES=1 cargo nextest run -p acquisition-mcp --test main counted_tasks` and read the diff.
+# The counted tasks: what each task costs a reader through each door (crates/acquisition-mcp/tests/counted_tasks.rs, whose doc holds the rules). Bytes are rounded up to two significant figures; polls are left out of calls and bytes; a call is printed so that pasting it sends what was sent, a command for a POSIX shell. Regenerate with `ACQ_UPDATE_FIXTURES=1 cargo nextest run -p acquisition-mcp --test main counted_tasks` and read the diff.
 
 task  door  calls  refused  bytes    polled  answer
 0     cli   1      0        14000    no      the first turn
 0     mcp   2      0        43000    no      the first turn
-1     cli   5      1        4800     no      missed: her three leagues, each with its realm
-1     mcp   5      2        6100     no      missed: her three leagues, each with its realm
+1     cli   2      1        500      no      missed: the tab Never never fetched; got: Never not named
+1     mcp   3      2        1600     no      missed: the tab Never never fetched; got: Never not named
 2     cli   5      1        42000    no      reached
 2     mcp   5      1        42000    no      reached
-3     cli   6      2        37000    no      reached
-3     mcp   5      2        32000    no      reached
-4     cli   4      1        5100     no      reached
-4     mcp   3      1        8100     no      reached
+3     cli   2      1        1200     no      missed: Doom Loop in Rings; got: Doom Loop not named | Rune Coil in Rings; got: Rune Coil not named
+3     mcp   2      1        3900     no      missed: Doom Loop in Rings; got: Doom Loop not named | Rune Coil in Rings; got: Rune Coil not named
+4     cli   2      1        1300     no      missed: 3 chaos on i-plain; got: i-plain not named
+4     mcp   2      1        2800     no      missed: 3 chaos on i-plain; got: i-plain not named
 5     cli   6      1        39000    no      reached
 5     mcp   4      1        30000    no      reached
 6     cli   9      1        4100     no      reached
 6     mcp   12     1        19000    yes     reached
-7     cli   1      0        950      no      missed: Hardcore's own count of items
-7     mcp   1      0        2600     no      missed: Hardcore's own count of items
+7     cli   1      0        950      no      missed: Hardcore, 1 item; got: Standard, 1 item
+7     mcp   1      0        2600     no      missed: Hardcore, 1 item; got: Standard, 1 item
 8     cli   6      2        42000    no      reached
 8     mcp   6      2        43000    no      reached
 9     cli   8      1        43000    no      reached
@@ -31,69 +31,54 @@ task  door  calls  refused  bytes    polled  answer
             1200  initialize
            42000  tools/list
 
-## 1 cli: What do I hold, and how old is it? wanted: her three leagues, each with its realm; the tab Never as never fetched; an age
-            2900  acq store --help
-  refused    240  acq store status
-             430  acq --account Alice#1234 store status
-             250  acq --account Alice#1234 leagues --stored
-             940  acq --account Alice#1234 tabs
+## 1 cli: What do I hold, and how old is it? wanted: Standard on pc; Hardcore on pc; Standard on poe2; the tab Never never fetched; an age
+  refused    250  acq leagues --stored
+             250  acq --account 'Alice#1234' leagues --stored
 
-## 1 mcp: What do I hold, and how old is it? wanted: her three leagues, each with its realm; the tab Never as never fetched; an age
-  refused    550  store_status {}
-            1300  store_status {"account":"Alice#1234"}
-  refused    190  leagues {"account":"Alice#1234"}
-             810  leagues {"account":"Alice#1234","stored":true}
-            3300  tabs {"account":"Alice#1234"}
+## 1 mcp: What do I hold, and how old is it? wanted: Standard on pc; Hardcore on pc; Standard on poe2; the tab Never never fetched; an age
+  refused    190  leagues {}
+  refused    600  leagues {"stored":true}
+             810  leagues {"stored":true,"account":"Alice#1234"}
 
-## 2 cli: Which items have at least 90 life in all? wanted: Doom Loop; Rune Coil; Kaom's Heart; Hex Band said undecided
+## 2 cli: Which items have at least 90 life in all? wanted: Doom Loop, 95 life; Rune Coil, 95 life; Kaom's Heart, 500 life; Hex Band undecided
            12000  acq search --help
            24000  acq search --describe fields
-            4600  acq search --describe=~life
-  refused    290  acq search pseudo.total_life>=90
-            2300  acq --account Alice#1234 search pseudo.total_life>=90
+            4600  acq search '--describe=~life'
+  refused    290  acq search 'pseudo.total_life>=90'
+            2300  acq --account 'Alice#1234' search 'pseudo.total_life>=90'
 
-## 2 mcp: Which items have at least 90 life in all? wanted: Doom Loop; Rune Coil; Kaom's Heart; Hex Band said undecided
+## 2 mcp: Which items have at least 90 life in all? wanted: Doom Loop, 95 life; Rune Coil, 95 life; Kaom's Heart, 500 life; Hex Band undecided
   refused    590  search {}
             7100  search {"scope":{"account":"Alice#1234"}}
            25000  describe {"names":["fields"]}
             4800  describe {"names":["~life"]}
             5100  search {"query":{"text":"pseudo.total_life>=90"},"scope":{"account":"Alice#1234"}}
 
-## 3 cli: What is in my tab Rings? wanted: Doom Loop; Rune Coil
+## 3 cli: What is in my tab Rings? wanted: Doom Loop in Rings; Rune Coil in Rings
   refused    210  acq tabs
-             940  acq --account Alice#1234 tabs
-           12000  acq search --help
-           24000  acq search --describe fields
-  refused    180  acq --account Alice#1234 search tab=Rings
-            1400  acq --account Alice#1234 search --realm pc tab=Rings
+             940  acq --account 'Alice#1234' tabs
 
-## 3 mcp: What is in my tab Rings? wanted: Doom Loop; Rune Coil
+## 3 mcp: What is in my tab Rings? wanted: Doom Loop in Rings; Rune Coil in Rings
   refused    550  tabs {}
             3300  tabs {"account":"Alice#1234"}
-           25000  describe {"names":["fields"]}
-  refused    760  search {"query":{"text":"tab=Rings"},"scope":{"account":"Alice#1234"}}
-            3000  search {"scope":{"account":"Alice#1234","realm":"pc","membership":"live"},"query":{"text":"tab=Rings"},"view":{"rows":{}}}
 
-## 4 cli: Are the plain Chaos Orbs in my tab "~price 3 chaos" priced? wanted: 3 chaos on the plain orbs
+## 4 cli: Are the plain Chaos Orbs in my tab "~price 3 chaos" priced? wanted: 3 chaos on i-plain
   refused    210  acq price
-            1100  acq --account Alice#1234 price
-            3300  acq price --help
-             580  acq --account Alice#1234 price list
+            1100  acq --account 'Alice#1234' price
 
-## 4 mcp: Are the plain Chaos Orbs in my tab "~price 3 chaos" priced? wanted: 3 chaos on the plain orbs
+## 4 mcp: Are the plain Chaos Orbs in my tab "~price 3 chaos" priced? wanted: 3 chaos on i-plain
   refused    550  price_status {}
             2200  price_status {"account":"Alice#1234"}
-            5400  price_list {"account":"Alice#1234"}
 
-## 5 cli: Show me my Kaom's Heart whole wanted: its life line; its sockets
+## 5 cli: Show me my Kaom's Heart whole wanted: Kaom's Heart, +500 to maximum Life; Kaom's Heart, its sockets R-R-G B
             2500  acq show --help
            12000  acq search --help
            24000  acq search --describe fields
-  refused    180  acq --account Alice#1234 search name="Kaom's Heart"
-            1200  acq --account Alice#1234 search --realm all name="Kaom's Heart"
-             720  acq --account Alice#1234 show kaom
+  refused    180  acq --account 'Alice#1234' search 'name="Kaom'\''s Heart"'
+            1200  acq --account 'Alice#1234' search --realm all 'name="Kaom'\''s Heart"'
+             720  acq --account 'Alice#1234' show kaom
 
-## 5 mcp: Show me my Kaom's Heart whole wanted: its life line; its sockets
+## 5 mcp: Show me my Kaom's Heart whole wanted: Kaom's Heart, +500 to maximum Life; Kaom's Heart, its sockets R-R-G B
            25000  describe {"names":["fields"]}
   refused    810  search {"query":{"text":"name=\"Kaom's Heart\""},"scope":{"account":"Alice#1234"}}
             2700  search {"scope":{"account":"Alice#1234","realm":"all","membership":"live"},"query":{"text":"name=\"Kaom's Heart\""},"view":{"rows":{}}}
@@ -101,7 +86,7 @@ task  door  calls  refused  bytes    polled  answer
 
 ## 6 cli: Bring my stash up to date wanted: a plan that names no request
   refused    250  acq refresh --plan
-             240  acq policy set --account ExileTester --if-revision 0 {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}
+             240  acq policy set --account ExileTester --if-revision 0 '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}'
              430  acq refresh --plan --account ExileTester --realm pc --league Standard
              570  acq refresh --apply --account ExileTester --realm pc --league Standard
              690  acq refresh --plan --account ExileTester --realm pc --league Standard
@@ -114,31 +99,31 @@ task  door  calls  refused  bytes    polled  answer
   refused    210  refresh_plan {}
             1200  set_sync_policy {"value":{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}}
             2500  refresh_plan {}
-             210  apply_plan {"plan": <the plan refresh_plan returned>}
-             480  job_result {"id":2}
+             210  apply_plan {"plan":<the plan refresh_plan returned>}
+             480  job_result {"id":<the job apply_plan returned>}
             4700  refresh_plan {}
-             210  apply_plan {"plan": <the plan refresh_plan returned>}
-             500  job_result {"id":7}
+             210  apply_plan {"plan":<the plan refresh_plan returned>}
+             500  job_result {"id":<the job apply_plan returned>}
             5100  refresh_plan {}
-             210  apply_plan {"plan": <the plan refresh_plan returned>}
-             500  job_result {"id":19}
+             210  apply_plan {"plan":<the plan refresh_plan returned>}
+             500  job_result {"id":<the job apply_plan returned>}
             2700  refresh_plan {}
 
-## 7 cli: I play one league: what is priced? wanted: Hardcore's own count of items
+## 7 cli: I play one league: what is priced? wanted: Hardcore, 1 item
              950  acq price
 
-## 7 mcp: I play one league: what is priced? wanted: Hardcore's own count of items
+## 7 mcp: I play one league: what is priced? wanted: Hardcore, 1 item
             2600  price_status {}
 
-## 8 cli: Which items have at least 90 life in all? I hold both games. wanted: Doom Loop; Rune Coil; Kaom's Heart; Hex Band said undecided; poe2 said answered or left out
+## 8 cli: Which items have at least 90 life in all? I hold both games. wanted: Doom Loop, 95 life; Rune Coil, 95 life; Kaom's Heart, 500 life; Hex Band undecided; poe2 searched, said in the scope
            12000  acq search --help
            24000  acq search --describe fields
-            4600  acq search --describe=~life
-  refused    290  acq search pseudo.total_life>=90
-  refused    180  acq --account Alice#1234 search pseudo.total_life>=90
-            2500  acq --account Alice#1234 search --realm all pseudo.total_life>=90
+            4600  acq search '--describe=~life'
+  refused    290  acq search 'pseudo.total_life>=90'
+  refused    180  acq --account 'Alice#1234' search 'pseudo.total_life>=90'
+            2500  acq --account 'Alice#1234' search --realm all 'pseudo.total_life>=90'
 
-## 8 mcp: Which items have at least 90 life in all? I hold both games. wanted: Doom Loop; Rune Coil; Kaom's Heart; Hex Band said undecided; poe2 said answered or left out
+## 8 mcp: Which items have at least 90 life in all? I hold both games. wanted: Doom Loop, 95 life; Rune Coil, 95 life; Kaom's Heart, 500 life; Hex Band undecided; poe2 searched, said in the scope
   refused    590  search {}
   refused    700  search {"scope":{"account":"Alice#1234"}}
             7000  search {"scope":{"account":"Alice#1234","realm":"all","membership":"live"},"query":{},"view":{"rows":{}}}
@@ -151,10 +136,10 @@ task  door  calls  refused  bytes    polled  answer
             2800  acq price set --help
            12000  acq search --help
            24000  acq search --describe fields
-  refused    180  acq --account Alice#1234 search name="Doom Loop"
-            1200  acq --account Alice#1234 search --realm all name="Doom Loop"
-             210  acq --account Alice#1234 price set item/r1 exact 10 chaos
-             420  acq --account Alice#1234 price show item/r1
+  refused    180  acq --account 'Alice#1234' search 'name="Doom Loop"'
+            1200  acq --account 'Alice#1234' search --realm all 'name="Doom Loop"'
+             210  acq --account 'Alice#1234' price set item/r1 exact 10 chaos
+             420  acq --account 'Alice#1234' price show item/r1
 
 ## 9 mcp: Price my Doom Loop at 10 chaos wanted: a read after the write says 10 chaos
            25000  describe {"names":["fields"]}
@@ -163,11 +148,11 @@ task  door  calls  refused  bytes    polled  answer
              630  price_set {"target":"item/r1","type":"exact","amount":"10","currency":"chaos","account":"Alice#1234"}
             2500  price_show {"target":"item/r1","account":"Alice#1234"}
 
-## 10 cli: Run my saved search Life rings wanted: Doom Loop; Kaom's Heart
+## 10 cli: Run my saved search Life rings wanted: Doom Loop, +95 to maximum Life; Kaom's Heart, +500 to maximum Life
             3600  acq saved --help
-  refused    280  acq search --saved Life rings
-            2400  acq --account Alice#1234 search --saved=Life rings
+  refused    280  acq search --saved 'Life rings'
+            2400  acq --account 'Alice#1234' search '--saved=Life rings'
 
-## 10 mcp: Run my saved search Life rings wanted: Doom Loop; Kaom's Heart
+## 10 mcp: Run my saved search Life rings wanted: Doom Loop, +95 to maximum Life; Kaom's Heart, +500 to maximum Life
   refused    670  search {"saved":"Life rings"}
             4700  search {"saved":"Life rings","scope":{"account":"Alice#1234"}}
