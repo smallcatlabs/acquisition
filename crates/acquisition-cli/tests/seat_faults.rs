@@ -2278,7 +2278,7 @@ fn cli10_the_skip_count_names_the_list_that_holds_them() {
     // the refetch shares the seed's time: two seconds would print the
     // facts line's two-time form
     let at = harness::now();
-    let mock = crate::price_json::seed_at(&base, at);
+    let mock = crate::price_json::world().write(&base, at);
     // the public tab refetched with three `~skip` notes beside its two
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     let orb = |id: &str, note: Option<&str>| {
@@ -4210,7 +4210,7 @@ fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
 fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
     let scratch = harness::scratch("seat-substash-note");
     let world = scratch.0.clone();
-    crate::price_json::seed(&world);
+    crate::price_json::written(&world);
     let rule = "the shop blocks what this row prices (substash): the website's stash view \
                 offers no link for an item in a map or unique substash";
     for target in ["item/i-map", "substash/pc/m1/s1"] {

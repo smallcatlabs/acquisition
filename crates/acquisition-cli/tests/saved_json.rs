@@ -90,9 +90,12 @@ impl acquisition_store::IntentValue for OlderSaved {
     }
 }
 
-/// The world of `price_json.rs`: one account, its pc facts.
+/// The world of `price_json.rs`, one account and its pc facts, with no
+/// saved search yet: the story starts from none.
 fn world(base: &Path) -> PathBuf {
-    crate::price_json::seed(base)
+    crate::price_json::world()
+        .without_saved()
+        .write(base, harness::now())
 }
 
 /// The id of the one saved search named `name` the list holds.

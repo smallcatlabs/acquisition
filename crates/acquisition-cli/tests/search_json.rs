@@ -7,7 +7,7 @@
 //! crate; no daemon runs — `ACQ_NO_SPAWN=1` makes any contact an error.
 
 use std::io::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Output, Stdio};
 
 use acquisition_search::answer::PLACE_ORDER_WORDS;
@@ -15,141 +15,38 @@ use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
 use crate::harness;
+use harness::seeded::{
+    ALICE, ALICE_PC_STANDARD_ITEMS, ALICE_UUID, EARLY, PC, POE2, STANDARD, Seeded,
+};
 
 use harness::{Transcript, golden, offline_acq as acq, offline_command as command, sole_json};
 
-const USER: &str = "Alice#1234";
+const USER: &str = ALICE;
 
 fn text(out: &Output) -> String {
     String::from_utf8(out.stdout.clone()).unwrap()
 }
 
-/// Two fetched tabs and one never fetched: `kaom`, a unique whose name
-/// holds an apostrophe, sockets `R-R-G B`; `r1` with 95 life; `r2` with 20 and 75; `r3`
-/// whose implicit array is unread; `plain`, with no life line, so that a
-/// route starting with the language's `-` is printed.
-fn seed(base: &Path) {
-    let mock = base.join("mock");
-    std::fs::create_dir_all(&mock).unwrap();
-    let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, "u-search", false, 1, &[]).unwrap();
-    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    let mut record = |ep: Endpoint, body: Value, at: i64| {
-        store
-            .record(
-                &ep,
-                &json!({ "realm": "pc", "league": "Standard" }),
-                200,
-                &body,
-                at,
-            )
-            .unwrap();
-    };
-    record(
-        Endpoint::Profile,
-        json!({ "uuid": "u-search", "name": USER }),
-        1,
-    );
-    record(
-        Endpoint::Stashes {
-            realm: "pc".into(),
-            league: "Standard".into(),
-        },
-        json!({ "stashes": [
-            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
-            { "id": "t2", "name": "Dump", "type": "PremiumStash" },
-            { "id": "t3", "name": "Never", "type": "PremiumStash" } ] }),
-        10,
-    );
-    let item = |id: &str, name: &str, base: &str, rarity: &str, more: Value| {
-        let mut v = json!({ "id": id, "name": name, "typeLine": base, "baseType": base, "rarity": rarity,
-                            "frameTypeId": rarity, "identified": true, "ilvl": 84, "x": 0, "y": 0 });
-        for (k, value) in more.as_object().unwrap() {
-            v[k] = value.clone();
-        }
-        v
-    };
-    let stash = |id: &str| Endpoint::Stash {
-        realm: "pc".into(),
-        league: "Standard".into(),
-        id: id.into(),
-        sub: None,
-    };
-    record(
-        stash("t1"),
-        json!({ "stash": { "id": "t1", "name": "Rings", "type": "PremiumStash", "items": [
-            item("r1", "Doom Loop", "Two-Stone Ring", "Rare", json!({ "explicitMods": ["+95 to maximum Life"] })),
-            item("r2", "Rune Coil", "Two-Stone Ring", "Rare", json!({ "implicitMods": ["+20 to maximum Life"], "explicitMods": ["+75 to maximum Life"] })),
-        ] } }),
-        20,
-    );
-    record(
-        stash("t2"),
-        json!({ "stash": { "id": "t2", "name": "Dump", "type": "PremiumStash", "items": [
-            item("kaom", "Kaom's Heart", "Glorious Plate", "Unique", json!({ "explicitMods": ["+500 to maximum Life"],
-                "sockets": [{ "group": 0, "attr": "S", "sColour": "R" }, { "group": 0, "attr": "S", "sColour": "R" },
-                            { "group": 0, "attr": "D", "sColour": "G" }, { "group": 1, "attr": "I", "sColour": "B" }] })),
-            item("r3", "Hex Band", "Two-Stone Ring", "Rare", json!({ "implicitMods": "unreadable", "explicitMods": ["+40 to maximum Life"] })),
-            item("plain", "Dull Turn", "Iron Ring", "Rare", json!({ "explicitMods": ["+20 to maximum Mana"] })),
-        ] } }),
-        30,
-    );
+/// The world these tests read, the seeded world's [`Seeded::home`]: Alice
+/// alone in pc Standard. Beside the priced tabs and the character, two
+/// fetched tabs and one never fetched: `kaom`, a unique whose name holds an
+/// apostrophe, sockets `R-R-G B`; `r1` with 95 life; `r2` with 20 and 75;
+/// `r3` whose implicit array is unread; `plain`, with no life line, so that
+/// a route starting with the language's `-` is printed; `str`, strength.
+/// Written at [`EARLY`], so that what a test records over it at an
+/// instant of its own (40, 50 …) is the newer fetch.
+fn written(base: &Path) -> PathBuf {
+    Seeded::home().write(base, EARLY)
 }
 
-/// A second realm in the same store: one ring in a poe2 tab named as the
-/// pc one is, a ring there with two identical life lines, and a pc item
-/// with more lines than a row shows.
-fn seed_more(base: &Path) {
-    let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
-    let mut record = |ep: Endpoint, realm: &str, body: Value, at: i64| {
-        store
-            .record(
-                &ep,
-                &json!({ "realm": realm, "league": "Standard" }),
-                200,
-                &body,
-                at,
-            )
-            .unwrap();
-    };
-    let ring = |id: &str, mods: Vec<String>| {
-        json!({ "id": id, "name": "", "typeLine": "Iron Ring", "baseType": "Iron Ring", "rarity": "Rare",
-                "frameTypeId": "Rare", "identified": true, "ilvl": 84, "x": 0, "y": 0, "explicitMods": mods })
-    };
-    record(
-        Endpoint::Stashes {
-            realm: "poe2".into(),
-            league: "Standard".into(),
-        },
-        "poe2",
-        json!({ "stashes": [{ "id": "p1", "name": "Rings", "type": "PremiumStash" }] }),
-        40,
-    );
-    record(
-        Endpoint::Stash {
-            realm: "poe2".into(),
-            league: "Standard".into(),
-            id: "p1".into(),
-            sub: None,
-        },
-        "poe2",
-        json!({ "stash": { "id": "p1", "name": "Rings", "type": "PremiumStash",
-            "items": [ring("two", vec!["+30 to Spirit".to_string()]),
-                      ring("twin", vec!["+10 to maximum Life".to_string(), "+20 to maximum Life".to_string(), "+10 to maximum Life".to_string()])] } }),
-        50,
-    );
-    record(
-        Endpoint::Stash {
-            realm: "pc".into(),
-            league: "Standard".into(),
-            id: "t3".into(),
-            sub: None,
-        },
-        "pc",
-        json!({ "stash": { "id": "t3", "name": "Never", "type": "PremiumStash",
-            "items": [ring("many", (1..=8).map(|n| format!("+{n} to Spirit")).collect())] } }),
-        60,
-    );
+/// [`Seeded::home`] with a second realm, poe2's Standard: one ring in a
+/// poe2 tab named as the pc one is, a ring there with two identical life
+/// lines; and in pc's `t3` an item with more lines than a row shows.
+fn two_realms() -> Seeded {
+    Seeded::owner()
+        .alone(USER)
+        .scopes(&[(PC, STANDARD), (POE2, STANDARD)])
+        .with_many_lines()
 }
 
 /// Under an all-realms scope a row says which realm its item is in, and a row
@@ -159,8 +56,7 @@ fn seed_more(base: &Path) {
 fn c96_c100_a_row_names_its_realm_under_all_and_says_what_it_left_out() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
-    seed_more(&base);
+    two_realms().write(&base, EARLY);
     let shown = text(&acq(
         &base,
         &["search", "--realm", "all", "line(template:spirit)"],
@@ -214,8 +110,7 @@ fn run_printed(base: &Path, command: &str) -> Output {
 fn rule_5_every_command_printed_runs_with_a_second_account_known() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
-    seed_more(&base);
+    two_realms().write(&base, EARLY);
     let mock = base.join("mock");
     let mut index = Index::load(&mock).unwrap();
     index
@@ -290,10 +185,16 @@ fn rule_5_every_command_printed_runs_with_a_second_account_known() {
 
     // what a zero answer offers, where the query starts with the
     // language's not and goes after `--`, the flags before it; and the
-    // routes of an explained node's forced counts
+    // routes of an explained node's forced counts; the currency stacks are
+    // unidentified, so a zero answer asks for a rare
     for args in [
-        vec!["--routes", "--", "-is:identified"],
-        vec!["--count", "tab", "--", "-is:identified -has:name"],
+        vec!["--routes", "--", "-is:identified rarity=rare"],
+        vec![
+            "--count",
+            "tab",
+            "--",
+            "-is:identified -has:name rarity=rare",
+        ],
         vec!["line(template:life arg1>=90)", "--explain", "0.1"],
     ] {
         let mut all = vec!["--account", USER, "search", "--realm", "pc"];
@@ -331,7 +232,7 @@ fn rule_5_every_command_printed_runs_with_a_second_account_known() {
 fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counted() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     // the tab never fetched, fetched: a fire line GGG spelled two ways
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     let ring = |id: &str, line: &str| {
@@ -369,16 +270,17 @@ fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counte
         .collect();
     assert_eq!(keys, ["tab", "name", "line:life", "line~resist|^adds"]);
     assert_eq!(answer["rows"], json!([]));
-    // seven items at ilvl 84 and 70: 5 × 84 + 2 × 70
-    assert_eq!(counts["sum"]["value"], 560);
+    // eight items at ilvl 84 and 70: 6 × 84 + 2 × 70; the currency stacks
+    // carry no item level
+    assert_eq!(counts["sum"]["value"], 644);
 
     let shown = text(&acq(
         &base,
         &["search", "--count", count, "--sum", "ilvl", "--routes"],
     ));
-    assert!(shown.contains("count   tab · 3 values"), "{shown}");
+    assert!(shown.contains("count   tab · 6 values"), "{shown}");
     assert!(
-        shown.contains("sum     ilvl over every match: 560"),
+        shown.contains("sum     ilvl over every match: 644"),
         "{shown}"
     );
     // each route's heading says what it counted; the line after it is the
@@ -418,7 +320,7 @@ fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counte
 
     let crossed = text(&acq(&base, &["search", "--cross", "tab,rarity"]));
     assert!(
-        crossed.contains("cross   tab × rarity · 4 cells"),
+        crossed.contains("cross   tab × rarity · 7 cells"),
         "{crossed}"
     );
 }
@@ -431,7 +333,7 @@ fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counte
 fn keys_are_parsed_strictly_and_text_says_why_a_count_has_no_route() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     let stash = |id: &str| Endpoint::Stash {
         realm: "pc".into(),
@@ -518,7 +420,7 @@ fn keys_are_parsed_strictly_and_text_says_why_a_count_has_no_route() {
 fn step_5_review_a_continuations_key_is_encoded_and_a_quoted_text_is_kept_whole() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     // twelve templates a pattern with a comma selects, each with a comma
     // and a backslash of its own
@@ -593,7 +495,7 @@ const LIFE: &str = r##""+# to maximum Life">=90"##;
 fn values_on_rows_at_a_terminal() {
     let scratch = harness::scratch("search-values");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let out = acq(&base, &["--json", "search", "--realm", "pc", LIFE]);
     let a = sole_json(&out);
     let rows = &a["view"]["rows"];
@@ -719,7 +621,7 @@ fn currency_tab(base: &Path) {
 fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let out = acq(
         &base,
         &[
@@ -743,14 +645,15 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
     assert!(a["query"]["tree"].is_object());
     assert_eq!(
         a["scope"]["account"],
-        json!({ "uuid": "u-search", "name": USER })
+        json!({ "uuid": ALICE_UUID, "name": USER })
     );
     assert_eq!(
         (&a["scope"]["items"], &a["scope"]["never_fetched"]),
-        (&json!(5), &json!(1))
+        (&json!(ALICE_PC_STANDARD_ITEMS), &json!(1))
     );
     let term = &a["terms"][0];
-    // kaom and r1; r2 holds 20 and 75; r3's 40 sits beside an unread array
+    // kaom and r1; r2 holds 20 and 75; r3's 40 sits beside an unread array;
+    // `plain`, `str` and the four currency stacks carry no life line
     assert_eq!(
         (
             &term["matched"]["count"],
@@ -759,7 +662,7 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
             &term["undecided"]["count"],
             &term["together"]["count"]
         ),
-        (&json!(2), &json!(1), &json!(1), &json!(1), &json!(1))
+        (&json!(2), &json!(1), &json!(6), &json!(1), &json!(1))
     );
     let ids: Vec<&str> = a["rows"]
         .as_array()
@@ -775,7 +678,7 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
     let mut t = Transcript::offline(&base);
     let shown = text(&t.run(
         &["search", "--realm", "pc", LIFE, "--routes"],
-        &["2 matched · 1 failed · 1 lacked · 1 undecided · 1 reaches 90 only together"],
+        &["2 matched · 1 failed · 6 lacked · 1 undecided · 1 reaches 90 only together"],
     ));
     assert!(
         harness::normalise(&shown, &base).contains(
@@ -848,8 +751,7 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
 fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
-    seed_more(&base);
+    two_realms().write(&base, EARLY);
     let mut t = Transcript::offline(&base);
     t.run(
         &["search", "--realm", "all", "is:corrupted"],
@@ -1021,7 +923,7 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
 fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     for (args, kind) in [
         (vec!["search", "rare"], "bare_word"),
         (vec!["search", "class:staff"], "unknown_value"),
@@ -1104,7 +1006,7 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
 fn step_10_explain_context_and_against_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
 
     // kaom and r1 reach 90; r2 holds 20 and 75; r3's 40 sits beside an
     // unread array; `plain` has no life line. The bound forced true asks
@@ -1184,7 +1086,7 @@ fn step_10_explain_context_and_against_at_a_terminal() {
         a["set_aside"]["text"],
         "line(\"# to maximum Life\" arg1>=90)"
     );
-    assert_eq!(a["total"]["matched"], 5);
+    assert_eq!(a["total"]["matched"], ALICE_PC_STANDARD_ITEMS);
     assert_eq!(a["view"]["counts"]["tables"][0]["key"], "rarity");
     t.run(
         &["search", "--realm", "pc", LIFE, "--context", "corpus"],
@@ -1273,7 +1175,7 @@ fn step_10_explain_context_and_against_at_a_terminal() {
 fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let mut child = command(&base, &["--json", "search", "--query-file", "-"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1294,7 +1196,8 @@ fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
             &base,
             &["search", "--query-file", "/dev/stdin", "--routes"],
         ));
-        assert!(shown.contains("total   5 matches"), "{shown}");
+        let total = format!("total   {ALICE_PC_STANDARD_ITEMS} matches");
+        assert!(shown.contains(&total), "{shown}");
     }
     let shown = {
         let mut child = command(&base, &["search", "--query-file", "-", "--routes"])
@@ -1354,7 +1257,7 @@ fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
 fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let set = acq(
         &base,
         &["price", "set", "item/r1", "exact", "12.5", "chaos"],
@@ -1369,7 +1272,8 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
         &["search", "--realm", "pc", "has:priced"],
         &[
             "price 12.5 chaos · price.side manual",
-            "· prices and policy revision 1 ·",
+            // the world's intent stands at revision 4: three rows and a policy
+            "· prices and policy revision 5 ·",
         ],
     );
     t.run(
@@ -1524,7 +1428,7 @@ fn describe_at_a_terminal() {
 fn describe_and_show_print_json_whole_and_text_from_it() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let d = sole_json(&acq(&base, &["--json", "search", "--describe"]));
     let fields: Vec<&str> = d["fields"]
         .as_array()
@@ -1850,47 +1754,6 @@ fn step_9c4_a_mod_is_found_by_a_row_and_show_prints_its_rows() {
     );
 }
 
-/// The seed, and in tab `t3` what the category tests ask for: a pair of
-/// boots, a gem with a damage line, a captured Dune Hellion (yellow by the
-/// colour table), a captured Bleached Crustacean (unknown there) and a
-/// breachstone with no frame.
-fn seed_categories(base: &Path) {
-    seed(base);
-    let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
-    let plain = |id: &str, base: &str, more: Value| {
-        let mut v = json!({ "id": id, "name": "", "typeLine": base, "baseType": base,
-                            "identified": true, "ilvl": 0, "x": 0, "y": 0 });
-        for (k, value) in more.as_object().unwrap() {
-            v[k] = value.clone();
-        }
-        v
-    };
-    let bestiary = "Right-click to add this to your bestiary.";
-    store
-        .record(
-            &Endpoint::Stash {
-                realm: "pc".into(),
-                league: "Standard".into(),
-                id: "t3".into(),
-                sub: None,
-            },
-            &json!({ "realm": "pc", "league": "Standard" }),
-            200,
-            &json!({ "stash": { "id": "t3", "name": "Never", "type": "PremiumStash", "items": [
-                plain("boots", "Iron Greaves", json!({ "frameTypeId": "Rare", "rarity": "Rare",
-                    "requirements": [{ "name": "Level", "values": [["20", 0]], "displayMode": 0 }],
-                    "explicitMods": ["+30 to maximum Life"] })),
-                plain("fire", "Fireball", json!({ "frameTypeId": "Gem",
-                    "explicitMods": ["Deals 9 to 14 Fire Damage"] })),
-                plain("hellion", "Dune Hellion", json!({ "frameTypeId": "Rare", "descrText": bestiary })),
-                plain("crab", "Bleached Crustacean", json!({ "frameTypeId": "Rare", "descrText": bestiary })),
-                plain("stone", "Tul's Breachstone", json!({})),
-            ] } }),
-            40,
-        )
-        .unwrap();
-}
-
 /// At a terminal (C106, category): OQ5 spelled by category, a beast found by
 /// its category and shown, the count by category with every route it prints
 /// returning what it counted, and `--describe category`. Tab `t3` gains a pair
@@ -1901,7 +1764,7 @@ fn seed_categories(base: &Path) {
 fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed_categories(&base);
+    Seeded::home().with_categories().write(&base, EARLY);
 
     // OQ5 by category: the seed's plate and three rings with a life line,
     // and the boots; the gem's damage line and the plain ring's mana stay out
@@ -1925,7 +1788,7 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
     // breachstone's among them — under `map`, its leaf open (J21)
     let shown = text(&t.run(
         &["search", "--count", "category", "--routes"],
-        &["count   category · 7 values"],
+        &["count   category · 8 values"],
     ));
     golden(file!(), "categories_at_a_terminal", &t);
     let lines: Vec<&str> = shown.lines().collect();
@@ -1976,13 +1839,14 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
 /// pick of a category term is printed). Cut at five, as the text cuts what a
 /// selector resolved to, a category term, which has no count that lists the
 /// rest, hides a pick (`map.breachstone` behind "· 1 more"). Here the pattern
-/// picks every id and the store's items carry ten of them: each is printed,
+/// picks every id and the store's items carry eleven of them, the currency
+/// stacks' among them: each is printed,
 /// with its count, and nothing is left behind a "more".
 #[test]
 fn every_pick_of_a_category_term_is_printed_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed_categories(&base);
+    Seeded::home().with_categories().write(&base, EARLY);
     let a = sole_json(&acq(&base, &["--json", "search", "category~\".\""]));
     let picks: Vec<(String, u64)> = a["terms"][0]["resolved"]["values"]
         .as_array()
@@ -1995,7 +1859,7 @@ fn every_pick_of_a_category_term_is_printed_at_a_terminal() {
             )
         })
         .collect();
-    assert_eq!(picks.len(), 10, "{picks:?}");
+    assert_eq!(picks.len(), 11, "{picks:?}");
     assert_eq!(a["terms"][0]["resolved"]["more"], 0);
     let shown = text(&acq(&base, &["search", "category~\".\""]));
     let resolved = shown
@@ -2024,7 +1888,7 @@ fn every_pick_of_a_category_term_is_printed_at_a_terminal() {
 fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     let item = |id: &str, base: &str, rarity: &str, more: Value| {
         let mut v = json!({ "id": id, "name": "", "typeLine": base, "baseType": base,
@@ -2100,7 +1964,7 @@ fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
 fn step_9d_a_the_percentile_of_a_captured_hybrid_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     let property =
         |name: &str, value: &str| json!({ "name": name, "values": [[value, 0]], "displayMode": 0 });
@@ -2152,7 +2016,7 @@ fn step_9d_a_the_percentile_of_a_captured_hybrid_at_a_terminal() {
 fn show_against_takes_a_query_that_starts_with_a_not() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let out = acq(
         &base,
         &["--json", "show", "r1", "--against", "-rarity=magic"],
@@ -2173,7 +2037,7 @@ fn show_against_takes_a_query_that_starts_with_a_not() {
 fn step_10_next_request_and_print_request_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let rows = |a: &Value| a["rows"].as_array().unwrap().clone();
 
     // the pages, each by the command the one before printed
@@ -2328,7 +2192,7 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
 fn step_10_membership_all_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     // a fetch of Rings that no longer has r2
     let mock = base.join("mock");
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
@@ -2362,6 +2226,10 @@ fn step_10_membership_all_at_a_terminal() {
     // What each membership holds is the search crate's (`membership.rs`);
     // here, the text lines and every printed command run.
     // The terms are counted over both, and the block says so.
+    let live = format!(
+        " · all · {} items live · 1 removed · ",
+        ALICE_PC_STANDARD_ITEMS - 1
+    );
     let mut t = Transcript::offline(&base);
     let shown = text(&t.run(
         &[
@@ -2374,7 +2242,7 @@ fn step_10_membership_all_at_a_terminal() {
             "--routes",
         ],
         &[
-            " · all · 4 items live · 1 removed · ",
+            &live,
             // the matches' oldest and newest fetch on the total line, each
             // with its place
             "each term counted alone over all live and removed pc items",
@@ -2382,7 +2250,7 @@ fn step_10_membership_all_at_a_terminal() {
     ));
     assert!(
         harness::normalise(&shown, &base).contains(
-            "\ntotal   4 matches (the oldest fetch <age> ago, pc · Standard / Dump; the newest <age> ago, pc · Standard / Rings)\n"
+            "\ntotal   5 matches (the oldest fetch <age> ago, pc · Standard / Dump; the newest <age> ago, pc · Standard / Rings)\n"
         ),
         "{shown}"
     );
@@ -2481,7 +2349,7 @@ fn step_10_membership_all_at_a_terminal() {
 fn membership_removed_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     // a fetch of Rings that no longer has r2
     let mock = base.join("mock");
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
@@ -2519,7 +2387,10 @@ fn membership_removed_at_a_terminal() {
         ],
     ));
     assert!(
-        shown.contains(" · removed · 1 removed · 4 items live not searched · "),
+        shown.contains(&format!(
+            " · removed · 1 removed · {} items live not searched · ",
+            ALICE_PC_STANDARD_ITEMS - 1
+        )),
         "{shown}"
     );
     assert!(
@@ -2564,7 +2435,7 @@ fn membership_removed_at_a_terminal() {
 fn a_printed_count_command_names_the_keys_it_was_printed_for() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let dir = base.join("requests");
     std::fs::create_dir_all(&dir).unwrap();
     for (n, keys) in [
@@ -2641,8 +2512,7 @@ fn a_printed_count_command_names_the_keys_it_was_printed_for() {
 fn a_refusal_offers_requests_each_saying_its_realm() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
-    seed_more(&base);
+    two_realms().write(&base, EARLY);
     let file = base.join("no-realm.json");
     std::fs::write(
         &file,
@@ -2753,7 +2623,7 @@ fn statuses(trade: &Value) -> Vec<(String, String)> {
 fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let url = trade_url();
     let answer = sole_json(&acq(&base, &["--json", "search", "--trade", &url]));
     assert_eq!(answer["query"]["text"], TRADE_TEXT);
@@ -2864,7 +2734,7 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
 fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let url = trade_url();
     // the URL's own realm again is the terminal's conflict; another realm
     // is the request's, in the words a request read whole gets below and
@@ -2966,7 +2836,7 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
 fn c113_the_query_json_is_read_from_stdin_and_its_sort_is_reported() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let mut child = command(&base, &["--json", "search", "--trade-file", "-"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -3019,7 +2889,7 @@ fn ids_of(answer: &Value) -> Vec<&str> {
 fn rule_5_every_command_a_translated_answer_prints_runs() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let url = trade_url();
 
     // the continuation: the token carries the site search, page 2 its label
@@ -3096,7 +2966,9 @@ fn rule_5_every_command_a_translated_answer_prints_runs() {
     }))
     .unwrap();
     let by_json = by_json.token();
-    seed_more(&base);
+    two_realms()
+        .beyond(&Seeded::home())
+        .write(&base, harness::now());
     for (token, source, quoted) in [
         (&by_url, "url", format!("--trade {url} ")),
         (
@@ -3120,7 +2992,7 @@ fn rule_5_every_command_a_translated_answer_prints_runs() {
         assert_eq!(sole_json(&out)["query"]["trade"]["source"], source);
     }
 
-    // an id over two realms (seed_more added poe2): each realm offered
+    // an id over two realms (the second realm added poe2): each realm offered
     // as the site search in it, and all of them, sent back as printed
     let out = acq(&base, &["--json", "search", "--trade", TRADE_ID]);
     assert_eq!(out.status.code(), Some(1));

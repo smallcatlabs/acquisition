@@ -3,7 +3,7 @@
 $ acq price list --in tab/pc/f1 --relation none
 # holds "none match for Standard with relation none in tab/pc/f1"
 --- stdout
-4 items on record, none match for Standard with relation none in tab/pc/f1
+10 items on record, none match for Standard with relation none in tab/pc/f1
 next: `acq price status --account 'Alice#1234' --realm pc --league Standard` says what is on record
 
 $ acq price show tab/pc/f1
@@ -36,7 +36,7 @@ next: `acq price list --account 'Alice#1234' --realm pc --league Standard --in s
 $ acq price list --in tab/pc/nope
 # holds "tab/pc/nope is not in the facts for Standard"
 --- stderr
-Error: tab/pc/nope is not in the facts for Standard (4 items, 5 tabs and characters on record); a search of pc finds an item's id, the tabs of pc Standard a tab's
+Error: tab/pc/nope is not in the facts for Standard (10 items, 8 tabs and characters on record); a search of pc finds an item's id, the tabs of pc Standard a tab's
     every item of pc, each row with its item's id: acq search --account 'Alice#1234' --realm pc ''
     the tabs of pc Standard, each with its id: acq tabs --account 'Alice#1234' --realm pc --league Standard
 --- exit 1
@@ -62,6 +62,6 @@ $ acq price status --league Hardcore
 --- stdout
 no items on record for Hardcore: 0 tabs and characters listed, none fetched, none with items
 facts: no locations; characters listed <age> ago
-leagues: Hardcore (this); also held: Standard (4 tabs, 1 character, no policy)
+leagues: Hardcore (this); also held: Standard (7 tabs, 1 character, named)
 rows: 0 of 3 apply here; 1 name nothing in this league's facts, 0 unreadable, 2 for other leagues, 0 for other realms
 next: `acq refresh --plan --account 'Alice#1234' --realm pc --league Hardcore` shows what a refresh would fetch

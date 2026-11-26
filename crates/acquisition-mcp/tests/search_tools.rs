@@ -13,12 +13,13 @@ use crate::harness;
 
 use std::path::{Path, PathBuf};
 
-use acquisition_store::{Endpoint, Index, Store, account_path};
+use acquisition_store::{Endpoint, Store, account_path};
+use harness::seeded::{ALICE, ALICE_PC_STANDARD_ITEMS, EARLY, Seeded};
 use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared};
 use harness::{Scratch, scratch};
 use serde_json::{Value, json};
 
-const USER: &str = "Alice#1234";
+const USER: &str = ALICE;
 
 /// A scratch world, a server over it, and the `acq` beside the server.
 struct Seat {
@@ -64,98 +65,32 @@ fn stash(realm: &str, id: &str) -> Endpoint {
     }
 }
 
-/// Five pc items in two tabs of Standard, every count below worked from
-/// this list:
+/// The seeded world's [`Seeded::home`], written at [`EARLY`] under the
+/// store root the server reads: beside the priced tabs and the character,
+/// six pc items in two tabs of Standard and a third tab never fetched,
+/// every count below worked from this list:
 ///
 /// | id | tab | rarity | base | lines |
 /// | --- | --- | --- | --- | --- |
 /// | `r1` | Rings | rare | Two-Stone Ring | life 95, fire res 65 |
 /// | `r2` | Rings | rare | Two-Stone Ring | life 20 (implicit) and 75, fire res 40 |
 /// | `kaom` | Dump | unique | Glorious Plate | life 500 |
+/// | `r3` | Dump | rare | Two-Stone Ring | implicit unread, life 40 |
 /// | `plain` | Dump | rare | Iron Ring | mana 20 |
 /// | `str` | Dump | rare | Iron Ring | strength 25 |
-pub(crate) fn seed(base: &Path) {
-    let dir = stores(base);
-    std::fs::create_dir_all(&dir).unwrap();
-    let mut index = Index::load(&dir).unwrap();
-    index.record_login(USER, "u-search", false, 1, &[]).unwrap();
-    let mut store = Store::open(&account_path(&dir, USER)).unwrap();
-    record(
-        &mut store,
-        Endpoint::Profile,
-        "pc",
-        json!({ "uuid": "u-search", "name": USER }),
-        1,
-    );
-    record(
-        &mut store,
-        Endpoint::Stashes {
-            realm: "pc".into(),
-            league: "Standard".into(),
-        },
-        "pc",
-        json!({ "stashes": [
-            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
-            { "id": "t2", "name": "Dump", "type": "PremiumStash" } ] }),
-        10,
-    );
-    record(
-        &mut store,
-        stash("pc", "t1"),
-        "pc",
-        json!({ "stash": { "id": "t1", "name": "Rings", "type": "PremiumStash", "items": [
-            item("r1", "Doom Loop", "Two-Stone Ring", "Rare", json!({ "explicitMods":
-                ["+95 to maximum Life", "+65% to Fire Resistance"] })),
-            item("r2", "Rune Coil", "Two-Stone Ring", "Rare", json!({ "implicitMods": ["+20 to maximum Life"],
-                "explicitMods": ["+75 to maximum Life", "+40% to Fire Resistance"] })),
-        ] } }),
-        20,
-    );
-    record(
-        &mut store,
-        stash("pc", "t2"),
-        "pc",
-        json!({ "stash": { "id": "t2", "name": "Dump", "type": "PremiumStash", "items": [
-            item("kaom", "Kaom's Heart", "Glorious Plate", "Unique", json!({ "explicitMods": ["+500 to maximum Life"] })),
-            item("plain", "Dull Turn", "Iron Ring", "Rare", json!({ "explicitMods": ["+20 to maximum Mana"] })),
-            item("str", "Grim Knot", "Iron Ring", "Rare", json!({ "explicitMods": ["+25 to Strength"] })),
-        ] } }),
-        30,
-    );
+///
+/// and four Chaos Orb stacks with no line: two in the priced tab, one in
+/// the map substash, one on the character.
+pub(crate) fn written(base: &Path) -> PathBuf {
+    Seeded::home().write(&base.join("store"), EARLY)
 }
 
-/// A second account, with one item of its own.
-pub(crate) fn seed_bob(base: &Path) {
-    let dir = stores(base);
-    let mut index = Index::load(&dir).unwrap();
-    index.record_login("Bob#9", "u-bob", false, 2, &[]).unwrap();
-    let mut store = Store::open(&account_path(&dir, "Bob#9")).unwrap();
-    record(
-        &mut store,
-        Endpoint::Profile,
-        "pc",
-        json!({ "uuid": "u-bob", "name": "Bob#9" }),
-        1,
-    );
-    record(
-        &mut store,
-        Endpoint::Stashes {
-            realm: "pc".into(),
-            league: "Standard".into(),
-        },
-        "pc",
-        json!({ "stashes": [{ "id": "b1", "name": "Bobs", "type": "PremiumStash" }] }),
-        10,
-    );
-    record(
-        &mut store,
-        stash("pc", "b1"),
-        "pc",
-        json!({ "stash": { "id": "b1", "name": "Bobs", "type": "PremiumStash", "items": [
-            item("bob1", "Lone Band", "Iron Ring", "Rare", json!({})),
-        ] } }),
-        20,
-    );
+/// [`written`] and Bob, a second account with items of his own, added to
+/// the store `written` wrote.
+pub(crate) fn add_bob(base: &Path) {
+    Seeded::home_and_bob()
+        .beyond(&Seeded::home())
+        .write(&base.join("store"), EARLY);
 }
 
 /// What the CLI's `--json` printed: the document, and whether it exited 0.
@@ -175,7 +110,14 @@ impl Seat {
     /// The seeded fixture and a server over it.
     fn new() -> Seat {
         let scratch = scratch("mcp-search");
-        seed(&scratch.0);
+        written(&scratch.0);
+        Seat::over(scratch)
+    }
+
+    /// A server over `world`, written at [`EARLY`].
+    fn of(world: Seeded) -> Seat {
+        let scratch = scratch("mcp-search");
+        world.write(&scratch.0.join("store"), EARLY);
         Seat::over(scratch)
     }
 
@@ -562,21 +504,21 @@ fn a_missing_store_names_the_directory_it_looked_in() {
 fn the_requests_account_selects_the_store() {
     let scratch = scratch("mcp-search");
     let base = scratch.0.clone();
-    seed(&base);
-    seed_bob(&base);
+    written(&base);
+    add_bob(&base);
     let mut seat = Seat::over(scratch);
     let (bob, refused) = seat.call("search", &json!({ "scope": { "account": "bob" } }));
     assert!(!refused, "{bob}");
-    assert_eq!(ids(&bob), ["bob1"]);
+    assert_eq!(ids(&bob), ["bob1", "bob2", "bob3"]);
     let (alice, _) = seat.call(
         "search",
         &json!({ "scope": { "account": USER }, "view": { "rows": { "limit": 2 } } }),
     );
-    assert_eq!(ids(&alice), ["r1", "r2"]);
+    assert_eq!(ids(&alice), ["i-worn", "i-noted"]);
     // every request an answer holds names the account it was answered for
     let (second, refused) = seat.call("search", &alice["view"]["rows"]["next"]);
     assert!(!refused, "{second}");
-    assert_eq!(ids(&second), ["kaom", "plain"]);
+    assert_eq!(ids(&second), ["i-plain", "i-map"]);
     let (shown, refused) = seat.call("show", &json!({ "id": "bob1", "account": "u-bob" }));
     assert!(!refused, "{shown}");
     assert_eq!(shown["item"]["facts"]["id"], "bob1");
@@ -600,7 +542,11 @@ fn the_requests_account_selects_the_store() {
 fn a_held_corpus_is_loaded_again_when_a_tab_or_a_price_is_written() {
     let mut seat = Seat::new();
     let first = seat.answer(&json!({}));
-    assert_eq!(first["total"]["matched"], json!(5), "{first}");
+    assert_eq!(
+        first["total"]["matched"],
+        json!(ALICE_PC_STANDARD_ITEMS),
+        "{first}"
+    );
 
     let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
     record(
@@ -626,8 +572,10 @@ fn a_held_corpus_is_loaded_again_when_a_tab_or_a_price_is_written() {
         50,
     );
     drop(store);
+    // the listing keeps Rings and Dump (six items) and adds the late ring;
+    // the character's item stays
     let fetched = seat.answer(&json!({}));
-    assert_eq!(fetched["total"]["matched"], json!(6), "{fetched}");
+    assert_eq!(fetched["total"]["matched"], json!(8), "{fetched}");
     let response = |a: &Value| a["basis"]["snapshot"]["response"].as_i64().unwrap();
     assert!(response(&fetched) > response(&first), "{fetched}");
 
@@ -1022,7 +970,8 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     }
     let (status, refused) = seat.call("store_status", &json!({}));
     assert!(!refused, "{status}");
-    assert_eq!(status["facts"]["fetched"], json!(2), "{status}");
+    // the two tabs the listing keeps, and the character
+    assert_eq!(status["facts"]["fetched"], json!(3), "{status}");
     assert!(
         status["facts"]["oldest_fetch_location"].is_object(),
         "{status}"
@@ -1283,12 +1232,15 @@ fn the_search_tool_is_acq_search_request() {
     assert_eq!(e["kind"], "bare_word", "{e}");
     let (next, refused) = seat.search_beside_the_cli(&answer["view"]["rows"]["next"]);
     assert!(!refused, "{next}");
-    assert_eq!(ids(&next), ["plain", "str"]);
+    assert_eq!(ids(&next), ["plain", "r3"]);
     let (zero, _) = seat.search(&json!({ "query": { "text": "rarity=rare name:kaom" } }));
     assert_eq!(zero["total"]["matched"], 0, "{zero}");
     let (offered, refused) = seat.search_beside_the_cli(&zero["zero"]["offers"]["context"]);
     assert!(!refused, "{offered}");
-    assert_eq!(offered["total"]["matched"], 5, "{offered}");
+    assert_eq!(
+        offered["total"]["matched"], ALICE_PC_STANDARD_ITEMS,
+        "{offered}"
+    );
 }
 
 /// The matches' fetch span survives the tool's serialization whole:
@@ -1340,7 +1292,7 @@ fn the_totals_fetch_span_reaches_the_tool_whole() {
 #[test]
 fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     let scratch = scratch("mcp-search");
-    seed(&scratch.0);
+    written(&scratch.0);
     let now = harness::now();
     {
         let mut store = Store::open(&account_path(&stores(&scratch.0), USER)).unwrap();
@@ -1377,9 +1329,13 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     assert_eq!(at_of(&day), [now - 23 * 3600], "{day}");
     let three = seat.mcp.expect_ok("item_events", json!({ "hours": 72 }));
     assert_eq!(at_of(&three), [now - 23 * 3600, now - 25 * 3600], "{three}");
-    let all = seat.mcp.expect_ok("item_events", json!({ "hours": 1.0e9 }));
+    // every event: each of the world's items added once, and the two
+    // above, more than the default ten
+    let all = seat
+        .mcp
+        .expect_ok("item_events", json!({ "hours": 1.0e9, "limit": 20 }));
     let at = at_of(&all);
-    assert_eq!(at.len(), 7, "{all}");
+    assert_eq!(at.len(), ALICE_PC_STANDARD_ITEMS + 2, "{all}");
     assert!(at.windows(2).all(|w| w[0] >= w[1]), "newest first: {at:?}");
     let one = seat
         .mcp
@@ -1391,9 +1347,9 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     // the same events by location: counted apart from the events
     let by = seat.mcp.expect_ok(
         "item_events",
-        json!({ "hours": 1.0e9, "summary": true, "expand": true }),
+        json!({ "hours": 1.0e9, "summary": true, "expand": true, "limit": 20 }),
     );
-    assert_eq!(by["events"], 7, "{by}");
+    assert_eq!(by["events"], ALICE_PC_STANDARD_ITEMS + 2, "{by}");
     assert_eq!(
         by["locations"].as_u64().map(|n| n as usize),
         by["rows"].as_array().map(Vec::len),
@@ -1467,7 +1423,7 @@ fn the_status_counts_entry_reads_alone() {
 /// other shape (`told_as`), so no tool answers a bare array.
 #[test]
 fn c149_every_answer_the_step_wrapped_is_one_object() {
-    let mut seat = Seat::new();
+    let mut seat = Seat::of(Seeded::home().without_intent());
     let mut answer = |tool: &str, args: Value| -> Value {
         let (doc, refused) = seat.call(tool, &args);
         assert!(!refused, "{tool}: {doc}");
@@ -1500,7 +1456,7 @@ fn c149_every_answer_the_step_wrapped_is_one_object() {
             "leagues_held": [{
                 "realm": "pc", "policy": "none", "policy_revision": null, "policy_names_realm": false,
                 "leagues_total": 1, "left_out": 0,
-                "leagues": [{ "league": "Standard", "tabs": 2, "characters": 0, "named": false }],
+                "leagues": [{ "league": "Standard", "tabs": 7, "characters": 1, "named": false }],
             }],
         })
     );
@@ -1519,7 +1475,11 @@ fn c149_every_answer_the_step_wrapped_is_one_object() {
 fn the_leagues_tool_reads_the_stored_list_and_each_one_league_tool_says_what_else_is_held() {
     let scratch = scratch("mcp-leagues");
     let base = scratch.0.clone();
-    seed(&base);
+    // no list fetched yet and no policy: the answer says never
+    Seeded::home()
+        .without_league_list()
+        .without_intent()
+        .write(&base.join("store"), EARLY);
     let mut seat = Seat::over(scratch);
     let (never, refused) = seat.call("leagues", &json!({ "stored": true }));
     assert!(!refused, "{never}");
@@ -1576,7 +1536,7 @@ fn the_leagues_tool_reads_the_stored_list_and_each_one_league_tool_says_what_els
     assert_eq!(
         listed["leagues"][0],
         json!({ "id": "Standard", "realm": "pc", "started_at": null, "started_at_age": "never",
-                "named": false, "held": { "tabs": 2, "characters": 0 } })
+                "named": false, "held": { "tabs": 7, "characters": 1 } })
     );
     let (printed, ok) = cli(&base, &["leagues", "--stored"]);
     assert!(ok, "{printed}");
@@ -1607,7 +1567,7 @@ fn the_leagues_tool_reads_the_stored_list_and_each_one_league_tool_says_what_els
         assert_eq!(held["leagues"].as_array().unwrap().len(), 12, "{tool}");
     }
 
-    seed_bob(&base);
+    add_bob(&base);
     let (e, refused) = seat.call("leagues", &json!({ "stored": true }));
     assert!(refused, "{e}");
     assert_eq!(e["kind"], "ambiguous_account", "{e}");

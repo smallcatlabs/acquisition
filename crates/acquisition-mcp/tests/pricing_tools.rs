@@ -14,126 +14,26 @@ use crate::harness;
 use std::path::{Path, PathBuf};
 
 use acquisition_plan::price::Buyout;
-use acquisition_plan::{PolicyWrite, put_sync_policy};
 use acquisition_store::{
     Annotations, Endpoint, Index, Provenance, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE,
     Store, account_path,
 };
+use harness::seeded::{ALICE, ALICE_UUID, Seeded};
 use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared, scratch};
 use serde_json::{Value, json};
 
-const USER: &str = "Alice#1234";
-const UUID: &str = "u-price";
+const USER: &str = ALICE;
+const UUID: &str = ALICE_UUID;
 
-/// The world `price_json.rs` seeds for the CLI, under the store root the
-/// server and the `acq` beside it read: a folder holding a public priced
-/// tab with two items (one noted, one with a row), a map tab with a
-/// substash holding one item, a character wearing one; a row on the
-/// folder and one naming nothing here; and a sync policy, so the render
-/// reports its coverage.
-fn seed(base: &Path) {
-    let mock = base.join("store").join("mock");
-    std::fs::create_dir_all(&mock).unwrap();
-    let at = harness::now();
-    let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, UUID, false, at, &[]).unwrap();
-    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    let record = |store: &mut Store, ep: Endpoint, params: Value, body: Value| {
-        store.record(&ep, &params, 200, &body, at).unwrap();
-    };
-    record(
-        &mut store,
-        Endpoint::Profile,
-        json!({}),
-        json!({ "uuid": UUID, "name": USER }),
-    );
-    record(
-        &mut store,
-        Endpoint::Stashes {
-            realm: "pc".into(),
-            league: "Standard".into(),
-        },
-        json!({ "league": "Standard" }),
-        json!({ "stashes": [
-            { "id": "f1", "name": "Sale", "type": "Folder", "index": 0,
-              "children": [ { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] },
-            { "id": "m1", "name": "Maps", "type": "MapStash", "index": 2 } ] }),
-    );
-    let item = |id: &str, note: Option<&str>| {
-        let mut v = json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0, "stackSize": 5 });
-        if let Some(n) = note {
-            v["note"] = json!(n);
-        }
-        v
-    };
-    let stash = |id: &str, sub: Option<&str>| Endpoint::Stash {
-        realm: "pc".into(),
-        league: "Standard".into(),
-        id: id.into(),
-        sub: sub.map(str::to_string),
-    };
-    record(
-        &mut store,
-        stash("c1", None),
-        json!({}),
-        json!({ "stash": { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash",
-                            "items": [ item("i-noted", Some("~price 5 chaos")), item("i-plain", None) ] } }),
-    );
-    record(
-        &mut store,
-        stash("m1", None),
-        json!({}),
-        json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [],
-                            "children": [ { "id": "s1", "name": "1", "type": "MapStash", "metadata": { "items": 1 } } ] } }),
-    );
-    record(
-        &mut store,
-        stash("m1", Some("s1")),
-        json!({}),
-        json!({ "stash": { "id": "s1", "name": "1", "type": "MapStash", "items": [ item("i-map", None) ] } }),
-    );
-    record(
-        &mut store,
-        Endpoint::Characters { realm: "pc".into() },
-        json!({ "realm": "pc" }),
-        json!({ "characters": [ { "id": "ch1", "name": "Exile", "league": "Standard" } ] }),
-    );
-    record(
-        &mut store,
-        Endpoint::Character {
-            realm: "pc".into(),
-            name: "Exile".into(),
-        },
-        json!({ "realm": "pc", "name": "Exile" }),
-        json!({ "character": { "id": "ch1", "name": "Exile", "league": "Standard",
-                                "equipment": [ item("i-worn", Some("~b/o 2 divine")) ], "inventory": [] } }),
-    );
-    let mut a = Annotations::open_for(&mock, UUID).unwrap();
-    let via = Provenance::via("test");
-    for (scope, key, value) in [
-        (
-            "item",
-            "i-plain",
-            json!({ "version": 1, "type": "exact", "amount": "3", "currency": "chaos" }),
-        ),
-        ("tab", "pc/f1", json!({ "version": 1, "type": "skip" })),
-        (
-            "item",
-            "i-elsewhere",
-            json!({ "version": 1, "type": "skip" }),
-        ),
-    ] {
-        a.put::<Buyout>(scope, key, &value, None, &via).unwrap();
-    }
-    put_sync_policy(
-        &mut a,
-        &json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
-            { "tabs": "all", "characters": "all", "max_age_seconds": 86400 } } } } }),
-        None,
-        PolicyWrite::Replace,
-        &via,
-    )
-    .unwrap();
+/// The world `price_json.rs` reads for the CLI, the seeded world's
+/// [`Seeded::home`], under the store root the server and the `acq` beside
+/// it read: a folder holding a public priced tab with two items (one
+/// noted, one with a row), a map tab with a substash holding one item, a
+/// character wearing one, the search's tabs; a row on the folder and one
+/// naming nothing here; and a sync policy, so the render reports its
+/// coverage.
+fn written(base: &Path) -> PathBuf {
+    Seeded::home().write(&base.join("store"), harness::now())
 }
 
 /// A write's receipt with the keys `keys` taken out, at any depth: what
@@ -249,7 +149,7 @@ pub(crate) fn tool(mcp: &mut Mcp, name: &str, args: Value) -> (bool, Value) {
 fn each_pricing_read_is_the_document_the_cli_prints() {
     let dir = scratch("mcp-price-read");
     let base = &dir.0;
-    seed(base);
+    written(base);
     let mut mcp = Mcp::start(base, &[]);
     let cases: &[(&str, Value, &[&str], bool)] = &[
         ("price_status", json!({}), &["price", "status"], true),
@@ -557,7 +457,7 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
 fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
     let dir = scratch("mcp-price-left-out");
     let base = &dir.0;
-    seed(base);
+    written(base);
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let at = harness::now();
@@ -663,8 +563,8 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
         scratch("mcp-price-write-mcp"),
         scratch("mcp-price-write-cli"),
     );
-    seed(&by_mcp.0);
-    seed(&by_acq.0);
+    written(&by_mcp.0);
+    written(&by_acq.0);
     let mut mcp = Mcp::start(&by_mcp.0, &[]);
     let steps: &[(&str, Value, &[&str], bool)] = &[
         (
@@ -814,7 +714,7 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
 fn a_blind_replace_and_a_blind_clear_are_refused_naming_the_current_revision() {
     let dir = scratch("mcp-price-blind");
     let base = &dir.0;
-    seed(base);
+    written(base);
     let mut mcp = Mcp::start(base, &[]);
     let shown = |mcp: &mut Mcp| {
         let (ok, view) = tool(mcp, "price_show", json!({ "target": "item/i-plain" }));
@@ -890,8 +790,8 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
         scratch("mcp-price-clear-mcp"),
         scratch("mcp-price-clear-cli"),
     );
-    seed(&by_mcp.0);
-    seed(&by_acq.0);
+    written(&by_mcp.0);
+    written(&by_acq.0);
     let facts = |base: &Path| account_path(&base.join("store").join("mock"), USER);
     let remove = |base: &Path| {
         let path = facts(base);
@@ -1007,7 +907,7 @@ fn the_pricing_model_says_the_most_specific_statement_decides() {
 fn a_pricing_refusal_names_each_argument_in_the_requests_words() {
     let dir = scratch("mcp-price-spelled");
     let base = &dir.0;
-    seed(base);
+    written(base);
     let mut mcp = Mcp::start(base, &[]);
     let (ok, refusal) = tool(
         &mut mcp,
@@ -1051,7 +951,7 @@ fn a_pricing_refusal_names_each_argument_in_the_requests_words() {
 fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
     let dir = scratch("mcp-price-bound");
     let base = &dir.0;
-    seed(base);
+    written(base);
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let at = harness::now();
@@ -1156,7 +1056,7 @@ fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
 fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     let dir = scratch("mcp-price-current");
     let base = &dir.0;
-    seed(base);
+    written(base);
     Annotations::open_for(&base.join("store").join("mock"), UUID)
         .unwrap()
         .put::<Buyout>(
@@ -1193,7 +1093,7 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
 #[test]
 fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     let dir = scratch("mcp-price-undo");
-    seed(&dir.0);
+    written(&dir.0);
     let mut mcp = Mcp::start(&dir.0, &[]);
     let sent = |mcp: &mut Mcp, called: &str, doc: &Value| -> (String, Value) {
         let undo = &doc["undo"];
@@ -1289,7 +1189,7 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
 #[test]
 fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
     let dir = scratch("mcp-substash-note");
-    seed(&dir.0);
+    written(&dir.0);
     let mut mcp = Mcp::start(&dir.0, &[]);
     let (ok, receipt) = tool(
         &mut mcp,
@@ -1319,7 +1219,7 @@ fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
 #[test]
 fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
     let dir = scratch("mcp-conflict-offer");
-    seed(&dir.0);
+    written(&dir.0);
     let mut mcp = Mcp::start(&dir.0, &[]);
     let manual = |mcp: &mut Mcp| {
         tool(mcp, "price_show", json!({ "target": "item/i-map" })).1["listing"]["manual"].clone()
@@ -1453,7 +1353,7 @@ fn a_policy_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
 fn a_busy_intent_file_is_refused_in_the_clis_sentence() {
     let dir = scratch("mcp-price-busy");
     let base = &dir.0;
-    seed(base);
+    written(base);
     let mock = base.join("store").join("mock");
     let holder =
         rusqlite::Connection::open(acquisition_store::annotations_path(&mock, UUID)).unwrap();

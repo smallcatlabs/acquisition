@@ -2,21 +2,27 @@
 
 $ acq search --realm pc has:priced
 # holds "price 12.5 chaos · price.side manual"
-# holds "· prices and policy revision 1 ·"
+# holds "· prices and policy revision 5 ·"
 --- stdout
 query   has:priced
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
-total   1 match (fetched <age> ago, pc · Standard / Rings)
+scope   account Alice#1234 · pc · live · 10 items · 6 locations fetched
+        1 location never fetched: PremiumStash 1 of 4 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / ~price 3 chaos)
             1 location was never fetched: nothing here says what it holds
-rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+rows    Chaos Orb · Standard / ~price 3 chaos · x 0, y 0 · fetched <age> ago
+            stack 5 · price 5 chaos · price.side game
+            id i-noted
+        Chaos Orb · Standard / ~price 3 chaos · x 0, y 0 · fetched <age> ago
+            stack 5 · price 3 chaos · price.side manual
+            id i-plain
+        Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             price 12.5 chaos · price.side manual
             id r1
-order   rows 1–1 of 1 shown, as they lie in their place, top row first and left to right (no sort asked)
+order   rows 1–3 of 3 shown, as they lie in their place, top row first and left to right (no sort asked)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    has:priced  1 matched · 4 lacked
+  0    has:priced  3 matched · 7 lacked
 routes  each returns exactly the members counted (2 more: --routes)
-basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 10 · facts v9 · prices and policy revision 5 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show r1
 # holds "price   12.5 chaos · manual · why: acq price show --account 'Alice#1234' --realm pc item/r1"
@@ -32,8 +38,10 @@ is      identified
 shown   Item Level: 84
 lines   explicit              +95 to maximum Life
                               "# to maximum Life"   arg1 95
+        explicit              +65% to Fire Resistance
+                              "#% to Fire Resistance"   arg1 65
 unread  nothing
-basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 10 · facts v9 · prices and policy revision 5 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show r2
 # holds "price   none (nothing applies)"
@@ -49,10 +57,12 @@ is      identified
 shown   Item Level: 84
 lines   explicit              +75 to maximum Life
                               "# to maximum Life"   arg1 75
+        explicit              +40% to Fire Resistance
+                              "#% to Fire Resistance"   arg1 40
         implicit              +20 to maximum Life
                               "# to maximum Life"   arg1 20
 unread  nothing
-basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 10 · facts v9 · prices and policy revision 5 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show r2
 # holds "price   5 chaos · manual · from tab/pc/t1"
@@ -68,10 +78,12 @@ is      identified
 shown   Item Level: 84
 lines   explicit              +75 to maximum Life
                               "# to maximum Life"   arg1 75
+        explicit              +40% to Fire Resistance
+                              "#% to Fire Resistance"   arg1 40
         implicit              +20 to maximum Life
                               "# to maximum Life"   arg1 20
 unread  nothing
-basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 10 · facts v9 · prices and policy revision 6 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show odd
 # holds "price   undecided: the note cannot be read"
@@ -86,4 +98,4 @@ price   undecided: the note cannot be read: it is no string, and a note would de
 is      identified
 shown   Item Level: 84
 unread  `note` is a number, not a string
-basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 12 · facts v9 · prices and policy revision 6 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

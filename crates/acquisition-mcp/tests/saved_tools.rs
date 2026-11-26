@@ -20,8 +20,17 @@ use crate::{search_tools, spoken};
 
 use std::path::Path;
 
+use harness::seeded::{EARLY, Seeded};
 use harness::{Mcp, assert_spoken_as, no_daemon_appeared, scratch};
 use serde_json::{Value, json};
+
+/// The search tests' world with no saved search yet: each story here
+/// starts from none.
+fn world(base: &Path) {
+    Seeded::home()
+        .without_saved()
+        .write(&base.join("store"), EARLY);
+}
 
 /// The id a write names, as a receipt holds it.
 fn id_of(receipt: &Value) -> String {
@@ -95,7 +104,7 @@ fn printed(base: &Path, args: &[&str]) -> Value {
 fn each_saved_read_is_the_document_the_cli_prints() {
     let dir = scratch("mcp-saved-read");
     let base = &dir.0;
-    search_tools::seed(base);
+    world(base);
     for _ in 0..11 {
         printed(base, &["saved", "set", "--name", "dup", "rarity=rare"]);
     }
@@ -173,8 +182,8 @@ fn each_saved_write_is_the_receipt_the_cli_prints() {
         scratch("mcp-saved-write-mcp"),
         scratch("mcp-saved-write-cli"),
     );
-    search_tools::seed(&by_mcp.0);
-    search_tools::seed(&by_acq.0);
+    world(&by_mcp.0);
+    world(&by_acq.0);
     let mut mcp = Mcp::start(&by_mcp.0, &[]);
     let alike = |by_tool: Value, by_cli: Value, ids: [&str; 2], what: &str| {
         let (by_tool, by_cli) = (masked(&by_tool, &ids), masked(&by_cli, &ids));
@@ -303,8 +312,8 @@ fn c194_a_site_search_saved_by_an_agent_keeps_its_source_and_runs_with_its_repor
         scratch("mcp-saved-trade-mcp"),
         scratch("mcp-saved-trade-cli"),
     );
-    search_tools::seed(&by_mcp.0);
-    search_tools::seed(&by_acq.0);
+    world(&by_mcp.0);
+    world(&by_acq.0);
     let mut mcp = Mcp::start(&by_mcp.0, &[]);
     let url = format!(
         "https://www.pathofexile.com/trade/search/Standard/{}",
@@ -433,7 +442,7 @@ impl acquisition_store::IntentValue for Before {
 fn each_saved_refusal_is_the_one_the_cli_prints() {
     let dir = scratch("mcp-saved-refusals");
     let base = &dir.0;
-    search_tools::seed(base);
+    world(base);
     for _ in 0..2 {
         printed(base, &["saved", "set", "--name", "dup", "rarity=rare"]);
     }
@@ -526,7 +535,7 @@ fn each_saved_refusal_is_the_one_the_cli_prints() {
 fn the_mcp_refuses_what_it_does_not_take_naming_it() {
     let dir = scratch("mcp-saved-own");
     let base = &dir.0;
-    search_tools::seed(base);
+    world(base);
     let mut mcp = Mcp::start(base, &[]);
     let row = answered(
         &mut mcp,
@@ -661,7 +670,7 @@ fn the_mcp_refuses_what_it_does_not_take_naming_it() {
 fn every_saved_offer_sent_back_as_printed_answers() {
     let dir = scratch("mcp-saved-offers");
     let base = &dir.0;
-    search_tools::seed(base);
+    world(base);
     let mut mcp = Mcp::start(base, &[]);
     let row = |mcp: &mut Mcp, id: &str| answered(mcp, "saved_searches", json!({ "saved": id }));
 
@@ -768,7 +777,7 @@ fn every_saved_offer_sent_back_as_printed_answers() {
     drop(mcp);
 
     // a run naming no account over two accounts
-    search_tools::seed_bob(base);
+    search_tools::add_bob(base);
     let mut mcp = Mcp::start(base, &[]);
     let ambiguous = refused(
         &mut mcp,
@@ -794,7 +803,7 @@ fn every_saved_offer_sent_back_as_printed_answers() {
 fn the_handoff_runs_both_ways() {
     let dir = scratch("mcp-saved-handoff");
     let base = &dir.0;
-    search_tools::seed(base);
+    world(base);
     let owners = id_of(&printed(
         base,
         &["saved", "set", "--name", "rings", "class:ring"],

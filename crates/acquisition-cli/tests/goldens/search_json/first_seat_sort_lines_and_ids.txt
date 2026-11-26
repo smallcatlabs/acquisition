@@ -4,7 +4,7 @@ $ acq search --realm all is:corrupted
 # holds "over all live items of every realm in all leagues"
 --- stdout
 query   is:corrupted
-scope   account Alice#1234 · all · live · 8 items · 4 locations fetched
+scope   account Alice#1234 · all · live · 13 items · 8 locations fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
 total   0 matches
 offers  each part of the query forced true and forced false, the part fewest items match first
@@ -12,47 +12,47 @@ offers  each part of the query forced true and forced false, the part fewest ite
         every item in scope, this query set aside
     acq search --account 'Alice#1234' --realm all is:corrupted --limit 10 --context corpus
 terms   each term counted alone over all live items of every realm in all leagues, never over the matches
-  0    is:corrupted  0 matched · 8 failed
+  0    is:corrupted  0 matched · 13 failed
 routes  each returns exactly the members counted (1 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 13 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc --sort ilvl --desc --limit 1
 # holds "sorts by ilvl 84"
 --- stdout
 query   (every item in scope)
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
+scope   account Alice#1234 · pc · live · 11 items · 7 locations fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
-total   6 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
+total   11 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / ~price 3 chaos)
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             sorts by ilvl 84
             id r1
-more    rows 1–1 of 6 shown: acq search --account 'Alice#1234' --next acq1.<token>
-basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+more    rows 1–1 of 11 shown: acq search --account 'Alice#1234' --next acq1.<token>
+basis   store <store> · build <build> · snapshot 13 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc rarity=rare --sort 'line("# to maximum Life").arg1' --desc --limit 1
 # holds "sorts by line(\"# to maximum Life\").arg1 95 · +95 to maximum Life (explicit)"
 --- stdout
 query   rarity=rare
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
+scope   account Alice#1234 · pc · live · 11 items · 7 locations fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
-total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
+total   6 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             sorts by line("# to maximum Life").arg1 95 · +95 to maximum Life (explicit)
             id r1
-more    rows 1–1 of 5 shown: acq search --account 'Alice#1234' --next acq1.<token>
+more    rows 1–1 of 6 shown: acq search --account 'Alice#1234' --next acq1.<token>
 terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  5 matched · 1 failed
-routes  each returns exactly the members counted (2 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+  0    rarity=rare  6 matched · 1 failed · 4 lacked
+routes  each returns exactly the members counted (3 more: --routes)
+basis   store <store> · build <build> · snapshot 13 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc rarity=rare --sort 'line("# to maximum Life").arg1'
 # holds "sorts last: incomplete at 40 (line(\"# to maximum Life\").arg1)"
 # holds "sorts last: no satisfying occurrence (line(\"# to maximum Life\").arg1)"
 --- stdout
 query   rarity=rare
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
+scope   account Alice#1234 · pc · live · 11 items · 7 locations fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
-total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
+total   6 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
 rows    Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             sorts by line("# to maximum Life").arg1 75 · +75 to maximum Life (explicit)
             id r2
@@ -65,19 +65,22 @@ rows    Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
         Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
             sorts last: incomplete at 40 (line("# to maximum Life").arg1) · +40 to maximum Life (explicit)
             id r3
+        Grim Knot Iron Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            sorts last: no satisfying occurrence (line("# to maximum Life").arg1)
+            id str
         Iron Ring · rare · Standard / Never · x 0, y 0 · fetched <age> ago
             sorts last: no satisfying occurrence (line("# to maximum Life").arg1)
             id many
 terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  5 matched · 1 failed
-routes  each returns exactly the members counted (2 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+  0    rarity=rare  6 matched · 1 failed · 4 lacked
+routes  each returns exactly the members counted (3 more: --routes)
+basis   store <store> · build <build> · snapshot 13 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc id:r
 # holds "an id is matched whole"
 --- stdout
 query   id:r
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
+scope   account Alice#1234 · pc · live · 11 items · 7 locations fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
 total   0 matches
 nothing in scope carries the id of term 0: id:r — an id is matched whole, as an answer printed it: a part of one finds nothing
@@ -86,9 +89,9 @@ offers  each part of the query forced true and forced false, the part fewest ite
         every item in scope, this query set aside
     acq search --account 'Alice#1234' --realm pc id:r --limit 10 --context corpus
 terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    id:r  0 matched · 6 failed
+  0    id:r  0 matched · 11 failed
 routes  each returns exactly the members counted (1 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 13 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc class:staff
 # holds "near it"
@@ -104,7 +107,7 @@ $ acq search --realm pc 'line(template:spirit)' --sort 'sum(line(template:spirit
 # holds " more of term 0: acq show --account 'Alice#1234' many"
 --- stdout
 query   line(template:spirit)
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
+scope   account Alice#1234 · pc · live · 11 items · 7 locations fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
 total   1 match (fetched <age> ago, pc · Standard / Never) · 1 undecided
 rows    Iron Ring · rare · Standard / Never · x 0, y 0 · fetched <age> ago
@@ -114,20 +117,20 @@ rows    Iron Ring · rare · Standard / Never · x 0, y 0 · fetched <age> ago
 undecided implicit lines unread — e.g. Hex Band Two-Stone Ring · id r3
             `implicitMods` is a string, not an array; a refresh may help; a body GGG really gives this way needs a build that reads it
 terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    line(template:spirit)  1 matched · 4 lacked · 1 undecided
+  0    line(template:spirit)  1 matched · 9 lacked · 1 undecided
        → # to Spirit (1)
 routes  each returns exactly the members counted (2 more: --routes)
   undecided at the root (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'undecided(line(template:spirit))'
   term 0 undecided (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'undecided(line(template:spirit))'
-basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 13 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc 'line(template:spirit)' --sort 'sum(line(template:spirit).arg1)' --fields item
 # holds "+8 to Spirit"
 --- stdout
 query   line(template:spirit)
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
+scope   account Alice#1234 · pc · live · 11 items · 7 locations fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
 total   1 match (fetched <age> ago, pc · Standard / Never) · 1 undecided
 rows    Iron Ring · rare · frame rare · Standard / Never · x 0, y 0 · fetched <age> ago
@@ -160,11 +163,11 @@ unread  nothing
 undecided implicit lines unread — e.g. Hex Band Two-Stone Ring · id r3
             `implicitMods` is a string, not an array; a refresh may help; a body GGG really gives this way needs a build that reads it
 terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    line(template:spirit)  1 matched · 4 lacked · 1 undecided
+  0    line(template:spirit)  1 matched · 9 lacked · 1 undecided
        → # to Spirit (1)
 routes  each returns exactly the members counted (2 more: --routes)
   undecided at the root (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'undecided(line(template:spirit))'
   term 0 undecided (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'undecided(line(template:spirit))'
-basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 13 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

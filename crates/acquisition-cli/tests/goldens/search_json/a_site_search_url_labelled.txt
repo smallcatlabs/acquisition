@@ -12,8 +12,8 @@ trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's sea
         NOT RUN   stats.1.0  its group `stats.1` translates whole or not at all, and is unsupported
         reported  status     Online, available or securable is the seller's state, not the item's, so it means nothing in your stash.
 query   league=Standard sum(line("# to maximum Life" source=explicit).arg1)>=70
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+scope   account Alice#1234 · pc · live · 10 items · 6 locations fetched
+        1 location never fetched: PremiumStash 1 of 4 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Dump)
             1 location was never fetched: nothing here says what it holds
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
@@ -27,10 +27,10 @@ rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
             id kaom
 order   rows 1–3 of 3 shown, as they lie in their place, top row first and left to right (no sort asked)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    league=Standard                                          5 matched
-  1    sum(line("# to maximum Life" source=explicit).arg1)>=70  3 matched · 2 failed
+  0    league=Standard                                          10 matched
+  1    sum(line("# to maximum Life" source=explicit).arg1)>=70  3 matched · 7 failed
 routes  each returns exactly the members counted (3 more: --routes)
-basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 10 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc --trade-file -
 --- stdin
@@ -52,11 +52,23 @@ trade   from the query JSON: PARTIAL — 11 clauses not run, so this is not the 
         NOT RUN   stats.0.9   no row of the stat table is `explicit.stat_9999999909`
         NOT RUN   … and 1 more: the JSON's query.trade.clauses
 query   (every item in scope)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
-total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Dump)
+scope   account Alice#1234 · pc · live · 10 items · 6 locations fetched
+        1 location never fetched: PremiumStash 1 of 4 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   10 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / ~price 3 chaos)
             1 location was never fetched: nothing here says what it holds
-rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+rows    Chaos Orb · Standard / Exile (equipment) · fetched <age> ago
+            stack 5
+            id i-worn
+        Chaos Orb · Standard / ~price 3 chaos · x 0, y 0 · fetched <age> ago
+            stack 5
+            id i-noted
+        Chaos Orb · Standard / ~price 3 chaos · x 0, y 0 · fetched <age> ago
+            stack 5
+            id i-plain
+        Chaos Orb · Standard / Maps / 1 · x 0, y 0 · fetched <age> ago
+            stack 5
+            id i-map
+        Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             id r1
         Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             id r2
@@ -66,5 +78,7 @@ rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
             id plain
         Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
             id r3
-order   rows 1–5 of 5 shown, as they lie in their place, top row first and left to right (no sort asked)
-basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+        Grim Knot Iron Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            id str
+order   rows 1–10 of 10 shown, as they lie in their place, top row first and left to right (no sort asked)
+basis   store <store> · build <build> · snapshot 10 · facts v9 · prices and policy revision 4 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

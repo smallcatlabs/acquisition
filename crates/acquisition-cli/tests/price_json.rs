@@ -17,11 +17,14 @@ use acquisition_store::{
 use serde_json::{Value, json};
 
 use crate::harness;
+use harness::seeded::{
+    ALICE, ALICE_PC_STANDARD_CONTAINERS, ALICE_PC_STANDARD_ITEMS, ALICE_UUID, Seeded,
+};
 
 use harness::{Transcript, golden, offline_acq as acq, shell_words, sole_json};
 
-const USER: &str = "Alice#1234";
-const UUID: &str = "u-price";
+const USER: &str = ALICE;
+const UUID: &str = ALICE_UUID;
 
 fn stderr(out: &Output) -> String {
     String::from_utf8_lossy(&out.stderr).into_owned()
@@ -47,135 +50,33 @@ fn offered_words(doc: &Value, starts: &str) -> (String, Vec<String>) {
     (offer["request"].as_str().unwrap().to_string(), argv)
 }
 
-/// A folder holding a public priced tab with two items (one noted, one
-/// with a row), a map tab with a substash holding one item, a character
-/// wearing one; a row on the folder and one naming nothing here.
-pub(crate) fn seed(base: &Path) -> PathBuf {
-    seed_at(base, harness::now())
+/// The world these tests read: the seeded world's owner alone, her pc
+/// Standard — a folder holding a public priced tab with two items (one
+/// noted, one with a row), a map tab with a substash holding one item, a
+/// character wearing one, the search's rings and a tab never fetched; a
+/// row on the folder and one naming nothing here, and a sync policy.
+pub(crate) fn world() -> Seeded {
+    Seeded::home()
 }
 
-/// [`seed`], every response recorded at `at`: a test that refetches
-/// records at the seed's time too, so a facts line it reads has one
-/// fetch time whatever second the refetch took.
-pub(crate) fn seed_at(base: &Path, at: i64) -> PathBuf {
-    let mock = base.join("mock");
-    std::fs::create_dir_all(&mock).unwrap();
-    let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, UUID, false, at, &[]).unwrap();
-    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    let record = |store: &mut Store, ep: Endpoint, params: Value, body: Value| {
-        store.record(&ep, &params, 200, &body, at).unwrap();
-    };
-    record(
-        &mut store,
-        Endpoint::Profile,
-        json!({}),
-        json!({ "uuid": UUID, "name": USER }),
-    );
-    let stashes = |realm: &str, league: &str| Endpoint::Stashes {
-        realm: realm.into(),
-        league: league.into(),
-    };
-    record(
-        &mut store,
-        stashes("pc", "Standard"),
-        json!({ "league": "Standard" }),
-        json!({ "stashes": [
-            { "id": "f1", "name": "Sale", "type": "Folder", "index": 0,
-              "children": [ { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] },
-            { "id": "m1", "name": "Maps", "type": "MapStash", "index": 2 } ] }),
-    );
-    let item = |id: &str, note: Option<&str>| {
-        let mut v = json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0, "stackSize": 5 });
-        if let Some(n) = note {
-            v["note"] = json!(n);
-        }
-        v
-    };
-    let stash = |id: &str, sub: Option<&str>| Endpoint::Stash {
-        realm: "pc".into(),
-        league: "Standard".into(),
-        id: id.into(),
-        sub: sub.map(str::to_string),
-    };
-    record(
-        &mut store,
-        stash("c1", None),
-        json!({}),
-        json!({ "stash": { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash",
-                            "items": [ item("i-noted", Some("~price 5 chaos")), item("i-plain", None) ] } }),
-    );
-    record(
-        &mut store,
-        stash("m1", None),
-        json!({}),
-        json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [],
-                            "children": [ { "id": "s1", "name": "1", "type": "MapStash", "metadata": { "items": 1 } } ] } }),
-    );
-    record(
-        &mut store,
-        stash("m1", Some("s1")),
-        json!({}),
-        json!({ "stash": { "id": "s1", "name": "1", "type": "MapStash", "items": [ item("i-map", None) ] } }),
-    );
-    record(
-        &mut store,
-        Endpoint::Characters { realm: "pc".into() },
-        json!({ "realm": "pc" }),
-        json!({ "characters": [ { "id": "ch1", "name": "Exile", "league": "Standard" } ] }),
-    );
-    record(
-        &mut store,
-        Endpoint::Character {
-            realm: "pc".into(),
-            name: "Exile".into(),
-        },
-        json!({ "realm": "pc", "name": "Exile" }),
-        json!({ "character": { "id": "ch1", "name": "Exile", "league": "Standard",
-                                "equipment": [ item("i-worn", Some("~b/o 2 divine")) ], "inventory": [] } }),
-    );
-    let mut a = Annotations::open_for(&mock, UUID).unwrap();
-    let via = Provenance::via("test");
-    a.put::<Buyout>(
-        "item",
-        "i-plain",
-        &json!({ "version": 1, "type": "exact", "amount": "3", "currency": "chaos" }),
-        None,
-        &via,
-    )
-    .unwrap();
-    a.put::<Buyout>(
-        "tab",
-        "pc/f1",
-        &json!({ "version": 1, "type": "skip" }),
-        None,
-        &via,
-    )
-    .unwrap();
-    a.put::<Buyout>(
-        "item",
-        "i-elsewhere",
-        &json!({ "version": 1, "type": "skip" }),
-        None,
-        &via,
-    )
-    .unwrap();
-    mock
+/// [`world`] written under `base` at the harness's instant.
+pub(crate) fn written(base: &Path) -> PathBuf {
+    world().write(base, harness::now())
 }
 
 #[test]
 fn price_json_documents_are_the_views_the_text_reads() {
     let scratch = harness::scratch("price-json");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
 
     // status: the report without listings, re-read exactly.
     let out = acq(&base, &["price", "status", "--json"]);
     assert!(out.status.success(), "{}", stderr(&out));
     let report: ListingReport = serde_json::from_value(sole_json(&out)).unwrap();
     assert!(report.listings.is_empty());
-    assert_eq!(report.counts.items, 4);
-    assert_eq!(report.counts.containers, 5);
+    assert_eq!(report.counts.items, ALICE_PC_STANDARD_ITEMS);
+    assert_eq!(report.counts.containers, ALICE_PC_STANDARD_CONTAINERS);
     assert_eq!(report.rows.total, 3);
     assert_eq!(report.rows.applied, 2);
     assert_eq!(report.rows.unmatched.len(), 1);
@@ -195,7 +96,7 @@ fn price_json_documents_are_the_views_the_text_reads() {
         .map(|c| c.subject.name.as_str())
         .collect();
     assert_eq!(containers, ["Sale", "~price 3 chaos"]);
-    assert_eq!(view.items_on_record, 4);
+    assert_eq!(view.items_on_record, ALICE_PC_STANDARD_ITEMS);
     // The same selection in text names the same containers, in order.
     let out = acq(&base, &["price", "list"]);
     let text = String::from_utf8_lossy(&out.stdout);
@@ -321,7 +222,7 @@ fn price_json_documents_are_the_views_the_text_reads() {
 fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     let scratch = harness::scratch("price-write");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let receipt = |out: &Output| -> PriceWrite {
         assert!(out.status.success(), "{}", stderr(out));
         serde_json::from_value(sole_json(out)).unwrap()
@@ -509,7 +410,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
 fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
     let scratch = harness::scratch("price-limit");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let whole = sole_json(&acq(
         &base,
         &["price", "list", "--effective", "none", "--json"],
@@ -576,7 +477,7 @@ fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
 fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
     let scratch = harness::scratch("price-conflict");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let ok = |args: &[&str]| {
         let out = acq(&base, args);
         assert!(out.status.success(), "{args:?}: {}", stderr(&out));
@@ -720,7 +621,7 @@ impl IntentValue for NewerBuyout {
 fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_is_named() {
     let scratch = harness::scratch("price-newer");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     let newer = json!({ "version": 2, "type": "auction", "reserve": "5 chaos" });
     {
         let mut a = Annotations::open_for(&mock, UUID).unwrap();
@@ -790,7 +691,7 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
 fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where() {
     let scratch = harness::scratch("price-orphan");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     Annotations::open_for(&mock, UUID)
         .unwrap()
         .put::<Buyout>(
@@ -894,7 +795,7 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
 fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known() {
     let scratch = harness::scratch("price-two-accounts");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     Index::load(&mock)
         .unwrap()
         .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
@@ -947,7 +848,7 @@ fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known
 fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
     let scratch = harness::scratch("price-other-league");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     Index::load(&mock)
         .unwrap()
         .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
@@ -1025,7 +926,7 @@ fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
 fn an_item_asked_for_in_the_wrong_realm_is_shown_where_the_refusal_says() {
     let scratch = harness::scratch("price-wrong-realm");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
 
     let out = acq(
         &base,
@@ -1073,7 +974,7 @@ fn an_item_asked_for_in_the_wrong_realm_is_shown_where_the_refusal_says() {
 fn price_list_with_a_limit_of_zero_says_none_of_the_total() {
     let scratch = harness::scratch("price-limit-zero");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let doc = sole_json(&acq(&base, &["price", "list", "--limit", "0", "--json"]));
     let total = doc["total"].as_u64().unwrap_or(0);
     assert!(total > 0 && doc["listed"] == json!(0), "{doc}");
@@ -1108,7 +1009,7 @@ impl IntentValue for LegacyBuyout {
 fn a_prior_naming_a_retired_currency_promises_no_undo() {
     let scratch = harness::scratch("price-retired");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     Annotations::open_for(&mock, UUID)
         .unwrap()
         .put::<LegacyBuyout>(
@@ -1142,7 +1043,7 @@ fn a_prior_naming_a_retired_currency_promises_no_undo() {
 fn a_named_limit_lists_the_items_it_bounds() {
     let scratch = harness::scratch("price-limit-lists");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let at = harness::now();
     let item = |n: usize| {
@@ -1239,7 +1140,7 @@ fn price_show_lists_ten_of_each_set_beside_the_whole_counts_and_expand_lists_eve
     use acquisition_store::bound::LISTED;
     let scratch = harness::scratch("price-show-bound");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     big_league(&mock);
     let shown = |args: &[&str]| -> ShowView {
         let out = acq(
@@ -1317,7 +1218,7 @@ fn price_list_lists_ten_and_expand_returns_every_item_of_a_selection_past_ten() 
     use acquisition_store::bound::LISTED;
     let scratch = harness::scratch("price-list-bound");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     big_league(&mock);
     let listed = |args: &[&str]| -> ListView {
         let out = acq(
@@ -1423,7 +1324,7 @@ fn run_printed(base: &Path, command: &str) -> Value {
 fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
     let scratch = harness::scratch("price-printed");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     big_league(&mock);
     let at = harness::now();
     Index::load(&mock)
@@ -1730,7 +1631,7 @@ fn run_offered(base: &Path, command: &str) -> Value {
 fn every_offer_a_refusal_prints_runs_as_printed() {
     let scratch = harness::scratch("price-offers");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     Index::load(&mock)
         .unwrap()
         .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
@@ -1889,7 +1790,7 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
 fn a_folders_child_asked_as_a_substash_is_offered_what_runs() {
     let scratch = harness::scratch("price-folder-child");
     let base = scratch.0.clone();
-    seed(&base);
+    written(&base);
     let out = acq(
         &base,
         &[
@@ -1922,7 +1823,7 @@ fn a_folders_child_asked_as_a_substash_is_offered_what_runs() {
 /// Allflame, and Bob is known beside her: a command naming no account is
 /// ambiguous, and every offer must name one.
 fn two_accounts_and_xbox(base: &Path) {
-    let mock = seed(base);
+    let mock = written(base);
     Index::load(&mock)
         .unwrap()
         .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
@@ -2014,9 +1915,10 @@ fn a_refused_command_is_repeated_from_its_parse_and_one_that_read_stdin_is_not()
         repeated,
         format!("acq --account 'Alice#1234' --json policy set '{policy}'")
     );
-    // `acq` runs with stdin closed (`Command::output`)
+    // `acq` runs with stdin closed (`Command::output`); the write
+    // replaces the world's policy, its revision 1
     let written = run_offered(&base, repeated);
-    assert_eq!(written["revision"], json!(1), "{written}");
+    assert_eq!(written["revision"], json!(2), "{written}");
 }
 
 /// A request read whole, offered as the words typed, would offer nothing for
@@ -2288,7 +2190,7 @@ fn a_request_offered_again_keeps_the_command_lines_routes() {
     assert_eq!(found["terms"], routed["terms"], "{found}");
 }
 
-/// Places held in more than one way, added to [`seed`]'s world: `tab/pc/tw`
+/// Places held in more than one way, added to [`world`]: `tab/pc/tw`
 /// held live in Standard and in Big, each holding one item; `character/ch2`, a
 /// poe2 character in Standard wearing one; `character/ch3`, a pc character the
 /// listing gave no league, wearing one. Recorded at the seed's time.
@@ -2379,7 +2281,7 @@ fn held_elsewhere(mock: &Path) {
 fn a_receipts_read_is_the_bare_price_show_and_runs_after_recovery() {
     let scratch = harness::scratch("price-receipt-reads");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     held_elsewhere(&mock);
     let write = |args: &[&str]| -> Value {
         let mut args = args.to_vec();
@@ -2527,7 +2429,7 @@ fn a_receipts_read_is_the_bare_price_show_and_runs_after_recovery() {
 fn a_bare_price_show_reads_where_the_facts_hold_its_target() {
     let scratch = harness::scratch("price-show-bare");
     let base = scratch.0.clone();
-    held_elsewhere(&seed(&base));
+    held_elsewhere(&written(&base));
     let shown = |target: &str| sole_json(&acq(&base, &["price", "show", target, "--json"]));
     let poe2 = shown("character/ch2");
     assert_eq!(
@@ -2770,7 +2672,7 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
 fn a_busy_intent_file_is_said_as_the_user_knows_it_and_says_run_again() {
     let scratch = harness::scratch("price-busy");
     let base = scratch.0.clone();
-    let mock = seed(&base);
+    let mock = written(&base);
     let holder =
         rusqlite::Connection::open(acquisition_store::annotations_path(&mock, UUID)).unwrap();
     holder.execute_batch("BEGIN IMMEDIATE").unwrap();
