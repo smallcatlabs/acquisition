@@ -23,8 +23,8 @@ better Acquisition that is agent-friendly and agent-forward.
   cite, until that audit's sitting is run again (its `seat/`, also
   #220's re-measure).
 - **The registry's retirement** (`audits/retire-2026-11/README.md`,
-  four batches): the daemon's is closed (`Step: process-340`); search
-  and trade (with #341), then pricing, plans and store, then
+  four batches): the daemon's and search and trade's are closed
+  (`Step: process-340`, `process-343`); pricing, plans and store, then
   frontends and network follow, each its own brief.
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
