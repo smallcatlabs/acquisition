@@ -1573,6 +1573,44 @@ fn c44_a_selection_plan_is_authorized_by_its_selection() {
         "{:?}",
         plan.actions
     );
+    // C76: a never-fetched map tab has no page on record, so a deep plan
+    // fetches the tab alone; its fetch lands the pages, and the next
+    // plan of the same selection fetches them
+    let mut fresh = store();
+    list(
+        &mut fresh,
+        json!([{ "id": "m2", "name": "New maps", "type": "MapStash", "index": 0 }]),
+        1000,
+    );
+    let named = PlanSelection {
+        tabs: Some(Selection::Ids(vec!["m2".into()])),
+        characters: Vec::new(),
+        deep: true,
+    };
+    let selected = |s: &Store| {
+        let snap = s.refresh_snapshot("pc", "Standard", &a).unwrap();
+        plan_selection("mock", &snap, &named, 1101)
+            .unwrap()
+            .actions
+            .iter()
+            .filter_map(|a| match a {
+                RefreshAction::FetchTab { id, .. } => Some(format!("tab {id}")),
+                RefreshAction::FetchSubstash { parent, id, .. } => {
+                    Some(format!("page {parent}/{id}"))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(selected(&fresh), ["tab m2"]);
+    fetch(
+        &mut fresh,
+        json!({ "id": "m2", "name": "New maps", "type": "MapStash", "items": [], "children": [
+                { "id": "s2", "name": "", "type": "MapStash", "parent": "m2",
+                  "metadata": { "items": 3, "map": { "name": "Tier 1" } } } ] }),
+        1100,
+    );
+    assert_eq!(selected(&fresh), ["tab m2", "page m2/s2"]);
     // the envelope round-trips; both authorities, or neither, refused
     let value = serde_json::to_value(&plan).unwrap();
     assert_eq!(RefreshPlan::from_value(&value).unwrap(), plan);
