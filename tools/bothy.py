@@ -43,8 +43,9 @@ The entry rule. An entry is one bullet,
    clause is counted on the text before *Why:*, each code span read as
    one word and parenthesised text left out, split at `. ` or `; ` and
    at a final `.` or `;`. An entry that needs more carries mechanism,
-   which stands in the code's doc comment (C192), or is two rulings:
-   the second takes a new id, by the owner's ruling.
+   which stands in the code's doc comment, or is two rulings, and the
+   second takes a new id: C192 (a property, its mechanism at the code)
+   says both.
 7. *Pinned:* names at most three files, and every name it ticks
    exists. A ticked token with a `/` or a file extension is a path, a
    file or a directory, written as the registry writes one: from the
@@ -64,9 +65,9 @@ The entry rule. An entry is one bullet,
    further; where a row's number is within the limit, the limit holds.
    An entry with no row meets both limits, so no row is ever added. A
    row whose entry now meets both is stale and is removed.
-9. The owner's words stay the authority: an entry's ruling and its
-   *Why:* change only by his ruling, and the commit that changes them
-   quotes him. Its *Pinned:* is kept true by whoever moves a holder.
+9. Who writes and amends an entry, and which changes wait for the
+   owner, is C170 (who decides). Its *Pinned:* is kept true by whoever
+   moves a holder.
 
 The invariants are held like entries: each numbered item of `AGENTS.md`
 carries one *Pinned:*, under rule 7.
@@ -551,7 +552,7 @@ def read_baseline(reg):
     return rows
 
 
-SPLIT = "say it in less, or split the entry: the second ruling takes a new id, by the owner's ruling"
+SPLIT = "say it in less, or split the entry: the second ruling takes a new id"
 
 
 def check_shape(reg):
@@ -567,7 +568,7 @@ def check_shape(reg):
                 reg.fail("headline", *where, f"{i}'s headline is {head} bytes, over {HEAD_LIMIT}; a headline states the rule whole in one short sentence: {SPLIT}")
             if count > CLAUSE_LIMIT:
                 reg.fail("clauses", *where, f"{i} has {count} clauses before its *Why:*, over {CLAUSE_LIMIT}; "
-                         f"route a mechanism to the doc comment that cites {i}, or split the entry: the second ruling takes a new id, by the owner's ruling")
+                         f"route a mechanism to the doc comment that cites {i}, or split the entry: the second ruling takes a new id")
             continue
         row_head, row_count, row_line = base[i]
         if head <= HEAD_LIMIT and count <= CLAUSE_LIMIT:
