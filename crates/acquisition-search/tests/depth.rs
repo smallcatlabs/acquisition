@@ -1,12 +1,19 @@
 //! How deep a query nests (C109, C47; `tree::MAX_DEPTH`), through the crate's
-//! boundary — a request in, an answer or a refusal out, as JSON. A query
-//! nested past what the stack holds once aborted the process, a resident
-//! one among them: malformed input that was no structured error. Each
-//! `( )`, `not`, `holds( )` and `undecided( )` around a term is a level,
-//! inside a line's group as outside it; a query at the limit answers under
-//! every view and what the answer prints is accepted back, one level
-//! deeper is refused by its kind, and so is one far past every depth that
-//! aborted. A test thread's stack is the smallest a search runs on.
+//! boundary — a request in, an answer or a refusal out, as JSON.
+//!
+//! C109 (the nesting limit; retired, its reason is this paragraph): a
+//! query nests at most 32 deep, as text or as a tree; deeper is refused as
+//! `too_deep`. A level is each `( )`, `not`, `holds( )` or `undecided( )`
+//! around a term, inside a line's group as outside it; `line( )`,
+//! `linked( )` and `sum( )` are terms, not levels. A query nested past
+//! what the stack holds once aborted the process, a resident one among
+//! them: malformed input that was no structured error (C47, no panic on
+//! input). The limit sits far under the shallowest abort and far over any
+//! query asked (`tree::MAX_DEPTH`'s doc has the measure). A query at the
+//! limit answers under every view and what the answer prints is accepted
+//! back, one level deeper is refused by its kind, and so is one far past
+//! every depth that aborted. A test thread's stack is the smallest a
+//! search runs on. This file holds it whole.
 
 use crate::common;
 

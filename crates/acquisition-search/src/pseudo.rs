@@ -319,7 +319,9 @@ pub(crate) enum Named {
     Derived(Derived),
 }
 
-/// The derived fields (C101): each a named pure function of the item.
+/// The derived fields (C101): each a named pure function of the item. One
+/// reads totals or properties, never a sum over lines, which is a total
+/// and only the totals table defines one (C94, `totals.rs`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Derived {
     Dps,

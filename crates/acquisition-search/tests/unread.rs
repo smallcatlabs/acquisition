@@ -1,6 +1,22 @@
-//! C93 — what could not be read is never a no: the uncertainty follows the
+//! C93 (absent versus undecided; retired, its reason is this paragraph):
+//! absent is false; undecided is one outcome with a named reason; the two
+//! are never one count. A comparison on something the item lacks is
+//! false, never zero; absence is claimed only when everything that could
+//! hold the thing was readable. What cannot be established on an item (an
+//! unread body, a base the class table lacks, an unresolved price) makes
+//! only the terms that needed it undecided; composition carries it, and
+//! an item undecided at the root is no match, counted apart. Per atomic
+//! term the answer counts matched, failed, lacked and undecided. An
+//! unknown count nonzero on every ordinary query stops being read; one
+//! nearly always zero is read when it is not.
+//!
+//! What could not be read is never a no: the uncertainty follows the
 //! evidence a predicate needs, no further and no less. Each case below is
-//! one a build answered definitely.
+//! one a build answered definitely, and a term's four routes partition
+//! the scope (`routes_partition`). The worked example's four counts, and
+//! composition over an undecided term, are `answer.rs`'s; a total the
+//! item lacks, false under every comparison and never zero, is
+//! `pseudo.rs`'s.
 
 use crate::common;
 

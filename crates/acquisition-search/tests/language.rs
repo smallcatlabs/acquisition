@@ -1,8 +1,39 @@
-//! C104 — the text and the tree are one value, each printing to the other:
-//! the round trip, over generated trees and over the corpus
-//! (`tests/language.toml`), where every construct of the language
-//! has a case. The boundary
-//! pinned is the crate's: `parse`, `print`, `to_json`, `from_json`.
+//! C104 (the text and the tree; retired, its reason is this paragraph):
+//! the text is carried on every surface, and the tree is accepted and
+//! always returned. The canonical text and the canonical tree are one
+//! value, each printing to the other; every frontend passes the text, a
+//! request may send the tree an answer returned instead (a GUI's rows
+//! hold one), and every answer carries both. Reviewers wrote text, and a
+//! refinement stays the previous query plus one term (S195, refinement
+//! composes). This file holds the round trip, over generated trees and
+//! over the corpus (`tests/language.toml`), where every construct of the
+//! language has a case; a tree sent and both returned are `answer.rs`'s.
+//! The boundary pinned is the crate's: `parse`, `print`, `to_json`,
+//! `from_json`.
+//!
+//! C91 (one typed tree; retired, its reason is this paragraph): a query is
+//! one typed tree and a value, immutable and serializable, handed between
+//! a human and an agent and read from a site search (C113, the third
+//! spelling). And, or, not and at-least-N-of, with a lower and an upper
+//! bound, compose across every field, line and place alike, and every
+//! surface encodes the one tree. A refinement is the old query,
+//! parenthesised, and a new term. There are no silent modes: an ambiguity
+//! the grammar defines is an error that shows the readings, and everything
+//! else follows one visible rule the canonical query prints back. The C++
+//! app cannot compose and the site composes only among stats (S169, the
+//! owner's boolean query), and an answer must say how it was understood.
+//! This file holds the tree's round trip over every node kind, the
+//! refinement case and each ambiguity with its readings; composition as
+//! evaluated and the canonical query printed back are `answer.rs`'s.
+//!
+//! Two other rulings' cases stand in the corpus, their rules and reasons
+//! at `answer.rs`: C92's slot words (one occurrence bound; retired), the
+//! `slots.` and `values.` cases — `low`, `high` and `avg` on a ranged
+//! line alone, and a comparison, sum or sort naming no slot on a line with
+//! several refused, whose listed slots are `seat_faults.rs`'s; and C96's
+//! place (the realm is the scope; retired), the `item.place` and
+//! `item.realm_is_scope` cases — league, tab, character and container
+//! are terms, and a realm is no term, as text or as a tree.
 
 use acquisition_search::{
     Collection, LanguageError, Member, Node, Number, Op, Probe, Value, ValueRef, check, from_json,

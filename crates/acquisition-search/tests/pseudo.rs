@@ -3,6 +3,24 @@
 //! routes, `dps` and `pdps`, the sort and the sum over a computed value,
 //! `--describe`, and every authoring error a computed value has. Every
 //! count is worked by hand from the fixture below.
+//!
+//! C94 (named totals; retired, its reason is this paragraph): a named
+//! total is a sum that answers, defined once as reviewed reference data
+//! (C68, reference tables). A row names the contributing line (template,
+//! kind, realm, slot, item category) and its weight; a total over ranged
+//! lines is a range, summed slot-wise, and takes `low`, `high` and `avg`.
+//! An unreadable contributor leaves a subtotal marked incomplete, never a
+//! total, and no recipe for a realm is never a zero. The answer prints a
+//! definition on request, and the table is checked loudly when built. A
+//! total that may decline fails the everyday question. This file holds
+//! the weighted sum, the three statuses, a total of nothing lacked, the
+//! realm with no recipe, and every definition printed; the ranged family
+//! and its slot words are `ranged.rs`'s, and the loader's refusal of a
+//! table a reviewer would refuse is `src/totals.rs`'s.
+//!
+//! C93 (absent versus undecided; retired, its rule and reason at
+//! `unread.rs`): a total the item lacks is false under every comparison,
+//! never zero, and one the realm has no recipe for is undecided.
 
 use crate::common;
 

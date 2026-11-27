@@ -3,6 +3,12 @@
 //! as printed there and worked by hand; the route property; invariants 2
 //! and 6 of the surface; C93's composition; C92's sort scalar; C96's
 //! scope; C98's basis at the answer's boundary.
+//!
+//! C91 (one typed tree; retired, its rule and reason at `language.rs`):
+//! this file holds the tree as evaluated — and, or, not and
+//! at-least-N-of with both bounds composed over an undecided term (C93's
+//! test) — and the canonical query each answer prints back (the worked
+//! example's).
 
 use crate::common;
 
@@ -304,8 +310,12 @@ fn invariant_6_a_search_writes_nothing() {
     assert_eq!(dump(&path), before);
 }
 
-/// C93 — composition over an undecided term, asked of r6, whose sum is an
-/// incomplete subtotal.
+/// C93 (absent versus undecided; retired, its rule and reason at
+/// `unread.rs`): composition over an undecided term, asked of r6, whose
+/// sum is an incomplete subtotal. The worked example above holds the four
+/// counts per atomic term, only the terms that needed what was unread
+/// left undecided, and the items undecided at the root no match, counted
+/// apart with their reasons.
 #[test]
 fn c93_undecided_composes_and_is_never_a_match() {
     let s = worked();
@@ -355,8 +365,23 @@ fn c93_undecided_composes_and_is_never_a_match() {
     assert_eq!(of_r6(r##""chaos" rarity=rare"##), (0, 1));
 }
 
-/// C92 — conditions on one line are one term and hold on one occurrence.
-/// r2's implicit 20 meets `source=implicit` and its explicit 75 meets
+/// C92 (one occurrence bound; retired, its reason is this comment): a
+/// comparison on a line binds one occurrence, and the item's total is
+/// asked for by name: `sum` of the line, or a named total (C94, named
+/// totals), is the item's sum. Conditions on one line are one term and
+/// hold on one occurrence. Only a ranged line (`# to #`) names its
+/// numbers `low` and `high` and admits `avg`; a comparison, sort or sum
+/// naming no slot on a line with several is an error that lists them. A
+/// row shows the line whole; an item with no qualifying line sorts last;
+/// the answer counts the items whose lines reach a lower bound only
+/// together. A sum is built from occurrences by a word, and an occurrence
+/// cannot be recovered from a sum. This file holds the binding and the
+/// sum (this test), the row's whole line and the sort (the next), and the
+/// together count (the worked example's); the slot words are
+/// `language.rs`'s corpus, and the slots a refusal lists
+/// `seat_faults.rs`'s.
+///
+/// Here, r2's implicit 20 meets `source=implicit` and its explicit 75 meets
 /// `arg1>=75`; no occurrence meets both, so the group fails, while the
 /// two asked as two terms each hold. A sum's group selects the same way:
 /// r2's implicit life sums to 20, never its explicit 75 beside it, and
@@ -529,7 +554,25 @@ fn c188_the_scope_says_the_tables_game_and_each_realms_characters() {
     );
 }
 
-/// C96 — over a store holding more than one realm a search names one; all
+/// C96 (the realm is the scope; retired, its reason is this comment):
+/// place is terms, but the realm is the search's scope, never a term, and
+/// a query never spans realms by default. League, tab, character and
+/// container are terms; which realm a search runs over is stated outside
+/// the conditions, printed back in every answer, and never hoisted from a
+/// branch of the tree. Over a store holding more than one realm, a query
+/// naming none is an error that lists them, and an explicit all-realms
+/// scope exists. Within a realm the default is every league, live items.
+/// The scope block says what was searched: items, realms, leagues,
+/// locations never fetched, the oldest fetch. A template and a total mean
+/// different things in two games (C58, realm above league). This test
+/// holds the refusal and its list, `all`, a realm the store lacks, and
+/// the realm a route carries; the worked example holds the scope block
+/// and its default membership, `live` (what `live` holds is
+/// `membership.rs`'s); the place terms, and the realm refused as a term,
+/// are `language.rs`'s corpus; every league under one realm is
+/// `counts.rs`'s.
+///
+/// Here, over a store holding more than one realm a search names one; all
 /// is a scope of its own; a realm the store lacks is a valid scope of
 /// nothing, and says so.
 #[test]
@@ -764,7 +807,9 @@ fn c98_the_holder_reuses_one_corpus_while_its_basis_and_scope_hold() {
     assert_eq!(of_b.basis, load_with(&b, &intent, Some("pc")).basis);
 }
 
-/// C104 — a request sends the text or the tree, and the answer returns both.
+/// C104 (the text and the tree; retired, its rule and reason at
+/// `language.rs`): a request sends the text or the tree, and the answer
+/// returns both.
 #[test]
 fn c104_a_tree_is_accepted_and_the_answer_returns_both() {
     let s = worked();
@@ -1172,6 +1217,11 @@ fn a_printed_word_is_quoted_for_the_declared_shell() {
 }
 
 // ---- the matches' fetch span on `total` (C118, C162) ----------------------------------------
+//
+// C118 (an answer's ages; retired, its rule and reason at `seat_faults.rs`):
+// the subject's places, their oldest and newest fetch with their locations
+// and when its lists were seen, on `total` on every view, and the scope's
+// oldest kept apart from it in the JSON, are these tests'.
 
 const DAY: i64 = 86_400;
 /// The answer's time for the span's ages: eight days after the first

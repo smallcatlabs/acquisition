@@ -13,6 +13,10 @@ sibling clone at the commit its manifest pins, a raw directory holding what
 its inventory records, any other input a path that exists. Nothing
 degrades; an absence is a refusal naming every absent input.
 
+C125 (the tables name their export; retired, its rule and reason at
+`game-diff.py`): a generator refuses a clone off its pin, so a pull bumps
+the pin first; the self-test stages a clone at no commit and at another.
+
 A raw directory is held to its inventory as a clone is to its pin: without
 it, the extract run over a restore that lacks a file writes one search fewer
 and says nothing, since a missing file and a search never captured look

@@ -38,8 +38,10 @@
 #      before; a clone off its pin fails each, by `sources.require`'s
 #      refusal naming the pin (a bump regenerates the tables in the
 #      order `tools/game-diff.py` prints). Between bumps the drift line
-#      holds their headers to the pin. The category table's `--tags`
-#      reads the clone too and is not here.
+#      holds their headers to the pin (C125, the tables name their
+#      export; retired, its rule and reason at `tools/game-diff.py`,
+#      whose self-test and drift line run here). The category table's
+#      `--tags` reads the clone too and is not here.
 #
 # Six stages are self-tests, each staging its own refusals on inputs it
 # makes, and `gamediff`'s stage the `drift` line's too; the four that

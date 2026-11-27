@@ -4,6 +4,10 @@
 //! the rule every total keeps — no total reads a crucible node's lines
 //! or a flask's own (J29).
 //!
+//! C94 (named totals; retired, its rule and reason at `pseudo.rs`): a
+//! total over ranged lines is a range, summed slot-wise, and takes `low`,
+//! `high` and `avg`, its bare name the `avg`, and no other slot word.
+//!
 //! The first test reads the track's expected answers where they lie
 //! (`search/pseudo-stats/data/ranged-expected.csv`, written before
 //! anything was built, from the site's captures and the owner's

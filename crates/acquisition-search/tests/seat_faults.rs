@@ -662,7 +662,10 @@ fn f1_the_helps_limit_on_class_says_what_the_class_table_made_true() {
 /// F4: a comparison written after `line( … )` — `line("T")>=15` — got a
 /// parser message that said nothing of the language. It names the two
 /// spellings that exist, `line("T").<slot>>=15` and `line("T" <slot>>=15)`,
-/// one pair per slot the template has, each a query that binds.
+/// one pair per slot the template has, each a query that binds. C92 (one
+/// occurrence bound; retired, its rule and reason at `answer.rs`): a
+/// comparison naming no slot on a line with several is refused, and the
+/// refusal lists the slots.
 #[test]
 fn f4_a_comparison_after_a_line_group_names_the_two_spellings() {
     let ranged = "line(\"Adds # to # Cold Damage\")>=15";
@@ -1412,9 +1415,24 @@ fn an_items_place_says_which_cell_it_sits_in() {
     );
 }
 
+/// C118 (an answer's ages; retired, its reason is this comment): an
+/// answer says how old its subject and each row are, and what kind of
+/// place it could not see. A row carries its location's fetch age beside
+/// `place` (C53, output levels). The subject, the set asked about, has its
+/// places' oldest and newest fetch with their locations and when its
+/// lists were seen, named for the set. A wider scope's ages stand apart in
+/// the JSON. The scope line says the never fetched by tab type, the
+/// largest named and the rest counted, and points at the list that
+/// exists. A seat read the scope's age as the matches', and a page hid
+/// positions' age. This file holds a row's place and `show`'s carrying
+/// the fetch (this test) and the never fetched by type (the next); the
+/// subject's span and the scope's oldest kept apart from it are
+/// `answer.rs`'s; the scope line, its pointer at `tabs` and a row's age in
+/// words are the CLI's `tests/seat_faults.rs`.
+///
 /// "Where do I pick it up" needed how old the place is, and a row said
 /// the place alone: the age was in `show`'s `last_seen` or `tabs`'s
-/// column, never beside the place. C118: the place carries when its
+/// column, never beside the place. The place carries when its
 /// location was last fetched — a tab's, a page's own and never its tab's,
 /// a character's for every item it holds.
 #[test]

@@ -3,6 +3,21 @@
 //! with invented values; every expectation is worked by hand from the
 //! body above it. The differential against the census over a real corpus
 //! is M2 (`search/item-facts/scripts/m2-differential.py`), never in the gate.
+//!
+//! C90 (a line's identity; retired, its reason is this paragraph): a
+//! line's identity is (realm, kind, template), and the displayed text is
+//! the only name a line needs. The template is the displayed English with
+//! each number replaced by `#`, markup reduced to its display half and
+//! the sign carried in the number; numbers are ordered slots, never
+//! averaged. Kind keeps both coordinates the body gives, the source array
+//! and the line's flags (`crafted`, `fractured`, `mutated`), so neither
+//! bucket rule is chosen silently. A rename is a new line. A stat id
+//! exists only at the trade boundary (C99, the translation). The template
+//! names every line, and many lines carry no stat id (S155, lines without
+//! a stat id). This file holds the template, the sign, the markup, the
+//! ordered slots and the kind's two coordinates; a rename found by its own
+//! text alone is `rows.rs`'s, and a template that is one realm's
+//! `counts.rs`'s.
 
 use acquisition_search::{Facts, Item, Line, Part, Shown, Slot, derive};
 use proptest::prelude::*;

@@ -211,7 +211,8 @@ fn c90_an_exact_template_names_a_mod_by_its_whole_text_or_by_a_row() {
     assert_eq!(follow(&s, &term["undecided"]), ["long", "twice"]);
 }
 
-/// C90: a rename is a new line. 3.30 renamed the stat the site lists as
+/// C90 (a line's identity; retired, its rule and reason at `derive.rs`):
+/// a rename is a new line. 3.30 renamed the stat the site lists as
 /// `explicit.stat_3917489142` from "#% increased Rarity of Items found"
 /// to "+#% to Item Rarity" (the two stat captures under
 /// `search/trade-query/data/`). A ring under each wording is found by its

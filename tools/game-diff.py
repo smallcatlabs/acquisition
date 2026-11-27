@@ -27,11 +27,22 @@ The reading for the tables, printed after the counts, is the regeneration
 procedure's one home: which table each file feeds, which generator remakes
 it, in the order that holds, and the pin bumped first.
 
-The drift line (`--check`) passes when no clone sits beside the tree, saying
-so; passes when the clone is at the pin and every shipped header names the
-pin and the clone's game version; fails, naming what to do, when the clone
-is at another commit, when a header's pin or game is not the clone's, or
-when the pinned export lags the game version it names.
+C125 (the tables name their export; retired, its reason is this paragraph):
+a table drawn from the game's export names the export it was drawn from,
+read from the clone and never typed, and the gate refuses a clone that has
+moved past the pin. The drift line (`--check`) passes when no clone sits
+beside the tree, saying so; passes when the clone is at the pin and every
+shipped header names the pin and the clone's game version; fails, naming
+what to do, when the clone is at another commit, when a header's pin or
+game is not the clone's, or when the pinned export lags the game version it
+names. The self-test stages each. A pull is a regeneration in the commit
+that bumps the pin and the manifest, the pin bumped first, since every
+generator refuses a clone off its pin (`PROCEDURE`, below; the refusal is
+`sources.py`'s, staged by its self-test). `trade-check.sh` runs both
+self-tests and the drift line in the gate, and where the clone is,
+regenerates the tables from it, so a header is the generator's, never
+typed. The tables went stale silently at every patch, and a clone pulled
+under a pin left three generators refusing and the gate green.
 """
 
 import argparse

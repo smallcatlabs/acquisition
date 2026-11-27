@@ -1644,9 +1644,10 @@ fn the_total_says_when_the_tables_and_the_characters_are_from_different_releases
 
 /// A map search printed the flat "2940 locations never fetched" a ring
 /// search printed, beside a map tab 61 of 2,550 fetched, and pointed at
-/// `--view locations`, which is not built. C118: the scope line names the
-/// types with the most never fetched, counts the rest, and points at the
-/// list that exists.
+/// `--view locations`, which is not built. C118 (an answer's ages;
+/// retired, its rule and reason at the search crate's
+/// `tests/seat_faults.rs`): the scope line names the types with the most
+/// never fetched, counts the rest, and points at the list that exists.
 ///
 /// Its list age names the set it is the oldest of, as the `scope` gloss
 /// does (without it, `location list seen 57d ago` read as the stash

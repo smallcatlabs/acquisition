@@ -808,6 +808,10 @@ fn explain_beside_the_corpus_context_is_an_authoring_error_naming_both() {
 /// view selection gives names the view's fields — `sort`, `count`,
 /// `cross`, `sum`, `explain`, a row's `fields` — never a frontend's flag, so one wording
 /// holds on a page, in an MCP result and at a terminal.
+///
+/// C95 (the counts view; retired, its rule and reason at `counts.rs`):
+/// the refusals of a count sorted, a count crossed and a sum standing
+/// alone are these.
 #[test]
 fn c143_the_view_selections_refusals_name_the_requests_fields() {
     use acquisition_search::answer::{Rows, Shape};

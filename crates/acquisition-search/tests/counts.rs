@@ -3,6 +3,29 @@
 //! JSON. Every count is worked by hand from the fixture below, and every
 //! route an answer prints is followed and compared, by id, with the
 //! members worked by hand.
+//!
+//! C95 (the counts view; retired, its reason is this paragraph): the
+//! counts view has two shapes and one optional sum; there is no
+//! aggregation language. Several names give independent facets, or one
+//! crossed table of two fields, never `line` (C97, the vocabulary read).
+//! A count may carry one sum, answered for the view and for each bucket:
+//! lacking adds nothing and is counted, empty is zero, unread leaves an
+//! incomplete subtotal (C94, named totals). Summing raw line projections,
+//! combining views, sorting counts and a sum standing alone are errors.
+//! Counts and totals are asked for; an aggregation language and an
+//! implicit largest occurrence are not. This file holds the facets, the
+//! crossed table, the sum and the refusals of a raw projection and of a
+//! cross that is not two fields; a combined view, a sorted count and a
+//! sum alone refused are `explain.rs`'s (`Shape::of`).
+//!
+//! C105 (a count accounts for every match; retired, its reason is this
+//! paragraph): a count accounts for every matching item. Known absence is
+//! `none`; a key not established is `undecided` (C93, absent versus
+//! undecided), neither omitted nor merged with a value, and undecided in
+//! aggregate counts what was left unread, never an item's reason. Every
+//! match is in at least one real bucket, `none` or `undecided`; a
+//! one-value key's buckets sum exactly to the total. Inventing a value or
+//! dropping an item breaks C93 or the total. This file holds it whole.
 
 use crate::common;
 
@@ -267,7 +290,10 @@ fn shaped(pairs: &[(&str, u64)]) -> Vec<(String, u64)> {
     pairs.iter().map(|(l, n)| (l.to_string(), *n)).collect()
 }
 
-/// AQ1: `--count tab,league,rarity` — three tables, no rows.
+/// AQ1: `--count tab,league,rarity` — three tables, no rows. C96 (the
+/// realm is the scope; retired, its rule and reason at `answer.rs`): a
+/// query naming no league counts every league of its realm, Standard's
+/// thirteen and Hardcore's one.
 #[test]
 fn aq1_three_keys_are_three_tables_and_no_rows() {
     let s = stash();
@@ -619,9 +645,10 @@ fn the_vocabulary_unnarrowed_by_a_pattern_and_of_a_ranged_line() {
     assert_eq!(members(&s, apart(table, "none")).len(), 4);
 }
 
-/// C96, C97: under an all-realms scope the vocabulary lists a template once
-/// for each realm, and the row's term with the scope narrowed to that realm
-/// selects exactly that row.
+/// C96, C97, and C90 (a line's identity; retired, its rule and reason at
+/// `derive.rs`): under an all-realms scope the vocabulary lists a template
+/// once for each realm, and the row's term with the scope narrowed to that
+/// realm selects exactly that row.
 #[test]
 fn c97_under_all_realms_a_row_is_one_realms() {
     let s = stash();
