@@ -413,6 +413,17 @@ fn c69_two_sides_resolve_independently_and_the_relation_names_both() {
             vec!["item/i-invalid".to_string()]
         )
     );
+
+    // The folder's row gone, nothing by hand applies to the non-price
+    // note's item, and the tab name speaks alone: `game_only`.
+    let mut snap = snapshot();
+    snap.buyouts.retain(|r| r.key != "pc/f1");
+    let report = resolve(&snap).unwrap();
+    let l = get(&report, &item_target("i-fifty"));
+    assert_eq!(l.manual, None);
+    assert_eq!(l.relation, Relation::GameOnly);
+    assert_eq!(l.why, "in game: 3 chaos; no row applies");
+    assert_eq!(report.counts.by_relation["game_only"], 3);
 }
 
 /// C81 — a note the store could not read is a statement of unknown
