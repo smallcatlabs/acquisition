@@ -1,4 +1,9 @@
-//! C161, the in-process transports: the daemon's tests' fixtures behind
+//! C161 (the transport seam; retired, its rule and reason at
+//! `ratelimit/tests/spec.rs`): this file holds the test transports, each
+//! in-process, holding the clock from a request's first poll to its
+//! body's end, a silent part holding nothing.
+//!
+//! The in-process transports: the daemon's tests' fixtures behind
 //! the transport seam (`acquisition_transport::Transport`), so a provider
 //! exchange in a door scenario or a component daemon is no real I/O. Each
 //! is an [`InProcess`] transport over a fixture's answer: the scripted

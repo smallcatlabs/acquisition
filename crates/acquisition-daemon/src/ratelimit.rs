@@ -1,4 +1,12 @@
-//! The header-driven rate limiter (C17) and the choke point in front of it.
+//! The header-driven rate limiter and the choke point in front of it.
+//!
+//! C17 (a custom limiter; retired, its rule and reason are this
+//! paragraph): the rate limiter is a custom policy layer that parses
+//! GGG's headers, over a simple enforcement mechanism, since GGG's
+//! header-driven limits are too specific for an off-the-shelf policy; no
+//! rate-limit crate stands in for it. What it promises is invariant 2's
+//! (the headers are the source of truth), held by the tables of
+//! `ratelimit/tests/spec.rs` (C33, the spec is tables).
 //!
 //! Source of truth for every rule here is `docs/design/network-ground-truth.md`,
 //! cited by claim number (N…/Q…/P-…). The limiter knows nothing except what

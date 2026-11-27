@@ -2713,7 +2713,30 @@ fn seam_records(choke: &ChokePoint) -> Vec<(String, String, String, bool)> {
     records
 }
 
-/// C161: every send the choke point makes is a request it prepares, and
+/// C161 (the transport seam; retired, its rule and reason are this
+/// paragraph): every request the daemon sends to the provider crosses
+/// one transport seam behind the choke point, which prepares it, owns its
+/// deadline on the daemon's clock and classifies the answer
+/// (`ResponseClassification`), while a transport only carries it; a door
+/// scenario's transport is in-process, so no provider exchange in a
+/// scenario is real I/O. In production the transport is the one HTTP
+/// client, privately owned, and what invariant 1 leaves outside (the
+/// browser's authorize) stays outside; that half is invariant 1's and
+/// C1's, held by checks 5 and 15 of `tools/arch-check.sh`. A real-wiring
+/// test of the production transport keeps its listener: the spec builds
+/// every other choke point in-process (`parked_choke`). A test
+/// transport holds the clock while a fixture holds a request, from its
+/// first poll to its body's end, and a silent part holds nothing. A real
+/// socket in a scenario is a wait the park hook cannot see, so the
+/// scenario's time could not move by its own hand (C158, the door). This
+/// file holds the preparation (this test), the deadline (the `c161_`
+/// deadline tests below) and the production transport on the wire;
+/// `src/tests/transport.rs` the test transports and their hold;
+/// `daemon/tests/door.rs` that every scenario faces one of them. The
+/// answer's classification is held case by case here and in the
+/// dispatcher's wire table (`daemon/tests/dispatch.rs`).
+///
+/// Every send the choke point makes is a request it prepares, and
 /// the production transport carries it to the wire as prepared. One table
 /// of the four sends (a bearer GET, a HEAD with a bearer, the token POST
 /// with its form, an unauthenticated GET), each row's method, path,

@@ -106,9 +106,11 @@ fn scripted_fixture(
     (transport, fixture)
 }
 
-/// What the daemon faces (C161): one of the test support's in-process
-/// transports (`crate::transport`), answering at its base, every request
-/// it holds a hold the park hook sees.
+/// What the daemon faces (C161, the transport seam: retired, its rule and
+/// reason at `ratelimit/tests/spec.rs`): one of the test support's
+/// in-process transports (`crate::transport`), answering at its base,
+/// every request it holds a hold the park hook sees. Every variant is
+/// one, so no scenario's provider exchange is real I/O.
 pub(super) enum Server {
     /// The scripted transport: one response per request, in order.
     Script(Vec<ScriptedResponse>),
