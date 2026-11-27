@@ -17,8 +17,10 @@ verify a claim, and `data/` and `raw/` by pointer only.
 
 ## Rules in force
 
-The only place process lives. Tighten by adding a line, loosen by
-deleting one; nothing else encodes it. (Set 2026-09-12.)
+The research tracks' own rules: how a track keeps this directory. How
+a step runs is `decisions/process.md`, and these lines bind nothing
+outside `search/`. Tighten by adding a line, loosen by deleting one.
+(Set 2026-09-12.)
 
 1. **A track is a directory; its `README.md` is its one document.** Its
    top is fixed: a status line (`Status: <state> — <date>`; a review
