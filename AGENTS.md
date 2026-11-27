@@ -77,9 +77,11 @@ what fails if it breaks, and says where nothing does yet.
   (the mock-session skill). A bare `acq` opens the owner's store. Live
   runs are the owner's, from a terminal, under the live-run skill.
 - **Rulings first, findings after.** A ruling (an invariant, a
-  boundary, process, scope, anything touching the owner's real store
-  or the real API) is his, recorded in `decisions/<area>.md` before the
-  code that depends on it. Agent-facing design (a verb, a flag, an MCP
+  boundary, scope, the gate's stages, who decides, how many reviews a
+  thing gets, anything touching the owner's real store or the real
+  API) is his, recorded in `decisions/<area>.md` before the code that
+  depends on it. How the work is run is otherwise a session's to
+  change, telling him what changed. Agent-facing design (a verb, a flag, an MCP
   tool, a query word, the words of an answer) is the session's:
   recorded in the commit that builds it, and entered in the registry
   only when the close finds it a property another area must know. Who

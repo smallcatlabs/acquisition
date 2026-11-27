@@ -288,7 +288,13 @@ wording.
   earlier audits' counts, 12 to 14 of his 23 ruling issues were about
   the rulebook's own text (`audits/meta-2026-11/README.md`).
 
-Then change 1, put the same way, when he has answered.
+**Answered, 2026-11-26:** "I agree with your recommendation." C170
+and `AGENTS.md`'s hard rule are amended in the commit that records
+this, and now state one list. "Scope" stood in `AGENTS.md` and not in
+C170; it is kept as his in both, since nothing here examined it. The
+first of the corrections in change 5 is thereby made.
+
+Then change 1, put the same way.
 
 ## After the skeptic
 
