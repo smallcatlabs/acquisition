@@ -119,7 +119,14 @@ p.write_text(s.replace(a, f'- **{sys.argv[1]} — A breaker\'s ruling.** *Why:* 
 PY
 }
 run_case 'one cross-cutting ruling over the count'                refuse 'always-loaded decisions >' cross_entry
-area_entry() { printf -- '- **%s — A breaker'"'"'s ruling.** *Why:* it is cited once. *Pinned:* nothing yet.\n' "$NEW" >>decisions/plans.md; }
+area_entry() {  # one more plans ruling, above its "Not doing"
+  python3 - "$NEW" <<'PY'
+import pathlib, sys
+p = pathlib.Path('decisions/plans.md'); s = p.read_text(); a = '\n## Not doing\n'
+assert s.count(a) == 1, 'no one Not doing heading in plans'
+p.write_text(s.replace(a, f'- **{sys.argv[1]} — A breaker\'s ruling.** *Why:* it is cited once. *Pinned:* nothing yet.\n' + a))
+PY
+}
 cited_by_workflow() { area_entry && printf '# %s is cited here alone.\n' "$NEW" >>.github/workflows/weekly.yml; }
 run_case 'a ruling nothing cites is reported'                    pass   "$NEW"                    area_entry
 run_case 'a ruling cited only from a workflow is cited'          lacks  "$NEW"                    cited_by_workflow
@@ -129,8 +136,9 @@ echo '== the registry: a cited id is an entry or a retired line (the retired rul
 # and its id stays known. Neither is an id nothing defines. The count is
 # read off the clean tree, so a retirement in the tree moves no case.
 retired_now=$(tools/docs-check.sh 2>&1 | sed -nE 's/^ok +registry +[0-9]+ decisions and ([0-9]+) retired,.*/\1/p')
-retired_line() {  # NEW retired at the foot of an area file
-  printf '\n## Retired\n\n- **%s — A breaker'"'"'s ruling.** *Held by:* `tools/docs-check-breakers.sh`.\n' "$NEW" >>decisions/plans.md
+retired_line() {  # NEW retired under plans' "Retired", the foot of the file
+  grep -qx '## Retired' decisions/plans.md &&
+    printf -- '- **%s — A breaker'"'"'s ruling.** *Held by:* `tools/docs-check-breakers.sh`.\n' "$NEW" >>decisions/plans.md
 }
 cite_new() { printf 'A row held by %s.\n' "$NEW" >>REVIEW-CHECKLIST.md; }
 retired_and_cited() { retired_line && cite_new; }
