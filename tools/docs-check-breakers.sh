@@ -71,37 +71,37 @@ none() { :; }
 run_case 'clean tree'                                            pass   'none carrying a history marker' none
 
 echo '== the registry: an entry carries no history (the entry rule)'
-entry() {  # entry <old> <new>: an exact-once substitution in C77's entry
+entry() {  # entry <old> <new>: an exact-once substitution in C41's entry
   python3 - "$1" "$2" <<'PY'
 import pathlib, sys
 p = pathlib.Path('decisions/plans.md'); s = p.read_text()
-line = next(l for l in s.splitlines() if l.startswith('- **C77 '))
-assert line.count(sys.argv[1]) == 1, 'edit anchor not found once in C77: ' + sys.argv[1][:60]
+line = next(l for l in s.splitlines() if l.startswith('- **C41 '))
+assert line.count(sys.argv[1]) == 1, 'edit anchor not found once in C41: ' + sys.argv[1][:60]
 p.write_text(s.replace(line, line.replace(sys.argv[1], sys.argv[2])))
 PY
 }
-W='at compile. *Why:*'
+W='a fused read. *Why:*'
 HEXWORD=abcdef; HEXWORD+=a   # a hash of hex letters alone, built so the cited-commit scan of tools/ never reads it
-run_case 'a date'                                                refuse 'carries a date'          entry "$W" 'at compile, as of 2026-09-03. *Why:*'
-run_case 'a commit'                                              refuse 'carries a commit'        entry "$W" 'at compile (at 16bba23e). *Why:*'
-run_case 'a commit of hex letters alone'                          refuse 'carries a commit'        entry "$W" "at compile (at \`$HEXWORD\`). *Why:*"
-run_case 'an owner quote'                                        refuse "carries an owner's quote"   entry "$W" 'at compile (owner: "agreed"). *Why:*'
-run_case 'a parenthesis naming the owner as the source'          refuse "carries an owner's quote"   entry "$W" 'at compile (the owner, #166). *Why:*'
-run_case "the owner's word and its quotation"                   refuse "carries an owner's quote"   entry "$W" "at compile, the owner's word: \"yes\". *Why:*"
-run_case "the owner's ruling as the reason"                     refuse "carries an owner's quote"   entry "$W" "at compile. *Why:* the owner's ruling; and"
-run_case "a sentence: under the owner's delegation"             refuse "carries an owner's quote"   entry "$W" "at compile. Under the owner's delegation. *Why:*"
-run_case "the owner's word opening a sentence"                 refuse "carries an owner's quote"   entry "$W" 'at compile. The owner'"'"'s word: "yes". *Why:*'
-run_case 'a parenthesis naming the owner, capitalised'           refuse "carries an owner's quote"   entry "$W" 'at compile (The Owner, #166). *Why:*'
-run_case 'his words quoted, capitalised'                         refuse "carries an owner's quote"   entry "$W" 'at compile. His words: "as drafted". *Why:*'
-run_case 'his words quoted'                                      refuse "carries an owner's quote"   entry "$W" 'at compile, in his words "as drafted". *Why:*'
-run_case 'his name'                                              refuse "carries an owner's quote"   entry "$W" 'at compile, as Tom asked. *Why:*'
-run_case 'the owner named as a party is no quote'                pass   'none carrying a history marker' entry "$W" "at compile, and the owner rules the rest; a fourth is the owner's word, quoted in the commit, under the owner's delegation. *Why:*"
-run_case 'the word verbatim'                                     refuse 'carries "verbatim"'      entry "$W" 'at compile, quoted verbatim. *Why:*'
-run_case 'Amended'                                               refuse 'carries "Amended"'       entry "$W" 'at compile. Amended after the seat. *Why:*'
-run_case 'Decided'                                               refuse 'carries "Decided"'       entry "$W" 'at compile. Decided by the session. *Why:*'
-run_case 'Ruled'                                                 refuse 'carries "Ruled"'         entry "$W" 'at compile. Ruled at the harvest. *Why:*'
-run_case 'a seat call number'                                    refuse 'carries a call number'   entry "$W" 'at compile (cli-opus call 26). *Why:*'
-run_case 'a lowercase "ruled first" and a count are no history'  pass   'none carrying a history marker' entry "$W" 'at compile, ruled first over 3,347 tabs. *Why:*'
+run_case 'a date'                                                refuse 'carries a date'          entry "$W" 'a fused read, as of 2026-09-03. *Why:*'
+run_case 'a commit'                                              refuse 'carries a commit'        entry "$W" 'a fused read (at 16bba23e). *Why:*'
+run_case 'a commit of hex letters alone'                          refuse 'carries a commit'        entry "$W" "a fused read (at \`$HEXWORD\`). *Why:*"
+run_case 'an owner quote'                                        refuse "carries an owner's quote"   entry "$W" 'a fused read (owner: "agreed"). *Why:*'
+run_case 'a parenthesis naming the owner as the source'          refuse "carries an owner's quote"   entry "$W" 'a fused read (the owner, #166). *Why:*'
+run_case "the owner's word and its quotation"                   refuse "carries an owner's quote"   entry "$W" "a fused read, the owner's word: \"yes\". *Why:*"
+run_case "the owner's ruling as the reason"                     refuse "carries an owner's quote"   entry "$W" "a fused read. *Why:* the owner's ruling; and"
+run_case "a sentence: under the owner's delegation"             refuse "carries an owner's quote"   entry "$W" "a fused read. Under the owner's delegation. *Why:*"
+run_case "the owner's word opening a sentence"                 refuse "carries an owner's quote"   entry "$W" 'a fused read. The owner'"'"'s word: "yes". *Why:*'
+run_case 'a parenthesis naming the owner, capitalised'           refuse "carries an owner's quote"   entry "$W" 'a fused read (The Owner, #166). *Why:*'
+run_case 'his words quoted, capitalised'                         refuse "carries an owner's quote"   entry "$W" 'a fused read. His words: "as drafted". *Why:*'
+run_case 'his words quoted'                                      refuse "carries an owner's quote"   entry "$W" 'a fused read, in his words "as drafted". *Why:*'
+run_case 'his name'                                              refuse "carries an owner's quote"   entry "$W" 'a fused read, as Tom asked. *Why:*'
+run_case 'the owner named as a party is no quote'                pass   'none carrying a history marker' entry "$W" "a fused read, and the owner rules the rest; a fourth is the owner's word, quoted in the commit, under the owner's delegation. *Why:*"
+run_case 'the word verbatim'                                     refuse 'carries "verbatim"'      entry "$W" 'a fused read, quoted verbatim. *Why:*'
+run_case 'Amended'                                               refuse 'carries "Amended"'       entry "$W" 'a fused read. Amended after the seat. *Why:*'
+run_case 'Decided'                                               refuse 'carries "Decided"'       entry "$W" 'a fused read. Decided by the session. *Why:*'
+run_case 'Ruled'                                                 refuse 'carries "Ruled"'         entry "$W" 'a fused read. Ruled at the harvest. *Why:*'
+run_case 'a seat call number'                                    refuse 'carries a call number'   entry "$W" 'a fused read (cli-opus call 26). *Why:*'
+run_case 'a lowercase "ruled first" and a count are no history'  pass   'none carrying a history marker' entry "$W" 'a fused read, ruled first over 3,347 tabs. *Why:*'
 
 echo '== the state file fails over its cap (C180, the state file)'
 pad_state() { printf '\n%s\n' "$(printf 'x%.0s' {1..6000})" >>roadmap/README.md; }
