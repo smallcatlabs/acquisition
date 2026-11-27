@@ -23,12 +23,13 @@ better Acquisition that is agent-friendly and agent-forward.
   cite, until that audit's sitting is run again (its `seat/`, also
   #220's re-measure).
 - **The registry's retirement** (`audits/retire-2026-11/README.md`):
-  its three batches are closed (`Step: process-340`, `process-343`,
-  `process-345`). Left of the census: the shedding pass, and C27
-  (its Windows half) and C121 (#339), which the batches left.
+  its three batches and the shedding pass's daemon area are closed
+  (`Step: process-340`, `-343`, `-345`, `-347`). Left: the other
+  areas' sheds, once the owner has read the daemon's (`f9732068`,
+  `f32ed9d0`); C27's Windows half; C121 (#339).
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
-  (`git log --grep='^Step: cut-293'`). #293 stays open.
+  (`Step: cut-293`); #293 stays open.
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"): steps 1 to 6 and the search form's
   nine are closed (step 6's parts and the form's:
@@ -99,8 +100,7 @@ His queue is the open issues labelled `trigger:ruling`:
   id for a string with markup (#281): a post on another project's
   tracker.
 - After 2026-11-30, re-measure what the governance rebuild changed
-  (#220). The gate's four questions it was to carry are ruled and
-  built (C196 to C199).
+  (#220); its four gate questions are built (C196 to C199).
 
 ## Starting a session
 
