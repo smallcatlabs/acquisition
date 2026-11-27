@@ -8,7 +8,10 @@ and changed. This file names the rig and the bar before any judged run.
 The runs, the sitting and the verdict follow it in later commits.
 `rig-1.patch` is the rig the build's review read, `rig-2.patch` the rig
 as its answers left it (below, "The review's answers"), and
-`rig-3.patch` the rig after the first judged runs' miss (below, "rig-3").
+`rig-3.patch` the rig after the first judged runs' miss (below, "rig-3"),
+and `rig-4.patch` the rig as the owner starts it: rig-3 with the window
+opening on Standard and `start.sh --url`, the judged runs' code
+otherwise unchanged (below, "rig-4").
 
 ## The rig
 
@@ -23,7 +26,7 @@ its base, from the repository's root:
 
 ```sh
 git worktree add --detach <dir> 9f5594c1
-git -C <dir> apply --check "$PWD/audits/desktop-2026-11/spike/rig-3.patch"   # exit 0
+git -C <dir> apply --check "$PWD/audits/desktop-2026-11/spike/rig-4.patch"   # exit 0
 ```
 
 Applied there, each file it makes is the lane's byte for byte (`cmp`
@@ -91,11 +94,26 @@ runs/desktop-spike/start.sh
 ```
 
 It clones `runs/desktop-spike/store-2026-11-24` with `cp -cR` into
-`runs/desktop-spike/sittings/<time>/`, starts the rig there, and opens
-the window as a Chrome app window (no tabs, no address bar) at the C++
-app's size, on a profile of its own under `runs/desktop-spike/profile`
-with Chrome's background networking off. Closing the window stops the
-rig, a second after the window, so the page's last acts land. Every
+`runs/desktop-spike/sittings/<time>/`, starts the rig there, prints the
+window's address, and opens it in **Google Chrome**
+(`/Applications/Google Chrome.app`) as an app window (no tabs, no
+address bar) at the C++ app's size, on **a profile of its own,
+`runs/desktop-spike/profile`**, never the owner's, with Chrome's
+background networking, sync, extensions and component updates off.
+**Chrome itself may still contact Google as it starts; the page loads
+nothing from off the machine, and nothing reaches GGG.** Closing the
+window stops the rig, a second after the window, so the page's last
+acts land.
+
+`runs/desktop-spike/start.sh --url` starts the same rig and prints the
+address alone, to open in a browser of the owner's own choosing; closing
+that page, then Ctrl-C in the terminal, stops it. The page is the same
+and logs the same; what that browser itself contacts is that browser's.
+
+The window opens on Standard, the league the stash is in; the league
+list beside the caption gives each league with its pc items: Standard
+43,433, Covens 604, Allflame 53 (44,090 in the realm). A league named in
+the page's URL is kept on reload. Every
 act goes to `runs/desktop-spike/logs/sitting-<time>.jsonl` as soon as
 its paint is timed; one the server does not take is kept and sent again,
 and the status bar says how many wait.
@@ -147,8 +165,9 @@ derives from the C++ tree).
 - **One search.** No row of search tabs and no `+`: the one tab is the
   caption.
 - **The league is chosen in the window**, from the realm's leagues with
-  their items, the largest first (Standard, 43,433 of the 44,090 pc
-  items). The C++ app picks one at login.
+  their items (Standard 43,433, Covens 604, Allflame 53 of the 44,090 pc
+  items), opening on Standard. The C++ app picks one at login, and like
+  it the window shows one league at a time.
 - **The form is a part of the C++ app's**: Tab, Name, Rarity; ranges for
   quality, level, item level, map tier, stack, sockets, links, required
   level, total life and total elemental resistance; corrupted, fractured
@@ -509,6 +528,18 @@ keystroke a few tens of milliseconds before asking, so a fast typist's
 keystrokes wait less behind an answer they overtake (line 1a), at the
 cost of that delay on every keystroke. The engine's own limits stand
 under either.
+
+### rig-4: what the owner starts
+
+rig-3 with two changes to how the window starts, none to how it answers
+or times an act: it opens on Standard by name rather than as the largest
+league (the same league in every judged run), and `start.sh` says which
+browser it opens, on which profile, and what that browser may contact,
+and with `--url` prints the address alone. The judged runs above stand
+for it: the server's answers, the page's timing and the driver are
+rig-3's. Checked headless: `start.sh --url` printed the address, the
+page opened on Standard with the three leagues listed, and an interrupt
+stopped the script and the rig.
 
 ## The store copy
 
