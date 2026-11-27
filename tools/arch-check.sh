@@ -889,7 +889,9 @@ PY
 }
 
 # ---- 12. every tokio timer in the daemon sleeps through its clock ------
-# C160: a door scenario's park hook moves virtual time, and fails a door
+# C160 (every daemon timer sleeps through its clock; retired, its rule
+# and reason at `crates/acquisition-daemon/src/daemon/tests/door.rs`): a
+# door scenario's park hook moves virtual time, and fails a door
 # wait, by what it accounts for: the daemon's clock's sleepers among
 # them. A timer on tokio's own wheel parks beside that clock unseen, so
 # the hook would read a park as stuck that a real timer will end. So

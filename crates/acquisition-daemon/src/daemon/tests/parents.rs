@@ -5,6 +5,16 @@
 //! are component tests, each forcing an interleaving through the
 //! daemon's internals that no request reaches.
 //!
+//! C23 (a parent job submits child jobs; retired, its reason is this
+//! paragraph): work that needs many requests is a parent job that
+//! submits child jobs. A parent finishes when its last descendant does
+//! and cancels its descendants when cancelled; its failure carries its
+//! children's tally (done, failed, cancelled, the failed ids) as a field,
+//! never as prose a client reads back: a held parent's tally is
+//! `queue.rs`'s, a failed child's through a live daemon the verbs crate's
+//! `tests/daemon.rs`. The queue, dispatcher, priorities, ETAs and events
+//! already work per job, so children get them free.
+//!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::door::*;

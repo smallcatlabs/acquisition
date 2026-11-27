@@ -247,8 +247,9 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
     assert!(out.status.success(), "{out:?}");
 }
 
-/// C6: a daemon that cannot open its queue refuses to start, naming the
-/// file and leaving it as it found it. Run on it would restart ids at 1
+/// C6 (the job queue persists; retired, its rule and reason at
+/// `crates/acquisition-daemon/src/daemon/tests/queue.rs`): a daemon that
+/// cannot open its queue refuses to start, naming the file and leaving it as it found it. Run on it would restart ids at 1
 /// and reuse them against the table's history once the file came back.
 #[test]
 fn c6_a_daemon_that_cannot_open_its_queue_refuses_to_start() {

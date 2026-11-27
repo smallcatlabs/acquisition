@@ -385,7 +385,8 @@ async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
     finish_harness_mock(None, &log_path);
 }
 
-/// C166 (a quote is bounded at the door by its work count): a quote of
+/// C166 (a quote is bounded at the door by its work count; retired, its
+/// rule and reason at `list.rs`): a quote of
 /// `APPLY_MAX_ACTIONS` jobs is projected, and one more is refused before
 /// anything is judged, in an apply's words and kind, naming the count
 /// and saying nothing was quoted.

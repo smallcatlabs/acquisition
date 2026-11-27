@@ -165,7 +165,9 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
     golden(file!(), "no_daemon", &t);
 }
 
-/// C152 (the journal's path a field of its own), what the CLI adds: a
+/// C152 (the journal's path a field of its own; retired, its rule and
+/// reason at `crates/acquisition-daemon/src/rails.rs`), what the CLI
+/// adds: a
 /// daemon started under an unwritable `ACQ_JOURNAL`, diagnosed by an
 /// `acq` whose knob differs (unset, the world's default), prints the
 /// rails line with the journal's redacted path before the daemon's words

@@ -2098,7 +2098,20 @@ mod tests {
         assert!(!path.exists(), "the reset cleared the dormant trip");
     }
 
-    /// C152: the status names the configured journal by its path in a
+    /// C152 (the journal's path a field of its own; retired, its reason
+    /// is this comment): the rails status names the configured journal by
+    /// its path in a field of its own, apart from whether it was written
+    /// and why not. `journal_path` is present whenever a journal is
+    /// configured, written or not; `journal` is the path when the journal
+    /// opened, the words of why not when it did not, and absent when
+    /// journals are off; those words carry no path. A frontend that
+    /// prints or redacts the journal's location reads the field, never
+    /// the words: the diagnosis's redaction is held in the verbs crate's
+    /// `tests/daemon.rs`, the CLI's rails line in its `tests/diagnose.rs`.
+    /// A path held only inside error prose is one no reader can find, and
+    /// a diagnosis from another shell pasted it whole.
+    ///
+    /// Here: the status names the configured journal by its path in a
     /// field of its own, whether or not it was written, and the words of
     /// a journal that could not be opened carry no path; the startup
     /// warning, the local log's, names it. An unopenable journal sits

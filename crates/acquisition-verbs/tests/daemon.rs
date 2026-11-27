@@ -203,7 +203,18 @@ async fn a_wedged_daemon_cannot_block_the_offline_plan() {
     drop(s);
 }
 
-/// C45: with no daemon a job's status is the ledger's row with `next`,
+/// C45 (with no daemon, the ledger on disk; retired, its reason is this
+/// comment): with no daemon to ask, an observer reads the queue from the
+/// ledger on disk — what waits, what was recorded running, when it was
+/// last written — and never answers "no outstanding work": `jobs`,
+/// `status`, `result` and `daemon` answer `running: false` with the
+/// persisted queue beside it, never while a daemon answers, and spawn
+/// nothing. The CLI's text and the MCP's tools over it are held by each
+/// binary's `tests/persisted_queue.rs`. A halted daemon idles out with its
+/// queue on disk (C25, a halt leaves jobs waiting), and an observer never
+/// spawns (C10, single-version handshake).
+///
+/// Here: with no daemon a job's status is the ledger's row with `next`,
 /// a job the ledger does not hold is `unknown_job` with `next`, and a
 /// finished job's result is its outcome from disk.
 #[tokio::test]
@@ -399,8 +410,10 @@ async fn a_plan_held_whole_by_a_queued_job_has_no_remaining_count() {
     );
 }
 
-/// C23: a parent whose child failed carries the tally as a field, read
-/// back as the daemon wrote it.
+/// C23 (a parent job submits child jobs; retired, its rule and reason at
+/// `crates/acquisition-daemon/src/daemon/tests/parents.rs`): a parent
+/// whose child failed carries the tally as a field, read back as the
+/// daemon wrote it.
 #[tokio::test]
 async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     let s = session("children");
@@ -1214,7 +1227,9 @@ async fn a_daemon_logging_elsewhere_has_its_reported_paths_replaced() {
     assert_eq!(document["log"]["from"], json!("daemon"));
 }
 
-/// C152: the daemon reports its configured journal by its path in a
+/// C152 (the journal's path a field of its own; retired, its rule and
+/// reason at `crates/acquisition-daemon/src/rails.rs`), the diagnosis's
+/// part: the daemon reports its configured journal by its path in a
 /// field of its own, and the diagnosis redacts the journal's directory
 /// from that field. Were the path named only inside the failure's words
 /// of a daemon that could not open its journal, the diagnosis would

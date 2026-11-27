@@ -294,7 +294,17 @@ async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::J
     })
 }
 
-/// C86's words, as values: the default deadline, the holder the world
+/// C86 (the handshake deadline; retired, its reason is this comment): a
+/// peer that accepts and does not answer `hello` within 5 s is
+/// unresponsive, its own verdict on every door, never absence; nothing
+/// spawns or replaces over it, and the report names the world lock's
+/// recorded holder for the hand that stops it. A healthy daemon answers
+/// `hello` in milliseconds whatever the limiter holds, so a late `hello`
+/// is a wedged daemon, and an unbounded read hung every door on it. The
+/// verdict on every door, and the peer left in place, are the
+/// `c137_the_handshake_deadline_at_zero_` test's below.
+///
+/// Here, C86's words, as values: the default deadline, the holder the world
 /// lock records, the platform's kill line, and on macOS the Keychain
 /// clause before it (a healthy daemon misses the deadline at Keychain's
 /// prompts too, so the sentence says to answer them before it says to

@@ -205,8 +205,20 @@ async fn page(
     }
 }
 
-/// C166 (the job list is paged): a bare `list` is the open jobs, newest
-/// first; `finished` reads the finished, those that left memory from the
+/// C166 (the job list is paged, and an answer fits its frame by
+/// construction; retired, its reason is this comment): `List` takes a
+/// state, `open` by default, `finished` or `all`; a page size with a
+/// default and a cap, a full page kept within the frame bound; and the id
+/// after which to resume. Pages run newest first by job id, and an answer
+/// names the next page's start until the last page. A `Quote` is bounded
+/// at the door by its work count, as an apply's actions are (`quote.rs`),
+/// and a response past the frame bound is answered by the `internal`
+/// error in its place, never written (`queue.rs`). An apply opens jobs by
+/// the thousand and the queue persists across restarts, so an unpaged
+/// list reaches the bound with no request to blame, and an answer the
+/// client discards as oversize is lost.
+///
+/// Here: a bare `list` is the open jobs, newest first; `finished` reads the finished, those that left memory from the
 /// table; `all` pages every job once by `after`, the last page with no
 /// `next`; and every answer counts the whole list, the evicted jobs
 /// included, whatever its page leaves out. A limit outside 1 to the

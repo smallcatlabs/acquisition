@@ -1768,7 +1768,8 @@ async fn a_response_that_cannot_be_serialized_is_answered_internal() {
     );
 }
 
-/// C166: an answer whose line would pass the frame bound is never
+/// C166 (an answer fits its frame; retired, its rule and reason at
+/// `list.rs`): an answer whose line would pass the frame bound is never
 /// written: the writer puts the protocol's `internal` refusal in its
 /// place, which says it was too large and that the connection stays, and
 /// the next frame is a frame of its own. A component test of the writer
@@ -1822,6 +1823,18 @@ async fn c166_an_answer_past_the_frame_bound_is_answered_internal() {
 }
 
 // ---- persistence (C6) ------------------------------------------------
+//
+// C6 (the job queue persists; retired, its reason is this comment): a
+// `jobs` table in a per-daemon `daemon.db`, written at every state change
+// and read back at start. Memory is the source of truth for live trees
+// and the table their mirror; a tree whose parent has concluded and whose
+// every row is persisted may leave memory, and the table answers for it;
+// a child stays until its parent concludes (`evict.rs`). Ids never run
+// ahead of disk; a daemon that cannot open the table refuses to start
+// (the CLI's `tests/world.rs`); a failed queue write is sticky, the
+// restore's delete too. One daemon per world holds the world lock (C83).
+// The queue was the one thing a restart lost once results moved to the
+// store, and a daemon's memory holds its work, not its lifetime.
 
 /// A harness daemon on a file-backed `daemon.db` (test daemons default
 /// to a throwaway in-memory one), restored from it like `run` does.
@@ -2172,7 +2185,9 @@ fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
                 panic!("held parent must finish as interrupted, not success: {outcome:?}")
             };
             assert!(error.contains("mid fan-out"), "{error}");
-            // C23: the deferred failure keeps its message and gains the tally.
+            // C23 (retired, its rule and reason in `parents.rs`'s module
+            // doc): the deferred failure keeps its message and gains the
+            // tally.
             assert_eq!(
                 children,
                 Some(Children {
@@ -2965,8 +2980,9 @@ fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
     assert_eq!(row.job.state, "waiting", "the open row is left as it was");
 }
 
-/// C165 (a job's record says when): each time is set at its transition
-/// on the daemon's one clock, through the door — the submission at
+/// C165 (a job's record says when; retired, its rule and reason at
+/// `crates/acquisition-protocol/tests/wire.rs`): each time is set at its
+/// transition on the daemon's one clock, through the door — the submission at
 /// submit, the first start when the job runs, the finish when it is
 /// terminal — and the result and the ledger's row carry the same. A
 /// `sleep` of 10 s on the parked clock: running, it has started and not

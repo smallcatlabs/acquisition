@@ -2219,7 +2219,12 @@ fn wire_rows() -> Vec<Row> {
             ..Row::default()
         });
     }
-    // C5: on one scheduling key the higher priority goes out first,
+    // C5 (the job queue is a priority queue; retired, its reason is this
+    // comment): waiting jobs are ordered by priority, higher first, so a
+    // reorder is a field write, never a data-structure migration. A client
+    // submits at the level it names and `set-priority` moves a waiting
+    // job's; the daemon's own logins and probes take the top two levels.
+    // Here: on one scheduling key the higher priority goes out first,
     // whatever the order of submission: two jobs queued together, the later
     // at the higher priority, which holds the server's first answer.
     let policy = "X-Rate-Limit-Policy: dispatcher-test-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
@@ -3324,7 +3329,8 @@ fn c158_a_blocking_task_holds_the_clock_until_the_runtime_observes_its_end() {
 /// `SendGate::occupancy` on a gate of its own, then
 /// `ChokePoint::actual_send_occupancy` on the daemon's, at rest and while
 /// the account transport holds a profile `GET`. The door's park hook does
-/// not read it (it reads the transports' hold, C160), so a
+/// not read it (it reads the transports' hold: C160, retired, its rule
+/// and reason in `door.rs`'s module doc), so a
 /// mutant that replaces either count with a send always in flight fails
 /// these assertions at rest at once and stalls nothing; the weekly
 /// mutants run does not list them. A component test of the count

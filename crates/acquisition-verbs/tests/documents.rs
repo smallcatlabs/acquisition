@@ -1135,8 +1135,9 @@ fn a_plain_failure_serialises_without_failed_children() {
     );
 }
 
-/// C165 (a failed job says what kind of failure it is) and C143 (the way
-/// on in each surface's terms): each kind's way on, from the failed
+/// C165 (a failed job says what kind of failure it is; retired, its rule
+/// and reason at `crates/acquisition-protocol/tests/wire.rs`) and C143
+/// (the way on in each surface's terms): each kind's way on, from the failed
 /// job's own kind and params. A stash's 404 offers the league's listing,
 /// a substash's its parent tab's fetch; a refusal or fault of GGG's, a
 /// 429 that ended the job and an interruption, the same job; a body not
@@ -3022,6 +3023,11 @@ fn is_sibling(time: &str, words: &str) -> bool {
 /// policy written twice and naming a league the fetched list lacks, a
 /// price set, replaced, cleared and set again, and a row on a target the
 /// facts do not hold.
+///
+/// C165 (a job's record says when; retired, its rule and reason at
+/// `crates/acquisition-protocol/tests/wire.rs`): a verb's document that
+/// carries a job's times joins this list, or the C163 walk never reads
+/// whether each time has its words beside it.
 async fn populated() -> Vec<(&'static str, Value)> {
     use acquisition_plan::pricing::{self, Bound, ListArgs, ShopArgs};
     use acquisition_search::answer::Membership;

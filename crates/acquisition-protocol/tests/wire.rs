@@ -529,8 +529,19 @@ fn c85_every_outcome_variant_has_a_pinned_wire_shape() {
     );
 }
 
-/// C165 (a job's record says when): each time is absent until it
-/// happens, and a record or a result from before the times reads with
+/// C165 (a job's record says when, and a failed job says what kind of
+/// failure it is; retired, its reason is this comment): `JobInfo`, a
+/// job's result and its ledger row carry `submitted_at`, `started_at` and
+/// `finished_at`, each absent until it happens, on the daemon's one clock
+/// (each set at its transition: the daemon's `tests/queue.rs`); a
+/// failure's outcome carries a `kind` from the closed list the protocol
+/// names (the pin below); and each frontend gives the times in words and
+/// offers the way on for the kind in its own terms (the verbs crate's
+/// `tests/documents.rs`). Additive: no field renamed or removed. An agent
+/// could not tell from a job when its fetch landed or failed, nor branch
+/// on a failure without reading its sentence.
+///
+/// Here: each time is absent until it happens, and a record or a result from before the times reads with
 /// none and writes as it was read; the ages are a frontend's, never on
 /// a record the daemon sends.
 #[test]

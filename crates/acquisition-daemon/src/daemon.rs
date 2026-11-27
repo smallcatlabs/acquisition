@@ -57,8 +57,12 @@
 //!   The token route (`oauth-token`) is deliberately accountless: it is
 //!   `Ip`-scoped and has no probe, so an accounted key would be unpaced on
 //!   an account's first login.
-//! - **C49** (only the session layer interprets accounts): the limiter
-//!   never reads the account in its key; scope comes from
+//! - **C49** (only the session layer interprets accounts; retired, its
+//!   reason is this comment): everywhere else an account is data — a
+//!   field on the job, a path segment for the store, an opaque key
+//!   component for the limiter — since an `if account == …` outside the
+//!   session layer is a second interpreter of what an account means. The
+//!   limiter never reads the account in its key; scope comes from
 //!   `X-Rate-Limit-Rules`.
 //! - **C50** (the account key is the profile uuid): after token exchange
 //!   the daemon submits a profile job — causal service of the client's

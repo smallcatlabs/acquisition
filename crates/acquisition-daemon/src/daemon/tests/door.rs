@@ -33,17 +33,27 @@
 //! outside the daemon that neither count sees (a browser's callback to
 //! the daemon's own listener) holds the clock across that wait
 //! ([`Door::hold_clock`]), so the hook moves no deadline, the idle
-//! deadline of [`DoorBuilder::life`] among them, under it. C160, the
-//! verdict: a park at which nothing is parked on the clock and no held
-//! request, blocking task or hold is pending is one nothing the hook accounts for
-//! can wake, so a door wait pending there fails at that park, naming
-//! what it waited for, with `HANG` the backstop behind it for a wait the
-//! hook does not read; a door opened [`DoorBuilder::beside`] another
-//! registers with the first door's hook, so its waits have the verdict
-//! too. C160: a wait that declares the transports' holds its
-//! own ([`Door::await_behind_own_holds`], an arrival barrier behind a
-//! request only the scenario releases) fails also at the park where
-//! those holds are all that is pending, the clock unmoved.
+//! deadline of [`DoorBuilder::life`] among them, under it.
+//!
+//! C160 (every daemon timer sleeps through its clock, and a stuck door
+//! wait fails at its park; retired, its reason is this paragraph): every
+//! tokio timer in the daemon sleeps through its one `Clock` (check 12 of
+//! `tools/arch-check.sh`), since a timer on tokio's wheel parks beside
+//! the clock unseen, and a stalled scenario ran to its ceiling (#151).
+//! The verdict: a park at which nothing is parked on the clock and no
+//! held request, blocking task or hold is pending is one nothing the hook
+//! accounts for can wake, so a door wait pending there fails at that
+//! park, naming what it waited for, with `HANG` the backstop behind it
+//! for a wait the hook does not read; a door opened
+//! [`DoorBuilder::beside`] another registers with the first door's hook,
+//! so its waits have the verdict too. A wait that declares the
+//! transports' holds its own ([`Door::await_behind_own_holds`], an
+//! arrival barrier behind a request only the scenario releases) fails
+//! also at the park where those holds are all that is pending, the clock
+//! unmoved, and its words name the scenario's held requests. The `c160_`
+//! tests here hold the verdict, and `dispatch.rs` the hook's count under
+//! a held send; a send's deadline is the choke point's, on its clock
+//! (C161).
 //!
 //! What stays off the door, each a component test that says which
 //! boundary it needs: several

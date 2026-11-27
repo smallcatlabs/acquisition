@@ -1,4 +1,6 @@
-//! C45 through the MCP binary: with no daemon to ask, the job tools answer
+//! C45 (with no daemon, the ledger on disk; retired, its rule and reason
+//! at `crates/acquisition-verbs/tests/daemon.rs`) through the MCP binary:
+//! with no daemon to ask, the job tools answer
 //! from the ledger on disk and spawn nothing. What the ledger's answers
 //! hold is the verbs crate's (`acquisition-verbs/tests/daemon.rs`); here,
 //! the adapter's part: a refusal is a result marked an error, and a

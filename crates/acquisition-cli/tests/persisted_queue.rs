@@ -1,4 +1,6 @@
-//! C45 through the real binary: an observer with no daemon to ask reads
+//! C45 (with no daemon, the ledger on disk; retired, its rule and reason
+//! at `crates/acquisition-verbs/tests/daemon.rs`) through the real
+//! binary: an observer with no daemon to ask reads
 //! the queue from the ledger on disk, and spawns nothing. What `jobs` and
 //! `daemon status` answer from it is the verbs crate's
 //! (`acquisition-verbs/tests/daemon.rs`); here, the text a person reads.

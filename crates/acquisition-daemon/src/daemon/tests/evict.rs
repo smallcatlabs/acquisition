@@ -1,5 +1,6 @@
-//! C6: a concluded tree leaves memory, and the table answers
-//! for it. Each test is named for the schedule it stages; none runs a
+//! C6 (the job queue persists; retired, its rule and reason at
+//! `queue.rs`'s persistence section): a concluded tree leaves memory,
+//! and the table answers for it. Each test is named for the schedule it stages; none runs a
 //! dispatcher or a clock — the jobs are concluded by hand, as the
 //! dispatcher's `finish` and `conclude` would.
 //!
