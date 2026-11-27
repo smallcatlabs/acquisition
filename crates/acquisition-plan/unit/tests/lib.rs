@@ -146,14 +146,16 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
         v2.realms[&Realm::Xbox].leagues["Standard"].tabs,
         Some(Selection::Ids(vec!["x1".into()]))
     );
-    // Tabs under poe2 name a URL shape the stash endpoints do not
-    // have (PoE1 only): a parse error, never a request.
-    let err = SyncPolicy::from_value(&json!({
-            "version": 3,
-            "realms": { "poe2": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 60 } } } }
-        }))
-        .unwrap_err();
-    assert!(err.to_string().contains("poe2"), "{err}");
+    // Tabs under poe2: the stash endpoints take the realm, so the
+    // facet parses as it does under every other.
+    let poe2 = policy(json!({
+        "version": 3,
+        "realms": { "poe2": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 60 } } } }
+    }));
+    assert_eq!(
+        poe2.realms[&Realm::Poe2].leagues["Standard"].tabs,
+        Some(Selection::All)
+    );
     // An unknown realm key, leagues outside a realm, and a stray
     // top-level field are all malformed — the strict parse holds the
     // top level too.
@@ -1757,12 +1759,11 @@ fn c76_a_selection_naming_characters_fetches_each_by_its_id() {
 }
 
 /// C76 under the realm rule a policy keeps: a selection naming tabs
-/// under a realm the stash endpoints do not take (poe2) is refused
-/// before a plan exists, in the policy's own words, so no plan holds
-/// stash work the daemon would refuse whole at the apply; characters
-/// alone under that realm still compile.
+/// under poe2 compiles as a policy naming them does, its league's stash
+/// listing first, since the stash endpoints take the realm; characters
+/// alone under it compile too.
 #[test]
-fn c76_a_selection_naming_tabs_under_poe2_is_refused_as_a_policy_is() {
+fn c76_a_selection_naming_tabs_under_poe2_plans_as_a_policy_does() {
     let s = store();
     let a = Annotations::open_memory_for("u-1").unwrap();
     let snap = s.refresh_snapshot("poe2", "Standard", &a).unwrap();
@@ -1772,11 +1773,14 @@ fn c76_a_selection_naming_tabs_under_poe2_is_refused_as_a_policy_is() {
             characters: vec!["c1".into()],
             deep: false,
         };
-        let err = plan_selection("mock", &snap, &selection, 1).unwrap_err();
-        assert_eq!(err, PlanError::TabsNotTaken { realm: Realm::Poe2 });
-        assert_eq!(
-            err.to_string(),
-            "tabs under realm poe2: the stash endpoints do not take it (PoE1 only)"
+        let plan = plan_selection("mock", &snap, &selection, 1).unwrap();
+        assert!(
+            plan.actions.iter().any(|a| matches!(
+                a,
+                RefreshAction::ListStashes { realm: Realm::Poe2, league, .. } if league == "Standard"
+            )),
+            "{:?}",
+            plan.actions
         );
     }
     let characters = PlanSelection {
@@ -2466,18 +2470,14 @@ fn policy_v3_covers_per_facet_and_refuses_an_entry_that_names_no_work() {
             .is_none()
     );
     assert_eq!(serde_json::from_value::<SyncPolicy>(json).unwrap(), p);
+    // Tabs under poe2 beside characters: both facets parse.
+    let both = SyncPolicy::from_value(&json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard": { "tabs": ["t"], "characters": "all", "max_age_seconds": 60 } } } } })).unwrap();
+    assert_eq!(
+        both.realms[&Realm::Poe2].leagues["Standard"].tabs,
+        Some(Selection::Ids(vec!["t".into()]))
+    );
     // Malformed shapes, each a structured error and never half-honored.
     for (bad, why) in [
-        // Tabs under poe2 name a URL shape the stash endpoints lack,
-        // whether alone or beside characters.
-        (
-            json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 60 } } } } }),
-            "poe2",
-        ),
-        (
-            json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard": { "tabs": ["t"], "characters": "all", "max_age_seconds": 60 } } } } }),
-            "poe2",
-        ),
         // Names no work: neither facet, both empty, one empty and the
         // other absent — judged after normalization.
         (

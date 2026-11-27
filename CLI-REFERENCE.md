@@ -188,7 +188,7 @@ Options:
       --type <TYPE>        Only tabs of this type, as GGG names it (UniqueStash, MapStash, PremiumStash …; the counts by type list them)
       --never-fetched      Only tabs never fetched
       --league <LEAGUE>    [default: Standard]
-      --realm <REALM>      pc (default), xbox, or sony — stashes are PoE1 only [default: pc]
+      --realm <REALM>      pc (default), xbox, sony, or poe2 [default: pc]
   -h, --help               Print help
 ```
 
@@ -340,7 +340,7 @@ Usage: acq stashes [OPTIONS]
 
 Options:
       --league <LEAGUE>    [default: Standard]
-      --realm <REALM>      pc (default), xbox, or sony — the stash endpoints are PoE1 only; poe2 is refused at admission [default: pc]
+      --realm <REALM>      pc (default), xbox, sony, or poe2 [default: pc]
   -h, --help               Print help
 ```
 
@@ -358,7 +358,7 @@ Options:
       --sub <SUB>
       --deep               Follow a map/unique tab's substashes as child jobs. Opt-in per tab: one map tab can hold hundreds
       --league <LEAGUE>    [default: Standard]
-      --realm <REALM>      pc (default), xbox, or sony — the stash endpoints are PoE1 only; poe2 is refused at admission [default: pc]
+      --realm <REALM>      pc (default), xbox, sony, or poe2 [default: pc]
   -h, --help               Print help
 ```
 
@@ -398,7 +398,7 @@ Options:
           Defaults to Standard. With `--apply=FILE`, the plan's own league governs; giving --league too asserts they agree
 
       --realm <REALM>
-          pc (default), xbox, sony, or poe2 (a poe2 policy entry can cover characters only). With `--apply=FILE`, the plan's own realm governs; giving --realm too asserts they agree
+          pc (default), xbox, sony, or poe2. With `--apply=FILE`, the plan's own realm governs; giving --realm too asserts they agree
 
   -h, --help
           Print help (see a summary with '-h')
@@ -464,7 +464,7 @@ The policy, version 3:
   {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}
   realms            pc, xbox, sony or poe2, each with its leagues by name
   tabs              "all", or a list of tab ids (`acq stashes` or `acq tabs` print them); an id covers
-                    the tab, a folder's children and a map or unique tab's substashes; not under poe2
+                    the tab, a folder's children and a map or unique tab's substashes
   characters        "all", or a list of character ids (`acq characters`)
   max_age_seconds   required: what is older than this is fetched again; a plan made sooner says nothing to do
 A league entry names tabs, characters or both. Nothing is fetched by setting a policy: `acq refresh --plan` shows what it asks for, `acq refresh --apply` fetches it.

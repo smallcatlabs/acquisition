@@ -153,7 +153,7 @@ Compile a refresh plan for one realm and league offline, sending nothing: from t
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name read that no account known holds is unknown_account (none known: not_logged_in if needed). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.
 - `league` (string | null) — League name; defaults to "Standard".
-- `realm` (string | null) — Realm: pc (default), xbox, sony, or poe2 (a poe2 plan can carry character work only).
+- `realm` (string | null) — Realm: pc (default), xbox, sony, or poe2.
 - `selection` (object) — An explicit selection, compiled in place of the stored policy: {"tabs": "all" or [tab ids], "characters": [character ids], "deep": true to fetch a named map or unique tab's pages on record with it}, any of them left out; ids as `tabs` and `characters` list them.
 
 ### `saved_search_clear`

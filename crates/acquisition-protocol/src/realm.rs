@@ -30,9 +30,9 @@
 //!   decode boundary (`Endpoint::from_job`) so persisted pre-realm jobs
 //!   still decode.
 //! - **C59** (which realms each route accepts is declared once): in the
-//!   `declare_route_knowledge` mold, [`Family::accepts`]. `/character` and
-//!   `/character/{name}` take `xbox|sony|poe2`; `/stash…` and
-//!   `/account/leagues` take `xbox|sony` and are titled "PoE1 only".
+//!   `declare_route_knowledge` mold, [`Family::accepts`]. `/character…`
+//!   and `/stash…` take `xbox|sony|poe2`; `/account/leagues` takes
+//!   `xbox|sony` and is titled "PoE1 only".
 //!
 //! ## C58 — The realm as built
 //!
@@ -53,14 +53,15 @@
 //!   already shares state by name). One extra HEAD per realm per lifetime.
 //! - **Admission refuses a realm a family does not take** (`admit_realm`
 //!   at submit and per apply tuple, before a job id exists) — the daemon
-//!   side of "no code path renders a stash URL with poe2"; the planner
-//!   side is the policy parse.
+//!   side of "no code path renders a URL in a realm its family does not
+//!   take"; the planner side is the policy parse.
 //! - **Items carry realm beside league** (stamped from the seam); the
 //!   ad-hoc `refresh` kind forwards realm to its children; `leagues`
 //!   stays realm-less (no consumer, not in the plan).
-//! - **Mock consoles are truthful, not colliding**: an xbox/sony stash
-//!   listing is empty and a tab fetch 404s (tab and item ids are
-//!   GGG-unique, so pc's are never reused under another realm); the
+//! - **Mock consoles are truthful, not colliding**: an xbox, sony or
+//!   poe2 stash listing is empty (no PoE2 stash body has been observed)
+//!   and a tab fetch 404s (tab and item ids are GGG-unique, so pc's are
+//!   never reused under another realm); the
 //!   character list is per realm, with one poe2 character carrying a
 //!   `skills` array (N42–N44; the mock body also carries an
 //!   item-granted skill, the id-less shape N44 records).
@@ -150,7 +151,7 @@ impl std::fmt::Display for Realm {
 pub enum Family {
     /// `/character[/realm]` and `/character[/realm]/{name}`.
     Characters,
-    /// `/stash[/realm]/{league}[/{id}[/{sub}]]` — PoE1 only.
+    /// `/stash[/realm]/{league}[/{id}[/{sub}]]`.
     Stashes,
     /// `/account/leagues[/realm]` — PoE1 only.
     Leagues,
@@ -162,8 +163,8 @@ impl Family {
     pub fn accepts(self, realm: Realm) -> bool {
         match (self, realm) {
             (_, Realm::Pc | Realm::Xbox | Realm::Sony) => true,
-            (Family::Characters, Realm::Poe2) => true,
-            (Family::Stashes | Family::Leagues, Realm::Poe2) => false,
+            (Family::Characters | Family::Stashes, Realm::Poe2) => true,
+            (Family::Leagues, Realm::Poe2) => false,
         }
     }
 
@@ -177,7 +178,7 @@ impl Family {
 
     /// The family's realm from a job's params, refused when the params
     /// name one the family does not take — so no code path can render a
-    /// stash URL under `poe2`.
+    /// URL in a realm its family does not take.
     pub fn realm_of(self, params: &Value) -> Result<Realm, String> {
         let realm = Realm::from_params(params)?;
         if !self.accepts(realm) {
@@ -240,20 +241,22 @@ mod tests {
             assert!(Family::Leagues.accepts(realm));
         }
         assert!(Family::Characters.accepts(Realm::Poe2));
-        assert!(!Family::Stashes.accepts(Realm::Poe2));
+        assert!(Family::Stashes.accepts(Realm::Poe2));
         assert!(!Family::Leagues.accepts(Realm::Poe2));
-        let refused = Family::Stashes
+        let refused = Family::Leagues
             .realm_of(&json!({ "realm": "poe2" }))
             .unwrap_err();
         assert!(
-            refused.contains("stashes endpoints do not take realm poe2"),
+            refused.contains("leagues endpoints do not take realm poe2"),
             "{refused}"
         );
         assert!(refused.contains("pc, xbox, sony"), "{refused}");
-        assert_eq!(
-            Family::Characters.realm_of(&json!({ "realm": "poe2" })),
-            Ok(Realm::Poe2)
-        );
+        for family in [Family::Characters, Family::Stashes] {
+            assert_eq!(
+                family.realm_of(&json!({ "realm": "poe2" })),
+                Ok(Realm::Poe2)
+            );
+        }
     }
 
     #[test]

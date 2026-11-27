@@ -392,35 +392,28 @@ fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
             "http://mock/stash/sony/Standard/t1/s1".into()
         )
     );
-    // PoE1-only families never render a poe2 URL.
+    // The stash family takes poe2: its segment before the league, as
+    // xbox's and sony's.
     assert_eq!(
-        route("stashes", json!({ "realm": "poe2", "league": "Standard" })),
-        None
+        route("stashes", json!({ "realm": "poe2", "league": "Standard" })).unwrap(),
+        (
+            "stash-list/poe2".into(),
+            "http://mock/stash/poe2/Standard".into()
+        )
     );
     assert_eq!(
         route(
             "stash",
-            json!({ "realm": "poe2", "league": "Standard", "id": "t1" })
-        ),
-        None
+            json!({ "realm": "poe2", "league": "Standard", "id": "t1", "sub": "s1" })
+        )
+        .unwrap(),
+        (
+            "stash/poe2".into(),
+            "http://mock/stash/poe2/Standard/t1/s1".into()
+        )
     );
     // Admission refuses before a job id exists — and inside an apply's
     // tuple list, where the vocabulary check already lives.
-    let refused = daemon
-        .submit(
-            "stashes".into(),
-            json!({ "realm": "poe2", "league": "Standard" }),
-            0,
-            "test".into(),
-            None,
-        )
-        .unwrap_err();
-    assert!(
-        refused
-            .message
-            .contains("stashes endpoints do not take realm poe2"),
-        "{refused}"
-    );
     let refused = daemon
         .submit(
             "characters".into(),
@@ -436,13 +429,11 @@ fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
     );
     let refused = validate_apply(&json!({ "jobs": [
         { "kind": "stashes", "params": { "realm": "xbox", "league": "Standard" } },
-        { "kind": "stash", "params": { "realm": "poe2", "league": "Standard", "id": "t1" } },
+        { "kind": "stash", "params": { "realm": "ps5", "league": "Standard", "id": "t1" } },
     ] }))
     .unwrap_err();
     assert!(
-        refused
-            .message
-            .starts_with("action 1: the stashes endpoints"),
+        refused.message.starts_with("action 1: unknown realm"),
         "{refused}"
     );
     assert_eq!(

@@ -46,9 +46,8 @@
 //! of that facet — a v3 value must spell it absent: `[]` or `null`
 //! there is refused as non-canonical by the store's exact round-trip
 //! (C66) — an entry covering neither refused
-//! as "names no work"; `tabs` under `poe2` is a parse error because the
-//! stash endpoints are PoE1 only while `characters` is taken under every
-//! realm)
+//! as "names no work"; a facet under a realm its endpoint family does
+//! not take is a parse error)
 //! and compiles it, with the daemon down, into a serializable
 //! `RefreshPlan`: the explicit action set (the league's stash listing
 //! and/or per-tab fetches, the realm's character listing and/or
@@ -179,8 +178,8 @@
 //!   neither facet is malformed ("names no work"), never a silent no-op,
 //!   judged after normalization for every version. Validation is per facet
 //!   against `Family::accepts`: `tabs` is refused under a realm the stash
-//!   family does not take (poe2), `characters` is accepted under every
-//!   realm.
+//!   family does not take, `characters` under one the character family
+//!   does not take.
 //! - **C62** (a character's freshness arms; retired, its rule and reason
 //!   at `unit/tests/lib.rs`): the planner is
 //!   facet-symmetric. `Selection` (`all` | ids) serves both facets;
@@ -308,7 +307,7 @@ pub enum PlanError {
     /// build with a wider table — refused, never guessed at.
     UnknownRealm { realm: String },
     /// A selection names tabs under a realm the stash endpoints do not
-    /// take (poe2): refused before a plan exists, in the words the policy
+    /// take: refused before a plan exists, in the words the policy
     /// refuses `tabs` there with.
     TabsNotTaken { realm: Realm },
     /// A serialized plan failed validation: unknown fields, a wrong
@@ -381,7 +380,7 @@ impl std::error::Error for PlanError {}
 /// Tabs named under a realm the stash family does not take: the one
 /// sentence a policy and a selection are refused with.
 fn tabs_not_taken(realm: Realm) -> String {
-    format!("tabs under realm {realm}: the stash endpoints do not take it (PoE1 only)")
+    format!("tabs under realm {realm}: the stash endpoints do not take it")
 }
 
 /// The per-account sync policy: an inspectable declaration of desired
@@ -400,7 +399,7 @@ pub struct SyncPolicy {
 
 /// One realm's coverage: its leagues. The realm key is what the requests
 /// are rendered with; a league entry that names work an endpoint family
-/// does not take on this realm (tabs under `poe2`, PoE1-only stashes) is
+/// does not take on this realm is
 /// a parse error, so no policy can ask for an unobserved URL shape.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RealmPolicy {
@@ -514,8 +513,7 @@ impl From<ValueError> for PlanError {
 /// The one parse: the `version` stamp must be this build's (an older one
 /// is refused with its remedy), the shape is validated whole, every entry
 /// must name work, and no
-/// facet may name work its endpoint family does not take on that realm
-/// (`tabs` under poe2; `characters` is taken everywhere).
+/// facet may name work its endpoint family does not take on that realm.
 fn parse_policy(value: &Value) -> Result<SyncPolicy, String> {
     let version = value
         .get("version")

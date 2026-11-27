@@ -1371,8 +1371,8 @@ resubmit if still wanted",
 /// a realm outside the closed set; and at submit for every kind and per
 /// tuple inside `validate_apply`, the daemon's own submissions included,
 /// so a job that would
-/// render a stash URL under `poe2` never gets an id (C59: no code path
-/// renders an unobserved URL shape). Kinds outside the families ignore
+/// render a URL in a realm its family does not take never gets an id
+/// (C59: no code path renders an unobserved URL shape). Kinds outside the families ignore
 /// the param. A realm that is not a string of at most `PREVIEW_BYTES` is
 /// refused here first, by `describe`, so the protocol's realm refusal,
 /// which quotes the value whole, only ever quotes a short one.

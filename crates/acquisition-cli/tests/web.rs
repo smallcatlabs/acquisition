@@ -7957,12 +7957,12 @@ fn every_refusal_a_leaving_request_meets_has_its_way_on_and_its_way_back() {
         tabs.into(),
     ));
 
-    // a listing the realm's endpoints refuse is no page's offer, so no
-    // page meets its refusal, which has no way on
+    // the stash endpoints take poe2, so its tabs page offers the
+    // listing as pc's does
     let poe2 = web.get("tabs?realm=poe2&league=Standard");
     assert_eq!(poe2.status, 200, "{}", poe2.body);
     assert!(
-        !poe2.body.contains("List this league&#39;s stash tabs"),
+        poe2.body.contains("List this league&#39;s stash tabs"),
         "{}",
         poe2.body
     );

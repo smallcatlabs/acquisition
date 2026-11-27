@@ -330,8 +330,7 @@ pub(crate) struct SetPolicyParams {
 pub(crate) struct PlanParams {
     /// League name; defaults to "Standard".
     pub(crate) league: Option<String>,
-    /// Realm: pc (default), xbox, sony, or poe2 (a poe2 plan can carry
-    /// character work only).
+    /// Realm: pc (default), xbox, sony, or poe2.
     pub(crate) realm: Option<String>,
     /// An explicit selection, compiled in place of the stored policy:
     /// {"tabs": "all" or [tab ids], "characters": [character ids],

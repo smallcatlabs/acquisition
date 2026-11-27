@@ -13,8 +13,10 @@
 //! - a tab the stored listing does not name is refused at submit, its
 //!   realm's and league's listing named with its age, and nothing is
 //!   sent for it (C164);
-//! - a realm the stash family does not take (poe2) is refused at admission,
-//!   with nothing journaled.
+//! - poe2 stash work is admitted and goes out on its own route
+//!   (`stash-list/poe2`), probed first, at `/stash/poe2/{league}`; the
+//!   mock answers it as it answers xbox's, an empty listing, since no
+//!   PoE2 stash body has been observed, and nothing lands under poe2.
 
 use std::path::Path;
 use std::process::Output;
@@ -110,17 +112,14 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
     );
     golden(file!(), "unlisted_tab", &t);
 
-    // poe2: the stash family does not take it — refused at admission,
-    // before a job id exists.
-    let out = acq(&base, &["stashes", "--realm", "poe2", "--json"]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    let err = sole_json(&out);
-    assert!(
-        err["error"]
-            .as_str()
-            .unwrap()
-            .contains("stashes endpoints do not take realm poe2"),
-        "{err}"
+    // poe2: admitted, and answered by the mock as xbox is, an empty
+    // listing; the store holds no poe2 tab after it.
+    let poe2 = payload(&base, &["stashes", "--realm", "poe2", "--json"]);
+    assert_eq!(poe2["stashes"], json!([]));
+    let poe2_tabs = sole_json(&acq(&base, &["tabs", "--realm", "poe2", "--json"]));
+    assert_eq!(
+        (&poe2_tabs["tabs"], &poe2_tabs["rows"]),
+        (&json!(0), &json!([]))
     );
 
     // The store keeps realms apart: pc's tabs are on record under pc only.
@@ -135,7 +134,7 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
     // The journal: pc sends on the bare routes (two GETs on one route —
     // explicit and omitted are indistinguishable), xbox sends on the
     // suffixed ones with a HEAD probe before each route's first GET,
-    // and no poe2 send at all.
+    // and so do poe2's, at the realm's segment before the league.
     let all = harness::sends(&base);
     let account = all
         .iter()
@@ -172,9 +171,25 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
             .all(|send| send.route != format!("stash@{account}")),
         "a pc tab its listing does not name was sent: {all:?}"
     );
-    assert!(
-        all.iter().all(|send| !send.route.contains("poe2")),
-        "a poe2 send was journaled: {all:?}"
+    let poe2_sends: Vec<(String, String, Option<u64>)> = all
+        .iter()
+        .filter(|send| send.route == format!("stash-list/poe2@{account}"))
+        .map(|send| (send.method.clone(), send.path.clone(), send.status))
+        .collect();
+    assert_eq!(
+        poe2_sends,
+        vec![
+            (
+                "HEAD".to_string(),
+                "/stash/poe2/Standard".to_string(),
+                Some(204)
+            ),
+            (
+                "GET".to_string(),
+                "/stash/poe2/Standard".to_string(),
+                Some(200)
+            ),
+        ]
     );
 
     let out = acq(&base, &["daemon", "stop"]);

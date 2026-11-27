@@ -167,7 +167,7 @@ pub(crate) enum Cmd {
         never_fetched: bool,
         #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,
-        /// pc (default), xbox, or sony — stashes are PoE1 only.
+        /// pc (default), xbox, sony, or poe2.
         #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
@@ -201,8 +201,7 @@ pub(crate) enum Cmd {
     Stashes {
         #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,
-        /// pc (default), xbox, or sony — the stash endpoints are PoE1 only;
-        /// poe2 is refused at admission.
+        /// pc (default), xbox, sony, or poe2.
         #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
@@ -217,8 +216,7 @@ pub(crate) enum Cmd {
         deep: bool,
         #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,
-        /// pc (default), xbox, or sony — the stash endpoints are PoE1 only;
-        /// poe2 is refused at admission.
+        /// pc (default), xbox, sony, or poe2.
         #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
@@ -295,9 +293,8 @@ summary.")]
         /// league governs; giving --league too asserts they agree.
         #[arg(long)]
         league: Option<String>,
-        /// pc (default), xbox, sony, or poe2 (a poe2 policy entry can
-        /// cover characters only). With `--apply=FILE`, the plan's own
-        /// realm governs; giving --realm too asserts they agree.
+        /// pc (default), xbox, sony, or poe2. With `--apply=FILE`, the
+        /// plan's own realm governs; giving --realm too asserts they agree.
         #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
     },
@@ -847,7 +844,7 @@ The policy, version 3:
   {\"version\":3,\"realms\":{\"pc\":{\"leagues\":{\"Standard\":{\"tabs\":\"all\",\"characters\":\"all\",\"max_age_seconds\":3600}}}}}
   realms            pc, xbox, sony or poe2, each with its leagues by name
   tabs              \"all\", or a list of tab ids (`acq stashes` or `acq tabs` print them); an id covers
-                    the tab, a folder's children and a map or unique tab's substashes; not under poe2
+                    the tab, a folder's children and a map or unique tab's substashes
   characters        \"all\", or a list of character ids (`acq characters`)
   max_age_seconds   required: what is older than this is fetched again; a plan made sooner says nothing to do
 A league entry names tabs, characters or both. Nothing is fetched by setting a policy: \

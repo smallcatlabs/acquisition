@@ -442,8 +442,8 @@ struct DataRoute<'a> {
     parts: Vec<&'a str>,
 }
 
-/// `None` for a realm the family does not take: GGG has no such route
-/// (the stash endpoints are PoE1 only), so the mock answers 404 rather
+/// `None` for a realm the family does not take: GGG has no such route,
+/// so the mock answers 404 rather
 /// than inventing one — a daemon that renders it is the bug this catches.
 fn classify_data_path(path: &str) -> Option<DataRoute<'_>> {
     use acquisition_protocol::realm::{Family, Realm};
@@ -925,7 +925,7 @@ impl Mock {
                     );
                 }
                 // The mock account's stashes live on pc, as the owner's do:
-                // a console listing is empty and a console tab is 404. Tab
+                // another realm's listing is empty and its tab is 404. Tab
                 // and item ids are GGG-unique, so the mock never reuses pc's
                 // under another realm.
                 let body = if policy_key == "/stash/tab" {
@@ -1280,7 +1280,10 @@ mod tests {
             c("/stash/sony/Standard/t1/s1"),
             Some(("/stash/tab".into(), Realm::Sony, "Standard/t1/s1".into()))
         );
-        assert_eq!(c("/stash/poe2/Standard"), None, "stashes are PoE1 only");
+        assert_eq!(
+            c("/stash/poe2/Standard"),
+            Some(("/stash".into(), Realm::Poe2, "Standard".into()))
+        );
         assert_eq!(c("/stash/"), None);
         assert_eq!(
             c("/profile"),

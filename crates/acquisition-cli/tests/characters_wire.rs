@@ -64,22 +64,7 @@ fn a_character_only_poe2_policy_closes_its_loop_on_the_poe2_routes() {
     let base = scratch.0.clone();
     let _daemon = login_journaled(&base);
 
-    // A character-only PoE2 entry is the ordinary v3 shape; a tabs facet
-    // under poe2 is refused at the write, nothing stored.
-    let out = acq(
-        &base,
-        &[
-            "policy",
-            "set",
-            r#"{"version":3,"realms":{"poe2":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#,
-            "--json",
-        ],
-    );
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    assert!(
-        sole_json(&out)["error"].as_str().unwrap().contains("poe2"),
-        "{out:?}"
-    );
+    // A character-only PoE2 entry is the ordinary v3 shape.
     let out = acq(
         &base,
         &[

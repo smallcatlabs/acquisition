@@ -170,7 +170,7 @@ acq profile   # profile
 acq leagues   # account leagues
 acq characters [--realm R]   # character list
 acq character <name> [--realm R]   # equipment and inventory
-acq stashes [--league L] [--realm R]   # tab list (PoE1 only)
+acq stashes [--league L] [--realm R]   # tab list
 acq stash <id> [--sub <id>] [--deep]   # one tab, optionally with substashes
 acq refresh --tabs a,b,c | --all [--deep] | --characters x,y   # a selection by id: compiled into a plan, printed, applied at once
 acq submit <kind> [--params JSON] [--detach]   # submit a job by kind
@@ -318,8 +318,7 @@ for test runs against GGG; `acq daemon status` prints their state.
 
 ## Known gaps
 
-- **Path of Exile 2 is partial.** GGG offers no PoE2 stash tabs, so
-  only characters are fetched, and the search's tables cover PoE1, so a
+- **Path of Exile 2 is partial.** The search's tables cover PoE1, so a
   PoE2 item's class and totals are undecided.
 - **A character fetched with an empty body shows `0` items.** GGG
   sends the same empty arrays for a stripped character and for one that
