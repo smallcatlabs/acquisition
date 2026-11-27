@@ -25,12 +25,16 @@
 //!
 //! No wait has a bound of its own: each waits in the page for what it
 //! expects, and a page that never shows it is a test the runner ends at
-//! its hang ceiling (C137).
+//! its hang ceiling (C137). A wait that has stood for [`SAID_AFTER`] says
+//! on stderr what it is for and waits on, so the test the runner ends
+//! has named the wait it sat in; nothing is asserted of the time.
 
 use std::collections::VecDeque;
 use std::io::{Read as _, Write as _};
 use std::net::TcpStream;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex, Weak};
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
@@ -46,6 +50,64 @@ struct Cdp {
     next: u64,
     events: VecDeque<Value>,
     requests: Vec<String>,
+    waits: Waits,
+}
+
+/// How long a wait stands before its socket's watcher says what it is
+/// for, and how often it says so again: no bound on the wait, which only
+/// the runner's hang ceiling ends (C137).
+const SAID_AFTER: Duration = Duration::from_secs(30);
+
+/// What a socket is being read for, the outermost wait first, each with
+/// when it began.
+type Waits = Arc<Mutex<Vec<(Instant, String)>>>;
+
+/// A wait named to its socket's watcher for as long as this lives.
+struct Named(Waits);
+
+impl Drop for Named {
+    fn drop(&mut self) {
+        if let Ok(mut waits) = self.0.lock() {
+            waits.pop();
+        }
+    }
+}
+
+/// Say on stderr what `waits` holds, innermost first, once its outermost
+/// wait has stood for [`SAID_AFTER`] and at each further one, until the
+/// socket that owns it is dropped. A thread and not a read timeout:
+/// Windows leaves a socket's state undefined after a receive times out.
+fn watch(waits: Weak<Mutex<Vec<(Instant, String)>>>) {
+    std::thread::spawn(move || {
+        let mut said: Option<(Instant, u64)> = None;
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+            let Some(waits) = waits.upgrade() else { return };
+            let standing = {
+                let waits = waits.lock().expect("the waits");
+                waits.first().map(|(since, _)| {
+                    let named: Vec<&str> =
+                        waits.iter().rev().map(|(_, what)| what.as_str()).collect();
+                    (*since, named.join(", in "))
+                })
+            };
+            let Some((since, named)) = standing else {
+                continue;
+            };
+            let periods = since.elapsed().as_secs() / SAID_AFTER.as_secs();
+            let before = match said {
+                Some((of, periods)) if of == since => periods,
+                _ => 0,
+            };
+            if periods > before {
+                eprintln!(
+                    "still waiting after {} s for {named}",
+                    periods * SAID_AFTER.as_secs()
+                );
+                said = Some((since, periods));
+            }
+        }
+    });
 }
 
 impl Cdp {
@@ -67,12 +129,24 @@ impl Cdp {
         }
         let head = String::from_utf8_lossy(&head);
         assert!(head.starts_with("HTTP/1.1 101"), "no upgrade: {head}");
+        let waits = Waits::default();
+        watch(Arc::downgrade(&waits));
         Cdp {
             stream,
             next: 0,
             events: VecDeque::new(),
             requests: Vec::new(),
+            waits,
         }
+    }
+
+    /// Name a wait to the socket's watcher until the value is dropped.
+    fn named(&self, what: String) -> Named {
+        self.waits
+            .lock()
+            .expect("the waits")
+            .push((Instant::now(), what));
+        Named(Arc::clone(&self.waits))
     }
 
     fn send(&mut self, text: &str) {
@@ -148,6 +222,13 @@ impl Cdp {
     fn reply(&mut self, method: &str, params: Value) -> Value {
         self.next += 1;
         let id = self.next;
+        let _named = self.named(match params["expression"].as_str() {
+            Some(expression) => {
+                let head: String = expression.chars().take(120).collect();
+                format!("the reply to {method} of `{head}`")
+            }
+            None => format!("the reply to {method}"),
+        });
         self.send(&json!({ "id": id, "method": method, "params": params }).to_string());
         loop {
             let reply = self.receive();
@@ -162,6 +243,7 @@ impl Cdp {
 
     /// The next event named `method`, those before it passed over.
     fn event(&mut self, method: &str) -> Value {
+        let _named = self.named(format!("the event {method}"));
         loop {
             let event = match self.events.pop_front() {
                 Some(event) => event,
@@ -190,6 +272,7 @@ impl Cdp {
     /// Wait in the page, a frame at a time, until `condition` holds: no
     /// bound but the runner's hang ceiling (C137).
     fn until(&mut self, condition: &str) {
+        let _named = self.named(format!("the page to hold `{condition}`"));
         self.eval(&format!(
             "new Promise((done) => {{ const look = () => {{ let held = false; \
              try {{ held = !!({condition}); }} catch (e) {{}} \
@@ -332,6 +415,7 @@ impl Page {
         // the load of this navigation's document, by its loader, whichever
         // side of the navigation's answer it was read on: a load of the
         // blank page carries another loader
+        let _named = self.cdp.named(format!("the load of {url}"));
         loop {
             let event = self.cdp.event("Page.lifecycleEvent");
             if event["params"]["name"] == "load" && event["params"]["loaderId"] == loader {
@@ -344,6 +428,9 @@ impl Page {
     /// Wait for the load of a document the page loads itself, by a loader
     /// other than the one it holds, and hold that one.
     fn loaded_again(&mut self) {
+        let _named = self
+            .cdp
+            .named("the load of a page after the one held".to_string());
         loop {
             let event = self.cdp.event("Page.lifecycleEvent");
             if event["params"]["name"] == "load" && event["params"]["loaderId"] != self.loader {
@@ -1183,26 +1270,12 @@ fn two_stat_groups_one_weighted_are_made_edited_and_run_from_the_page() {
         .as_u64()
         .expect("a matched total");
     assert_eq!(total.to_string(), both);
-    // the search's own request is held while its submit is read: the
-    // flag is the document's that the search replaces, so read once the
-    // answer has come it is the new page's, which has none
-    page.cdp.call(
-        "Fetch.enable",
-        json!({ "patterns": [{ "urlPattern": "*/search?*", "requestStage": "Request" }] }),
-    );
+    // the answer's page loading is the search sent, the half-typed weight
+    // not holding it back. Nothing of the page is read between the click
+    // and the load: the document is the one being replaced, and a read
+    // is answered by whichever page stands when the browser gets to it
     page.cdp
         .click(&format!("{SEARCH_FORM}.querySelector('button.search-btn')"));
-    assert_eq!(
-        page.cdp.eval("window.submitted"),
-        json!(true),
-        "the browser held the search back"
-    );
-    let held = page.cdp.event("Fetch.requestPaused");
-    page.cdp.call(
-        "Fetch.continueRequest",
-        json!({ "requestId": held["params"]["requestId"] }),
-    );
-    page.cdp.call("Fetch.disable", json!({}));
     page.loaded_again();
     let counted = match total {
         1 => "1 match".to_string(),
