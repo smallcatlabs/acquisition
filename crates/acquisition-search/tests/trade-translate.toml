@@ -243,6 +243,41 @@ statuses = { "armour_filters.ward" = "ambiguous" }
 matches = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Ward", "values": [["120", 1]], "displayMode": 0}]}']
 fails = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Ward", "values": [["80", 1]], "displayMode": 0}]}']
 
+# The envelope's `defences: displayed` (C142, tests/trade_translate.rs's
+# `c142_` for Armour): each other defence filter lands its displayed
+# field, exact, its note naming the field. A match the site's reading at
+# 20 % would fail, or a fail it would match, shows which was read.
+
+[[case]]
+name = "evasion as displayed"
+query = '{"defences": "displayed", "query": {"filters": {"armour_filters": {"filters": {"ev": {"max": 100}}}}}}'
+text = 'evasion_rating<=100'
+fidelity = "exact"
+statuses = { "armour_filters.ev" = "exact" }
+notes = { "armour_filters.ev" = ["`evasion_rating` as the item stands, at its own quality: the envelope asks the displayed defences, not the site's reading at 20 %"] }
+matches = ['{"properties": [{"name": "Evasion Rating", "values": [["90", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Evasion Rating", "values": [["110", 1]], "displayMode": 0}]}']
+
+[[case]]
+name = "energy shield as displayed"
+query = '{"defences": "displayed", "query": {"filters": {"armour_filters": {"filters": {"es": {"min": 100}}}}}}'
+text = 'energy_shield>=100'
+fidelity = "exact"
+statuses = { "armour_filters.es" = "exact" }
+notes = { "armour_filters.es" = ["`energy_shield` as the item stands, at its own quality: the envelope asks the displayed defences, not the site's reading at 20 %"] }
+matches = ['{"properties": [{"name": "Quality", "values": [["+30%", 1]], "displayMode": 0}, {"name": "Energy Shield", "values": [["100", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Energy Shield", "values": [["90", 1]], "displayMode": 0}]}']
+
+[[case]]
+name = "ward as displayed"
+query = '{"defences": "displayed", "query": {"filters": {"armour_filters": {"filters": {"ward": {"min": 100}}}}}}'
+text = 'ward>=100'
+fidelity = "exact"
+statuses = { "armour_filters.ward" = "exact" }
+notes = { "armour_filters.ward" = ["`ward` as the item stands, at its own quality: the envelope asks the displayed defences, not the site's reading at 20 %"] }
+matches = ['{"properties": [{"name": "Quality", "values": [["+30%", 1]], "displayMode": 0}, {"name": "Ward", "values": [["100", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Ward", "values": [["90", 1]], "displayMode": 0}]}']
+
 [[case]]
 name = "block"
 query = '{"filters": {"armour_filters": {"filters": {"block": {"min": 20}}}}}'
