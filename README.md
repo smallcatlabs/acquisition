@@ -2,7 +2,7 @@
 
 This is an experimental rewrite of [acquisition-qt](https://github.com/smallcatlabs/acquisition-qt).
 
-This project is changing rapidly, but still incomplete. For example, there's no UI and the documentation is mainly for agents. All you get right now are a CLI, an MCP, and the ability to run trade site searches against your own downloaded stash by copying and pasting search URLs as arguments. It will probably take several months of work to get this into a decent enough shape to seriously compete with the original acquisition, so I plan on maintaining both.
+This project is changing rapidly, but still incomplete. For example, there's no desktop app yet, only a few local web pages (`acq web`), and the documentation is mainly for agents. All you get right now are a CLI, an MCP, those pages, and the ability to run trade site searches against your own downloaded stash by copying and pasting search URLs as arguments. It will probably take several months of work to get this into a decent enough shape to seriously compete with the original acquisition, so I plan on maintaining both.
 
 --@gerwaric
 
@@ -18,7 +18,9 @@ an AI agent do the same, and the daemon `acqd` that sends every request
 to Grinding Gear Games under their rate limits. It runs on macOS, Linux
 and Windows, for Path of Exile 1; Path of Exile 2 follows at its
 launch. The desktop app, [acquisition-qt](https://github.com/smallcatlabs/acquisition-qt),
-keeps working beside it, and a GUI for this build comes later.
+keeps working beside it. `acq web`, built from source and in no
+release yet, shows the stash and its searches as pages in your
+browser, and a desktop GUI for this build comes later.
 
 You log in on GGG's own page. The tool keeps one refresh token in your
 operating system's keyring and sends it nowhere but GGG. It never reads
