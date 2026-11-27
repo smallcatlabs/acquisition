@@ -475,7 +475,19 @@ fn worked_by_hand(case: &Case) {
     );
 }
 
-/// C119: an ambiguous clause whose row carries its other reading says what
+/// C119 (what an ambiguous clause risks; retired, its reason is this
+/// comment): an ambiguous clause says what is at stake: its row may carry
+/// the other reading, and the answer counts the items in scope that
+/// reading would add or drop, with a route. The other reading is a
+/// fragment in the language, with the clause's bound where it needs one,
+/// applied where the clause has every property of the shape asked; a row
+/// with no other reading prints nothing (C93, absent versus undecided).
+/// The report (C99, the translation's report) should finish its sentence,
+/// and runs measured each ambiguity by hand. This file holds the readings,
+/// the counts and their routes over every fixture; what a catalogue row
+/// may carry as a reading is `trade_catalogue.rs`'s.
+///
+/// Here, an ambiguous clause whose row carries its other reading says what
 /// is at stake — every fixture's readings are the ones it works by hand,
 /// and a clause with none carries none (C93: absent, never zero) — and,
 /// asked over the fixture's items as the site's search, the answer counts
@@ -1014,7 +1026,22 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
     );
 }
 
-/// C142: the site's Armour filter lands `armour.q20`, the site's reading
+/// C142 (the defences' reading; retired, its reason is this comment): a
+/// trade envelope may name the reading of the site's four defence
+/// filters: `defences: "displayed"` lands Armour, Evasion, Energy Shield
+/// and Ward on the displayed fields; absent, or `"q20"`, lands them on the
+/// site's normalised ones (C114, the property bridge). Each clause's term
+/// and the translated text name the field used; the option is read beside
+/// `league` (C141, the league beside the JSON) and nothing else of the
+/// envelope changes. The site cannot ask for a defence as the item stands,
+/// and one reading named beside the query serves a page's checkbox and
+/// `--trade` alike, without a control per field. This file holds Armour
+/// here, the other three in the fixtures' `as displayed` and `at 20 %
+/// quality` cases, each clause's term and note naming its field, and the
+/// envelope's other keys unchanged beside it in the C195 test below; the
+/// option as decoded is `trade_decode.rs`'s.
+///
+/// Here, the site's Armour filter lands `armour.q20`, the site's reading
 /// at 20 % quality, ambiguous as the catalogue measured it; under the
 /// envelope's `defences: displayed` it lands `armour`, as the item stands,
 /// exact, its note naming the field. Asked of a piece displaying 300

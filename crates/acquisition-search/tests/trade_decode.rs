@@ -234,8 +234,16 @@ fn c113_the_query_json_is_the_envelope_or_the_query_alone() {
     assert_eq!(decode(&format!("\n  {}\n", query)).unwrap().query, query);
 }
 
-/// C141, the league beside the query: an envelope's `league` is a URL's
-/// league spelled in the JSON, a term the translation lands as that one;
+/// C141 (the league beside the JSON; retired, its reason is this comment):
+/// a trade query JSON may carry the league beside its query object,
+/// `{league, query, sort}`, read as a URL's league is: a term (C113, the
+/// third spelling). The realm stands in the scope as before, never in the
+/// envelope, and any other envelope key is still reported unsupported by
+/// name. A form that emits the site's JSON must scope to one league, and
+/// the site's own JSON has no place for a league. This file holds it
+/// whole.
+///
+/// Here, an envelope's `league` is a URL's league spelled in the JSON, a term the translation lands as that one;
 /// the realm stays the scope's, so an envelope's `realm` is a key beside
 /// it like any other, reported unsupported by name; a league that is no
 /// text or is empty is refused, and one sent null is absent.
@@ -438,8 +446,8 @@ fn c47_the_reviews_faults_a_doubled_slash_a_bad_escape_a_second_member_an_unboun
     assert!(longest <= 368 && 368 < acquisition_search::trade::MAX_ID);
 }
 
-/// C142, the defences' reading beside the query: `defences` is read
-/// beside `league` — `displayed`, or `q20` and left out or null the
+/// C142 (the defences' reading; retired, its rule and reason at
+/// `trade_translate.rs`): `defences` is read beside `league` — `displayed`, or `q20` and left out or null the
 /// site's own — and any other value is refused by name; it is no key the
 /// query object holds, so a bare query's `defences` is the query's.
 #[test]

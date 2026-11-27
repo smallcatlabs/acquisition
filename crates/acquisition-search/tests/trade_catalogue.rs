@@ -480,7 +480,8 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
     }
 }
 
-/// C119: an other reading is an ambiguous row's alone, its placeholders
+/// C119 (what an ambiguous clause risks; retired, its rule and reason at
+/// `trade_translate.rs`): an other reading is an ambiguous row's alone, its placeholders
 /// the ones the translation fills — a `lands` placeholder, the clause's
 /// `{term}`, `{forms}` and `{without}`, never inside quotes — and a
 /// `lands` may not write a reading's own.

@@ -39,20 +39,14 @@
 //!   beside it, for the report to name. Neither an id nor JSON fills a
 //!   scope: a [`Decoded`] from either carries no realm. The JSON text is
 //!   the caller's and is not bounded here.
-//! - **C141, a league beside the query** (verbatim): A trade query JSON
-//!   may carry the league beside its query object, `{league, query,
-//!   sort}`, read as a URL's league is: a term (C113, the third
-//!   spelling). The realm stands in the scope as before, never in the
-//!   envelope, and any other envelope key is still reported unsupported
-//!   by name. An envelope's `realm` is such a key.
-//! - **C142, the defences' reading beside the query** (verbatim): A trade
-//!   envelope may name the reading of the site's four defence filters:
-//!   `defences: "displayed"` lands Armour, Evasion, Energy Shield and Ward
-//!   on the displayed fields; absent, or `"q20"`, lands them on the site's
-//!   normalised ones (C114, the property bridge). Each clause's label and
-//!   the translated text name the field used; the option is read beside
-//!   `league` (C141, the league beside the JSON) and nothing else of the
-//!   envelope changes.
+//! - **C141, a league beside the query** (retired, its rule and reason at
+//!   `tests/trade_decode.rs`): the envelope's `league` is decoded as a
+//!   URL's league is, into [`Decoded`]'s `league`; its `realm` is a key
+//!   beside the query like any other, carried out for the report.
+//! - **C142, the defences' reading beside the query** (retired, its rule
+//!   and reason at `tests/trade_translate.rs`): the envelope's `defences`
+//!   is decoded beside `league` into [`Decoded`]'s `defences`, and lands
+//!   the four defence filters in `trade/translate.rs`.
 //!
 //! # As built: the link
 //!
