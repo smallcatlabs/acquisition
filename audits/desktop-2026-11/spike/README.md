@@ -375,7 +375,7 @@ about 1 ms; the time was the engine's.
 
 ## The review's answers
 
-The build's one review, `roadmap/reviews/desktop-spike-98dd155f.md`,
+The build's one review, `roadmap/reviews/desktop-spike-ea1bc0f1.md`,
 read `rig-1.patch`. Each finding is answered by one rule in
 `rig-2.patch`, and each was checked on the working window, headless,
 over a fresh clone:
