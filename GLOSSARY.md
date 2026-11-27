@@ -8,8 +8,8 @@ noun gets a line here when a second document starts to use it.
 
 ## Door
 
-"Door" is ambiguous: each of its senses has its own word, and a new
-text uses that word rather than "door".
+"Door" is ambiguous: each of its senses has its own word, and a text
+that says "door" says which it means.
 
 - **connect policy** (the most common sense of "door"): how a frontend
   reaches the daemon. The *use* policy may start or replace a daemon,

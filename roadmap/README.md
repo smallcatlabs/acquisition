@@ -40,9 +40,12 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. The programme's later steps, as `NEXT.md` orders them: A4, then
-   B1 to B6, each waiting on what that file names. Where they stand
-   against the items below is the owner's (its decision 1).
+1. The programme's later steps, each a row of `NEXT.md`'s table. A4
+   first: the README's line that says there is no UI, which waits on
+   nothing, then the 33 drafted issues, filed at his word. Then B2 to
+   B5, whose waits are met; B1 waits on his ruling and B6 on his
+   decision. Where they stand against the items below is the
+   owner's (its decision 1).
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.

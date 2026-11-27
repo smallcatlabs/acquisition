@@ -91,6 +91,8 @@ skill apply. What a builder adds:
 - An id names its rule in words the first time a brief, a report or a
   commit message uses it ("C84, the artifact mismatch"): the reader
   outside the area has no registry open.
+- Before the commit, read your diff against the eleven shapes of
+  `REVIEW-PROMPT.md`: they are what the reviewer will read it for.
 
 ## Report
 Returned to the session that launched you, in this order, each a short

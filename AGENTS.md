@@ -167,7 +167,7 @@ file.
 ## Where things live
 
 - **A ruling**: `decisions/<area>.md`, in the entry rule's form, recorded before the code that depends on it; a new entry's id is the highest that `python3 -I tools/bothy.py list` prints, plus one. Its mechanism is a doc comment on the code, headed by the id; its property is a test that cites the id.
-- **A finding**: the test named for the fault, or the commit message. A fault that came back is a row in `REVIEW-CHECKLIST.md`, the review checklist by area, read before reviewing a change there.
+- **A finding**: the test named for the fault, or the commit message. A fault that comes back has its holding test strengthened; `REVIEW-CHECKLIST.md` is the reviewer's record of the shapes that came back, and takes no new row (C182, structure before a rule).
 - **Work not done yet**: a GitHub issue, labelled `area:*` (its area file) and `trigger:*` (`user`, a user's report; `seat`, a seat run; `consumer`, a second consumer; `gui`, phase 4; `live`, a live run, a sitting or a game event; `ci`, a red CI run; `ruling`, the owner's word; `step`, the next step in its area). A feature waiting to be asked for is an issue. What the project declines until a named trigger is a "Not doing" line at the foot of the area's file.
 - **A decision waiting on the owner**: an open issue labelled `trigger:ruling`, one decision each; one taken under his delegation is filed closed under the same label (C179, what reaches him). No commit, ledger or report promises him a later read.
 - **A fact about GGG**: a numbered claim in `docs/design/network-ground-truth.md` (the trade appendix beside it); `acquisition-qt` takes copies, never the reverse.
@@ -183,7 +183,8 @@ file.
 Skills under `.claude/skills/`, each saying when it applies: live-run
 (anything that talks to the real GGG API), mock-session (every other
 `acq`), session-close (before the last commit of a session),
-cold-review (after a round that changes behaviour or a tool), seat (a
+cold-review (after a round that changes behaviour, a tool, the gate, a
+workflow or the shared test harness), seat (a
 blind agent at the tool), research-track, site-sitting (asking the
 trade site).
 

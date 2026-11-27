@@ -5,7 +5,10 @@ closed slice's record and the roadmap's reviews, grouped by the area a
 change touches. Read the area's rows before reviewing a change there;
 a review names the shape it found. Each row says where the shape came
 back and what holds it now. A shape that comes back again gets its
-holding test strengthened, never a second row. The records these rows
+holding test strengthened, never a second row. The list takes no new
+row (C182, structure before a rule): it stands as the reviewer's
+record, and a shape no row holds is a line of
+`roadmap/briefs/REVIEW-PROMPT.md`. The records these rows
 come from are whole at the commit `HISTORY.md` names for each slice.
 
 ## Network: the limiter, the gate, OAuth
