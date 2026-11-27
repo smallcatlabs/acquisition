@@ -257,6 +257,20 @@ fn item_from_rows(s: &Store, id: &str, gems: &[&str]) -> Value {
     json
 }
 
+/// C29 (bodies as received, items lifted; retired, its rule and reason
+/// are this comment): a body is stored as received except where the
+/// ingest lifts it, and `items` is the only place to look for an item.
+/// Every item array, each `socketedItems` among them, is lifted into
+/// `items`, one row per GGG item id, keyed by its location's full
+/// coordinate (realm, league for a stash, kind, id); a tab's `children`
+/// become tab rows, its fetch being its substashes' listing (C54). A
+/// fetch of a location a listing has retired is withheld: membership is
+/// the listing's, and only a listing revives a location. Raw and parsed
+/// both would duplicate every body, and raw alone would make every query
+/// a body scan and give user state no key. This test and
+/// `character_arrays_share_one_location` hold the envelope and the rows
+/// giving back the response; `a_withheld_fetch_is_marked_counted_exactly_and_still_validated`
+/// the withheld fetch.
 #[test]
 fn stash_items_are_lifted_and_the_envelope_keeps_the_count() {
     let mut s = Store::open_memory().unwrap();
@@ -467,12 +481,22 @@ fn an_item_without_an_id_is_malformed_and_poisons_nothing() {
     assert_eq!(s.refused(3).unwrap().unwrap().params["realm"], "poe2");
 }
 
-/// C145 (a present key of the wrong type is malformed; an absent key is
-/// empty): a body whose item-bearing key is present as anything but an
-/// array is refused as `MalformedBody`, kept verbatim in `refused` (C30,
-/// a refused body is evidence), and retires nothing — never read as an
-/// empty list, which would retire every item, substash or league the
-/// key's location held.
+/// C145 (a present key of the wrong type is malformed; retired, its rule
+/// and reason are this comment): a present
+/// key of the wrong type is a malformed body at every seam; an absent key
+/// is the documented empty. `items`, `children`, `socketedItems`,
+/// `leagues`, a character's item arrays, a listing's `stashes` or
+/// `characters`, present and not an array, refuses the body (C30, a
+/// refused body is evidence): kept verbatim in `refused`, retiring
+/// nothing, never read as an empty list. The item-id check recurses as
+/// the ingest does; a body whose evidence cannot be kept is still refused
+/// as malformed, never as a raw storage error; a stash body's own id is
+/// checked against the location its params name. An empty list retires
+/// every fact its key's location holds, so one type slip would read as a
+/// cleared tab, a lost character or a dropped league, and cost a
+/// refetch. This test holds each seam's refusal; the next three the
+/// absent key, a character's absent arrays and the recursion; the last
+/// the evidence that cannot be kept.
 #[test]
 fn c145_a_present_key_of_the_wrong_type_is_malformed_and_retires_nothing() {
     let mut s = Store::open_memory().unwrap();
@@ -1549,6 +1573,14 @@ fn a_large_tab_reingested_unchanged_reports_nothing() {
 /// same league and tab id under two realms are two rows, a listing
 /// retires only its own realm's tabs, items carry the request's
 /// realm, and a character listing never retires another realm's.
+///
+/// C60 (the store's realm is the request's; retired, its rule and reason
+/// are this paragraph): the store's realm is the request's realm, stamped
+/// from the params, never from the entry's `realm` field. The removal
+/// rule is realm-scoped, so it may under-retire if lists span realms and
+/// never over-retires. The character list is per realm (N42, per-realm
+/// character lists), and a realm read per entry could retire another
+/// realm's rows.
 #[test]
 fn realms_keep_the_same_league_and_id_apart() {
     let mut s = Store::open_memory().unwrap();
@@ -1782,6 +1814,18 @@ fn the_character_key_is_the_id_and_the_name_is_the_address() {
     assert!(err.downcast_ref::<MalformedBody>().is_some(), "{err:#}");
 }
 
+/// C56 (every item row records its array; retired, its rule and reason
+/// are this comment): every item row records the array it came from
+/// (`container`, an ingest fact), and `skills` (PoE2), `guardian` and
+/// `wickerman` (PoE1) are lifted arrays. An item-shaped array a character
+/// body carries under any other name is the drift tripwire: counted,
+/// shown in `store status`, never lifted, never a failure. A guardian's
+/// items carry the character's own slot names, so the item alone cannot
+/// say which array it sits in. This test holds the containers and the
+/// lifted arrays; `an_unknown_item_array_trips_the_drift_counter_without_failing`
+/// the tripwire; `acquisition-cli/src/store_cmd.rs` its `store status`
+/// line.
+///
 /// Every item row records the array it came from: a guardian's helm
 /// and the character's own are distinguishable only by that, and a
 /// move between arrays is a `changed` event even with identical json.
@@ -1874,6 +1918,16 @@ fn container_is_an_ingest_fact_and_moving_between_arrays_is_a_change() {
 /// The drift tripwire: an item-shaped array the store does not lift
 /// is counted into the envelope and the status — never a failure, and
 /// never an item row. Arrays of non-items are left alone.
+/// C57 (a granted skill belongs to its host; retired, its rule and reason
+/// are this comment): a PoE2 item-granted skill is a property of its
+/// host, never an item fact. The id-less gem a weapon or shield carries
+/// in `socketedItems`, repeated as `skills[0]`, with anything socketed
+/// into it, stays in the host's JSON and the envelope, counted
+/// (`_granted`), never a row and never a refusal; every other id-less
+/// item is still refused. `Item.id` is documented optional and this is
+/// the case that omits it, and a synthetic identity would double the
+/// entry.
+///
 /// N44: a PoE2 weapon that grants a skill carries it as an id-less gem
 /// in its `socketedItems`, GGG repeats the identical object as
 /// `skills[0]`, and a support socketed into the granted skill is id-less
@@ -2081,6 +2135,23 @@ fn an_unknown_item_array_trips_the_drift_counter_without_failing() {
     assert!(s.item("w1").unwrap().is_some());
 }
 
+/// C54 (authority is the coarser observation's; retired, its rule and
+/// reason are this comment): a listing owns membership, address, league
+/// and liveness; a fetch owns contents and nothing more, and never
+/// revives what a listing retired. A location is its full coordinate; a
+/// parent tab's fetch is its substashes' listing; a listing that revives
+/// a retired row clears its `fetched_at`; membership is per response,
+/// never a timestamp match. A fetch that takes a listing's authority is
+/// one fault with a place to arise wherever the two meet, so one rule
+/// names it. This file holds the address and league
+/// (`the_character_key_is_the_id_and_the_name_is_the_address`), the revival (this
+/// test), the coordinate's realm
+/// (`the_same_tab_id_under_two_realms_is_two_locations`), the substashes
+/// (`substash_membership_follows_the_parents_fetch_and_the_parents_fate`)
+/// and membership per response
+/// (`removal_events_come_from_the_update_not_the_clock`); `corpus.rs` the
+/// coordinate's league.
+///
 /// Membership belongs to the listing: a fetch that lands after a newer
 /// listing retired its location records the body but revives nothing
 /// — the row stays retired and its item facts are withheld — until a

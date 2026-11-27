@@ -2568,6 +2568,12 @@ fn characters_are_covered_by_exact_id_and_unknown_ids_are_reported() {
     assert_eq!((name.as_str(), league.as_str()), ("Hero", "Standard"));
 }
 
+/// C62 (a character's freshness arms; retired, its rule and reason are
+/// this comment): a character changed when a listing newer than our
+/// fetch reports a different `experience` or `league`. The listing's
+/// experience is the cheapest evidence of play, as a tab's count is of
+/// change. This test holds the experience arm, the next the league's.
+///
 /// The three arms and the window, for a character: fresh inside the
 /// window with an agreeing listing; a newer listing whose
 /// `experience` differs proves play since; a same-second listing

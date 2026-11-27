@@ -464,12 +464,14 @@ fn c92_the_sort_scalar_and_an_item_without_one_last_either_way() {
     assert_eq!(a["total"]["matched"], 7);
 }
 
-/// C188 — the scope says the tables' game as written and, for each realm
-/// of it the tables name, the newest release its characters state: one
-/// entry under one realm, one per such realm under all, none for a realm
-/// the tables do not name (poe2) or whose characters state none. The one
-/// comparison says which way each stands from the tables' release, and
-/// only a sentence under all names its realm.
+/// C188 (the game the characters state; retired, its rule and reason at
+/// `acquisition-store/unit/tests/corpus.rs`) — the scope says the
+/// tables' game as written and, for each realm of it the tables name,
+/// the newest release its characters state: one entry under one realm,
+/// one per such realm under all, none for a realm the tables do not
+/// name (poe2) or whose characters state none. The one comparison says
+/// which way each stands from the tables' release, and only a sentence
+/// under all names its realm.
 #[test]
 fn c188_the_scope_says_the_tables_game_and_each_realms_characters() {
     use acquisition_search::answer::Apart;

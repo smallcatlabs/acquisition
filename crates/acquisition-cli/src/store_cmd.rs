@@ -1211,6 +1211,9 @@ mod tests {
     /// C146 — a count says what it counts: each of `store status`'s
     /// lines past the first names what it counted, where it came from and
     /// what to do, in words; the JSON's field names stay the contract.
+    /// C56 (every item row records its array; retired, its rule and reason
+    /// at `acquisition-store/unit/tests/lib.rs`): this test holds the
+    /// drift tripwire's count shown in `store status`.
     #[test]
     fn c146_store_status_lines_say_what_they_count() {
         let st = acquisition_store::Status {

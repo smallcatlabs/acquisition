@@ -59,7 +59,8 @@
 //! - **The body is text, unparsed**, exactly as `items.json` holds it (the
 //!   item minus its lifted `socketedItems`). One that does not parse is
 //!   the search crate's to report on that item.
-//! - **The game the characters state** (C188): per realm in scope, the
+//! - **The game the characters state** (C188; retired, its rule and
+//!   reason at `unit/tests/corpus.rs`): per realm in scope, the
 //!   newest release a live character's stored body names in
 //!   `metadata.version`, GGG's one statement of its game, given as the
 //!   version and fetch time of the most recently fetched character of

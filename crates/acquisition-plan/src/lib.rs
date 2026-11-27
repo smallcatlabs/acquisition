@@ -181,7 +181,8 @@
 //!   against `Family::accepts`: `tabs` is refused under a realm the stash
 //!   family does not take (poe2), `characters` is accepted under every
 //!   realm.
-//! - **C62** (a character's freshness arms): the planner is
+//! - **C62** (a character's freshness arms; retired, its rule and reason
+//!   at `unit/tests/lib.rs`): the planner is
 //!   facet-symmetric. `Selection` (`all` | ids) serves both facets;
 //!   [`LeaguePolicy`] `{ tabs?, characters?, max_age_seconds }` with `None`
 //!   meaning no coverage of that facet (an empty list normalizes to

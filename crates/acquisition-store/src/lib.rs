@@ -140,12 +140,17 @@
 //!
 //! # Rulings held here
 //!
+//! C29, C54, C56, C57, C60 and C145 are retired: each one's rule and
+//! reason is the comment under its id at the test in `unit/tests/lib.rs`
+//! that holds it, and its bullet here, where it has one, the mechanism.
+//!
 //! - **C29** (bodies as received, items lifted): the lifted arrays are tab
 //!   `items`, character `inventory`/`equipment`/`jewels`/`rucksack`/
 //!   `guardian`/`wickerman`/`skills`, and each `socketedItems`; events
 //!   carry the whole
 //!   address. The envelope keeps the counts under `_split`, so envelope +
-//!   rows is the response exactly. A withheld fetch's whole body stays
+//!   item rows is the response exactly, but for a tab's `children`, which
+//!   become tab rows. A withheld fetch's whole body stays
 //!   verbatim on the response row (`responses.withheld`, the daemon log,
 //!   `store status`) and nothing else lands; a listing that revives the
 //!   location clears the row's `fetched_at`, so the next plan fetches

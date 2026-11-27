@@ -283,7 +283,9 @@ fn a_character_items_league_is_the_listings_and_none_when_the_listing_gave_none(
 
 /// C108, C54 — live is the item and its location both, a location is
 /// its full coordinate, and the scope is one realm or all while the
-/// realms are every realm the file holds.
+/// realms are every realm the file holds. C54 (authority is the coarser
+/// observation's) is retired, its rule and reason at `lib.rs`; this test
+/// holds the coordinate's league and realm as the search read sees them.
 #[test]
 fn only_live_items_at_live_locations_by_full_coordinate_in_the_scope_asked() {
     let mut s = Store::open_memory().unwrap();
@@ -564,7 +566,21 @@ fn a_store_with_no_account_on_record_is_refused() {
     assert!(err.contains("records no account identity"), "{err}");
 }
 
-/// C188 — the header gives, per realm in scope, the newest release a live
+/// C188 (the game the characters state; retired, its rule and reason are
+/// this comment): the store reads the game version its characters state
+/// and gives the newest per realm, storing nothing for it. A release is a
+/// version's first two numbers. GGG states its game only on a character
+/// response (a fact of the wire with no numbered claim). The read
+/// returns, per realm, the newest release a live character states, as
+/// its most recently fetched character's version and fetch time. A
+/// character stating none is left out, and no item body is read (C108,
+/// the store's search read). After a patch a reworded line reads as
+/// lacked unless the answer says which game the bodies came from, and
+/// only a character's response says so. This test and the next hold the
+/// read; `acquisition-search/tests/answer.rs` the answer's scope saying
+/// it.
+///
+/// The header gives, per realm in scope, the newest release a live
 /// character states, as the most recently fetched character of that
 /// release's version and fetch time: a later fetch of an older release
 /// does not displace it, and a character stating none, one stating a
