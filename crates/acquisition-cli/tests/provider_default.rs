@@ -173,15 +173,16 @@ fn a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it() {
     assert!(out.status.success(), "{}", text(&out));
 }
 
-/// C27 at the spawn: a Ctrl-C at the prompt that lazily started a daemon
-/// cancels nothing. A terminal sends its SIGINT to the foreground job's
-/// process group; here `acq` leads a group of its own, as a shell's job
-/// does, and once it has started the daemon and returned, the group gets
-/// the SIGINT. The daemon, which sets no handler and would die of it, is
-/// still the one answering.
+/// C27 at the spawn: a closed terminal or a Ctrl-C at the prompt that
+/// lazily started a daemon cancels nothing. A terminal that closes sends
+/// SIGHUP, and a Ctrl-C SIGINT, to the foreground job's process group;
+/// here `acq` leads a group of its own, as a shell's job does, and once it
+/// has started the daemon and returned, the group gets each signal in
+/// turn. The daemon, which runs its exit on either (C133, one exit), is
+/// still the one answering after both.
 #[cfg(unix)]
 #[test]
-fn a_lazily_started_daemon_survives_a_ctrl_c_at_the_prompt_that_started_it() {
+fn a_lazily_started_daemon_survives_a_hangup_or_a_ctrl_c_at_the_prompt_that_started_it() {
     use std::os::unix::process::CommandExt as _;
     use std::process::Command;
     let scratch = scratch("ctrl-c");
@@ -205,19 +206,22 @@ fn a_lazily_started_daemon_survives_a_ctrl_c_at_the_prompt_that_started_it() {
     assert_eq!(before["running"], true, "{before}");
     assert!(before["pid"].is_u64(), "{before}");
 
-    // The terminal's Ctrl-C, to the job's group. Its own status is not
-    // judged: with the daemon elsewhere the group is empty by now.
-    let _ = Command::new("kill")
-        .args(["-s", "INT", "--", &format!("-{group}")])
-        .status();
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    // The terminal's hangup and then its Ctrl-C, to the job's group. The
+    // kill's own status is not judged: with the daemon elsewhere the group
+    // is empty by now.
+    for signal in ["HUP", "INT"] {
+        let _ = Command::new("kill")
+            .args(["-s", signal, "--", &format!("-{group}")])
+            .status();
+        std::thread::sleep(std::time::Duration::from_millis(500));
 
-    let after = sole_json(&acq(base, &["daemon", "status", "--json"]));
-    assert_eq!(
-        after["running"], true,
-        "the daemon died of a SIGINT sent to the group of the command that started it: {after}"
-    );
-    assert_eq!(after["pid"], before["pid"], "{before} then {after}");
+        let after = sole_json(&acq(base, &["daemon", "status", "--json"]));
+        assert_eq!(
+            after["running"], true,
+            "the daemon died of a SIG{signal} sent to the group of the command that started it: {after}"
+        );
+        assert_eq!(after["pid"], before["pid"], "{before} then {after}");
+    }
     let out = acq(base, &["daemon", "stop", "--json"]);
     assert!(out.status.success(), "{}", text(&out));
 }
