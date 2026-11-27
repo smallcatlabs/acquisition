@@ -457,6 +457,29 @@ fn c145_a_present_key_of_the_wrong_type_is_malformed_and_retires_nothing() {
     bow["socketedItems"] = json!([gem]);
     let maps = json!({ "stash": { "id": "m", "name": "Maps", "type": "MapStash",
             "items": [], "children": [ { "id": "m-1", "name": "", "type": "MapStash" } ] } });
+    let stashes = Endpoint::Stashes {
+        realm: "pc".into(),
+        league: "Standard".into(),
+    };
+    let characters = Endpoint::Characters { realm: "pc".into() };
+    s.record(
+        &stashes,
+        &p,
+        200,
+        &json!({ "stashes": [
+            { "id": "a", "name": "tab a", "type": "PremiumStash", "index": 0 },
+            { "id": "m", "name": "Maps", "type": "MapStash", "index": 1 } ] }),
+        90,
+    )
+    .unwrap();
+    s.record(
+        &characters,
+        &p,
+        200,
+        &json!({ "characters": [ { "id": "c-hero", "name": "Hero", "league": "Standard" } ] }),
+        90,
+    )
+    .unwrap();
     s.record(
         &stash_ep("a"),
         &p,
@@ -507,6 +530,21 @@ fn c145_a_present_key_of_the_wrong_type_is_malformed_and_retires_nothing() {
             json!({ "stash": { "id": "b", "name": "tab b", "type": "PremiumStash", "items": [] } }),
             "malformed stash response: missing a `stash.id` naming the tab the request named",
         ),
+        (
+            hero.clone(),
+            json!({ "character": { "id": "c-hero", "name": "Hero", "equipment": {} } }),
+            "malformed character response: missing an `equipment` array",
+        ),
+        (
+            stashes.clone(),
+            json!({ "stashes": {} }),
+            "malformed stashes response: missing a `stashes` array",
+        ),
+        (
+            characters.clone(),
+            json!({ "characters": {} }),
+            "malformed characters response: missing a `characters` array",
+        ),
     ];
     for (n, (ep, body, words)) in cases.into_iter().enumerate() {
         let err = s.record(&ep, &p, 200, &body, 200).unwrap_err();
@@ -521,7 +559,7 @@ fn c145_a_present_key_of_the_wrong_type_is_malformed_and_retires_nothing() {
     let after = s.status().unwrap();
     assert_eq!(after.responses, before.responses, "no response row landed");
     assert_eq!(after.items, before.items, "no item was retired");
-    assert_eq!(after.refused_bodies, 5);
+    assert_eq!(after.refused_bodies, 8);
     for live in ["i1", "eq1", "g1", "g2"] {
         assert!(
             s.item(live).unwrap().unwrap().removed_at.is_none(),
@@ -535,6 +573,18 @@ fn c145_a_present_key_of_the_wrong_type_is_malformed_and_retires_nothing() {
         })
         .unwrap();
     assert_eq!(substash, None, "the substash stands");
+    let tabs: Vec<String> = s
+        .tabs("pc", "Standard")
+        .unwrap()
+        .into_iter()
+        .map(|t| t.id)
+        .collect();
+    assert_eq!(tabs, ["a", "m", "m-1"], "the listed tabs stand");
+    assert_eq!(
+        s.characters(None, None).unwrap().len(),
+        1,
+        "the listed character stands"
+    );
     assert_eq!(
         s.league_list().unwrap(),
         list_before,
