@@ -6,7 +6,8 @@ documents around it, taken from the seat of the agent that writes and
 uses them: what would cut the reading, the count of rulings and the
 instructions, and make the work easier for the next agent.
 
-This page changes nothing in the tree. It says what was found, the
+This page changed nothing in the tree when it was written; "What was
+made" says what followed. It says what was found, the
 frame I would use, and six changes. Its reader is the session that
 makes them, after the owner has answered. Seven readers ran, six Opus
 and the harness's guide; their reports are whole in `reports/`. An
@@ -294,7 +295,27 @@ this, and now state one list. "Scope" stood in `AGENTS.md` and not in
 C170; it is kept as his in both, since nothing here examined it. The
 first of the corrections in change 5 is thereby made.
 
-Then change 1, put the same way.
+Then change 1, put the same way. **Answered, 2026-11-26:** "Yes, as a
+trial".
+
+## What was made
+
+On 2026-11-26, after the baseline below was taken.
+
+| Change | What was made | Where |
+| --- | --- | --- |
+| 1. One reading path | Made, as a trial. Its one home is `AGENTS.md`, "The workspace"; the road and the template point there | `5ab5f9c6` |
+| 2. The shapes | Made: one line of `TEMPLATE.md`, "Rules" | `649e80ca` |
+| 3. The checklist | Made in its smaller form: no new row, said in its header and in C182; its 77 rows are untouched and still the reviewer's reading | `649e80ca` |
+| 4. `process.md` by occasion | The order is made: "Every session" first, the seven a machine holds last. The skills' restated counts are issue 335 | `5ab5f9c6` |
+| 5. Corrections | The owner's classes (`b2cd41a8`), the cold review's trigger and the glossary's "door" (`649e80ca`). `tools/bothy.py`'s rules and `search/README.md` are issue 335. When a commit is gated is issue 336, the owner's | |
+| 6. The pack, and intake | The pack over several files is issue 333. The sentence for C182 on a check's reason is not made: it is the owner's and has not been put to him | |
+| From the baseline's sitting | The road's first "Next" item says the step | `649e80ca` |
+| Change 1's condition | The four built rulings no file cites are issue 334 | |
+
+The trial of change 1 ends when the sitting of `seat/` is run again on
+a tree that has had builds under the new rule. The guard is
+`scripts/guard.py`.
 
 ## The baseline, taken before any change
 
