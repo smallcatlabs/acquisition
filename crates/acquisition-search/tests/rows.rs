@@ -211,6 +211,51 @@ fn c90_an_exact_template_names_a_mod_by_its_whole_text_or_by_a_row() {
     assert_eq!(follow(&s, &term["undecided"]), ["long", "twice"]);
 }
 
+/// C90: a rename is a new line. 3.30 renamed the stat the site lists as
+/// `explicit.stat_3917489142` from "#% increased Rarity of Items found"
+/// to "+#% to Item Rarity" (the two stat captures under
+/// `search/trade-query/data/`). A ring under each wording is found by its
+/// own text alone, and the vocabulary counts two lines.
+#[test]
+fn c90_a_renamed_line_is_another_line() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("w1", "Rows")]), 10);
+    let rare = |id: &str, line: &str| {
+        item(
+            id,
+            &format!("Item {id}"),
+            "Iron Ring",
+            "Rare",
+            json!({ "explicitMods": [line] }),
+        )
+    };
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "w1",
+        "Rows",
+        vec![
+            rare("before", "12% increased Rarity of Items found"),
+            rare("after", "+12% to Item Rarity"),
+        ],
+        20,
+    );
+    assert_eq!(
+        found(&s, "\"#% increased Rarity of Items found\">=10"),
+        ["before"]
+    );
+    assert_eq!(found(&s, "\"#% to Item Rarity\">=10"), ["after"]);
+    let a = view(&s, "", json!({ "counts": { "keys": ["line"] } }));
+    assert_eq!(
+        shape(&a["view"]["counts"]["tables"][0]),
+        shaped(&[
+            ("#% increased Rarity of Items found", 1),
+            ("#% to Item Rarity", 1),
+        ])
+    );
+}
+
 /// `derive.rs` (owner: "it makes sense they are a single occurrence"): a
 /// mod named by a row is one occurrence — its source and its flags are
 /// its rows', a row shows it whole, and it is shown once however many of
