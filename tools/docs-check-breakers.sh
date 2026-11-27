@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # docs-check-breakers.sh — proves docs-check.sh refuses what it claims to,
 # by breaking a document and watching it refuse: the state file's cap
-# (§1), the registry's count of cross-cutting rulings and its uncited
-# scan (§2), the registry's history scan (§2) and the cited commits (§2b), which read a commit written as
+# (§1), the registry's count of cross-cutting rulings, its uncited
+# scan and its retired lines (§2), the registry's history scan (§2) and the cited commits (§2b), which read a commit written as
 # history through one matcher, and the history citations (§2b), each
 # path as it was at its commit, the document paths (§6), and the stale
 # identifiers (§3) as they read the skills and the glossary, the knob
@@ -123,6 +123,21 @@ area_entry() { printf -- '- **%s — A breaker'"'"'s ruling.** *Why:* it is cite
 cited_by_workflow() { area_entry && printf '# %s is cited here alone.\n' "$NEW" >>.github/workflows/weekly.yml; }
 run_case 'a ruling nothing cites is reported'                    pass   "$NEW"                    area_entry
 run_case 'a ruling cited only from a workflow is cited'          lacks  "$NEW"                    cited_by_workflow
+
+echo '== the registry: a cited id is an entry or a retired line (the retired rule, tools/bothy.py)'
+# A retired line opens as an entry does; under "Retired" it is no entry,
+# and its id stays known. Neither is an id nothing defines. The count is
+# read off the clean tree, so a retirement in the tree moves no case.
+retired_now=$(tools/docs-check.sh 2>&1 | sed -nE 's/^ok +registry +[0-9]+ decisions and ([0-9]+) retired,.*/\1/p')
+retired_line() {  # NEW retired at the foot of an area file
+  printf '\n## Retired\n\n- **%s — A breaker'"'"'s ruling.** *Held by:* `tools/docs-check-breakers.sh`.\n' "$NEW" >>decisions/plans.md
+}
+cite_new() { printf 'A row held by %s.\n' "$NEW" >>REVIEW-CHECKLIST.md; }
+retired_and_cited() { retired_line && cite_new; }
+run_case 'a retired line is counted as retired'                    pass   "and $((retired_now + 1)) retired, none carrying" retired_line
+run_case 'a retired line is no entry, so never uncited'            lacks  "$NEW"                    retired_line
+run_case 'a cited retired id is known'                             lacks  'UNKNOWN'                  retired_and_cited
+run_case 'a cited id neither entered nor retired'                  refuse 'neither an entry nor a retired line' cite_new
 
 echo '== a commit written as history: one matcher for both scans (the outside review of 484fce3b, finding 2)'
 H7=fedcba; H7+=f     # a hash of letters, and one of nine, built here so the scans of tools/ never read them

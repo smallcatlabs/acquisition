@@ -54,7 +54,7 @@ STO
 //! The store. Rulings: `decisions/store.md`, @2, @3.
 pub fn record() {}
 LIB
-  mkdir -p "$tmp/crates/acquisition-store/tests"; echo '// @3' >"$tmp/crates/acquisition-store/tests/read.rs"
+  mkdir -p "$tmp/crates/acquisition-store/tests"; echo '// @3' | ids >"$tmp/crates/acquisition-store/tests/read.rs"
 }
 run() { python3 -I "$here/bothy.py" --root "$tmp" check --no-notes 2>&1 || true; }
 fixture
@@ -64,6 +64,7 @@ echo "ok      clean fixture passes"
 n=0; bad=0
 expect() {  # expect <kind> <python edit over the fixture> [words the refusal must carry]
   local kind=$1 edit=${2//@/C} says=${3:-} out
+  says=${says//@/C}
   fixture
   python3 -I - "$tmp" <<PY
 import pathlib, sys
@@ -99,6 +100,18 @@ expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replac
 expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning: not until the owner asks.", "- Pruning: later, when the owner asks."))'
 expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning: not until the owner asks.", "- Pruning: not until."))'
 expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning: not until the owner asks.", "- ~~Pruning: not until the owner asks.~~"))'
+# the retired rule: @3 retires to one line under "Retired", held by the
+# test file that cites it. RETIRE takes the held-by text.
+RETIRE='p=root/"decisions/store.md"; s=p.read_text(); entry=next(l for l in s.splitlines() if l.startswith("- **@3 ")); p.write_text(s.replace(entry + "\n", "") + "\n## Retired\n\n- **@3 — The store sends nothing.** *Held by:* " + HELD + ".\n")'
+held() { printf 'HELD=%s; %s' "$1" "$RETIRE"; }
+expect retired   "$(held '"`crates/acquisition-store/tests/gone.rs`"')" 'is no file under the tree'
+expect retired   "$(held '"`tools/x.sh`"'); (root/'tools/x.sh').write_text('# no id here\\n')" 'does not cite @3'
+expect retired   "$(held '"`decisions/store.md`"')" 'which is the registry'
+expect retired   "$(held '"the store test"')" 'names no file'
+expect retired   "$(held '"`crates/acquisition-store/tests/read.rs`"'); p.write_text(p.read_text().replace('## Store\\n\\n', '## Store\\n\\n' + entry + '\\n'))" 'never both'
+expect retired   "$(held '"`crates/acquisition-store/tests/read.rs`"'); p.write_text(p.read_text().replace('.** *Held by:*', '.** It sends nothing. *Why:* a read observes. *Held by:*'))" 'the headline and its holders alone'
+expect duplicate "$(held '"`crates/acquisition-store/tests/read.rs`"'); p.write_text(p.read_text() + '- **@3 — The store sends nothing.** *Held by:* \`crates/acquisition-store/tests/read.rs\`.\\n')" 'an id retires once'
+expect cite      "$(held '"`crates/acquisition-store/tests/read.rs`"'); p.write_text(p.read_text().replace('sends nothing.** *Held', 'sends nothing (@9).** *Held'))" 'a retired line names'
 expect path      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`tests/read.rs`", "`tests/gone.rs`"))'
 expect path      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`acquisition-store/src/lib.rs`", "`acquisition-store/src/old.rs`"))'
 expect routing   'p=root/"crates/acquisition-store/src/lib.rs"; p.write_text(p.read_text().replace("decisions/store.md", "decisions/stores.md"))'
@@ -142,6 +155,27 @@ p.write_text(p.read_text().replace("Read this before", "History: `spikes/rust-pl
 PY
 out=$(run); n=$((n+1))
 if [[ $out == ok* ]]; then echo "ok      history, a route and a key shape are not paths"; else echo "WRONG   a non-path was refused:"; echo "$out"; bad=1; fi
+# what must pass: the highest id retired, held by the test that cites it,
+# and cited by an entry and a module doc; `list` marks it and counts it,
+# so the next id is still one past it, `show` prints its line and where
+# its holder cites it, and `pack` prints it as no headline.
+fixture
+ids <<PY | python3 -I - "$tmp"
+import pathlib, sys
+root = pathlib.Path(sys.argv[1])
+HELD = "\`crates/acquisition-store/tests/read.rs\`"
+$RETIRE
+p.write_text(p.read_text().replace("(@1)", "(@1, @3)"))
+PY
+out=$(run); n=$((n+1))
+if [[ $out == ok*'2 decisions and 1 retired'* ]]; then echo "ok      retired   a retired line held by a file that cites it passes, and an entry may cite it"; else echo "WRONG   a retired line was refused:"; echo "$out"; bad=1; fi
+bothy() { python3 -I "$here/bothy.py" --root "$tmp" "$@" 2>&1; }
+n=$((n+1))
+if out=$(bothy list) && [[ $out == *$'\nC3    store          retired: The store sends nothing.'*'2 decisions, 1 retired, 2 not-doing lines' ]]; then echo "ok      list      a retired id is listed, marked, and counted"; else echo "MISSED  list      a retired id is not listed and counted:"; echo "$out"; bad=1; fi
+n=$((n+1))
+if out=$(bothy show "$(ids <<<@3)") && [[ $out == *'- **C3 — The store sends nothing.** *Held by:*'*'tests/read.rs: line 1'*'Named by: C2'* ]]; then echo "ok      show      a retired id shows its line, its holder's citing line and what names it"; else echo "MISSED  show      a retired id does not show:"; echo "$out"; bad=1; fi
+n=$((n+1))
+if out=$(bothy pack --path crates/acquisition-store/src/lib.rs) && [[ $out == *'- **C2 — Facts'* && $out != *'C3 —'* ]]; then echo "ok      pack      a retired line is no headline"; else echo "MISSED  pack      a retired line is printed:"; echo "$out"; bad=1; fi
 # pack's routing by an intro: a ticked path routes the file whose path
 # ends with it, whole components, and no file that merely shares its last
 # name (else `pack --path README.md` would print the search rulings, whose

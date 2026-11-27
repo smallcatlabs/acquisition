@@ -166,7 +166,7 @@ file.
 
 ## Where things live
 
-- **A ruling**: `decisions/<area>.md`, in the entry rule's form, recorded before the code that depends on it; a new entry's id is the highest that `python3 -I tools/bothy.py list` prints, plus one. Its mechanism is a doc comment on the code, headed by the id; its property is a test that cites the id.
+- **A ruling**: `decisions/<area>.md`, in the entry rule's form, recorded before the code that depends on it; a new entry's id is the highest that `python3 -I tools/bothy.py list` prints, plus one. Its mechanism is a doc comment on the code, headed by the id; its property is a test that cites the id; an entry retires to one line under its file's "Retired", its reason moved to a comment under the id at the holder (`tools/bothy.py`, the retired rule).
 - **A finding**: the test named for the fault, or the commit message. A fault that comes back has its holding test strengthened; `REVIEW-CHECKLIST.md` is the reviewer's record of the shapes that came back, and takes no new row (C182, structure before a rule).
 - **Work not done yet**: a GitHub issue, labelled `area:*` (its area file) and `trigger:*` (`user`, a user's report; `seat`, a seat run; `consumer`, a second consumer; `gui`, phase 4; `live`, a live run, a sitting or a game event; `ci`, a red CI run; `ruling`, the owner's word; `step`, the next step in its area). A feature waiting to be asked for is an issue. What the project declines until a named trigger is a "Not doing" line at the foot of the area's file.
 - **A decision waiting on the owner**: an open issue labelled `trigger:ruling`, one decision each; one taken under his delegation is filed closed under the same label (C179, what reaches him). No commit, ledger or report promises him a later read.

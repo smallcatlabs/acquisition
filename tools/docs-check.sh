@@ -10,8 +10,9 @@
 #      has a byte budget (`decisions/process.md`, "Not doing").
 #   2. The decision registry: one bullet per decision with no history in
 #      it, a capped count of cross-cutting ones in `AGENTS.md`, every
-#      cited id real, and the uncited ones reported. An entry's length
-#      is no check of this script: `tools/bothy.py` holds its shape.
+#      cited id an entry or a retired line, and the uncited entries
+#      reported. An entry's length is no check of this script, nor a
+#      retired line's form: `tools/bothy.py` holds both.
 #  2b. Cited commits: a hash in the governed files is a commit of this
 #      history, and a history citation, `<path>` at `<hash>`, names the
 #      path as it was at that commit.
@@ -54,8 +55,11 @@ else
 fi
 
 # ---- 2. the decision registry ------------------------------------------
-# Every decision is one bullet; every `C<n>` cited anywhere exists in the
-# registry; a decision nothing cites is reported (enforced by nothing is
+# Every decision is one bullet; every `C<n>` cited anywhere is an entry
+# of the registry or a retired line, one bullet under an area file's
+# "Retired" (`tools/bothy.py`, the retired rule), since a retired id
+# stays cited by the holder its reason moved to; a decision nothing
+# cites is reported (enforced by nothing is
 # either a lint, a test, or a smell). "Anywhere" is the code, the tools,
 # the skills, the workflows, the control documents, the review checklist,
 # the history and the roadmap — and never the registry's own
@@ -85,8 +89,14 @@ SKIP_ROADMAP=(--exclude-dir=reviews --exclude='STATE-*.md')
 AT_HASH='\bat(?:\s|//[!/]?|#)+`?[0-9a-f]{7,40}\b\^?`?'
 reg=$(mktemp)
 # entries are single lines in the registry (one bullet, no continuation),
-# spread over AGENTS.md (cross-cutting only) and decisions/*.md (per area)
-grep -hE '^- \*\*C[0-9]+ ' AGENTS.md decisions/*.md >"$reg"
+# spread over AGENTS.md (cross-cutting only) and decisions/*.md (per area);
+# a retired line has an entry's opening and is not one, so the area files
+# are read section by section, each file's from its top.
+retired_section='FNR == 1 { r = 0 } /^## / { r = ($0 == "## Retired") }'
+grep -hE '^- \*\*C[0-9]+ ' AGENTS.md >"$reg"
+awk "$retired_section"' !r && /^- \*\*C[0-9]+ /' decisions/*.md >>"$reg"
+retired=$(awk "$retired_section"' r && /^- \*\*C[0-9]+ /' decisions/*.md | grep -oE '^- \*\*C[0-9]+' | sed 's/^- \*\*//' | sort -u || true)
+nretired=$(printf '%s\n' "$retired" | grep -c . || true)
 dups=$(grep -oE '^- \*\*C[0-9]+' "$reg" | sort | uniq -d | sed 's/^- \*\*//' | tr '\n' ' ')
 if [[ -n $dups ]]; then echo "DUPLICATE decision id across registry files: $dups"; fail=1; fi
 CROSS_LIMIT=18
@@ -140,15 +150,15 @@ for line in open(sys.argv[1], encoding="utf-8"):
             print(f"HISTORY {cid:<18} carries {name} ({m.group(0)!r}): git holds the story; take it out of the entry")
 PY
 ) || { echo "HISTORY the scan itself failed"; fail=1; }
-if [[ -n $history ]]; then printf '%s\n' "$history"; fail=1; else printf 'ok      %-18s %5d decisions, none carrying a history marker\n' registry "$count"; fi
+if [[ -n $history ]]; then printf '%s\n' "$history"; fail=1; else printf 'ok      %-18s %5d decisions and %d retired, none carrying a history marker\n' registry "$count" "$nretired"; fi
 # AGENTS.md is read without its entry lines: it holds the cross-cutting
 # entries, and an entry is not a citation of itself.
 cited=$( { grep -rhoE '\bC[0-9]+\b' crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md REVIEW-CHECKLIST.md HISTORY.md roadmap .claude/skills .github 2>/dev/null \
   --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' --include='*.yml' "${SKIP_ROADMAP[@]}"
   grep -vE '^- \*\*C[0-9]+ ' AGENTS.md | grep -oE '\bC[0-9]+\b' || true; } | sort -u)
-unknown=$(comm -13 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | grep . || true)
+unknown=$(comm -13 <(printf '%s\n' $ids $retired | sort -u) <(printf '%s\n' "$cited") | grep . || true)
 if [[ -n $unknown ]]; then
-  printf 'UNKNOWN decision id cited outside the registry: %s\n' "$unknown" | tr '\n' ' '; echo
+  printf 'UNKNOWN decision id cited outside the registry, neither an entry nor a retired line: %s\n' "$unknown" | tr '\n' ' '; echo
   fail=1
 fi
 uncited=$(comm -23 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | tr '\n' ' ')

@@ -2,15 +2,15 @@
 """bothy — a linter and reader for a markdown decision registry.
 
     python3 -I tools/bothy.py check                 lint the registry; exit 1 on a fault
-    python3 -I tools/bothy.py list [decisions|parks] [--area NAME]   the index: each headline whole
-    python3 -I tools/bothy.py show C<n>             one entry, what it cites, what cites it, where code holds it
+    python3 -I tools/bothy.py list [decisions|retired|parks] [--area NAME]   the index: each headline whole
+    python3 -I tools/bothy.py show C<n>             one entry or retired line, what it cites, what cites it, where code holds it
     python3 -I tools/bothy.py pack --area store     what to read before touching an area
     python3 -I tools/bothy.py pack --path crates/acquisition-store/src/lib.rs   the rulings the file cites, first
     python3 -I tools/bothy.py --root DIR ...        the tree to read (default: the script's parent directory)
 
 The registry is the root file, `AGENTS.md` (the one file every session
 loads), and `decisions/<area>.md`, one file per area: its rulings, then
-"Not doing". From the root this script reads "What Acquisition is"
+"Not doing", then "Retired". From the root this script reads "What Acquisition is"
 (the orientation), "Invariants" (numbered items, each to the next),
 "Cross-cutting rulings" (the entries every area must know) and
 "Principles": three bullets, each ending with the `P<n>` ids it folds,
@@ -76,6 +76,20 @@ bullet per thing someone would propose and the project declines:
 `- <item>: not until <trigger>.`, or `- <item>: refused …` for what no
 trigger reopens. The backlog is GitHub issues, never this list.
 
+The retired rule. An entry whose property a hook, a check or a test
+holds retires to one line under "Retired", the last section of its
+area file, `- **C<n> — the headline as it stood.** *Held by:* <files>.`,
+each file ticked. It carries no ruling and no *Why:*: the reason, and any clause the
+holder's own words did not say, moves to a comment under the id at
+each file *Held by:* names, and the commit that retires it carries the
+retirement line, `retired C<n>; held by <Y>`. Each ticked name is a
+file, from the tree, outside the registry, that cites the id. A retired
+id stays known: a citation of it resolves, `show` prints its line and
+where it is cited, `list` marks it, and it is never reused, so the next
+id is one more than the highest of entries and retired lines together.
+An id is entered or retired, never both. `pack` prints no retired line:
+a file that cites one is its holder, and the comment is there.
+
 `pack --path` prints the entries the file cites by id, whole, then the
 headlines of its area's other entries, then the area's "Not doing".
 Neither `pack` form repeats `AGENTS.md`, which every session has
@@ -95,7 +109,8 @@ inside the registry resolves; an entry has its *Why:* and its *Pinned:* and no
 *Details:* or *Evidence:*; an entry keeps its shape or stays within its
 baseline row; a *Pinned:*, an entry's or an invariant's, names at most
 three files and only names that exist; a not-doing line states its
-trigger or its refusal and is not struck through; a path the registry
+trigger or its refusal and is not struck through; a retired line keeps
+its form, and each file it names exists and cites its id; a path the registry
 names exists; a module doc that names an area names one that exists.
 docs-check keeps the history markers, the citations from code, the
 uncited ids and the count of cross-cutting rulings. The two do not
@@ -124,6 +139,9 @@ ID_RE = re.compile(r"\b([CP])(\d+)\b")
 MARKER_RE = re.compile(r"\*(Why|Details|Pinned|Evidence):\*")
 NOT_DOING_RE = re.compile(r"^(.+?):\s+(not until|refused)\b\s*(.*)$")
 NOT_DOING = "Not doing"
+RETIRED = "Retired"
+RETIRED_RE = re.compile(r"^- \*\*(C\d+)\s+—\s+(.*?)\*\*\s*\*Held by:\*\s*(.*)$")
+RETIRED_FORM = "`- **C<n> — the headline as it stood.** *Held by:* `<file>`, …`"
 TICK_RE = re.compile(r"`([^`\s]+)`")
 # A path the registry names: has a `/`, and its last component has a file
 # extension or its first component is a directory of the tree. Not an API
@@ -153,6 +171,7 @@ class Registry:
         self.decisions = {}   # id -> dict
         self.order = []       # ids in file order
         self.parks = []       # the not-doing lines, each a dict
+        self.retired = {}     # id -> the retired line, a dict
         self.principles = {}  # P<n> -> the bullet that carries it
         self.invariants = []  # (n, text: the item's lines, the line it starts on)
         self.areas = {}       # area -> {file, title, intro, sections: [(heading, line)], park_heading}
@@ -221,7 +240,7 @@ class Registry:
         meta = {"file": rel, "title": "", "intro": "", "sections": [], "park_heading": "", "park_intro": ""}
         self.areas[area] = meta
         section = ""
-        in_parked = False
+        in_parked = in_retired = False
         for n, line in enumerate(lines, 1):
             if line.startswith("# ") and not meta["title"]:
                 meta["title"] = line[2:]
@@ -229,16 +248,36 @@ class Registry:
             if line.startswith("## "):
                 section = line[3:]
                 in_parked = section.startswith(NOT_DOING)
+                in_retired = section == RETIRED   # as docs-check reads it: the heading exactly
                 if in_parked:
                     meta["park_heading"] = line
-                else:
+                elif not in_retired:
                     meta["sections"].append((line, n))
                 continue
             if not section and line.strip() and not meta["intro"]:
                 meta["intro"] = line
             if in_parked and not line.startswith("- ") and line.strip() and not meta["park_intro"]:
                 meta["park_intro"] = line
+            if in_retired:
+                self._retired(rel, area, n, line)
+                continue
             self._entry(rel, area, n, line, section, in_parked)
+
+    def _retired(self, rel, area, n, line):
+        if not line.startswith("- "):
+            return
+        m = RETIRED_RE.match(line)
+        if not m:
+            self.fail("retired", rel, n, f"a line under \"{RETIRED}\" is {RETIRED_FORM}, the headline and its holders alone; "
+                      "the ruling and its *Why:* move to a comment under the id at each holder")
+            return
+        cid, title, held = m.group(1), m.group(2), m.group(3)
+        if cid in self.retired:
+            first = self.retired[cid]
+            self.fail("duplicate", rel, n, f"{cid} is retired at {first['file']}:{first['line']} too; an id retires once: delete this line")
+            return
+        self.retired[cid] = {"id": cid, "file": rel, "line": n, "area": area, "title": title, "held": held, "text": line,
+                             "cites": sorted({a + b for a, b in ID_RE.findall(title)} - {cid})}
 
     def _entry(self, rel, area, n, line, section, in_parked):
         if in_parked and line.startswith("- "):
@@ -381,6 +420,19 @@ class Registry:
         if not found and "/" not in tok:
             found = [f for f in self.searched_files() if os.path.basename(f) == tok]
         return list(dict.fromkeys(found))
+
+    def holder(self, tok):
+        """The file a retired line's *Held by:* names, from the tree or the
+        repository's root; None where it names no file."""
+        if tok.startswith(("/", "~")) or ".." in tok.split("/"):
+            return None
+        for base in (self.root, self.git_root()):
+            if os.path.isfile(os.path.join(base, tok)):
+                return os.path.join(base, tok)
+        return None
+
+    def registry_files(self):
+        return {os.path.abspath(self.path(rel)) for rel in [ROOT] + [m["file"] for m in self.areas.values()]}
 
     def cited_by(self, rel):
         """The entries a file cites by id, in the registry's order."""
@@ -547,21 +599,51 @@ def check_pinned(reg, file, line, label, pinned):
                      "(a prefix as `c35_`), name the file that holds it, or untick what is not a name")
 
 
+def check_retired(reg):
+    """The retired rule: an id is entered or retired, never both, and each
+    file a *Held by:* names is a file outside the registry that cites the id."""
+    registry = reg.registry_files()
+    for i, r in reg.retired.items():
+        where = (r["file"], r["line"])
+        if i in reg.decisions:
+            d = reg.decisions[i]
+            reg.fail("retired", *where, f"{i} is retired here and still an entry at {d['file']}:{d['line']}; an id is entered or retired, "
+                     "never both: delete the entry once its reason stands at the holder, or delete this line")
+        ticks = PIN_TICK.findall(r["held"])
+        if not ticks:
+            reg.fail("retired", *where, f"{i}'s *Held by:* names no file; tick the path of each hook, check or test that holds it now")
+        for tok in ticks:
+            full = reg.holder(tok)
+            if full is None:
+                reg.fail("retired", *where, f"{i}'s *Held by:* names `{tok}`, which is no file under the tree; name the file that holds "
+                         f"{i} now, from the tree's root, or restore the entry if nothing does")
+            elif os.path.abspath(full) in registry:
+                reg.fail("retired", *where, f"{i}'s *Held by:* names `{tok}`, which is the registry; name the hook, check or test that holds "
+                         f"{i}, its reason in a comment under the id there")
+            elif not re.search(r"\b" + i + r"\b", reg.text(full)):
+                reg.fail("retired", *where, f"{i}'s *Held by:* names `{tok}`, which does not cite {i}; write {i}'s reason in a comment under "
+                         "the id there, or name the file whose comment carries it")
+
+
 def check(reg, show_notes=True):
+    known = set(reg.decisions) | set(reg.retired)
     # every cross-reference resolves
     for i in reg.order:
         d = reg.decisions[i]
         for c in d["cites"]:
-            if c[0] == "C" and c not in reg.decisions:
+            if c[0] == "C" and c not in known:
                 reg.fail("cite", d["file"], d["line"], f"{i} names {c}, which no file defines; fix the id or add the decision")
             if c[0] == "P" and c not in reg.principles:
                 reg.fail("cite", d["file"], d["line"], f"{i} names {c}, which AGENTS.md's principles do not define")
-    for p in reg.parks:
-        for c in p["cites"]:
-            if c[0] == "C" and c not in reg.decisions:
-                reg.fail("cite", p["file"], p["line"], f"a not-doing line names {c}, which no file defines")
-            if c[0] == "P" and c not in reg.principles:
-                reg.fail("cite", p["file"], p["line"], f"a not-doing line names {c}, which AGENTS.md's principles do not define")
+    for label, rows in (("a not-doing line", reg.parks), ("a retired line", reg.retired.values())):
+        for p in rows:
+            for c in p["cites"]:
+                if c[0] == "C" and c not in known:
+                    reg.fail("cite", p["file"], p["line"], f"{label} names {c}, which no file defines")
+                if c[0] == "P" and c not in reg.principles:
+                    reg.fail("cite", p["file"], p["line"], f"{label} names {c}, which AGENTS.md's principles do not define")
+    # every retired line names files that hold its id, and no id is both
+    check_retired(reg)
     # every entry has its Why and its Pinned, and no Details or Evidence
     for i in reg.order:
         d = reg.decisions[i]
@@ -609,10 +691,13 @@ def check(reg, show_notes=True):
             reg.fail("notdoing", *where, "a struck-through line is deleted, not kept; delete the bullet")
     # every path the registry names exists
     seen = set()
+    retired_lines = {(r["file"], r["line"]) for r in reg.retired.values()}   # its holders are the retired check's
     for rel in [ROOT] + [m["file"] for m in reg.areas.values()]:
         if not os.path.exists(reg.path(rel)):
             continue
         for n, line in enumerate(reg._lines(rel), 1):
+            if (rel, n) in retired_lines:
+                continue
             for m in TICK_RE.finditer(line):
                 tok = m.group(1)
                 if not reg.is_path(tok) or (rel, tok) in seen or HISTORY.match(line, m.end() - 1):
@@ -641,10 +726,11 @@ def check(reg, show_notes=True):
     if reg.faults:
         print(f"{len(reg.faults)} fault(s) in the registry")
         return 1
-    print(f"ok    registry  {len(reg.decisions)} decisions in {1 + len(reg.areas)} files, {len(reg.parks)} not-doing lines, "
+    print(f"ok    registry  {len(reg.decisions)} decisions and {len(reg.retired)} retired in {1 + len(reg.areas)} files, {len(reg.parks)} not-doing lines, "
           f"{len(set(reg.principles.values()))} principles folding {len(reg.principles)} ids, "
           f"{len(reg.invariants)} invariants: every cross-reference resolves, every entry has its Why and its Pinned and keeps its shape, "
-          "every Pinned names at most three files and only names that exist, every not-doing line states its trigger, every path named exists")
+          "every Pinned names at most three files and only names that exist, every not-doing line states its trigger, "
+          "every retired line names files that cite its id, every path named exists")
     return 0
 
 
@@ -654,18 +740,26 @@ def short(s, n=96):
 
 
 def cmd_list(reg, what, area):
+    """Each headline whole: the entries, then the retired lines, marked, so
+    the highest id printed is the highest ever given; then "Not doing"."""
+    counts = []
     if what in ("decisions", "all"):
-        for i in reg.order:
-            d = reg.decisions[i]
-            if area and d["area"] != area:
-                continue
-            print(f"{i:<5} {d['area']:<14} {d['title']}")
+        rows = [reg.decisions[i] for i in reg.order if not area or reg.decisions[i]["area"] == area]
+        for d in rows:
+            print(f"{d['id']:<5} {d['area']:<14} {d['title']}")
+        counts.append(f"{len(rows)} decisions")
+    if what in ("decisions", "retired", "all"):
+        rows = [r for r in reg.retired.values() if not area or r["area"] == area]
+        for r in rows:
+            print(f"{r['id']:<5} {r['area']:<14} retired: {r['title']}  [{r['file']}:{r['line']}]")
+        counts.append(f"{len(rows)} retired")
     if what in ("parks", "all"):
-        for p in reg.parks:
-            if area and p["area"] != area:
-                continue
+        rows = [p for p in reg.parks if not area or p["area"] == area]
+        for p in rows:
             item = p["item"] or p["body"]
             print(f"not   {p['area']:<14} {item}  [{p['file']}:{p['line']}]")
+        counts.append(f"{len(rows)} not-doing lines")
+    print(", ".join(counts))
 
 
 def cmd_show(reg, cid):
@@ -677,6 +771,14 @@ def cmd_show(reg, cid):
             print("Names: " + ", ".join(
                 f"{c} ({short(reg.decisions[c]['title'], 60)})" if c in reg.decisions else
                 f"{c} ({short(reg.principles.get(c, '?'), 60)})" for c in d["cites"]))
+    elif cid in reg.retired:
+        r = reg.retired[cid]
+        print(f"{r['file']}:{r['line']}  ({r['area']}; {RETIRED})\n\n{r['text']}\n")
+        print(f"Retired: its reason is the comment under {cid} at each file *Held by:* names, and its id is never reused.")
+        for tok in PIN_TICK.findall(r["held"]):
+            full = reg.holder(tok)
+            lines = [n for n, l in enumerate(reg.text(full).splitlines(), 1) if re.search(r"\b" + cid + r"\b", l)] if full else []
+            print(f"Held by {tok}: " + (", ".join(f"line {n}" for n in lines) if lines else "it does not cite the id; `check` refuses this"))
     elif cid in reg.principles:
         print(f"{ROOT}  {cid}: {reg.principles[cid]}\n")
     else:
@@ -684,8 +786,10 @@ def cmd_show(reg, cid):
         return 2
     named_by = [i for i in reg.order if cid in reg.decisions[i]["cites"]]
     parks_by = [p for p in reg.parks if cid in p["cites"]]
-    if named_by or parks_by:
-        print("Named by: " + ", ".join(named_by + [f"a not-doing line at {p['file']}:{p['line']}" for p in parks_by]))
+    retired_by = [r for r in reg.retired.values() if cid in r["cites"]]
+    if named_by or parks_by or retired_by:
+        print("Named by: " + ", ".join(named_by + [f"a not-doing line at {p['file']}:{p['line']}" for p in parks_by]
+                                       + [f"retired {r['id']}" for r in retired_by]))
     held = code["held"].get(cid, [])
     if held:
         print(f"Held in code ({len(held)} places): " + ", ".join(f"{f}:{n}" for f, n in held[:12]) + (" …" if len(held) > 12 else ""))
@@ -803,10 +907,10 @@ def main(argv):
     sub = ap.add_subparsers(dest="verb", required=True)
     c = sub.add_parser("check", help="lint the registry; exit 1 on a fault")
     c.add_argument("--no-notes", action="store_true", help="print faults only")
-    l = sub.add_parser("list", help="one line per decision and not-doing line")
-    l.add_argument("what", nargs="?", default="all", choices=["all", "decisions", "parks"])
+    l = sub.add_parser("list", help="one line per decision, retired line and not-doing line")
+    l.add_argument("what", nargs="?", default="all", choices=["all", "decisions", "retired", "parks"])
     l.add_argument("--area")
-    s = sub.add_parser("show", help="one entry, what it names, what names it, where code holds it")
+    s = sub.add_parser("show", help="one entry or retired line, what it names, what names it, where code holds it")
     s.add_argument("id")
     p = sub.add_parser("pack", help="what to read before touching an area or a file")
     g = p.add_mutually_exclusive_group(required=True)
