@@ -2,7 +2,7 @@
 
 Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings", whose rules apply unchanged): the rulings that bind the trade boundary — the `trade` modules and `properties.rs` of `acquisition-search`, their reference tables, the oracle and the sitting's tools. The search's lines bind the text the translation writes, so read both, with `search/README.md`, `search/DIGEST.md` (the `S` ids, by id) and `REVIEW-CHECKLIST.md`, "Trade". The contract detail no code has taken is "Contract detail" at the foot of this file, binding with its line.
 
-**Standing.** As `decisions/search.md`'s: every line stands and changes by the owner's ruling alone, and the commit that changes it quotes him; a line found wanting is brought to him.
+**Standing.** As `decisions/search.md`'s: an entry in the owner's classes changes by his ruling, and a session writes and amends the rest, telling him what changed (C170, who decides).
 
 ## The boundary and the translation
 
