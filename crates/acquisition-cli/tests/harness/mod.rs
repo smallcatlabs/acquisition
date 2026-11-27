@@ -525,9 +525,10 @@ impl Transcript {
 
     /// A transcript's own rule, outside [`normalise`]'s eleven: `value`,
     /// a word a command drew at random (a saved search's minted id),
-    /// is written `<name>` wherever it stands, a `# holds` line's fact
-    /// among them, so the golden holds what the test learned and not the
-    /// draw; each fact was checked with the value as drawn.
+    /// is written `<name>` wherever it stands, bare or as a printed
+    /// command quoted it for its shell ([`drawn_rule`]), a `# holds`
+    /// line's fact among them, so the golden holds what the test learned
+    /// and not the draw; each fact was checked with the value as drawn.
     pub fn placeholder(&mut self, value: &str, name: &str) {
         self.placeholders
             .push((value.to_string(), format!("<{name}>")));
@@ -630,16 +631,40 @@ impl Transcript {
 
     /// The transcript under the normaliser's named rules ([`normalise`]).
     fn normalised(&self) -> String {
-        let mut text = normalise(&self.text, &self.base);
-        for (value, name) in &self.placeholders {
-            text = text.replace(value, name);
-        }
+        let text = drawn_rule(&normalise(&self.text, &self.base), &self.placeholders);
         if self.fetched_live {
             fetch_place_rule(&text)
         } else {
             text
         }
     }
+}
+
+/// A transcript's own rule, outside [`normalise`]'s eleven, for the words
+/// a command or a page drew at random ([`Transcript::placeholder`],
+/// [`Pages::placeholder`]): each of `drawn`, a word and its `<name>`, is
+/// written as its name wherever the word stands, and so is the word as a
+/// printed command quotes it for any shell `acq` quotes for
+/// ([`Shell::quoted`], C156). A draw decides whether a shell quotes it:
+/// PowerShell quotes a minted id it would read as a number
+/// (`123e45678901`) and leaves every other bare, so the golden holds the
+/// word and never its quoting, which the pins of C156 hold.
+pub fn drawn_rule(text: &str, drawn: &[(String, String)]) -> String {
+    let mut text = text.to_string();
+    for (word, name) in drawn {
+        let mut spellings: Vec<String> = Shell::DECLARED
+            .iter()
+            .map(|(_, shell)| shell.quoted(word))
+            .collect();
+        spellings.push(word.clone());
+        // the longest first: the bare word stands inside each quoted one
+        spellings.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+        spellings.dedup();
+        for spelling in spellings {
+            text = text.replace(&spelling, name);
+        }
+    }
+    text
 }
 
 /// A transcript's own rule, outside [`normalise`]'s eleven, for a world
@@ -1566,10 +1591,11 @@ impl Pages {
         }
     }
 
-    /// [`Transcript::placeholder`]'s rule: `value`, a word a page drew at
-    /// random (the id a page's create minted), is written `<name>`
-    /// wherever it stands, so the golden holds what the test learned and
-    /// not the draw; each fact was checked with the value as drawn.
+    /// [`Transcript::placeholder`]'s rule ([`drawn_rule`]): `value`, a
+    /// word a page drew at random (the id a page's create minted), is
+    /// written `<name>` wherever it stands, so the golden holds what the
+    /// test learned and not the draw; each fact was checked with the
+    /// value as drawn.
     pub fn placeholder(&mut self, value: &str, name: &str) {
         self.placeholders
             .push((value.to_string(), format!("<{name}>")));
@@ -1587,10 +1613,10 @@ impl Pages {
     /// The transcript's rules over a recording's text, as its golden
     /// holds it.
     fn rules(&self, text: &str) -> String {
-        let mut text = normalise(&job_tables(&pid_words(text)), &self.base);
-        for (value, name) in &self.placeholders {
-            text = text.replace(value, name);
-        }
+        let text = drawn_rule(
+            &normalise(&job_tables(&pid_words(text)), &self.base),
+            &self.placeholders,
+        );
         if self.fetched_live {
             fetch_place_rule(&text)
         } else {

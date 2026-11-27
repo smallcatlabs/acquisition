@@ -380,3 +380,52 @@ fn the_fetch_place_rule_writes_the_totals_fetch_clause_and_nothing_else() {
         "facts: 4 locations, 2 fetched (<fetches>); stash listing <age> ago, characters listed <age> ago\n",
     );
 }
+
+/// A word a command drew at random is its name wherever it stands, and
+/// where a printed command quoted it for its shell the quoted word is the
+/// name too: a minted id PowerShell would read as a number (`123e45678901`)
+/// is printed there in single quotes (C156) and bare in every other shell,
+/// and the golden is one text. A word no shell quotes, and the quotes of
+/// any other word, stand.
+#[test]
+fn the_drawn_rule_reads_a_word_the_same_however_its_shell_quoted_it() {
+    use crate::harness::drawn_rule;
+    use acquisition_search::answer::Shell;
+    let drawn = |id: &str| vec![(id.to_string(), "<id>".to_string())];
+    let golden = "saved search <id>: rings over pc live: rarity=rare (revision 1), was unset\n\
+                  next: `acq search --saved <id>` runs it; `acq saved set --id <id> --name 'unique rings'` renames it\n\
+                  # holds \"acq search --saved <id>\"\n";
+    let mut quoted = Vec::new();
+    for (name, shell) in Shell::DECLARED {
+        for id in [
+            "123e45678901",
+            "012345678901",
+            "00000000005d",
+            "abcdef123456",
+        ] {
+            let word = shell.quoted(id);
+            if word != id {
+                quoted.push((name, id));
+            }
+            let printed = format!(
+                "saved search {id}: rings over pc live: rarity=rare (revision 1), was unset\n\
+                 next: `acq search --saved {word}` runs it; `acq saved set --id {word} --name 'unique rings'` renames it\n\
+                 # holds \"acq search --saved {word}\"\n"
+            );
+            let once = drawn_rule(&printed, &drawn(id));
+            assert_eq!(once, golden, "{name}: {id} printed {word}");
+            assert_eq!(drawn_rule(&once, &drawn(id)), once);
+        }
+    }
+    // the case is real: PowerShell quotes each id it would read as a
+    // number, and no shell quotes the one it would not
+    for name in ["pwsh", "powershell5"] {
+        for id in ["123e45678901", "012345678901", "00000000005d"] {
+            assert!(quoted.contains(&(name, id)), "{name} leaves {id} bare");
+        }
+    }
+    assert!(
+        quoted.iter().all(|(_, id)| *id != "abcdef123456"),
+        "{quoted:?}"
+    );
+}
