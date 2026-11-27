@@ -20,12 +20,12 @@ better Acquisition that is agent-friendly and agent-forward.
   claims the tool got easier shows that golden's diff.
 - **The reading trial** (`audits/reading-2026-11/README.md`, change
   1, at his word): a builder reads its brief and the rulings its files
-  cite, not its area's file. It stands until that audit's sitting is
-  run again (its `seat/`), which is also #220's re-measure. Its
-  three follow-ups are closed; the registry's retirement step
-  (`audits/retire-2026-11/README.md`) comes next, with #341 beside
-  C101's amendment, and its builders pack a step's files in one
-  `pack --path` call.
+  cite, until that audit's sitting is run again (its `seat/`, also
+  #220's re-measure).
+- **The registry's retirement** (`audits/retire-2026-11/README.md`,
+  four batches): the daemon's is closed (`Step: process-340`); search
+  and trade (with #341), then pricing, plans and store, then
+  frontends and network follow, each its own brief.
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
   (`git log --grep='^Step: cut-293'`). #293 stays open.
