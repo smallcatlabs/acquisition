@@ -247,6 +247,31 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
     assert!(out.status.success(), "{out:?}");
 }
 
+/// C6: a daemon that cannot open its queue refuses to start, naming the
+/// file and leaving it as it found it. Run on it would restart ids at 1
+/// and reuse them against the table's history once the file came back.
+#[test]
+fn c6_a_daemon_that_cannot_open_its_queue_refuses_to_start() {
+    let scratch = scratch("queue");
+    let base = &scratch.0;
+    let db = base.join("store").join("mock").join("daemon.db");
+    std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+    let not_a_queue = vec![0x5a_u8; 8192];
+    std::fs::write(&db, &not_a_queue).unwrap();
+
+    let (status, stderr) = refused_daemon(daemon_command(base, "store"));
+    assert!(!status.success(), "the daemon started: {stderr}");
+    assert!(
+        stderr.contains("daemon.db") && stderr.contains("will not run without its queue"),
+        "{stderr}"
+    );
+    assert_eq!(
+        std::fs::read(&db).unwrap(),
+        not_a_queue,
+        "the refused start rewrote the file it could not read"
+    );
+}
+
 /// C83, C31, C132: a second real-mode daemon for this OS user refuses to
 /// start whatever its world and whatever its temp, runtime and home
 /// variables — `TMPDIR`, `TEMP`, `TMP`, `XDG_RUNTIME_DIR`, `HOME`,
