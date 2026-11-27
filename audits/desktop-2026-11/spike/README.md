@@ -6,8 +6,9 @@ app, or does it need a native toolkit? It is answered by a throwaway
 window the owner sits at over a copy of his own stash, built, watched
 and changed. This file names the rig and the bar before any judged run.
 The runs, the sitting and the verdict follow it in later commits.
-`rig-2.patch` is the rig as the build's review left it (below, "The
-review's answers"); `rig-1.patch` is the rig that review read.
+`rig-1.patch` is the rig the build's review read, `rig-2.patch` the rig
+as its answers left it (below, "The review's answers"), and
+`rig-3.patch` the rig after the first judged runs' miss (below, "rig-3").
 
 ## The rig
 
@@ -22,7 +23,7 @@ its base, from the repository's root:
 
 ```sh
 git worktree add --detach <dir> 9f5594c1
-git -C <dir> apply --check "$PWD/audits/desktop-2026-11/spike/rig-2.patch"   # exit 0
+git -C <dir> apply --check "$PWD/audits/desktop-2026-11/spike/rig-3.patch"   # exit 0
 ```
 
 Applied there, each file it makes is the lane's byte for byte (`cmp`
@@ -49,8 +50,10 @@ What it is, read off the working window:
   asks the same (C16, the page's identity is its URL); the scroll
   position is not.
 - **Every list is an answer.** The tree's places are the search crate's
-  places document (`Places::tabs`, `Places::characters`) for the league,
-  asked the query; a place's rows are its own request's answer; the flat
+  places document (`Places::tabs`, `Places::characters`) for the league;
+  under a query each place's matches are the query's matches counted by
+  the place they lie in (Rule count); a place's rows are its own request's
+  answer; the flat
   list is one answer of the query over the league, the league's term as
   the answer's count of `league` writes it; an item's card is the answer
   to its id with the item asked. The page sorts, filters, groups and
@@ -66,12 +69,14 @@ What it is, read off the working window:
   (C124, a reading tool opens the store read-only). The file the rig
   writes is the sitting's log. A session over a fresh clone left each of
   its 23 files as `shasum -a 256` found them before.
-- **A check of its rows**: `desktop-rig --check <league>`, under the read
-  environment, opens every
-  place of the league under no query and three, and fails unless the
-  rows drawn are the rows counted, each at its index, and each place's
-  rows are its own request's answer, in its order (200 places a case).
-  On the lane's build, Standard: every case holds.
+- **A check of its rows and counts**: `desktop-rig --check <league>`,
+  under the read environment, opens every place of the league under no
+  query and three, and fails unless the rows drawn are the rows counted,
+  each at its index; each place's rows are its own request's answer, in
+  its order (200 places a case); and under a query every place's
+  matches, its own matches and whether it is listed are the places
+  document's asked that query (all 3,462 of Standard's). On the lane's
+  build of rig-3, Standard: every case holds.
 - **The driver and the bar's judge**: `drive.py` plays the four
   scenarios below into headless Chrome as trusted input through its
   debugging protocol, on a profile under the builder's scratch;
@@ -183,11 +188,19 @@ Each is the engine's to have, or to rule out, in a design. Each is in
   what each place holds and matches, not what is open.
 - **Flatten**: the open tree as one list of rows by index, and a window
   of it. The places document is a tree; a scrolled list needs rows.
-- **Hold**: the places documents and each place's rows, once answered,
-  held for one league, query and order at the corpus's basis, and reused
-  only while the holder finds that basis current before the act. A place's
-  own terms (its request asked with no query) are held per basis and
-  league.
+- **Hold**: the league's places documents asked with no query, with each
+  place's own terms (its request's text there), held per basis and
+  league; each place's matches and its rows, once answered, held for one
+  league, query and order at the basis; each reused only while the
+  holder finds that basis current before the act.
+- **Count**: under a query, each place's matches from one counts answer
+  of the query over the realm, keyed `tab` and `character` (a tab's
+  bucket names it by id, a character's by name, which the game keeps
+  unique); a tab of pages, whose pages' items the `tab` count files
+  under the tab, has its rows answered (Rule batch) and each page and the
+  tab itself counted from them; a place holding others counts theirs
+  beside its own; a place is listed where it holds a match. The check
+  holds every count to the places document's.
 - **Batch**: the window's places not answered yet are one request, their
   own terms joined by `or` before the query, and its rows parted by the
   place each lies in. The check above holds the parted rows to each
@@ -430,6 +443,20 @@ evaluated a second time), and the window's rows 52 to 54 ms (a third
 evaluation, over the window's places alone). A keystroke under a query
 evaluated it over the corpus three times. The rig can answer that
 (decision 8): rig-3 below.
+
+### rig-3: the query evaluated once a keystroke
+
+What changed, and why: a keystroke under a query asked the places
+documents the query, so the query was evaluated twice there and the tab
+listing read again, then a third time for the window. rig-3 holds the
+places documents asked with no query (Rule hold) and counts each place's
+matches from one counts answer (Rule count). It keeps the places
+document's meaning: under each of the check's three queries all 3,462 of
+Standard's places count and list as the places document does, and the
+rows drawn are the rows counted. On a headless try (not judged), the last
+keystroke of `pseudo.total_life>=70` spent 129 ms counting and 26 ms on
+the window's rows, where rig-2 spent 214 to 245 ms on the two documents
+and 52 to 54 on the window.
 
 ## The store copy
 
