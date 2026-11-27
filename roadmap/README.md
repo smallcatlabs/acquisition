@@ -10,25 +10,25 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
+- **The series approved on 2026-11-27.** In a second lane, a
+  throwaway desktop window the owner sits at
+  (`briefs/desktop-spike.md`), then the desktop GUI's design brief
+  for him to rule. In the main tree, in order: PoE2 prepared on a
+  branch (`briefs/poe2-prep.md`), a backup verb (#329, #330), then
+  `NEXT.md`'s B3. Closed: `Step: next-a4-readme`.
 - **The programme after the whole-project review**
   (`audits/whole-review-2026-11/NEXT.md`, run as
   `audits/meta-2026-11/README.md` amends it; its closes are
-  `git log --grep='^Step: next-'`). Its first series is closed: A1
-  (one seeded world, one command), A2 (ten player tasks counted
-  through both doors, `acquisition-mcp/tests/goldens/counted_tasks.txt`)
-  and A3 (the send gate's fault and its search). A later step that
-  claims the tool got easier shows that golden's diff.
+  `git log --grep='^Step: next-'`). Its first series, A1 to A3, is
+  closed. A step that claims the tool got easier shows the diff of
+  `acquisition-mcp/tests/goldens/counted_tasks.txt`.
 - **The reading trial** (`audits/reading-2026-11/README.md`, change
   1, at his word): a builder reads its brief and the rulings its files
-  cite, until that audit's sitting is run again (its `seat/`, also
-  #220's re-measure).
-- **The registry's retirement** (`audits/retire-2026-11/README.md`):
-  its three batches and its shedding pass are closed
-  (`Step: process-340`, `-343`, `-345`, `-347`, `-349`, `-350`).
-  Left: #348 (rulings the code does not bear out), C121 (#339) and
-  C27's Windows half.
-- **The #293 removals**: the five ranked cuts of
-  `audits/assessment-6-5/README.md` are closed
+  cite, until that audit's sitting is run again (also #220).
+- **The registry's retirement** (`audits/retire-2026-11/README.md`)
+  is closed (`Step: process-340` to `-350`). Left: #348 (rulings the
+  code does not bear out), C121 (#339) and C27's Windows half.
+- **The #293 removals**: the five ranked cuts are closed
   (`Step: cut-293`); #293 stays open.
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"): steps 1 to 6 and the search form's
@@ -45,11 +45,10 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. The programme's later steps, each a row of `NEXT.md`'s table. A4
-   first: the README's line that says there is no UI, which waits on
-   nothing, then the 33 drafted issues, filed at his word. Then B2 to
-   B5, whose waits are met; B1 waits on his ruling and B6 on his
-   decision. Where they stand against the items below is the
+1. The programme's later steps, each a row of `NEXT.md`'s table:
+   A4's 33 drafted issues, filed at his word; B2, B4 and B5, whose
+   waits are met (B3 is in the series above); B1 waits on his ruling
+   and B6 on his decision. Where they stand against the items below is the
    owner's (its decision 1).
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
