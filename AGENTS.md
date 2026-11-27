@@ -97,7 +97,9 @@ what fails if it breaks, and says where nothing does yet.
   out the daemon's package writes no `acqd`. Never run the live drivers, a bare
   `acq` or a second gate while the gate runs.
 - **The gate decides.** Every change keeps `tools/gate.sh` green, and a
-  commit is gated on its exit status, never on a filtered grep.
+  push is gated on its exit status, never on a filtered grep. A part of
+  a step may be committed after its own tests; the full gate runs on
+  the step's tree before its last commit.
 - **No id in user-facing text** (C116): help, refusals, reasons and
   notes say the rule in words.
 - **Tests pin behaviour at boundaries, never mechanisms.** The GGG-side
