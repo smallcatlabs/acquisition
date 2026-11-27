@@ -332,8 +332,8 @@ def self_test():
     """Two snapshots of the five files in a repository made here, staging one
     base added, one removed, one renamed in place, one changed field and one
     trade stat id added under an existing translation; then the drift line's
-    three outcomes: no clone, a clone at the pin, a clone off it, and a
-    header naming another game."""
+    outcomes: no clone, a clone at the pin, a clone off it, a header naming
+    another game, a header naming another pin, and a lagging export."""
     failed, made = [], []
 
     def expect(name, ok):
@@ -426,6 +426,11 @@ def self_test():
         passed, line = check(clones, {"poe1": new}, headers + [bad])
         expect("--check, a header whose game is not the clone's: fails, naming it",
                not passed and "defences-v1.toml names game 1.0.0.1" in line)
+        stale = Path(tmp) / "categories-v1.toml"
+        stale.write_text(f'source = "RePoE poe1 export @ {old[:8]} (game 1.0.0.2): x"\ngame = "1.0.0.2"\n')
+        passed, line = check(clones, {"poe1": new}, headers + [stale])
+        expect("--check, a header whose pin is not the clone's: fails, naming it",
+               not passed and f"categories-v1.toml names the export at {old[:8]}, not the pin {new[:8]}" in line)
         (repo / "exported-version.txt").write_text("1.0.0.1")
         subprocess.run(g + ["commit", "-q", "-am", "Version 1.0.0.3"], check=True)
         lagging = resolve(repo, "HEAD")
