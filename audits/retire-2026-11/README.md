@@ -304,6 +304,34 @@ and which one is what a ruling means.
 Whether to run the retiring step at all is the orderer's to put with
 these. My answer is in point 4 of the short of it.
 
+### The owner's answers
+
+He read the three as the census's closing message put them and
+answered in the census's session on 2026-11-27, in these words: "Yea
+to all three of your questions". Read against each question:
+
+1. **Yes: the six paragraph-only tests are written now**, in the same
+   batches as the eight worth having. The question carried that
+   recommendation, so his yes takes it.
+2. **Yes, read as: one shedding pass now**, not entry by entry as
+   C192 leaves it. The question said a pass needs his word, and this
+   is read as that word. The reading is the census's; the closing
+   message that follows this section's commit states it back to him
+   so he can say otherwise. A pass still needs a read of each marked
+   clause (the two class readers agreed on 129 of 194), and it changes
+   the words of rulings in his classes, so each area's shed is a
+   commit he can read, reviewed cold.
+3. **Not answered by a yes.** The question asked which of two
+   rulings stands, and the record gave no recommendation. It is put
+   to him again as one choice. The census's own view, offered with
+   it: C170 stands and C101's last clause is cut, because C170 is
+   the later ruling and `AGENTS.md` states it among the hard rules.
+   Whether query words built since were recorded as rulings first was
+   not checked.
+
+None of this is acted on by the census. It is what the retiring
+step's brief starts from.
+
 ## Where the readers disagreed
 
 **The class, from the text** (`scripts/classes.py agree`). Two readers,
