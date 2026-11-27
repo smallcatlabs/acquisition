@@ -355,6 +355,35 @@ fn c93_undecided_composes_and_is_never_a_match() {
     assert_eq!(of_r6(r##""chaos" rarity=rare"##), (0, 1));
 }
 
+/// C92 — conditions on one line are one term and hold on one occurrence.
+/// r2's implicit 20 meets `source=implicit` and its explicit 75 meets
+/// `arg1>=75`; no occurrence meets both, so the group fails, while the
+/// two asked as two terms each hold. A sum's group selects the same way:
+/// r2's implicit life sums to 20, never its explicit 75 beside it.
+#[test]
+fn c92_a_groups_conditions_hold_on_one_occurrence() {
+    let s = worked();
+    let corpus = load(&s, Some("pc"));
+    let of_r2 = |text: &str| {
+        as_json(&ask(&corpus, &format!("id:r2 {text}")).unwrap())["total"]["matched"].clone()
+    };
+    assert_eq!(
+        of_r2(r##"line("# to maximum Life" source=implicit arg1>=75)"##),
+        0
+    );
+    assert_eq!(
+        of_r2(r##"line("# to maximum Life" source=implicit) line("# to maximum Life" arg1>=75)"##),
+        1
+    );
+    assert_eq!(
+        of_r2(r##"line("# to maximum Life" source=implicit arg1>=20)"##),
+        1
+    );
+    let implicit = r##"sum(line("# to maximum Life" source=implicit).arg1)"##;
+    assert_eq!(of_r2(&format!("{implicit}=20")), 1);
+    assert_eq!(of_r2(&format!("{implicit}>20")), 0);
+}
+
 /// C92 — the sort scalar is the largest satisfying occurrence; an item
 /// with none sorts last in either direction, its status shown.
 #[test]
