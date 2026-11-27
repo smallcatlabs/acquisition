@@ -88,8 +88,8 @@ that cites the id. A retired id stays known: a citation of it resolves,
 `show` prints its line and where it is cited, `list` marks it, and it is
 never reused, so the next id is one more than the highest of entries and
 retired lines together. An id is entered or retired, never both. `pack`
-prints no retired line: a file that cites one is its holder, and the
-comment is there, so `pack` names the id, its area and that file.
+prints no retired line, whose rule is the comment at each holder: it
+names the id, its area, the files given that cite it and its holders.
 
 `pack --path` takes one file or several, and prints the entries any of
 them cites by id, whole and once, then the headlines of the other
@@ -451,7 +451,7 @@ class Registry:
         return [i for i in self.order if i in named]
 
     def retired_in(self, rel):
-        """The retired ids a file cites, by number: it is their holder."""
+        """The retired ids a file cites, by number."""
         named = self.ids_in(rel)
         return sorted((i for i in self.retired if i in named), key=lambda i: int(i[1:]))
 
@@ -945,10 +945,11 @@ def pack_path(reg, paths):
         for i in holds[rel]:
             held.setdefault(i, []).append(f"`{rel}`")
     if held:
-        out += ([""] if cited else []) + ["Retired, so no entry is printed: the file that cites a retired id holds it, "
-                                          "and the comment beside the id there is its rule. "
-                                          + "; ".join(f"{i} ({reg.retired[i]['area']}), held by " + " and ".join(by)
-                                                      for i, by in held.items()) + "."]
+        out += ([""] if cited else []) + ["Retired, so no entry is printed: the comment beside the id at each holder is "
+                                          "its rule. " + "; ".join(f"{i} ({reg.retired[i]['area']}), cited by "
+                                                                   + " and ".join(by) + ", held by "
+                                                                   + reg.retired[i]["held"].strip().rstrip(".")
+                                                                   for i, by in sorted(held.items(), key=lambda kv: int(kv[0][1:]))) + "."]
     if not cited and not held:
         out.append("It cites none by id." if len(rels) == 1 else "They cite none by id.")
     out.append("")

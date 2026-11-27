@@ -250,7 +250,9 @@ HELD = "\`tools/z.sh\`"
 $RETIRE
 PY
 n=$((n+1))
-if out=$(pack tools/z.sh) && [[ $out == *'C3 (store), held by `tools/z.sh`'*'falls in `store`'* && $out != *'cites no ruling'* && $out != *'C3 —'* ]]; then echo "ok      pack      a file holding only a retired id is told so, with the id's area"; else echo "MISSED  pack      a retired id a file holds is reported as nothing cited:"; echo "$out"; bad=1; fi
+if out=$(pack tools/z.sh) && [[ $out == *'C3 (store), cited by `tools/z.sh`, held by `tools/z.sh`'*'falls in `store`'* && $out != *'cites no ruling'* && $out != *'C3 —'* ]]; then echo "ok      pack      a file holding only a retired id is told so, with the id's area"; else echo "MISSED  pack      a retired id a file holds is reported as nothing cited:"; echo "$out"; bad=1; fi
+n=$((n+1))
+if out=$(pack crates/acquisition-store/tests/read.rs) && [[ $out == *'C3 (store), cited by `crates/acquisition-store/tests/read.rs`, held by `tools/z.sh`'* ]]; then echo "ok      pack      a file citing a retired id it does not hold is told who holds it"; else echo "MISSED  pack      a retired id's holder is read off the file that cites it:"; echo "$out"; bad=1; fi
 fixture
 echo '//! More of the store (`decisions/store.md`), @2.' | ids >"$tmp/crates/acquisition-store/src/other.rs"
 echo '# checks nothing' >"$tmp/tools/y.sh"
