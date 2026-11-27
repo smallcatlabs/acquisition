@@ -22,9 +22,10 @@ better Acquisition that is agent-friendly and agent-forward.
   1, at his word): a builder reads its brief and the rulings its files
   cite, not its area's file. It stands until that audit's sitting is
   run again (its `seat/`), which is also #220's re-measure. Its
-  follow-ups run in order: #333 (`pack --path` over several files),
-  then #335 (three texts that paraphrase a ruling), then the
-  registry's retirement step (`audits/retire-2026-11/README.md`).
+  follow-ups run in order: #335 (three texts that paraphrase a
+  ruling), then the registry's retirement step
+  (`audits/retire-2026-11/README.md`), whose builders pack a step's
+  files in one `pack --path` call.
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
   (`git log --grep='^Step: cut-293'`). #293 stays open.
