@@ -1555,7 +1555,9 @@ fn realms_keep_the_same_league_and_id_apart() {
             .unwrap();
     assert_eq!(ing.added, 1);
     assert_eq!(s.item("i1").unwrap().unwrap().realm, "sony");
-    // A poe2 character listing leaves pc's characters alone.
+    // A poe2 character listing leaves pc's characters alone, its entry
+    // stamped with the request's realm though the entry's own `realm`
+    // field names another (C60, the realm is the request's).
     s.record(
         &Endpoint::Characters { realm: "pc".into() },
         &json!({}),
@@ -1570,7 +1572,7 @@ fn realms_keep_the_same_league_and_id_apart() {
         },
         &json!({ "realm": "poe2" }),
         200,
-        &json!({ "characters": [ { "id": "c-b", "name": "B", "league": "Standard" } ] }),
+        &json!({ "characters": [ { "id": "c-b", "name": "B", "league": "Standard", "realm": "pc" } ] }),
         21,
     )
     .unwrap();
