@@ -3016,6 +3016,22 @@ fn is_sibling(time: &str, words: &str) -> bool {
     words == format!("{time}_age")
 }
 
+/// C163 (every time has its words; retired, its rule and reason are this
+/// paragraph): every time a document carries has its words beside it. A
+/// time a document serializes (seconds since 1970) has its age in words
+/// under the time's own name and `_age`, or under a path the document
+/// declares for it where the time sits in a value that is identity (C98,
+/// the basis) or a bound envelope (C38, the plan's); the words are made
+/// at the answer's time, or from a time of the document's own where its
+/// text measures so (C53, output levels); a null time says `never` or
+/// carries no words, as its maker says. C53 words the ages a text
+/// prints, and a reader of a document should not have to work a date by
+/// hand from a time no text prints. The inventory (`INVENTORY`, held by
+/// `c163_every_time_of_the_inventory_has_its_words`) and the
+/// walk (`c163_no_document_carries_a_time_without_its_words`) read the
+/// documents this list builds, and only those: a verb's document joins
+/// this list, or neither reads whether its times have their words.
+///
 /// Every document a verb returns, each over a world that populates the
 /// times it carries, built through the maker each frontend calls: the
 /// facts two hours old, a ring the second fetch removed, a folder over a
