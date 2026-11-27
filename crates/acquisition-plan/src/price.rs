@@ -11,6 +11,13 @@
 //!   merge keeps the row; `amount`'s four fractional digits are the game's
 //!   (T10); canonical text, structural equality; more digits are refused.
 //!
+//! # A ruling that bears here, unbuilt
+//!
+//! - **C73** (the legacy import): the 0.18 userstore's import is not
+//!   built. When it is, it is a source of desired state for the price
+//!   plan (C71, unbuilt as well), never a writer of its own, and it
+//!   overwrites no existing row.
+//!
 //! # As built
 //!
 //! **The target** is the row's `(scope, key)`, rendered and parsed by one

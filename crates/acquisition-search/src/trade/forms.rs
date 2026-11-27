@@ -35,7 +35,11 @@
 //!   lists, a form that is not its own text, a kind of the four and a
 //!   number only on a `numberless` form, a `plural` form writing its
 //!   numbers where its text does (a digit standing for a `#`), no form twice, no row the game's forms already give, every
-//!   refusal a listed text under a rule the table has.
+//!   refusal a listed text under a rule the table has. The generated
+//!   file's header names the export it was drawn from, read from the
+//!   clone and never typed, and the gate refuses a clone moved past the
+//!   pin (C125, the tables name their export: `tools/game-diff.py
+//!   --check`).
 //! - **A rule is applied to the text the translation writes** — the site's,
 //!   its ` (Local)` dropped — where the export joins it nowhere; the forms
 //!   no rule makes are looked up by that text too. The opposite words

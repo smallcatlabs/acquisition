@@ -5,6 +5,12 @@
 //!
 //! # Rulings held here
 //!
+//! - **C20** (the probe job): a route's first send waits behind a `probe`
+//!   job the daemon queues for itself (`ensure_probe`), visible in the
+//!   queue like any job, one HEAD per route per daemon lifetime; a route
+//!   whose probe came back degraded is unknown again after its cooldown
+//!   and is probed once more. A daemon-only kind, so no client submits one
+//!   (C127, `admit_client` in `queue.rs`).
 //! - **C32** (per-route knowledge headers cannot teach): the knowledge is
 //!   in two declarations here and one acceptance in the limiter.
 //!   `declare_route_knowledge` declares `/profile` policyless (N38);

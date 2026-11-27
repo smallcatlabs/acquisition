@@ -6,6 +6,12 @@
 //! one kind, the saved search (C167), and that only through the verbs
 //! that write it for every frontend (C168).
 //!
+//! **What it is not to become** (C191, a development surface and no
+//! desktop app): this server bootstraps Acquisition's development and
+//! stays that surface; a high-performance desktop GUI laid out like the
+//! trade site or the C++ app is a separate frontend with its own design
+//! and rulings, never this module reshaped toward one.
+//!
 //! # As built
 //!
 //! - **C138, the listener** (verbatim): The web UI's listener binds
