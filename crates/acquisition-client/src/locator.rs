@@ -27,7 +27,9 @@
 //! drive through [`beside`] on that binary's path (`CARGO_BIN_EXE_acq`,
 //! `CARGO_BIN_EXE_acq-mcp`) — the same file the binary itself would
 //! spawn — and a missing one fails before the test runs, with this
-//! module's message. `current_exe()` is documented as platform-specific
+//! module's message. The drivers under `tools/` (`persist-check.sh`,
+//! `tracer-rung.sh`) start the `acqd` beside the `acq` they drive: tests
+//! and drivers locate it the same way. `current_exe()` is documented as platform-specific
 //! around symlinks and renames, so the layout is a contract the packaging
 //! must meet, checked by the packaging smoke tests the packet names (§5).
 
