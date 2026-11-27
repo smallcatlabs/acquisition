@@ -3,9 +3,9 @@
 //! always returned. The canonical text and the canonical tree are one
 //! value, each printing to the other; every frontend passes the text, a
 //! request may send the tree an answer returned instead (a GUI's rows
-//! hold one), and every answer carries both. Reviewers wrote text, and a
-//! refinement stays the previous query plus one term (S195, refinement
-//! composes). This file holds the round trip, over generated trees and
+//! hold one), and every answer carries both. Text is what a person and an
+//! agent write and hand each other, and a refinement stays the previous
+//! query plus one term (S195, refinement composes). This file holds the round trip, over generated trees and
 //! over the corpus (`tests/language.toml`), where every construct of the
 //! language has a case; a tree sent and both returned are `answer.rs`'s.
 //! The boundary pinned is the crate's: `parse`, `print`, `to_json`,

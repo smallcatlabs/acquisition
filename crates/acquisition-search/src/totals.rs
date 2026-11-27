@@ -1,8 +1,9 @@
 //! The totals table (C94): a named total is a sum that answers, defined
 //! once as reviewed reference data (C68, C106), so that it has one
-//! meaning on every surface. Nothing else defines a total: a derived
-//! field reads totals or properties (`pseudo.rs`'s `Derived`), and a sum
-//! over lines is a row here.
+//! meaning on every surface. Nothing else defines a total: a sum of lines
+//! answered as a value of its own is a row here, and a derived field
+//! (`pseudo.rs`'s `Derived`) adds lines, where it reads any, only on the
+//! way to its own value.
 //!
 //! C94 (named totals; retired, its rule and reason at `tests/pseudo.rs`):
 //! the table checked loudly when it is built is this file's

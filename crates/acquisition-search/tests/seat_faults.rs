@@ -1423,8 +1423,8 @@ fn an_items_place_says_which_cell_it_sits_in() {
 /// lists were seen, named for the set. A wider scope's ages stand apart in
 /// the JSON. The scope line says the never fetched by tab type, the
 /// largest named and the rest counted, and points at the list that
-/// exists. A reader took the scope's age for the matches', and a row hid
-/// its place's age. This file holds a row's place and `show`'s carrying
+/// exists. The scope's age, read alone, passes for the matches', and a
+/// place without its age leaves "how old is it" a second call. This file holds a row's place and `show`'s carrying
 /// the fetch (this test) and the never fetched by type (the next); the
 /// subject's span and the scope's oldest kept apart from it are
 /// `answer.rs`'s; the scope line, its pointer at `tabs` and a row's age in

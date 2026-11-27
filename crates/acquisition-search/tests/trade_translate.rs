@@ -482,8 +482,8 @@ fn worked_by_hand(case: &Case) {
 /// fragment in the language, with the clause's bound where it needs one,
 /// applied where the clause has every property of the shape asked; a row
 /// with no other reading prints nothing (C93, absent versus undecided).
-/// The report (C99, the translation's report) should finish its sentence,
-/// and runs measured each ambiguity by hand. This file holds the readings,
+/// The report (C99, the translation's report) should finish its sentence:
+/// without it each ambiguity is measured by hand. This file holds the readings,
 /// the counts and their routes over every fixture; what a catalogue row
 /// may carry as a reading is `trade_catalogue.rs`'s.
 ///

@@ -41,8 +41,8 @@ generator refuses a clone off its pin (`PROCEDURE`, below; the refusal is
 `sources.py`'s, staged by its self-test). `trade-check.sh` runs both
 self-tests and the drift line in the gate, and where the clone is,
 regenerates the tables from it, so a header is the generator's, never
-typed. The tables went stale silently at every patch, and a clone pulled
-under a pin left three generators refusing and the gate green.
+typed. Without it the tables go stale silently at every patch, and a clone
+pulled under a pin leaves its generators refusing and the gate green.
 """
 
 import argparse
