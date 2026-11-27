@@ -1,5 +1,20 @@
-//! The new-league rehearsal (C122, C126 — a league the list lacks is a
-//! note): launch morning over two leagues, as the owner will type it,
+//! C126 (a league the list lacks is a note; retired, its rule and reason
+//! are this paragraph): a policy may name a league the account's fetched
+//! league list does not hold; the policy receipt says so, naming the
+//! list's age or that it was never fetched, a plan over that league says
+//! so beside a fetched list, and nothing refuses. The list is the latest
+//! successful leagues response, never an accumulated table. The list is a
+//! snapshot, stale on launch morning before `acq leagues` and empty on a
+//! fresh store, and a refusal would block the user the day the league is
+//! new; the note is what keeps a typo from spending the invalid-request
+//! budget (N27, the invalid-request budget). This file holds the receipt
+//! and the plan saying so and the policy written; the list read is
+//! `acquisition-store/unit/tests/lib.rs`'s (the latest successful
+//! response), the receipt through the MCP tool
+//! `acquisition-mcp/tests/journey.rs`'s, and the receipt's `never`
+//! `plan_json.rs`'s.
+//!
+//! The new-league rehearsal (C122, one harness): launch morning over two leagues, as the owner will type it,
 //! through the real pair of binaries over the mock, held as one golden
 //! transcript whose facts come from the journey's one table
 //! (`acquisition-client/tests/harness/journey.rs`). Standard is synced

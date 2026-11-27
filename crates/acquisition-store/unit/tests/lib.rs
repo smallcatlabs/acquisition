@@ -30,9 +30,12 @@ fn leagues(ids: &[&str]) -> Value {
     json!({ "leagues": ids.iter().map(|id| json!({ "id": id, "realm": "pc" })).collect::<Vec<_>>() })
 }
 
-/// C126 (a league the list lacks is a note): the list is the latest
-/// response's, so a league the game retired is not held, though the
-/// `leagues` table, which upserts, still has its row.
+/// C126 (a league the list lacks is a note; retired, its rule and reason
+/// at `acquisition-cli/tests/new_league.rs`): this file holds the list as
+/// the latest successful response's, never an accumulated table. So a
+/// league the game retired is not held, though the `leagues` table, which
+/// upserts, still has its row, and a failed response leaves the list it
+/// follows.
 #[test]
 fn a_league_that_left_the_list_is_not_held() {
     let mut s = Store::open_memory().unwrap();

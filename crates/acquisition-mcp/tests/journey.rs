@@ -188,13 +188,15 @@ fn a_first_session_through_the_tools_holds_the_journeys_facts() {
     harness::assert_journal_holds(&base, pid, &GETS, TOKEN_POSTS);
 }
 
-/// The new-league rehearsal's twin (`acquisition-cli/tests/new_league.rs`):
-/// two fields of the same table, since the semantics are the shared
-/// layer's and pinned below the doors. With the league list and the
-/// realm's character listing fetched, a plan over the new league is its
-/// one stash listing; and the receipt of a policy naming a league the
-/// list does not hold carries the note (C126, a league the list lacks
-/// is a note), naming it.
+/// The new-league rehearsal's twin
+/// (`acquisition-cli/tests/new_league.rs`): two fields of the same
+/// table, since the semantics are the shared layer's and pinned below
+/// the doors. With the league list and the realm's character listing
+/// fetched, a plan over the new league is its one stash listing; and
+/// the receipt of a policy naming a league the list does not hold
+/// carries the note (C126, a league the list lacks is a note: retired,
+/// its rule and reason at `acquisition-cli/tests/new_league.rs`),
+/// naming it.
 #[test]
 fn a_new_league_through_the_tools_holds_the_rehearsals_facts() {
     let scratch = harness::scratch("mnewleague");

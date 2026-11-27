@@ -278,10 +278,11 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
         "{msg}"
     );
 
-    // C36: a poe2 policy written alone leaves the pc
-    // one standing; a realm named with no leagues is removed; `replace`
-    // writes the whole — and every write over a live policy still names
-    // its revision (C52), `replace` or not, so nothing lands blind.
+    // C36 (the sync policy; retired, its rule and reason at
+    // `acquisition-plan/unit/tests/lib.rs`): a poe2 policy written alone
+    // leaves the pc one standing; a realm named with no leagues is removed;
+    // `replace` writes the whole — and every write over a live policy still
+    // names its revision (C52), `replace` or not, so nothing lands blind.
     let poe2 = json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard":
         { "characters": "all", "max_age_seconds": 600 } } } } });
     for blind in [

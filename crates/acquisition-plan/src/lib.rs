@@ -17,11 +17,11 @@
 //!   for the next plan (honest eventual reconciliation). Dynamic `--deep`
 //!   fan-out is excluded: substashes get actions only once their stubs are
 //!   in the store.
-//! - C37: a policy id covers the tab **and its children**: a map/unique
-//!   tab's substashes are planned
-//!   once their stubs are on record — the cycle after the parent's first
-//!   fetch — and a folder's children at once, since the listing carries
-//!   them. One rule, no per-type logic; binding is untouched (every action
+//! - C37 (retired, its rule and reason at `unit/tests/lib.rs`): a policy
+//!   id covers the tab **and its children**: a map/unique tab's
+//!   substashes are planned once their stubs are on record — the cycle
+//!   after the parent's first fetch — and a folder's children at once,
+//!   since the listing carries them. One rule, no per-type logic; binding is untouched (every action
 //!   is still an explicit tuple). A substash stub reporting 0 items with
 //!   nothing held is skipped as `empty_stub` (GGG appears to list only
 //!   non-empty substashes; a guard, not a saving).
@@ -136,8 +136,9 @@
 //!
 //! # Rulings held here
 //!
-//! - **C37** (a tab id covers its children): a tab is covered when its own
-//!   id is listed or its parent's id is (`Selection::covers_tab`); one
+//! - **C37** (a tab id covers its children; retired, its rule and reason
+//!   at `unit/tests/lib.rs`): a tab is covered when its own id is listed
+//!   or its parent's id is (`Selection::covers_tab`); one
 //!   rule, no per-type logic. A map or unique tab's substashes are planned
 //!   once their stubs are on record, since discovery still waits for facts
 //!   (binding untouched: every action stays an explicit reviewed tuple,

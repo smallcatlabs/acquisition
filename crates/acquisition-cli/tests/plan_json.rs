@@ -353,9 +353,11 @@ fn refresh_characters_names_characters_by_id_in_a_selection() {
     );
 }
 
-/// C36 — `policy set` writes the realms it names and keeps the rest: a
-/// poe2 policy set alone leaves the pc one standing, a realm named with
-/// no leagues is removed, and `--replace` alone writes the whole policy.
+/// C36 (the sync policy; retired, its rule and reason at
+/// `acquisition-plan/unit/tests/lib.rs`): `policy set` writes the
+/// realms it names and keeps the rest: a poe2 policy set alone leaves
+/// the pc one standing, a realm named with no leagues is removed, and
+/// `--replace` alone writes the whole policy.
 #[test]
 fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
     let scratch = harness::scratch("e2e-merge");

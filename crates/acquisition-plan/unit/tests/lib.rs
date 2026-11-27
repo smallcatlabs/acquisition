@@ -97,7 +97,26 @@ fn plan(s: &Store, policy: &Value, now: i64) -> RefreshPlan {
     plan_refresh("mock", &snapshot_with(s, policy), now).unwrap()
 }
 
-/// C36 — the sync policy is a per-account, inspectable declaration; a value that half-parses never lands (strict per stamped shape).
+/// C36 (the sync policy; retired, its rule and reason are this
+/// comment): the sync policy is the first annotation, a per-account
+/// declaration of desired coverage and freshness, compiled by the
+/// frontend's planner into minimal requests. It is not a scheduler (C34,
+/// the daemon runs no schedule). A `metadata.items` count can prove a tab
+/// changed, never that it did not. A `policy set` replaces only the
+/// realms it names, and a realm named with no leagues is dropped;
+/// `--replace` (MCP `replace`) replaces the whole; a write over a live
+/// policy names the revision it replaces (C52, no blind replace). The
+/// C++ app's tracked set and its clean refresh describe this one object.
+/// This file holds the strict parse (this test: a value that half-parses
+/// never lands), minimal requests under the window
+/// (`fresh_facts_compile_to_an_empty_plan_that_still_cites_its_basis`,
+/// `staleness_forces_fetches_and_a_stale_listing_relists`), the count
+/// (`a_disagreeing_count_proves_change_and_an_agreeing_one_proves_nothing`)
+/// and the write kinds (`a_poe2_policy_set_alone_leaves_the_pc_policy_standing`,
+/// `a_first_merge_drops_a_realm_named_with_no_leagues`);
+/// `acquisition-cli/tests/plan_json.rs` holds them through `policy set`
+/// and `--replace`, `acquisition-mcp/tests/plan_loop.rs` through the MCP
+/// tool, `replace` and the revision it names.
 #[test]
 fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
     // The valid shapes: "all" and an explicit id list.
@@ -359,7 +378,17 @@ fn a_never_listed_league_plans_the_listing_alone() {
     assert_eq!(plan.wire_sends.prerequisites.len(), 2);
 }
 
-/// C36 — coverage plus freshness compile to minimal requests (here none); C38 — the envelope carries provider, uuid, operation, schema stamp, fact basis and the policy revision even when empty; C77 — freshness is judged at compile against the window, so the same facts compiled a cycle later, past the window, fetch the tab the first compile skipped.
+/// C36 — coverage plus freshness compile to minimal requests (here none); C38 — the envelope carries provider, uuid, operation, schema stamp, fact basis and the policy revision even when empty.
+///
+/// C77 (freshness at compile; retired, its rule and reason are this
+/// comment): freshness is judged at compile time against the window, and
+/// a plan does not pre-fetch what is fresh at compile; a later replan
+/// that refetches facts which aged past the window during a long cycle
+/// is correct, not a fault. An offline plan has no honest estimate of
+/// its cycle, and a handle "fresh as of every run" is the C++ app's
+/// model, which the sync policy replaced (C36). So the same facts
+/// compiled a cycle later, past the window, fetch the tab the first
+/// compile skipped.
 #[test]
 fn fresh_facts_compile_to_an_empty_plan_that_still_cites_its_basis() {
     let mut s = store();
@@ -629,7 +658,14 @@ fn ids_policy_value(ids: &[&str], max_age_seconds: u32) -> Value {
     })
 }
 
-/// C37 — a tab id covers the tab and its children; substashes are planned the cycle after their stubs land; an empty stub is skipped with its reason.
+/// C37 (a tab id covers its children; retired, its rule and reason are
+/// this comment): a tab id in the sync policy covers that tab and its
+/// children. A map or unique tab's substashes are planned once their
+/// stubs are on record, the cycle after the parent's first fetch; a
+/// folder's children at once; a stub counting 0 is skipped with a named
+/// reason. The intent behind naming a map tab is its contents, and an
+/// exact id match would leave its substashes uncovered. This test holds
+/// a map tab and a unique tab, the next one a folder.
 #[test]
 fn a_named_map_tab_covers_its_substashes_the_cycle_after_its_first_fetch() {
     let mut s = store();
@@ -1653,8 +1689,25 @@ fn c44_a_selection_plan_is_authorized_by_its_selection() {
     assert!(matches!(err, SpendError::PolicyMoved { .. }), "{err}");
 }
 
-/// C76 (one door: `--characters` among the selection flags) and C55 (a
-/// character's id is its identity, its name its address): a
+/// C76 (one door; retired, its rule and reason are this comment): an
+/// explicit selection (`--tabs`, `--all`, `--characters`, a page's ticks)
+/// compiles to a plan through the same envelope and apply as a policy's,
+/// and the ad hoc `refresh` kind is gone (the daemon's admission table
+/// refuses it, under C127). A selection plan derives from no stored
+/// intent, so it carries no policy revision and the apply checks none
+/// (C44, the revision check); it refreshes the listing it selects from on
+/// every run, and a never-fetched map or unique tab's pages take the next
+/// plan. Two doors to one task is one door too many. This file holds the
+/// selection's plan, its listing and the pages
+/// (`c44_a_selection_plan_is_authorized_by_its_selection`), characters
+/// (this test) and the realm rule (the next);
+/// `acquisition-cli/tests/web.rs` holds a page's ticks and `--all`
+/// through the apply, `acquisition-cli/tests/apply_loop.rs`
+/// `--characters`, and `acquisition-mcp/tests/plan_loop.rs` the MCP
+/// `selection`.
+///
+/// C76 with C55 (a character's id is its identity, its name its
+/// address): a
 /// selection naming characters by id compiles to the realm's
 /// character listing, refreshed as a selection's listing is, and a
 /// fetch of each named character that the listing holds in the

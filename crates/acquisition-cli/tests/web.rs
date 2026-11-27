@@ -4039,20 +4039,21 @@ fn offered_links(body: &str) -> Vec<String> {
         .collect()
 }
 
-/// The refresh loop through the place pages alone, over the mock: from a
-/// world with nothing listed and no policy, the
-/// stash tabs and characters pages list the league, each through its own
-/// listing, with no command line and no "Plan under the policy"; a ticked
-/// selection is planned and applied; `refresh --all` (a selection over
-/// every tab with its listing, C76) lands the pages of the map and unique
-/// tabs, which the stash tabs page holds under their closed parents with
-/// their counts; an opener answers `303` to the page with that parent
-/// open, at its head, every tick kept, and again closes it; a tick under
-/// a closed folder travels to the plan; a selection compiles the plan
-/// `refresh --tabs` applies; and once a policy names the league, the
-/// policy's plan with its quote, apply posting the envelope whole, the
-/// same envelope again sending nothing (C111), and a plan whose policy
-/// moved refused (C44).
+/// The refresh loop through the place pages alone, over the mock: from
+/// a world with nothing listed and no policy, the stash tabs and
+/// characters pages list the league, each through its own listing, with
+/// no command line and no "Plan under the policy"; a ticked selection
+/// is planned and applied; `refresh --all` (a selection over every tab
+/// with its listing, C76, one door: retired, its rule and reason at
+/// `acquisition-plan/unit/tests/lib.rs`) lands the pages of the map and
+/// unique tabs, which the stash tabs page holds under their closed
+/// parents with their counts; an opener answers `303` to the page with
+/// that parent open, at its head, every tick kept, and again closes it;
+/// a tick under a closed folder travels to the plan; a selection
+/// compiles the plan `refresh --tabs` applies; and once a policy names
+/// the league, the policy's plan with its quote, apply posting the
+/// envelope whole, the same envelope again sending nothing (C111), and
+/// a plan whose policy moved refused (C44).
 #[test]
 fn the_refresh_loop_runs_through_the_pages() {
     let scratch = harness::scratch("webloop");
