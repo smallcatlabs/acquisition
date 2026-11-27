@@ -23,10 +23,10 @@ better Acquisition that is agent-friendly and agent-forward.
   cite, until that audit's sitting is run again (its `seat/`, also
   #220's re-measure).
 - **The registry's retirement** (`audits/retire-2026-11/README.md`):
-  its three batches and the shedding pass's daemon area are closed
-  (`Step: process-340`, `-343`, `-345`, `-347`). Left: the other
-  areas' sheds, once the owner has read the daemon's (`f9732068`,
-  `f32ed9d0`); C27's Windows half; C121 (#339).
+  its three batches and the sheds of the daemon's, network's, ci's
+  and frontends' rulings are closed (`Step: process-340`, `-343`,
+  `-345`, `-347`, `-349`). Left: the last areas' shed; C27's
+  Windows half; C121 (#339).
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
   (`Step: cut-293`); #293 stays open.
