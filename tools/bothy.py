@@ -89,7 +89,7 @@ that cites the id. A retired id stays known: a citation of it resolves,
 never reused, so the next id is one more than the highest of entries and
 retired lines together. An id is entered or retired, never both. `pack`
 prints no retired line: a file that cites one is its holder, and the
-comment is there.
+comment is there, so `pack` names the id, its area and that file.
 
 `pack --path` takes one file or several, and prints the entries any of
 them cites by id, whole and once, then the headlines of the other
@@ -447,11 +447,17 @@ class Registry:
 
     def cited_by(self, rel):
         """The entries a file cites by id, in the registry's order."""
-        full = self.path(rel)
-        if not os.path.isfile(full):
-            return []
-        named = set(re.findall(r"\bC\d+\b", self.text(full)))
+        named = self.ids_in(rel)
         return [i for i in self.order if i in named]
+
+    def retired_in(self, rel):
+        """The retired ids a file cites, by number: it is their holder."""
+        named = self.ids_in(rel)
+        return sorted((i for i in self.retired if i in named), key=lambda i: int(i[1:]))
+
+    def ids_in(self, rel):
+        full = self.path(rel)
+        return set(re.findall(r"\bC\d+\b", self.text(full))) if os.path.isfile(full) else set()
 
     def members(self):
         """The workspace manifest's members, as `Cargo.toml` lists them (a
@@ -866,22 +872,27 @@ def cmd_pack(reg, area, path):
     mods = sorted(code["moddoc"].get(area, []))
     if mods:
         out += ["## Module docs that name this area (read the one you will change)", ""] + [f"- {m}" for m in mods] + [""]
-    print(sized(out))
+    emit_sized(out)
     return 0
 
 
-def sized(out):
-    """The lines, then a last line that says the size of the whole, that
-    line included, in bytes as printed (UTF-8), so a reader knows what a
-    pack cost and a caller compares two without counting them."""
+def emit_sized(out):
+    """Write the lines, then a last line that says the size of the whole,
+    that line included, so a reader knows what a pack cost and a caller
+    compares two without counting them. The bytes are written as counted,
+    UTF-8 with `\n` endings, past the text layer of stdout, whose
+    encoding and newline translation differ by platform (a Windows
+    console writes `\r\n`), so the count is of what was written."""
     body = ("\n".join(out) + "\n").encode("utf-8")
     n = len(body)
     while True:
-        line = f"{n} bytes, this line included."
-        total = len(body) + len(line.encode("utf-8")) + 1
-        if total == n:
-            return "\n".join(out + [line])
-        n = total
+        line = f"{n} bytes, this line included.\n".encode("utf-8")
+        if len(body) + len(line) == n:
+            break
+        n = len(body) + len(line)
+    sys.stdout.flush()
+    sys.stdout.buffer.write(body + line)
+    sys.stdout.buffer.flush()
 
 
 def pack_path(reg, paths):
@@ -902,7 +913,7 @@ def pack_path(reg, paths):
                   f"`git ls-files '*{os.path.basename(path)}'` finds one by its name; `pack --area <area>` needs no file.",
                   file=sys.stderr)
         return 2
-    areas, reaching, unrouted, cites = [], [], [], {}
+    areas, reaching, unrouted, cites, holds = [], [], [], {}, {}
     for rel in rels:
         found = reg.area_of_path(rel)
         # A root file the workspace reads (its manifest, its lock, a tool's
@@ -916,6 +927,7 @@ def pack_path(reg, paths):
             unrouted.append(rel)
         areas += [a for a in found if a not in areas]
         cites[rel] = reg.cited_by(rel)
+        holds[rel] = reg.retired_in(rel)
     cited = [i for i in reg.order if any(i in c for c in cites.values())]
     whole = [i for i in cited if reg.decisions[i]["area"] != "cross-cutting"]
     loaded = [i for i in cited if reg.decisions[i]["area"] == "cross-cutting"]
@@ -923,11 +935,21 @@ def pack_path(reg, paths):
     out = [f"# What to read before touching {names}", "", NOT_REPEATED, "",
            f"## The rulings {names} {'cites' if len(rels) == 1 else 'cite'}", ""]
     if len(rels) > 1:
-        out += [f"- `{rel}`: " + (", ".join(c) if c else "none by id") for rel, c in cites.items()] + [""]
+        out += [f"- `{rel}`: " + (", ".join(cites[rel] + [f"retired {i}" for i in holds[rel]]) or "none by id")
+                for rel in rels] + [""]
     out += [reg.decisions[i]["text"] for i in whole]
     if loaded:
         out += ([""] if whole else []) + ["Cited from `AGENTS.md`: " + ", ".join(loaded) + "."]
-    if not cited:
+    held = {}
+    for rel in rels:
+        for i in holds[rel]:
+            held.setdefault(i, []).append(f"`{rel}`")
+    if held:
+        out += ([""] if cited else []) + ["Retired, so no entry is printed: the file that cites a retired id holds it, "
+                                          "and the comment beside the id there is its rule. "
+                                          + "; ".join(f"{i} ({reg.retired[i]['area']}), held by " + " and ".join(by)
+                                                      for i, by in held.items()) + "."]
+    if not cited and not held:
         out.append("It cites none by id." if len(rels) == 1 else "They cite none by id.")
     out.append("")
     for rel in reaching:
@@ -935,16 +957,17 @@ def pack_path(reg, paths):
                 "cross-cutting ruling of `AGENTS.md` bears on it, C1's dependency edges first, and the areas its "
                 "members name follow.", ""]
     for rel in unrouted:
-        theirs = [a for a in reg.areas if any(reg.decisions[i]["area"] == a for i in cites[rel])]
+        of = {reg.decisions[i]["area"] for i in cites[rel]} | {reg.retired[i]["area"] for i in holds[rel]}
+        theirs = [a for a in reg.areas if a in of]
         why = (f"No area governs `{rel}`: no module doc near its top names a `decisions/<area>.md` and no area's "
                "intro names it, so no area's other rulings are printed for it. ")
         if theirs:
-            why += ("The rulings it cites are above, whole; they fall in " + ", ".join(f"`{a}`" for a in theirs)
-                    + ", and `pack --area <area>` prints one whole.")
+            why += ("What it cites is above, and by those ids it falls in " + ", ".join(f"`{a}`" for a in theirs)
+                    + "; `pack --area <area>` prints one whole.")
         elif cites[rel]:
             why += "It cites only rulings of `AGENTS.md`, which every session has loaded."
         else:
-            why += ("It cites no ruling by id, so only `AGENTS.md` binds it; `pack --area <area>` prints an area "
+            why += ("It cites no ruling by id, retired or standing, so only `AGENTS.md` binds it; `pack --area <area>` prints an area "
                     "whole. Areas: " + ", ".join(sorted(reg.areas)) + ".")
         out += [why, ""]
     for a in areas:
@@ -955,7 +978,7 @@ def pack_path(reg, paths):
             out += [f"## The other rulings of `{a}` — {title} (headlines; `{meta['file']}` has each whole)", ""]
             out += [f"- {i} — {reg.decisions[i]['title']}" for i in rest] + [""]
         out += not_doing(reg, a)
-    print(sized(out))
+    emit_sized(out)
     return 0
 
 

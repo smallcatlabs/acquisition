@@ -237,9 +237,23 @@ if ! out=$(packs crates/acquisition-store/src/other.rs crates/acquisition-store/
 # the areas of what it cites, or saying that it cites nothing.
 echo '# checks @3' | ids >"$tmp/tools/x.sh"; echo '# checks nothing' >"$tmp/tools/y.sh"
 n=$((n+1))
-if out=$(pack tools/x.sh) && [[ $out == *'- **C3 —'*'No area governs `tools/x.sh`'*'fall in `store`'* ]]; then echo "ok      pack      an ungoverned tool is answered with the areas of what it cites"; else echo "MISSED  pack      an ungoverned tool citing a ruling was refused or named no area:"; echo "$out"; bad=1; fi
+if out=$(pack tools/x.sh) && [[ $out == *'- **C3 —'*'No area governs `tools/x.sh`'*'falls in `store`'* ]]; then echo "ok      pack      an ungoverned tool is answered with the areas of what it cites"; else echo "MISSED  pack      an ungoverned tool citing a ruling was refused or named no area:"; echo "$out"; bad=1; fi
 n=$((n+1))
 if out=$(pack tools/y.sh) && [[ $out == *'No area governs `tools/y.sh`'*'cites no ruling by id'* ]]; then echo "ok      pack      an ungoverned tool citing nothing is answered in words"; else echo "MISSED  pack      an ungoverned tool citing nothing was refused:"; echo "$out"; bad=1; fi
+# A file that cites only a retired id holds it: the pack says so, with the
+# id's area, and never that the file cites nothing.
+ids <<PY | python3 -I - "$tmp"
+import pathlib, sys
+root = pathlib.Path(sys.argv[1])
+HELD = "\`tools/z.sh\`"
+(root/"tools/z.sh").write_text("# holds @3: the store sends nothing\n")
+$RETIRE
+PY
+n=$((n+1))
+if out=$(pack tools/z.sh) && [[ $out == *'C3 (store), held by `tools/z.sh`'*'falls in `store`'* && $out != *'cites no ruling'* && $out != *'C3 —'* ]]; then echo "ok      pack      a file holding only a retired id is told so, with the id's area"; else echo "MISSED  pack      a retired id a file holds is reported as nothing cited:"; echo "$out"; bad=1; fi
+fixture
+echo '//! More of the store (`decisions/store.md`), @2.' | ids >"$tmp/crates/acquisition-store/src/other.rs"
+echo '# checks nothing' >"$tmp/tools/y.sh"
 # Each pack's last line says its size in bytes, that line included.
 for args in "--path crates/acquisition-store/src/other.rs crates/acquisition-store/tests/read.rs" "--path tools/y.sh" "--area store"; do
   out=$(python3 -I "$here/bothy.py" --root "$tmp" pack $args 2>&1; echo x); out=${out%x}
@@ -247,5 +261,15 @@ for args in "--path crates/acquisition-store/src/other.rs crates/acquisition-sto
   n=$((n+1))
   if [[ $(printf '%s' "$out" | tail -n 1) == "$size bytes, this line included." ]]; then echo "ok      pack      pack $args ends with its size, $size bytes"; else echo "MISSED  pack      pack $args does not end with its size ($size bytes):"; printf '%s' "$out" | tail -n 2; bad=1; fi
 done
+# ...counted as written, whatever stdout's text layer would do: under a
+# stdout that writes `\r\n` in cp1252, as a Windows console does, the
+# count still matches the bytes.
+out=$(python3 -I -c 'import io, runpy, sys
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="cp1252", errors="replace", newline="\r\n")
+sys.argv = [sys.argv[1], "--root", sys.argv[2], "pack", "--area", "store"]
+runpy.run_path(sys.argv[0], run_name="__main__")' "$here/bothy.py" "$tmp" 2>&1; echo x); out=${out%x}
+size=$(printf '%s' "$out" | wc -c | tr -d ' ')
+n=$((n+1))
+if [[ $(printf '%s' "$out" | tail -n 1) == "$size bytes, this line included." && $out != *$'\r'* ]]; then echo "ok      pack      a stdout that translates newlines changes nothing: $size bytes, as written"; else echo "MISSED  pack      the size line counts what the text layer did not write ($size bytes):"; printf '%s' "$out" | tail -n 2 | od -c | tail -3; bad=1; fi
 echo "$n cases"
 exit $bad
