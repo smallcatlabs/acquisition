@@ -2,7 +2,8 @@
 
 Written for the session that will do the retiring, and for the owner
 and the orderer who read the counts first. Read-only: nothing here
-retired an entry, changed a test or filed an issue. Taken at
+retired an entry, changed a test or filed an issue; "What followed"
+says what was then done from it. Taken at
 `50e28e68`, the close of step `process-337`, with 193 entries and 7
 retired.
 
@@ -40,6 +41,83 @@ that would cost. An earlier reader's guess from headlines was about
 7. **The readers found about thirty places where an entry's words and
    the code disagree**, listed under "What the readers noticed". Two
    may be faults in the product today.
+
+## What followed
+
+Written by the orderer on 2026-11-27, after the steps this census led
+to had closed. The steps' own records are their close commits:
+`git log --grep='^Step: process-34' --grep='^Step: process-350'`.
+
+**The retirements, three batches.** 45 of the 48 entries that could go
+are retired; the registry is 148 entries and 52 retired
+(`python3 -I tools/bothy.py check`), and `decisions/*.md` is 124,709
+bytes, from 145,248 at `b2cd41a8` (`cat decisions/*.md | wc -c`).
+
+| Step | Area | Retired | Left | Tests written | The review found |
+| --- | --- | --- | --- | --- | --- |
+| `process-340` | daemon | 10 | C27: its Windows half needs a console-signal harness | 3 | 2 |
+| `process-343` | search, trade | 15 | C113, by its brief: a promise about scope | 6 | 2 |
+| `process-345` | pricing, plans, store, frontends, network | 20 | C121, by its brief: #339 | 12 | 3 |
+
+What the batches taught, each from a close:
+
+- **Every review found something the census's readers had not**, and
+  none of it was a wrong retirement. A second code path that could
+  break a clause called held (C6's two reads of the queue at start); a
+  moved sentence wider than the code beside it; a reason carrying
+  history.
+- **A reader's "loose" was sometimes held elsewhere.** C96's default
+  was in a test file neither reader cited. Search the crate's other
+  tests before writing one.
+- **Five rules for a later author stand only as comments**, since no
+  test can fail on them: C94's (what defines a total), and C163's,
+  C161's, C62's and C17's, listed in the close of `process-345`.
+- **The census's count of holder files was high.** Most retirements
+  named two or three.
+
+**The shedding pass, three steps.** The owner said to run it as one
+pass, one area first. A sentence moved only where both class readers
+had marked it and the builder, reading the code, agreed.
+
+| Step | Areas | Entries read | Lost a clause or phrase | Bytes |
+| --- | --- | --- | --- | --- |
+| `process-347` | daemon | 16 | 10 | 1,256 |
+| `process-349` | network, ci, frontends | 16 | 5 | 255 |
+| `process-350` | pricing, plans, store, search, trade | 21 | 4 | 108 |
+
+`AGENTS.md`'s six marked entries were read by the orderer and left:
+five of their marked sentences are the promise or what the next
+clause leans on.
+
+- **This census's estimate was six times too high.** It gave 9 to 11
+  KB; the pass moved 1.6 KB. A sentence marked from the text as
+  mechanism was, read against the code, most often a "never" or an
+  "only", the owner's stored data, the antecedent of the next clause,
+  or an `Unbuilt` line the entry rule requires. The orderer's own
+  forecast for the last step, a yield near the daemon's, was wrong the
+  same way.
+- **Do not run another.** The last builder's advice, and the
+  orderer's: C192 (a property and its mechanism) already sheds a type
+  or constant name when an entry is next amended, and a pass mostly
+  re-reads promises.
+- **What the pass was worth was its side product.** Reading 53 entries
+  against the code found nine places where an entry's words and the
+  code differ, none corrected, all in #348. One cut of 21 carried a
+  promise (C144's durability clause), and the review put it back.
+
+**Found on the way, and where each is.** #338 (`acq demo` writes
+escapes to a pipe) and #339 (a daemon's account refusal carries no
+`accounts`), from "What the readers noticed". #342, closed: C20 now
+says a failed probe is tried again after its cooldown, at the owner's
+ruling. #346, open, the owner's: a probe answered 403 with no
+rate-limit header cannot be told from a Cloudflare block. #344,
+closed: the search and trade files' Standing paragraphs say what C170
+says, taken under delegation.
+
+**Not done.** The 14 entries that need a harness or a rewording, the
+16 the re-run kept for one clause each, and the read of the owner's
+103 entries against their tests ("What was not checked") stand as
+this page left them.
 
 ## Why 31 and not 115
 
