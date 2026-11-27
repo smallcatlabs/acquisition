@@ -4,6 +4,11 @@
 //! read by frontends to resolve `--account` without a
 //! daemon. It is also how the daemon knows which keyring entries to load
 //! at start (the keyring crate cannot enumerate). Secrets never live here.
+//!
+//! C50 (the stable account key): `accounts.json` maps username,
+//! discriminator and provider to the uuid; fact files are named by
+//! username (refetchable, [`account_path`]), annotation files by uuid
+//! (`annotations_path`, `annotations.rs`).
 
 use std::path::{Path, PathBuf};
 
