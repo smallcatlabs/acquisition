@@ -196,7 +196,7 @@ pack() { python3 -I "$here/bothy.py" --root "$tmp" pack --path "$1" 2>&1; }
 n=$((n+1))
 if out=$(pack notes/README.md) && [[ $out == *'rulings of `store`'* ]]; then echo "ok      routing   the path an intro names is routed"; else echo "MISSED  routing   notes/README.md not routed to store:"; echo "$out"; bad=1; fi
 n=$((n+1))
-if ! out=$(pack README.md) && [[ $out == *'no area governs README.md'* ]]; then echo "ok      routing   a file sharing only its last name is not"; else echo "MISSED  routing   README.md routed by a basename:"; echo "$out"; bad=1; fi
+if out=$(pack README.md) && [[ $out == *'No area governs `README.md`'* && $out != *'rulings of `store`'* ]]; then echo "ok      routing   a file sharing only its last name is not"; else echo "MISSED  routing   README.md routed by a basename:"; echo "$out"; bad=1; fi
 # pack --path leads with what the file cites and repeats nothing of
 # AGENTS.md; a path that does not exist is refused.
 fixture
@@ -213,6 +213,39 @@ echo "# a readme" >"$tmp/README.md"
 n=$((n+1))
 if out=$(pack Cargo.toml) && [[ $out == *'reaches every member the manifest lists'*'rulings of `store`'* && $out != *'Every rule has one home'* ]]; then echo "ok      pack      the workspace manifest is routed to its members' areas"; else echo "MISSED  pack      Cargo.toml not routed to its members' areas:"; echo "$out"; bad=1; fi
 n=$((n+1))
-if ! out=$(pack README.md) && [[ $out == *'no area governs README.md'* ]]; then echo "ok      pack      a root file the workspace does not read is still refused"; else echo "MISSED  pack      README.md routed as a workspace file:"; echo "$out"; bad=1; fi
+if out=$(pack README.md) && [[ $out == *'No area governs `README.md`'* && $out != *'reaches every member'* ]]; then echo "ok      pack      a root file the workspace does not read is not routed to its members"; else echo "MISSED  pack      README.md routed as a workspace file:"; echo "$out"; bad=1; fi
+# Several files print each entry once: whole where any of them cites it,
+# else one headline, and each area's "Not doing" once. other.rs cites @2
+# alone and read.rs @3 alone, so each alone prints the other's headline.
+fixture
+echo '//! More of the store (`decisions/store.md`), @2.' | ids >"$tmp/crates/acquisition-store/src/other.rs"
+packs() { python3 -I "$here/bothy.py" --root "$tmp" pack --path "$@" 2>&1; }
+both=$(packs crates/acquisition-store/src/other.rs crates/acquisition-store/tests/read.rs) || both=""
+once=1
+for f in crates/acquisition-store/src/other.rs crates/acquisition-store/tests/read.rs; do
+  for e in $(packs "$f" | grep -oE '^- \*\*C[0-9]+ ' | grep -oE 'C[0-9]+'); do
+    [[ $both == *"- **$e —"* ]] || once=0
+  done
+done
+for e in C2 C3; do [[ $(grep -cE "^- (\*\*)?$e —" <<<"$both") == 1 ]] || once=0; done
+[[ $(grep -c '^- Pruning' <<<"$both") == 1 ]] || once=0
+n=$((n+1))
+if [[ $once == 1 ]]; then echo "ok      pack      several files print each entry once, whole where one cites it, and the area's Not doing once"; else echo "MISSED  pack      several files repeat an entry or lose one whole:"; echo "$both"; bad=1; fi
+n=$((n+1))
+if ! out=$(packs crates/acquisition-store/src/other.rs crates/acquisition-store/src/gone.rs) && [[ $out == *'no file crates/acquisition-store/src/gone.rs'* ]]; then echo "ok      pack      one missing file among several is refused, named"; else echo "MISSED  pack      a missing file among several was not refused:"; echo "$out"; bad=1; fi
+# A file under tools/ that no area governs is answered, not refused: with
+# the areas of what it cites, or saying that it cites nothing.
+echo '# checks @3' | ids >"$tmp/tools/x.sh"; echo '# checks nothing' >"$tmp/tools/y.sh"
+n=$((n+1))
+if out=$(pack tools/x.sh) && [[ $out == *'- **C3 —'*'No area governs `tools/x.sh`'*'fall in `store`'* ]]; then echo "ok      pack      an ungoverned tool is answered with the areas of what it cites"; else echo "MISSED  pack      an ungoverned tool citing a ruling was refused or named no area:"; echo "$out"; bad=1; fi
+n=$((n+1))
+if out=$(pack tools/y.sh) && [[ $out == *'No area governs `tools/y.sh`'*'cites no ruling by id'* ]]; then echo "ok      pack      an ungoverned tool citing nothing is answered in words"; else echo "MISSED  pack      an ungoverned tool citing nothing was refused:"; echo "$out"; bad=1; fi
+# Each pack's last line says its size in bytes, that line included.
+for args in "--path crates/acquisition-store/src/other.rs crates/acquisition-store/tests/read.rs" "--path tools/y.sh" "--area store"; do
+  out=$(python3 -I "$here/bothy.py" --root "$tmp" pack $args 2>&1; echo x); out=${out%x}
+  size=$(printf '%s' "$out" | wc -c | tr -d ' ')
+  n=$((n+1))
+  if [[ $(printf '%s' "$out" | tail -n 1) == "$size bytes, this line included." ]]; then echo "ok      pack      pack $args ends with its size, $size bytes"; else echo "MISSED  pack      pack $args does not end with its size ($size bytes):"; printf '%s' "$out" | tail -n 2; bad=1; fi
+done
 echo "$n cases"
 exit $bad

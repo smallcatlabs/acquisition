@@ -123,8 +123,9 @@ what fails if it breaks, and says where nothing does yet.
 
 Before changing a file, read your brief or issue and what it names,
 the module doc, and the rulings the file and its tests cite:
-`python3 -I tools/bothy.py pack --path <file>` prints those whole and
-the area's other rulings as headlines, and `show C<n>` opens a
+`python3 -I tools/bothy.py pack --path <file> <its tests>...` prints
+those whole, each once, and their areas' other rulings as headlines
+(a step's files go in one call), and `show C<n>` opens a
 headline that bears on the change. The session that writes a brief
 reads the area's rulings file, which a crate's `src/lib.rs` doc (a
 frontend's `src/main.rs`) names at the top, and names in the brief

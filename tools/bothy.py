@@ -5,7 +5,7 @@
     python3 -I tools/bothy.py list [decisions|retired|parks] [--area NAME]   the index: each headline whole
     python3 -I tools/bothy.py show C<n>             one entry or retired line, what it cites, what cites it, where code holds it
     python3 -I tools/bothy.py pack --area store     what to read before touching an area
-    python3 -I tools/bothy.py pack --path crates/acquisition-store/src/lib.rs   the rulings the file cites, first
+    python3 -I tools/bothy.py pack --path FILE...    the rulings the files cite, first, each once
     python3 -I tools/bothy.py --root DIR ...        the tree to read (default: the script's parent directory)
 
 The registry is the root file, `AGENTS.md` (the one file every session
@@ -91,11 +91,13 @@ retired lines together. An id is entered or retired, never both. `pack`
 prints no retired line: a file that cites one is its holder, and the
 comment is there.
 
-`pack --path` prints the entries the file cites by id, whole, then the
-headlines of its area's other entries, then the area's "Not doing".
+`pack --path` takes one file or several, and prints the entries any of
+them cites by id, whole and once, then the headlines of the other
+entries of each area they fall in, once, then each area's "Not doing".
 Neither `pack` form repeats `AGENTS.md`, which every session has
-loaded. It routes a file by the `decisions/<area>.md` its module doc
-names near the top; a file that names none is routed by the area intros
+loaded, and each ends with a line saying its own size in bytes. It
+routes a file by the `decisions/<area>.md` its module doc names near
+the top; a file that names none is routed by the area intros
 with a ticked token its path ends with, whole path components, or one
 that starts with its crate, so a crate path in an intro routes every
 unrouted file of that crate there (plans' intro names `kinds.rs` bare
@@ -103,7 +105,10 @@ for that reason). A token ending with the file's name is
 not one: `search/README.md` names no other `README.md`. A root
 file the workspace reads, a `.toml` or `.lock` at the root that nothing
 routes, reaches every member `Cargo.toml` lists, and is routed to the
-areas their entry files name.
+areas their entry files name. A file nothing routes is answered, not
+refused: the answer says no area governs it and names the areas of the
+rulings it cites, or says that it cites none. Only a file that does not
+exist is refused.
 
 `check` holds what `tools/docs-check.sh` does not: a cross-reference
 inside the registry resolves; an entry has its *Why:* and its *Pinned:* and no
@@ -861,44 +866,87 @@ def cmd_pack(reg, area, path):
     mods = sorted(code["moddoc"].get(area, []))
     if mods:
         out += ["## Module docs that name this area (read the one you will change)", ""] + [f"- {m}" for m in mods] + [""]
-    print("\n".join(out))
+    print(sized(out))
     return 0
 
 
-def pack_path(reg, path):
-    """What a file's own citations lead to: the entries it cites, whole,
-    then its area's other headlines, then the area's "Not doing"."""
-    full = path if os.path.isabs(path) else reg.path(path)
-    rel = os.path.relpath(os.path.abspath(full), reg.root)
-    if rel.startswith("..") or not os.path.exists(full):
-        print(f"no file {path} in {reg.root}: `pack --path` reads a file that exists, named from the repository's root. "
-              f"`git ls-files '*{os.path.basename(path)}'` finds one by its name; `pack --area <area>` needs no file.", file=sys.stderr)
+def sized(out):
+    """The lines, then a last line that says the size of the whole, that
+    line included, in bytes as printed (UTF-8), so a reader knows what a
+    pack cost and a caller compares two without counting them."""
+    body = ("\n".join(out) + "\n").encode("utf-8")
+    n = len(body)
+    while True:
+        line = f"{n} bytes, this line included."
+        total = len(body) + len(line.encode("utf-8")) + 1
+        if total == n:
+            return "\n".join(out + [line])
+        n = total
+
+
+def pack_path(reg, paths):
+    """What the files' own citations lead to: the entries any of them cites,
+    whole and once, then the other headlines of each area they fall in,
+    once, then each area's "Not doing"."""
+    rels, missing = [], []
+    for path in paths:
+        full = path if os.path.isabs(path) else reg.path(path)
+        rel = os.path.relpath(os.path.abspath(full), reg.root)
+        if rel.startswith("..") or not os.path.exists(full):
+            missing.append(path)
+        elif rel not in rels:
+            rels.append(rel)
+    if missing:
+        for path in missing:
+            print(f"no file {path} in {reg.root}: `pack --path` reads files that exist, named from the repository's root. "
+                  f"`git ls-files '*{os.path.basename(path)}'` finds one by its name; `pack --area <area>` needs no file.",
+                  file=sys.stderr)
         return 2
-    areas = reg.area_of_path(rel)
-    # A root file the workspace reads (its manifest, its lock, a tool's
-    # `.toml` beside them) is named by no module doc and no intro; it
-    # reaches every member the manifest lists, so it is routed to theirs.
-    reaches = not areas and "/" not in rel and rel.endswith((".toml", ".lock"))
-    if reaches:
-        areas = reg.workspace_areas()
-    if not areas:
-        print(f"no area governs {rel}: no module doc near its top names a decisions/<area>.md and no area's intro names it. "
-              f"Areas: {', '.join(sorted(reg.areas))}. Use --area.", file=sys.stderr)
-        return 2
-    cited = reg.cited_by(rel)
+    areas, reaching, unrouted, cites = [], [], [], {}
+    for rel in rels:
+        found = reg.area_of_path(rel)
+        # A root file the workspace reads (its manifest, its lock, a tool's
+        # `.toml` beside them) is named by no module doc and no intro; it
+        # reaches every member the manifest lists, so it is routed to theirs.
+        if not found and "/" not in rel and rel.endswith((".toml", ".lock")):
+            found = reg.workspace_areas()
+            if found:
+                reaching.append(rel)
+        if not found:
+            unrouted.append(rel)
+        areas += [a for a in found if a not in areas]
+        cites[rel] = reg.cited_by(rel)
+    cited = [i for i in reg.order if any(i in c for c in cites.values())]
     whole = [i for i in cited if reg.decisions[i]["area"] != "cross-cutting"]
     loaded = [i for i in cited if reg.decisions[i]["area"] == "cross-cutting"]
-    out = [f"# What to read before touching `{rel}`", "", NOT_REPEATED, "", f"## The rulings `{rel}` cites", ""]
+    names = ", ".join(f"`{rel}`" for rel in rels)
+    out = [f"# What to read before touching {names}", "", NOT_REPEATED, "",
+           f"## The rulings {names} {'cites' if len(rels) == 1 else 'cite'}", ""]
+    if len(rels) > 1:
+        out += [f"- `{rel}`: " + (", ".join(c) if c else "none by id") for rel, c in cites.items()] + [""]
     out += [reg.decisions[i]["text"] for i in whole]
     if loaded:
         out += ([""] if whole else []) + ["Cited from `AGENTS.md`: " + ", ".join(loaded) + "."]
     if not cited:
-        out.append("It cites none by id.")
+        out.append("It cites none by id." if len(rels) == 1 else "They cite none by id.")
     out.append("")
-    if reaches:
+    for rel in reaching:
         out += [f"`{rel}` is a root file the workspace reads, so it reaches every member the manifest lists: every "
                 "cross-cutting ruling of `AGENTS.md` bears on it, C1's dependency edges first, and the areas its "
                 "members name follow.", ""]
+    for rel in unrouted:
+        theirs = [a for a in reg.areas if any(reg.decisions[i]["area"] == a for i in cites[rel])]
+        why = (f"No area governs `{rel}`: no module doc near its top names a `decisions/<area>.md` and no area's "
+               "intro names it, so no area's other rulings are printed for it. ")
+        if theirs:
+            why += ("The rulings it cites are above, whole; they fall in " + ", ".join(f"`{a}`" for a in theirs)
+                    + ", and `pack --area <area>` prints one whole.")
+        elif cites[rel]:
+            why += "It cites only rulings of `AGENTS.md`, which every session has loaded."
+        else:
+            why += ("It cites no ruling by id, so only `AGENTS.md` binds it; `pack --area <area>` prints an area "
+                    "whole. Areas: " + ", ".join(sorted(reg.areas)) + ".")
+        out += [why, ""]
     for a in areas:
         meta = reg.areas[a]
         title = re.sub(r"^Decisions\s+—\s+", "", meta["title"])
@@ -907,7 +955,7 @@ def pack_path(reg, path):
             out += [f"## The other rulings of `{a}` — {title} (headlines; `{meta['file']}` has each whole)", ""]
             out += [f"- {i} — {reg.decisions[i]['title']}" for i in rest] + [""]
         out += not_doing(reg, a)
-    print("\n".join(out))
+    print(sized(out))
     return 0
 
 
@@ -926,7 +974,7 @@ def main(argv):
     p = sub.add_parser("pack", help="what to read before touching an area or a file")
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--area")
-    g.add_argument("--path")
+    g.add_argument("--path", nargs="+", metavar="FILE", help="one or more files, named from the repository's root")
     args = ap.parse_args(argv)
     root = args.root or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
     root = os.path.abspath(root)
