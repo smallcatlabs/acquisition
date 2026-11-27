@@ -382,6 +382,55 @@ over a fresh clone:
 The review was the brief's one (decision 6); this round is not reviewed
 again.
 
+## Judged runs
+
+Each set is three headless runs of the four scenarios, taken in turn by
+the start script's way (the rig installed under `runs/desktop-spike/rig`,
+over a fresh `cp -cR` clone of the copy for each run), in headless Chrome
+158 at 1280 × 633 CSS pixels inside a 1280 × 720 window, at a pixel ratio
+of 1. Before and after each run no `cargo`, `rustc`, `cargo-nextest` or
+gate process was running on the machine (each looked for by name, its
+lane by its working directory); the load average, from the owner's other
+applications, stood between 1.9 and 3.3. Each run's whole log is under
+`headless/`, one line per scenario, its acts and, for the scroll, its frames;
+`judge.py` prints the tables and the bar's lines from it.
+
+### rig-2: the bar misses on one line
+
+`desktop-rig --check Standard` held before the runs. Per run, the
+answered acts' medians (ms) and the engine's, transport's and browser's
+medians:
+
+| Run | key | engine · transport · browser | click | expand | scroll |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 234 | 230 · 1.3 · 2.3 | 38 | 34 | 3.4 |
+| 2 | 233 | 230 · 1.1 · 2.3 | 46 | 34 | 3.5 |
+| 3 | 248 | 245 · 1.3 · 2.3 | 40 | 34 | 2.9 |
+
+The bar, line by line:
+
+| Line | Run 1 | Run 2 | Run 3 |
+| --- | --- | --- | --- |
+| 1a. last keystroke of a burst: 9 in 10 within 350 ms, all within 700 | 11 of 12, worst 470 | 11 of 12, worst 466 | **10 of 12, worst 522: misses** |
+| 1b. every answered keystroke within 700 ms | 41 of 41, worst 470 | 42 of 42, worst 466 | 41 of 41, worst 522 |
+| 2. click: 9 in 10 within 100 ms, all within 200 | 9 of 10, worst 111 | 9 of 10, worst 110 | 9 of 10, worst 111 |
+| 3. expansion: 9 in 10 within 100 ms, all within 200 | 20 of 20, worst 57 | 20 of 20, worst 55 | 20 of 20, worst 58 |
+| 4a. scroll: 9 in 10 within 100 ms, all within 250 | 201 of 207, worst 102 | 204 of 209, worst 102 | 204 of 209, worst 102 |
+| 4b. late frames in the steady wheel, at most 1% | 3 of 599 | 2 of 601 | 1 of 601 |
+
+The bar does not hold: run 3 misses line 1a. **The cause, from the
+split**: the last keystroke of `pseudo.total_life>=70` took 466 to 522
+ms in every run, and the last of `tabula` 374 ms in run 3; in each, the
+browser's share was about 2 ms and the transport's about 1 ms. The rest
+was the engine's: 186 to 201 ms waiting for the answer to the keystroke
+before it (`wait`), then 277 to 312 ms of its own, of which the places
+document for the tabs took 130 to 150 ms (60 of them reading the store's
+tab listing again), the one for the characters 84 to 95 ms (the query
+evaluated a second time), and the window's rows 52 to 54 ms (a third
+evaluation, over the window's places alone). A keystroke under a query
+evaluated it over the corpus three times. The rig can answer that
+(decision 8): rig-3 below.
+
 ## The store copy
 
 `shasum -a 256` of each file under `runs/desktop-spike/store-2026-11-24`
