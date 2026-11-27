@@ -285,7 +285,9 @@ fn a_character_items_league_is_the_listings_and_none_when_the_listing_gave_none(
 /// its full coordinate, and the scope is one realm or all while the
 /// realms are every realm the file holds. C54 (authority is the coarser
 /// observation's) is retired, its rule and reason at `lib.rs`; this test
-/// holds the coordinate's league and realm as the search read sees them.
+/// holds the coordinate's realm and league as the search read sees them:
+/// one tab id under two realms, and under two leagues of one realm, is a
+/// location each, every item read once at its own.
 #[test]
 fn only_live_items_at_live_locations_by_full_coordinate_in_the_scope_asked() {
     let mut s = Store::open_memory().unwrap();
@@ -360,6 +362,22 @@ fn only_live_items_at_live_locations_by_full_coordinate_in_the_scope_asked() {
     assert_eq!(ids(&items), ["pad"]);
     assert_eq!(items[0].realm, "xbox");
     assert_eq!(header.locations.len(), 1);
+
+    // The same tab id under two leagues of one realm: two locations, each
+    // item read once, at its own league.
+    let mut s = Store::open_memory().unwrap();
+    profile(&mut s);
+    for (league, id, at) in [("Standard", "std", 10), ("Hardcore", "hc", 11)] {
+        list_tabs(&mut s, "pc", league, json!([tab("t1")]), at);
+        fetch_tab(&mut s, "pc", league, "t1", vec![item(id, id)], at + 10);
+    }
+    let (header, items) = read_all(&s, RealmScope::All);
+    let read: Vec<(&str, Option<&str>)> = items
+        .iter()
+        .map(|i| (i.id.as_str(), i.league.as_deref()))
+        .collect();
+    assert_eq!(read, [("hc", Some("Hardcore")), ("std", Some("Standard"))]);
+    assert_eq!(header.locations.len(), 2);
 }
 
 /// C108, C54 — the header is what coverage is stated from: a folder is

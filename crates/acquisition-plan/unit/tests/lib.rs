@@ -104,8 +104,8 @@ fn plan(s: &Store, policy: &Value, now: i64) -> RefreshPlan {
 /// the daemon runs no schedule). A `metadata.items` count can prove a tab
 /// changed, never that it did not. A `policy set` replaces only the
 /// realms it names, and a realm named with no leagues is dropped;
-/// `--replace` (MCP `replace`) replaces the whole; a write over a live
-/// policy names the revision it replaces (C52, no blind replace). The
+/// `--replace` (MCP `replace`) replaces the whole; the MCP names the
+/// revision it replaces (C52, no blind replace). The
 /// C++ app's tracked set and its clean refresh describe this one object.
 /// This file holds the strict parse (this test: a value that half-parses
 /// never lands), minimal requests under the window
@@ -662,8 +662,8 @@ fn ids_policy_value(ids: &[&str], max_age_seconds: u32) -> Value {
 /// this comment): a tab id in the sync policy covers that tab and its
 /// children. A map or unique tab's substashes are planned once their
 /// stubs are on record, the cycle after the parent's first fetch; a
-/// folder's children at once; a stub counting 0 is skipped with a named
-/// reason. The intent behind naming a map tab is its contents, and an
+/// folder's children at once; a stub counting 0 over no item the store
+/// holds is skipped with a named reason. The intent behind naming a map tab is its contents, and an
 /// exact id match would leave its substashes uncovered. This test holds
 /// a map tab and a unique tab, the next one a folder.
 #[test]
@@ -1696,8 +1696,8 @@ fn c44_a_selection_plan_is_authorized_by_its_selection() {
 /// refuses it, under C127). A selection plan derives from no stored
 /// intent, so it carries no policy revision and the apply checks none
 /// (C44, the revision check); it refreshes the listing it selects from on
-/// every run, and a never-fetched map or unique tab's pages take the next
-/// plan. Two doors to one task is one door too many. This file holds the
+/// every run, and under `deep` a never-fetched map or unique tab's pages
+/// take the next plan. Two doors to one task is one door too many. This file holds the
 /// selection's plan, its listing and the pages
 /// (`c44_a_selection_plan_is_authorized_by_its_selection`), characters
 /// (this test) and the realm rule (the next);

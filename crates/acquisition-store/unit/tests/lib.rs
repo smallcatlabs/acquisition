@@ -261,7 +261,8 @@ fn item_from_rows(s: &Store, id: &str, gems: &[&str]) -> Value {
 /// are this comment): a body is stored as received except where the
 /// ingest lifts it, and `items` is the only place to look for an item.
 /// Every item array, each `socketedItems` among them, is lifted into
-/// `items`, one row per GGG item id, keyed by its location's full
+/// `items` but for a granted skill (C57), one row per GGG item id, keyed
+/// by its location's full
 /// coordinate (realm, league for a stash, kind, id); a tab's `children`
 /// become tab rows, its fetch being its substashes' listing (C54). A
 /// fetch of a location a listing has retired is withheld: membership is
@@ -483,8 +484,9 @@ fn an_item_without_an_id_is_malformed_and_poisons_nothing() {
 
 /// C145 (a present key of the wrong type is malformed; retired, its rule
 /// and reason are this comment): a present
-/// key of the wrong type is a malformed body at every seam; an absent key
-/// is the documented empty. `items`, `children`, `socketedItems`,
+/// key of the wrong type is a malformed body at every seam; an absent
+/// optional key is the documented empty, while a listing's required
+/// array, absent, is refused as well. `items`, `children`, `socketedItems`,
 /// `leagues`, a character's item arrays, a listing's `stashes` or
 /// `characters`, present and not an array, refuses the body (C30, a
 /// refused body is evidence): kept verbatim in `refused`, retiring
@@ -2145,12 +2147,12 @@ fn an_unknown_item_array_trips_the_drift_counter_without_failing() {
 /// one fault with a place to arise wherever the two meet, so one rule
 /// names it. This file holds the address and league
 /// (`the_character_key_is_the_id_and_the_name_is_the_address`), the revival (this
-/// test), the coordinate's realm
+/// test), the coordinate's realm and league
 /// (`the_same_tab_id_under_two_realms_is_two_locations`), the substashes
 /// (`substash_membership_follows_the_parents_fetch_and_the_parents_fate`)
 /// and membership per response
 /// (`removal_events_come_from_the_update_not_the_clock`); `corpus.rs` the
-/// coordinate's league.
+/// coordinate's realm and league as the search read sees them.
 ///
 /// Membership belongs to the listing: a fetch that lands after a newer
 /// listing retired its location records the body but revives nothing
@@ -2255,10 +2257,10 @@ fn a_late_fetch_never_revives_a_location_a_listing_retired() {
     assert_eq!((revived.fetched_at, revived.item_count), (None, 0));
 }
 
-/// A location is its full coordinate: the same tab id under two realms
-/// is two locations, so a fetch of one never retires the other's items
-/// and counts stay apart; an item that turns up under the other realm's
-/// tab has moved.
+/// A location is its full coordinate: the same tab id under two realms,
+/// or under two leagues of one realm, is two locations, so a fetch of one
+/// never retires the other's items and counts stay apart; an item that
+/// turns up under the other realm's tab has moved.
 #[test]
 fn the_same_tab_id_under_two_realms_is_two_locations() {
     let mut s = Store::open_memory().unwrap();
@@ -2314,6 +2316,36 @@ fn the_same_tab_id_under_two_realms_is_two_locations() {
         (from.as_str(), to.as_str()),
         ("stash/pc/Standard/t1", "stash/xbox/Standard/t1")
     );
+    // The same tab id under two leagues of one realm is two locations
+    // too: Hardcore's fetches neither move nor retire Standard's item.
+    let hardcore = Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Hardcore".into(),
+        id: "t1".into(),
+        sub: None,
+    };
+    s.record(
+        &ep("pc"),
+        &json!({}),
+        200,
+        &stash("t1", vec![item("s1", "Qux", 0)]),
+        4,
+    )
+    .unwrap();
+    for (items, at) in [(vec![item("h1", "Baz", 0)], 5), (vec![], 6)] {
+        let ing = s
+            .record(&hardcore, &json!({}), 200, &stash("t1", items), at)
+            .unwrap();
+        assert_eq!((ing.moved, ing.removed), (0, if at == 6 { 1 } else { 0 }));
+    }
+    let s1 = s.item("s1").unwrap().unwrap();
+    assert_eq!(
+        (s1.league.as_deref(), s1.removed_at),
+        (Some("Standard"), None)
+    );
+    assert_eq!(s.tabs("pc", "Standard").unwrap()[0].item_count, 1);
+    assert_eq!(s.tabs("pc", "Hardcore").unwrap()[0].item_count, 0);
+    assert!(s.item("h1").unwrap().unwrap().removed_at.is_some());
 }
 
 /// A parent tab's fetch is the listing of its substashes: a stub it no
