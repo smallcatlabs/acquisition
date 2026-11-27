@@ -107,7 +107,8 @@ held() { printf 'HELD=%s; %s' "$1" "$RETIRE"; }
 expect retired   "$(held '"`crates/acquisition-store/tests/gone.rs`"')" 'is no file under the tree'
 expect retired   "$(held '"`tools/x.sh`"'); (root/'tools/x.sh').write_text('# no id here\\n')" 'does not cite @3'
 expect retired   "$(held '"`decisions/store.md`"')" 'which is the registry'
-expect retired   "$(held '"the store test"')" 'names no file'
+expect retired   "$(held '"the store test"')" 'ticked paths alone'
+expect retired   "$(held '"`crates/acquisition-store/tests/read.rs`, tools/gone.sh. *Why:* a read observes"')" 'ticked paths alone'
 expect retired   "$(held '"`crates/acquisition-store/tests/read.rs`"'); p.write_text(p.read_text().replace('## Store\\n\\n', '## Store\\n\\n' + entry + '\\n'))" 'never both'
 expect retired   "$(held '"`crates/acquisition-store/tests/read.rs`"'); p.write_text(p.read_text().replace('.** *Held by:*', '.** It sends nothing. *Why:* a read observes. *Held by:*'))" 'the headline and its holders alone'
 expect duplicate "$(held '"`crates/acquisition-store/tests/read.rs`"'); p.write_text(p.read_text() + '- **@3 — The store sends nothing.** *Held by:* \`crates/acquisition-store/tests/read.rs\`.\\n')" 'an id retires once'
@@ -174,6 +175,8 @@ n=$((n+1))
 if out=$(bothy list) && [[ $out == *$'\nC3    store          retired: The store sends nothing.'*'2 decisions, 1 retired, 2 not-doing lines' ]]; then echo "ok      list      a retired id is listed, marked, and counted"; else echo "MISSED  list      a retired id is not listed and counted:"; echo "$out"; bad=1; fi
 n=$((n+1))
 if out=$(bothy show "$(ids <<<@3)") && [[ $out == *'- **C3 — The store sends nothing.** *Held by:*'*'tests/read.rs: line 1'*'Named by: C2'* ]]; then echo "ok      show      a retired id shows its line, its holder's citing line and what names it"; else echo "MISSED  show      a retired id does not show:"; echo "$out"; bad=1; fi
+n=$((n+1))
+if out=$(bothy show "$(ids <<<@2)") && [[ $out == *"$(ids <<<'Names: @1 (Every rule has one home.), @3 (retired: The store sends nothing.)')"* ]]; then echo "ok      show      an entry that names a retired id labels it"; else echo "MISSED  show      a retired id an entry names is not labelled:"; echo "$out"; bad=1; fi
 n=$((n+1))
 if out=$(bothy pack --path crates/acquisition-store/src/lib.rs) && [[ $out == *'- **C2 — Facts'* && $out != *'C3 —'* ]]; then echo "ok      pack      a retired line is no headline"; else echo "MISSED  pack      a retired line is printed:"; echo "$out"; bad=1; fi
 # pack's routing by an intro: a ticked path routes the file whose path

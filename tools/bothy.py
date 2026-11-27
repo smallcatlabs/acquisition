@@ -77,18 +77,19 @@ bullet per thing someone would propose and the project declines:
 trigger reopens. The backlog is GitHub issues, never this list.
 
 The retired rule. An entry whose property a hook, a check or a test
-holds retires to one line under "Retired", the last section of its
-area file, `- **C<n> — the headline as it stood.** *Held by:* <files>.`,
-each file ticked. It carries no ruling and no *Why:*: the reason, and any clause the
-holder's own words did not say, moves to a comment under the id at
-each file *Held by:* names, and the commit that retires it carries the
-retirement line, `retired C<n>; held by <Y>`. Each ticked name is a
-file, from the tree, outside the registry, that cites the id. A retired
-id stays known: a citation of it resolves, `show` prints its line and
-where it is cited, `list` marks it, and it is never reused, so the next
-id is one more than the highest of entries and retired lines together.
-An id is entered or retired, never both. `pack` prints no retired line:
-a file that cites one is its holder, and the comment is there.
+holds retires to one line under "Retired", the last section of its area
+file, `- **C<n> — the headline as it stood.** *Held by:* <files>.`, each
+file ticked. It carries no ruling and no *Why:*: the reason, and any
+clause the holder's own words did not say, moves to a comment under the
+id at each file *Held by:* names, and the commit that retires it carries
+the retirement line, `retired C<n>; held by <Y>`. *Held by:* holds
+ticked paths alone, each a file, from the tree, outside the registry,
+that cites the id. A retired id stays known: a citation of it resolves,
+`show` prints its line and where it is cited, `list` marks it, and it is
+never reused, so the next id is one more than the highest of entries and
+retired lines together. An id is entered or retired, never both. `pack`
+prints no retired line: a file that cites one is its holder, and the
+comment is there.
 
 `pack --path` prints the entries the file cites by id, whole, then the
 headlines of its area's other entries, then the area's "Not doing".
@@ -142,6 +143,7 @@ NOT_DOING = "Not doing"
 RETIRED = "Retired"
 RETIRED_RE = re.compile(r"^- \*\*(C\d+)\s+—\s+(.*?)\*\*\s*\*Held by:\*\s*(.*)$")
 RETIRED_FORM = "`- **C<n> — the headline as it stood.** *Held by:* `<file>`, …`"
+HELD_RE = re.compile(r"`[^`]+`(?:,\s*`[^`]+`)*\.")   # a *Held by:* is ticked paths alone
 TICK_RE = re.compile(r"`([^`\s]+)`")
 # A path the registry names: has a `/`, and its last component has a file
 # extension or its first component is a directory of the tree. Not an API
@@ -272,6 +274,10 @@ class Registry:
                       "the ruling and its *Why:* move to a comment under the id at each holder")
             return
         cid, title, held = m.group(1), m.group(2), m.group(3)
+        if not HELD_RE.fullmatch(held.strip()):
+            self.fail("retired", rel, n, f"{cid}'s *Held by:* is ticked paths alone, `<file>`, `<file>`, ending in a full stop; "
+                      "tick each holder's path, and move any other words to a comment under the id at the holder")
+            return
         if cid in self.retired:
             first = self.retired[cid]
             self.fail("duplicate", rel, n, f"{cid} is retired at {first['file']}:{first['line']} too; an id retires once: delete this line")
@@ -609,10 +615,7 @@ def check_retired(reg):
             d = reg.decisions[i]
             reg.fail("retired", *where, f"{i} is retired here and still an entry at {d['file']}:{d['line']}; an id is entered or retired, "
                      "never both: delete the entry once its reason stands at the holder, or delete this line")
-        ticks = PIN_TICK.findall(r["held"])
-        if not ticks:
-            reg.fail("retired", *where, f"{i}'s *Held by:* names no file; tick the path of each hook, check or test that holds it now")
-        for tok in ticks:
+        for tok in PIN_TICK.findall(r["held"]):
             full = reg.holder(tok)
             if full is None:
                 reg.fail("retired", *where, f"{i}'s *Held by:* names `{tok}`, which is no file under the tree; name the file that holds "
@@ -762,15 +765,23 @@ def cmd_list(reg, what, area):
     print(", ".join(counts))
 
 
+def label(reg, cid):
+    """A cited id's headline, as `show` names it: an entry's, a retired
+    line's marked, or a principle's."""
+    if cid in reg.decisions:
+        return short(reg.decisions[cid]["title"], 60)
+    if cid in reg.retired:
+        return short("retired: " + reg.retired[cid]["title"], 60)
+    return short(reg.principles.get(cid, "?"), 60)
+
+
 def cmd_show(reg, cid):
     code = reg.read_code()
     if cid in reg.decisions:
         d = reg.decisions[cid]
         print(f"{d['file']}:{d['line']}  ({d['area']}; {d['section']})\n\n{d['text']}\n")
         if d["cites"]:
-            print("Names: " + ", ".join(
-                f"{c} ({short(reg.decisions[c]['title'], 60)})" if c in reg.decisions else
-                f"{c} ({short(reg.principles.get(c, '?'), 60)})" for c in d["cites"]))
+            print("Names: " + ", ".join(f"{c} ({label(reg, c)})" for c in d["cites"]))
     elif cid in reg.retired:
         r = reg.retired[cid]
         print(f"{r['file']}:{r['line']}  ({r['area']}; {RETIRED})\n\n{r['text']}\n")
