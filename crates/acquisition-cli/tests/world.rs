@@ -249,27 +249,77 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
 
 /// C6 (the job queue persists; retired, its rule and reason at
 /// `crates/acquisition-daemon/src/daemon/tests/queue.rs`): a daemon that
-/// cannot open its queue refuses to start, naming the file and leaving it as it found it. Run on it would restart ids at 1
-/// and reuse them against the table's history once the file came back.
+/// cannot read its queue refuses to start, naming the file and leaving
+/// what it holds as it found it. Run on it would restart ids at 1 and
+/// reuse them against the table's history once the file came back. Two
+/// worlds, one for each of the start's two reads: a `daemon.db` that is
+/// not SQLite, which the open refuses, and a queue that opens and holds a
+/// waiting row whose priority no job can have, which the restore cannot
+/// read.
 #[test]
-fn c6_a_daemon_that_cannot_open_its_queue_refuses_to_start() {
+fn c6_a_daemon_that_cannot_read_its_queue_refuses_to_start() {
+    use acquisition_store::jobs::{JobDb, JobRow};
     let scratch = scratch("queue");
     let base = &scratch.0;
-    let db = base.join("store").join("mock").join("daemon.db");
-    std::fs::create_dir_all(db.parent().unwrap()).unwrap();
-    let not_a_queue = vec![0x5a_u8; 8192];
-    std::fs::write(&db, &not_a_queue).unwrap();
+    let queue = |store: &str| {
+        let db = base.join(store).join("mock").join("daemon.db");
+        std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+        db
+    };
+    let refused = |store: &str, at: &str| {
+        let (status, stderr) = refused_daemon(daemon_command(base, store));
+        assert!(!status.success(), "the daemon started: {stderr}");
+        assert!(
+            stderr.contains(at)
+                && stderr.contains("daemon.db")
+                && stderr.contains("will not run without its queue"),
+            "{stderr}"
+        );
+    };
 
-    let (status, stderr) = refused_daemon(daemon_command(base, "store"));
-    assert!(!status.success(), "the daemon started: {stderr}");
-    assert!(
-        stderr.contains("daemon.db") && stderr.contains("will not run without its queue"),
-        "{stderr}"
-    );
+    let unopenable = queue("unopenable");
+    let not_a_queue = vec![0x5a_u8; 8192];
+    std::fs::write(&unopenable, &not_a_queue).unwrap();
+    refused("unopenable", "could not open");
     assert_eq!(
-        std::fs::read(&db).unwrap(),
+        std::fs::read(&unopenable).unwrap(),
         not_a_queue,
-        "the refused start rewrote the file it could not read"
+        "the refused start rewrote the file it could not open"
+    );
+
+    let unreadable = queue("unreadable");
+    JobDb::open(&unreadable)
+        .unwrap()
+        .upsert(&JobRow {
+            id: 7,
+            kind: "stash".into(),
+            state: "waiting".into(),
+            priority: 5,
+            submitted_by: "cli".into(),
+            parent: None,
+            retries: 0,
+            account: Some("Exile#1234".into()),
+            params: serde_json::json!({ "league": "Standard", "id": "tab7" }),
+            outcome: None,
+            deferred: None,
+            cancel_requested: false,
+            submitted_at: 1_700_000_000,
+            updated_at: 1_700_000_000,
+            started_at: None,
+            finished_at: None,
+        })
+        .unwrap();
+    let raw = || rusqlite::Connection::open(&unreadable).unwrap();
+    raw()
+        .execute("UPDATE jobs SET priority = 256 WHERE id = 7", [])
+        .unwrap();
+    refused("unreadable", "restore of the persisted queue failed");
+    let priority: i64 = raw()
+        .query_row("SELECT priority FROM jobs WHERE id = 7", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        priority, 256,
+        "the refused start rewrote the row it could not read"
     );
 }
 

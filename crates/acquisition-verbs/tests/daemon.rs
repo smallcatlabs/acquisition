@@ -206,10 +206,11 @@ async fn a_wedged_daemon_cannot_block_the_offline_plan() {
 /// C45 (with no daemon, the ledger on disk; retired, its reason is this
 /// comment): with no daemon to ask, an observer reads the queue from the
 /// ledger on disk — what waits, what was recorded running, when it was
-/// last written — and never answers "no outstanding work": `jobs`,
-/// `status`, `result` and `daemon` answer `running: false` with the
-/// persisted queue beside it, never while a daemon answers, and spawn
-/// nothing. The CLI's text and the MCP's tools over it are held by each
+/// last written — and never answers "no outstanding work": `jobs` and
+/// `daemon` answer `running: false` with the persisted queue beside it,
+/// `status` with the job's row, and `result` gives a finished job's
+/// outcome from disk; none of them reads the ledger while a daemon
+/// answers, and none spawns. The CLI's text and the MCP's tools over it are held by each
 /// binary's `tests/persisted_queue.rs`. A halted daemon idles out with its
 /// queue on disk (C25, a halt leaves jobs waiting), and an observer never
 /// spawns (C10, single-version handshake).
