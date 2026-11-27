@@ -18,6 +18,10 @@ better Acquisition that is agent-friendly and agent-forward.
   through both doors, `acquisition-mcp/tests/goldens/counted_tasks.txt`)
   and A3 (the send gate's fault and its search). A later step that
   claims the tool got easier shows that golden's diff.
+- **The reading trial** (`audits/reading-2026-11/README.md`, change
+  1, at his word): a builder reads its brief and the rulings its files
+  cite, not its area's file. It stands until that audit's sitting is
+  run again (its `seat/`), which is also #220's re-measure.
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
   (`git log --grep='^Step: cut-293'`). #293 stays open.
@@ -93,8 +97,10 @@ His queue is the open issues labelled `trigger:ruling`:
 
 ## Starting a session
 
-1. Read this file, then `decisions/process.md`, then the step's brief
-   or issue and what it names.
+1. A session that orders work reads this file, then
+   `decisions/process.md`, then the step's brief or issue and what it
+   names. A builder launched with a brief reads what `AGENTS.md`,
+   "The workspace", says, and this file only to close a step.
 2. `STATE-2026-10-19.md`, `STATE-2026-10-26.md`, `GUI-NOTES.md`,
    `TIME-SEAM.md`, `TEST-SHAPE.md` and
    `LANGUAGE-RETROSPECTIVE-2026-11-09.md` are dated evidence: read when

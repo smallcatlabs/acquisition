@@ -119,14 +119,17 @@ what fails if it breaks, and says where nothing does yet.
 | `acquisition-cli` (`acq`) | clap, rendering and `acq web`; generated help `CLI-REFERENCE.md` | `decisions/frontends.md` |
 | `acquisition-mcp` (`acq-mcp`) | the stdio MCP frontend, sharing semantics through plan and search; generated tools `MCP-REFERENCE.md` | `decisions/frontends.md` |
 
-Before touching an area, read its rulings file, its section of
-`REVIEW-CHECKLIST.md`, and the module doc you will change; a crate's
-`src/lib.rs` doc (a frontend's `src/main.rs`) names its rulings file at
-the top, and `python3 -I tools/bothy.py pack --path <file>` prints what
-to read before touching a file. Before running `acq` or driving
-`acq-mcp`: `CLI-REFERENCE.md`, `MCP-REFERENCE.md`, or `--help`. Before
-starting or closing a step, or ordering a review:
-`decisions/process.md`.
+Before changing a file, read your brief or issue and what it names,
+the module doc, and the rulings the file and its tests cite:
+`python3 -I tools/bothy.py pack --path <file>` prints those whole and
+the area's other rulings as headlines, and `show C<n>` opens a
+headline that bears on the change. The session that writes a brief
+reads the area's rulings file, which a crate's `src/lib.rs` doc (a
+frontend's `src/main.rs`) names at the top, and names in the brief
+each ruling the builder must hold. Before running `acq` or driving
+`acq-mcp`: `CLI-REFERENCE.md`, `MCP-REFERENCE.md`, or `--help`. Every
+session reads the first section of `decisions/process.md`; before
+ordering or closing a step, or ordering a review, the rest.
 
 ## Cross-cutting rulings
 

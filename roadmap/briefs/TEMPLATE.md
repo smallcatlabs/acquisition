@@ -7,7 +7,8 @@ its issue states the goal and the done-when, and "Rules" and "Report"
 here apply to it unchanged. A brief's own Rules section says
 `TEMPLATE.md` and lists only what differs for the step, and its Report
 section says `TEMPLATE.md`: a copied rule drifts. A brief over 8,000
-bytes is carrying the tree or is two steps.
+bytes is carrying the tree or is two steps. A launch names the brief
+or the issue, and the brief names everything else the builder reads.
 
 ## Goal
 One paragraph: what is true when the step is done, and why it matters.
