@@ -209,3 +209,53 @@ async fn a_cancellation_pending_at_finish_wins_the_terminal_state() {
     assert!(matches!(outcome, Some(Outcome::Cancelled)));
     finish_harness(None, &log);
 }
+
+/// C23: cancelling a parent cancels every descendant. A waiting child
+/// and a waiting grandchild end cancelled at once, sending nothing; a
+/// running child is asked to stop, and its work coming back after is no
+/// success. A component test: a running child needs its start forced,
+/// which no request orders.
+#[tokio::test]
+async fn cancelling_a_parent_cancels_its_descendants() {
+    let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
+    let parent = daemon
+        .submit(
+            "stash".into(),
+            json!({ "league": "Standard", "id": "t1", "deep": true }),
+            0,
+            "t".into(),
+            None,
+        )
+        .unwrap();
+    let start = |id: JobId| {
+        let mut s = daemon.shared.lock().unwrap();
+        s.jobs.get_mut(&id).unwrap().start(daemon.unix_now());
+    };
+    start(parent);
+    let waiting = daemon.submit_child(parent, "stash", json!({})).unwrap();
+    let running = daemon.submit_child(parent, "stash", json!({})).unwrap();
+    start(running);
+    let grandchild = daemon.submit_child(running, "stash", json!({})).unwrap();
+
+    daemon.cancel(parent).unwrap();
+    for id in [waiting, grandchild] {
+        let (info, outcome) = held(&daemon, id).unwrap();
+        assert_eq!(info.state, JobState::Cancelled, "descendant {id}");
+        assert!(matches!(outcome, Some(Outcome::Cancelled)), "{outcome:?}");
+    }
+    assert!(
+        daemon.shared.lock().unwrap().jobs[&running].cancel_requested(),
+        "the running child was not asked to stop"
+    );
+
+    // The running child's work and then the parent's come back: both
+    // end cancelled.
+    daemon.conclude(running, Outcome::Success { payload: json!({}) });
+    daemon.conclude(parent, Outcome::Success { payload: json!({}) });
+    for id in [running, parent] {
+        let (info, outcome) = held(&daemon, id).unwrap();
+        assert_eq!(info.state, JobState::Cancelled, "job {id}");
+        assert!(matches!(outcome, Some(Outcome::Cancelled)), "{outcome:?}");
+    }
+    finish_harness(None, &log);
+}
