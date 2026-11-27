@@ -1,0 +1,26 @@
+Sources were fetched 2026-11-26. Where a page was too long to read in full, I note it. Lines marked "inferred" are my reading, not documented text.
+
+**1. Path-scoped rules** (https://code.claude.com/docs/en/memory.md)
+- **Load trigger:** "A path-scoped rule loads when Claude uses the Read, Write, or Edit tool on a matching file," and also when a matching file is viewed with a Bash command that counts as a read (`cat` or `head` on a single file). Not at session start. Glob and Grep are not mentioned: not documented.
+- **Once or re-injected:** not documented. The page says only that the rule loads on the trigger; whether a repeat match re-injects it is not stated.
+- **Subagents:** the startup list in https://code.claude.com/docs/en/sub-agents.md includes "project rules" in the CLAUDE.md hierarchy. Path-scoped rules are documented only for Explore, Plan and `omitClaudeMd` subagents working in a subdirectory. Other subagents: not documented.
+- **Headless (`-p`):** without `--bare`, a `-p` run "discovers and loads" CLAUDE.md, hooks and so on as an interactive session would; `--bare` skips CLAUDE.md, rules-discovery, auto memory and hooks (https://code.claude.com/docs/en/headless.md). Path-rule behaviour under `-p` is not separately stated.
+- **Worktrees:** a subagent in a default-location worktree under `.claude/worktrees/` does not load that worktree's CLAUDE.md or `.claude/rules/`; it takes them from the main conversation (https://code.claude.com/docs/en/worktrees.md). For a session started in a worktree, memory.md says path rules for files in a sibling worktree need Claude Code started in that worktree. Plain `git worktree add` sessions: otherwise not documented.
+- **Compaction:** path-scoped rules are not re-injected. They are summarized away and "reload on demand" when the trigger file is next read, written or edited. Root CLAUDE.md and unscoped rules are re-injected from disk. To persist a rule, drop `paths:` or move it to root CLAUDE.md (https://code.claude.com/docs/en/context-window.md#what-survives-compaction).
+- **Glob syntax:** patterns are relative to the directory containing `.claude`. Documented forms: `**/*.ts`, `src/**/*`, `*.md`, `/*.md`, `src/components/*.tsx`. A YAML list is the form shown; a comma-separated string is also accepted. Brace expansion works (`src/**/*.{ts,tsx}`), with a budget of 1,000 expanded patterns and 4 MiB per list. `crates/acquisition-daemon/**` fits the documented `dir/**/*` form; a bare `dir/**` example is not shown.
+- **Size:** CLAUDE.md "over 200 lines consume more context and may reduce adherence." Claude Code skips a file over 4 MiB. An on-demand rule over its per-file limit is cut, and Claude sees only the start. The numeric per-file limit is not in the text I read.
+- **AGENTS.md via `@AGENTS.md`:** imports "are expanded and loaded into context alongside the CLAUDE.md that references it" (memory.md, Import additional files). So it is CLAUDE.md content. Root CLAUDE.md is re-injected after compaction. Inferred: the imported text survives too, since it is part of that file. The docs do not say so in words.
+
+**2. Hooks that add context on edit** (https://code.claude.com/docs/en/hooks.md; https://code.claude.com/docs/en/hooks-guide.md)
+- **`additionalContext`:** documented in `hookSpecificOutput` for PreToolUse and PostToolUse (also SessionStart, UserPromptSubmit, Stop and others). PreToolUse: "String added to Claude's context alongside the tool result." It is wrapped in a system reminder at the point the hook fired; Claude reads it on the next request, and it is not shown as a chat message.
+- **Stdin field:** `tool_input.file_path`. The docs say it is always absolute for Write, Edit and Read. Other PreToolUse fields are `tool_name`, `tool_input`, `tool_use_id`; PostToolUse adds `tool_response`.
+- **Matcher:** `Edit|Write` appears in the PostToolUse example. The hooks docs read in part (the page is long; I did not reach the full schema tables), so verify the exact stdin and matcher text against the page.
+- **Subagents:** settings.json hooks fire inside subagents for tool events (https://code.claude.com/docs/en/sub-agents.md, "Define hooks for subagents").
+- **Headless:** without `--bare`, a `-p` run "runs the hooks in a project's `.claude/settings.json`" (headless.md). With `--bare`, they do not run.
+
+**3. Skills** (https://code.claude.com/docs/en/skills.md)
+- Yes, a `paths` frontmatter field exists: "Glob patterns for the files that activate this skill. Accepts a comma-separated string or a YAML list. Patterns are relative to Claude's current working directory." It uses the same glob format as path-specific rules.
+- Not documented: what activation does (full load or listing only), whether it fires on read, edit or both, and how it interacts with `/` menu visibility.
+- Automatic loading is described only by `description` and `when_to_use`: Claude "can load it automatically when relevant." `disable-model-invocation: true` stops that.
+
+**Not documented anywhere I read:** Glob/Grep as rule triggers; whether path rules re-inject on repeat matches; path rules inside general subagents; path rules under `-p`; the numeric per-file limit for on-demand rules; the skill `paths` activation mechanics.
