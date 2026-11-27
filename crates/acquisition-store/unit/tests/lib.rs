@@ -66,14 +66,8 @@ fn a_league_that_left_the_list_is_not_held() {
         "the table keeps the retired row"
     );
     // A failed response is no list: the one before it stands.
-    s.record(
-        &Endpoint::Leagues,
-        &json!({}),
-        503,
-        &leagues(&["Gone"]),
-        70,
-    )
-    .unwrap();
+    s.record(&Endpoint::Leagues, &json!({}), 503, &leagues(&["Gone"]), 70)
+        .unwrap();
     assert_eq!(
         s.league_list().unwrap().map(|l| (l.fetched_at, l.ids)),
         Some((60, vec!["Standard".into(), "Rehearsal".into()]))
@@ -234,34 +228,67 @@ fn stash_ep(id: &str) -> Endpoint {
     }
 }
 
+/// The response's envelope as stored, read back.
+fn envelope_of(s: &Store, response: i64) -> Value {
+    let env: String = s
+        .conn
+        .query_row(
+            "SELECT envelope FROM responses WHERE id = ?1",
+            [response],
+            |r| r.get(0),
+        )
+        .unwrap();
+    serde_json::from_str(&env).unwrap()
+}
+
+/// An item as the response held it, from the rows: its own row's json
+/// with each socketed gem's row put back under `socketedItems`.
+fn item_from_rows(s: &Store, id: &str, gems: &[&str]) -> Value {
+    let mut json = s.item(id).unwrap().unwrap().json;
+    if !gems.is_empty() {
+        json["socketedItems"] = gems
+            .iter()
+            .map(|g| s.item(g).unwrap().unwrap().json)
+            .collect();
+    }
+    json
+}
+
 #[test]
 fn stash_items_are_lifted_and_the_envelope_keeps_the_count() {
     let mut s = Store::open_memory().unwrap();
+    let mut socketed = item("i1", "Foo", 0);
+    socketed["socketedItems"] = json!([item("g1", "Gem", 0)]);
+    let body = stash("a", vec![socketed, item("i2", "Bar", 2)]);
     let ing = s
         .record(
             &stash_ep("a"),
             &json!({"league":"Standard","id":"a"}),
             200,
-            &stash("a", vec![item("i1", "Foo", 0), item("i2", "Bar", 2)]),
+            &body,
             100,
         )
         .unwrap();
-    assert_eq!((ing.items, ing.added), (2, 2));
-    let env: String = s
-        .conn
-        .query_row(
-            "SELECT envelope FROM responses WHERE id = ?1",
-            [ing.response_id],
-            |r| r.get(0),
-        )
-        .unwrap();
-    let env: Value = serde_json::from_str(&env).unwrap();
+    assert_eq!((ing.items, ing.added), (3, 3));
+    // C29 (bodies as received but at the item seams): the envelope with
+    // its count taken out and the rows put back is the response.
+    let mut back = envelope_of(&s, ing.response_id);
+    back["stash"]
+        .as_object_mut()
+        .unwrap()
+        .shift_remove("_split");
+    back["stash"]["items"] = json!([
+        item_from_rows(&s, "i1", &["g1"]),
+        item_from_rows(&s, "i2", &[])
+    ]);
+    assert_eq!(back, body);
+    let env = envelope_of(&s, ing.response_id);
     assert!(env["stash"].get("items").is_none());
     assert_eq!(env["stash"]["_split"]["items"], 2);
     assert_eq!(env["stash"]["metadata"]["colour"], "7c5436");
     let tabs = s.tabs("pc", "Standard").unwrap();
     assert_eq!(tabs.len(), 1);
-    assert_eq!((tabs[0].id.as_str(), tabs[0].item_count), ("a", 2));
+    assert_eq!((tabs[0].id.as_str(), tabs[0].item_count), ("a", 3));
     assert!(s.item("i1").unwrap().unwrap().removed_at.is_none());
 }
 
@@ -810,6 +837,18 @@ fn character_arrays_share_one_location() {
         .record(&ep, &json!({"name":"Hero"}), 200, &body, 1)
         .unwrap();
     assert_eq!(ing.added, 2);
+    // C29: a character's envelope with its counts taken out and each
+    // array's rows put back is the response, the empty array included.
+    let mut back = envelope_of(&s, ing.response_id);
+    let character = back["character"].as_object_mut().unwrap();
+    assert_eq!(
+        character.shift_remove("_split"),
+        Some(json!({ "inventory": 1, "equipment": 1, "jewels": 0 }))
+    );
+    character.insert("inventory".into(), json!([item_from_rows(&s, "inv1", &[])]));
+    character.insert("equipment".into(), json!([item_from_rows(&s, "eq1", &[])]));
+    character.insert("jewels".into(), json!([]));
+    assert_eq!(back, body);
     let inv = s.item("inv1").unwrap().unwrap();
     assert_eq!(
         (inv.location_kind.as_str(), inv.location_id.as_str()),
