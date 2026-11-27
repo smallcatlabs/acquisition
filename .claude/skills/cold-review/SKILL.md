@@ -19,15 +19,10 @@ saved prompt:
 - a build's, with its fix rounds:
   `ls roadmap/reviews | grep '^<step>-' | grep -v -e '-brief-' -e '-prompt\.md$'`
 
-The counts (C176): a build with its fix rounds gets at most three
-reviews, a brief two, and a spike's brief one. A review past its
-count is the owner's word, quoted in the commit that saves it.
-
-- A brief whose last review still finds faults that change what gets
-  built: answer them and build. Order no further review of the brief;
-  the build's own review is the check.
-- A build whose third round still finds such faults: stop and bring
-  the owner what it found.
+Hold the count against C176 (the count of reviews) in
+`decisions/process.md` before launching: it says how many reviews
+each kind of artifact gets, what follows a last round that still finds
+faults, and what a review past the count needs.
 
 ## 2. Launch
 

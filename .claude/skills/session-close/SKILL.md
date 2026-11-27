@@ -42,11 +42,10 @@ commits beside what the step pinned, and asks what the step's pins
 now let it retire (C153, a close retires as it pins).
 
 The message ends with `Co-Authored-By: Claude <model>
-<noreply@anthropic.com>`, which the commit-msg hook writes as
-`Assisted-by:` (C184, the commit trailer). In an agent's shell the
-hooks refuse a commit, a merge or a revert whose message names no
-assistant, and print the line to add; a revert takes `--no-commit`,
-then `git commit` with the line.
+<noreply@anthropic.com>`, which `.githooks/commit-msg` writes as
+`Assisted-by:`; the rule is the hooks' (C184, the commit trailer,
+retired to them). A hook that refuses a commit prints the line to add;
+a revert takes `--no-commit`, then `git commit` with the line.
 
 What else a session writes back, and where, is `AGENTS.md`, "Where
 things live": a ruling to its area file, a finding to a test or the
@@ -55,34 +54,25 @@ and the regenerated references. Nothing else needs a home.
 
 ## 3. A step's close
 
-The close is one commit, and its message is the step's record
-(`decisions/process.md`, C178). It:
+What the close's message carries is C178 (the close commit), and
+what it does to the road is C180 (the state file), both in
+`decisions/process.md`: read them before writing it. The mechanics:
 
-- checks the brief's or the issue's done-when line by line against
-  the tree;
-- answers each item the builder raised: taken, filed as an issue, or
-  not taken and why;
-- names what was retired and what was left open, each with its home
-  (an issue, a "Not doing" line, or the reason);
-- ends with the trailer `Step: <step id>`, above the `Co-Authored-By:`
-  line, so `git log --grep='^Step: '` lists the closed steps; the id
-  is the brief's file name without `.md` (`governance-tools-2`), or
-  for an issue with no brief its area and number (`search-179`), and
-  its saved reviews carry the same id;
-- closes the step's issue, if it has one, naming the close's commit;
-- rewrites `roadmap/README.md` where the step moved what it says:
-  "Now", "Next" and "Waiting on the owner" as they stand after this
-  step, with nothing of what they said before. A step the road never
-  named leaves it unchanged, and the message says so.
+- The trailer is `Step: <step id>`, above the `Co-Authored-By:` line,
+  so `git log --grep='^Step: '` lists the closed steps. The id is the
+  brief's file name without `.md` (`governance-tools-2`), or for an
+  issue with no brief its area and number (`search-179`), and the
+  step's saved reviews carry the same id.
+- The step's issue, if it has one, is closed naming the close's
+  commit: `(closes #<n>)` in the subject does it when the commit
+  reaches `main`.
+- In `roadmap/README.md`, "Now", "Next" and "Waiting on the owner" are
+  written as they stand after the step; where they already stood true,
+  the message says the road is unchanged.
 
-A decision in the owner's classes that the step needs or took is an
-issue labelled `trigger:ruling` (C179), filed before the close. A
-question stays open; a decision taken under his delegation is closed
-as it is filed, its title beginning `Taken under delegation:`, and he
-reopens it to reverse it. A question about what the code does names
-the test that shows it. The close says how many such issues are open
-(`gh issue list --label trigger:ruling`). Nothing is left "for his
-later read".
+A decision in the owner's classes that the step needs or took is filed
+before the close, as C179 (what reaches him) says, and the close says
+how many are open: `gh issue list --label trigger:ruling --state open`.
 
 ## 4. Before a push
 
