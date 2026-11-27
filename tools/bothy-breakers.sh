@@ -240,8 +240,9 @@ n=$((n+1))
 if out=$(pack tools/x.sh) && [[ $out == *'- **C3 —'*'No area governs `tools/x.sh`'*'falls in `store`'* ]]; then echo "ok      pack      an ungoverned tool is answered with the areas of what it cites"; else echo "MISSED  pack      an ungoverned tool citing a ruling was refused or named no area:"; echo "$out"; bad=1; fi
 n=$((n+1))
 if out=$(pack tools/y.sh) && [[ $out == *'No area governs `tools/y.sh`'*'cites no ruling by id'* ]]; then echo "ok      pack      an ungoverned tool citing nothing is answered in words"; else echo "MISSED  pack      an ungoverned tool citing nothing was refused:"; echo "$out"; bad=1; fi
-# A file that cites only a retired id holds it: the pack says so, with the
-# id's area, and never that the file cites nothing.
+# A retired id a file cites is named with its area and the holders its
+# retired line names, never as nothing cited: here @3 retires to
+# tools/z.sh, which cites it, and read.rs cites it and holds nothing.
 ids <<PY | python3 -I - "$tmp"
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])
