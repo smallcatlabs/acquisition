@@ -1093,7 +1093,8 @@ PY
 printf '%s\n' "$production"
 
 # ---- 16. an excluded mutant stands where its pattern says ----------------
-# C200. `.cargo/mutants.toml` lists the mutants the daemon's tests cannot
+# C200 (an excluded mutant's line; retired, its reason is this comment).
+# `.cargo/mutants.toml` lists the mutants the daemon's tests cannot
 # tell apart, each by its line, because the same operator elsewhere in its
 # function is caught and must stay tested. An edit above a listed line
 # moves it, and the weekly run then reports the mutant as missed, days

@@ -1,6 +1,9 @@
 #!/bin/sh
-# The pre-push hook (`decisions/process.md`, C186, the committer on
-# `main`). `main` takes no commit whose committer is Claude: a cloud
+# The pre-push hook, the home of C186 (the committer on `main`; retired,
+# its reason is this comment). `main` takes no commit whose committer is
+# Claude, since every commit on `main` is committed and signed by the
+# owner's own key, and a rule a session's memory held alone was a
+# reading, not structure (C182, structure before a rule). A cloud
 # session commits with the owner as author and Claude as committer, and
 # such a commit is committed again here, keeping its author and message,
 # before it reaches `main`. This hook refuses a push to `main` that
@@ -8,7 +11,11 @@
 # to any other branch is not read, so a cloud branch still reaches
 # GitHub. A merge made on GitHub's site is no push and passes no hook;
 # GitHub commits a squash or a rebase merge as itself. `--no-verify`
-# skips this hook, as it skips every one.
+# skips this hook, as it skips every one. No server-side rule refuses
+# such a commit, since GitHub's free plan offers none: CI's committer
+# check (`tools/committer-check.sh`), reading this hook's own test of a
+# committer (`claude-committers`), reports one pushed past it as a red
+# run.
 #
 # The commits read are those the push adds after the remote's tip when
 # this clone has that tip, and otherwise every commit the pushed one

@@ -2,13 +2,15 @@ name: Keychain round trip
 
 # The daemon's keyring round trip against the macOS Keychain
 # (acquisition-daemon/src/auth.rs, `keyring_round_trip_survives_a_fresh_entry`;
-# C199, one Keychain job run twice), the one platform a release names
+# C199, one Keychain job run twice; retired, its reason is this
+# comment), the one platform a release names
 # that no gate runs it on: Linux's gate runs it against gnome-keyring,
 # Windows's against Credential Manager. The runner user's login
 # keychain, unsigned test binary: it proves the backend round-trips
 # through a fresh Entry, not the signed archive's item ACL.
 #
-# Its one definition, run in three places:
+# Its one definition, since a job copied into two workflows drifts
+# apart, run in three places:
 # - `release.yml`, on every dispatch and tag, whose `draft` needs it, so
 #   a tag's release is not drafted until the pass is earned on the tagged
 #   commit;

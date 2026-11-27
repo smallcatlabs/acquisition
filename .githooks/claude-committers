@@ -1,9 +1,9 @@
 #!/bin/sh
 # claude-committers <revision range>... — the one test of a committer
-# for C186 (`decisions/process.md`, the committer on `main`), read by the
-# pre-push hook and by CI's committer check (`tools/committer-check.sh`),
-# so the two cannot disagree. git never runs this file: it is no hook's
-# name.
+# for C186 (the committer on `main`, the pre-push hook's comment), read
+# by the pre-push hook and by CI's committer check
+# (`tools/committer-check.sh`), so the two cannot disagree. git never
+# runs this file: it is no hook's name.
 #
 # It prints one line per commit in the range whose committer's name is
 # Claude or whose address is at anthropic.com, and exits 1 when it

@@ -1,5 +1,8 @@
 #!/bin/sh
-# The commit-msg hook (`decisions/process.md`, C184, the commit trailer).
+# The commit-msg hook, the home of C184 (the commit trailer; retired, its
+# reason is this comment): a commit made from an agent's shell names its
+# assistant in an `Assisted-by:` trailer, since disclosure that depended
+# on each session remembering a line was forgotten more than once.
 # It rewrites Claude's "Co-Authored-By:" trailer to "Assisted-by:", and
 # leaves a human co-author's trailer alone. In an agent's shell, which
 # sets CLAUDECODE (at any value; a person's terminal does not), it then

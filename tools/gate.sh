@@ -24,14 +24,17 @@
 # <stage>`), the stage, its exit status and its seconds. A record that
 # cannot be written costs one line on stderr, never the verdict.
 #
-# The `artifacts` stage hashes the three executables a frontend spawns
+# The `artifacts` stage (C197, the test run's executables; retired, its
+# reason is this comment) hashes the three executables a frontend spawns
 # or a driver starts (`acq`, `acqd`, `acq-mcp` in cargo's `debug`
 # directory), runs `cargo build --workspace`, and fails if the build
-# compiled anything or any hash moved. A
-# `--workspace` test run writes them as the plain build does (one
-# feature graph for both, and an integration test in every binary's
-# crate, so cargo writes each binary on a test run), and the stage holds
-# that at the boundary, what the test run leaves on disk. It still
+# compiled anything or any hash moved. A `--workspace` test run writes
+# them as the plain build does (one feature graph for both, and an
+# integration test in every binary's crate, so cargo writes each binary
+# on a test run), and the stage holds that at the boundary, what the
+# test run leaves on disk: the build order owes no build after a test
+# run (`AGENTS.md`, "Hard rules"), and a daemon spawned from an
+# executable a test run left behind is an artifact mismatch. It still
 # performs the build, unless an executable could not be hashed before
 # it, so a failing gate leaves the plain artifacts behind for any daemon
 # started after it (C84, the artifact mismatch). CI runs the stages
@@ -79,12 +82,16 @@
 # that compares, so a gate run in a shell that exports it would rewrite
 # every golden and go green.
 #
-# C196 (the gate builds the docs): the `doc` stage is `cargo doc` over
-# the workspace's own crates with warnings denied, so a broken intra-doc
-# link, a public doc naming a private item among them, fails the full
-# gate before a push. It is warm in a second with nothing changed, and
-# rebuilds the docs of a changed crate and of every crate above it. The
-# Linux gate's `doc` job runs the same stage on every push.
+# C196 (the gate builds the docs; retired, its reason is this comment):
+# the `doc` stage is `cargo doc` over the workspace's own crates with
+# warnings denied, so a broken intra-doc link, a public doc naming a
+# private item among them, fails the full gate before a push. A session
+# pushes on a local green (C171, commit and push on green), and the
+# links that broke were in doc comments nobody knew they had touched,
+# which a rule to build them by hand cannot catch. It is warm in a
+# second with nothing changed, and rebuilds the docs of a changed crate
+# and of every crate above it. The Linux gate's `doc` job runs the same
+# stage on every push.
 #
 # The full gate ends with `tree`: the working tree its stages leave must
 # be the one they found. A session gates its uncommitted work, so

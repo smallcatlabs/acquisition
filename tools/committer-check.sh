@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# committer-check.sh <before> <after> — CI's report of C186
-# (`decisions/process.md`, the committer on `main`): a push to `main`
+# committer-check.sh <before> <after> — CI's report of C186 (the
+# committer on `main`, the pre-push hook's comment): a push to `main`
 # that carries a commit whose committer is Claude fails the run. The
 # plan offers no server-side rule that refuses such a push, and the
 # pre-push hook is skipped by `--no-verify` or a clone without

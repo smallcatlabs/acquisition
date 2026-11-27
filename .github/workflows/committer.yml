@@ -1,6 +1,6 @@
 name: Committer
 
-# C186 (`decisions/process.md`, the committer on main): main takes no
+# C186 (the committer on main, the pre-push hook's comment): main takes no
 # commit whose committer is Claude. The pre-push hook refuses one, but
 # `--no-verify` skips it and a clone without `core.hooksPath` has none,
 # and the plan offers no ruleset rule that refuses one server-side. This
