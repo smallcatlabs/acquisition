@@ -7,10 +7,13 @@
 //!
 //! # Rulings held here
 //!
+//! Each is retired, its rule and reason the comment under its id at the
+//! test in `unit/tests/listing.rs` that holds it.
+//!
 //! - **C69** (a listing's two sides).
 //! - **C70** (a priced tab covers its children).
-//! - **C81** (the most specific statement wins): a prior forum post is
-//!   never a side (T6).
+//! - **C81** (the most specific statement wins): [`PricingSnapshot`]
+//!   carries no forum post, so none is a side (T6).
 //! - **C80** (the nameable tab): a map or unique substash has the game's
 //!   own name and no `public`, so an item in one reads its note, then the
 //!   parent's name and `public`, the substash's name reported verbatim

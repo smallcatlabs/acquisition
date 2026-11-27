@@ -17,7 +17,11 @@ fn price(amount: &str, tag: &str) -> Price {
     }
 }
 
-/// C69, T10 — every note the game wrote reads as the game meant it:
+/// C69 (a listing's two sides; retired, its rule and reason at
+/// `listing.rs`): this file holds the game side's reading of a note and
+/// a tab name, as exact, negotiable, a ratio or `skip`, or as nothing.
+///
+/// T10 — every note the game wrote reads as the game meant it:
 /// `~skip ` is skip, the empty amount is invalid (never "no price"),
 /// `~b/o` is negotiable, everything else is exact; the amount's
 /// canonical text is the note's own and the currency is the tag of

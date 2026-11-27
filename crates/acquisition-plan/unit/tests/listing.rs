@@ -272,11 +272,20 @@ fn get<'a>(report: &'a ListingReport, target: &PriceTarget) -> &'a Listing {
         .unwrap_or_else(|| panic!("no listing for {target}"))
 }
 
-/// C69 — the game side reads the note, then the tab name, as a price
-/// or `skip`; an invalid note has no effect and the tab applies (T18);
-/// the raw texts ride beside every reading; a note where the index
-/// cannot see it is residue; the relation names both sides; the
-/// versions are stamped.
+/// C69 (a listing's two sides; retired, its rule and reason are this
+/// comment): a listing is two independent resolutions, their relation,
+/// and the effective price (C81, the most specific statement). The
+/// manual side resolves by C70's rules (tab coverage); the game side
+/// reads the note, then the tab name, as a price (exact, negotiable or a
+/// ratio) or `skip`; any other text has no effect and is shown as
+/// written, and past such a note the tab applies (T18, a note the site
+/// cannot read; T11, a tab priced by its name). The relation is manual-only, game-only, agree,
+/// conflict or none. Each result carries both sides with causes,
+/// revisions, basis, versions and the raw texts. The four statements are
+/// resolved apart because fused into one they would need locks, and the
+/// site's display states are not modelled. This test holds the two
+/// sides, the five relations and what a result carries; `game_side.rs`
+/// holds each reading of a note and a tab name.
 #[test]
 fn c69_two_sides_resolve_independently_and_the_relation_names_both() {
     let report = resolve(&snapshot()).unwrap();
@@ -504,8 +513,20 @@ fn c81_a_note_that_cannot_be_read_leaves_the_price_unresolved() {
     assert_eq!(report.counts.by_effective["unresolved"], 3);
 }
 
-/// C81 — the effective price is the more specific statement, the
-/// game's on a tie; only a public tab's game side is a statement.
+/// C81 (the most specific statement; retired, its rule and reason are
+/// this comment): the effective price is the most specific statement,
+/// the game's on a tie, and only a public tab's game side is a
+/// statement. The levels are C70's (tab coverage); the game speaks at
+/// item level (a note) and tab level (a name, C80, the nameable tab). A
+/// note or name in a non-public tab is invisible to the index (T1, the
+/// two indexed channels): residue, shown, never a side. A prior forum
+/// post is never a side: the snapshot `resolve` reads carries none (T6).
+/// A row that cannot be read, at a level that could decide, leaves the
+/// price unresolved, never the game's by default. A price reaches the
+/// world only through the site's index, and a page must not contradict
+/// what the site already shows. This test holds the levels, the tie,
+/// residue and an unreadable row; the test above holds a note the store
+/// could not read.
 #[test]
 fn c81_the_effective_price_is_the_most_specific_statement_and_the_games_on_a_tie() {
     let report = resolve(&snapshot()).unwrap();
@@ -742,9 +763,19 @@ fn the_report_json_matches_the_committed_fixture() {
     assert_eq!(back, report);
 }
 
-/// C70 — the manual side by specificity: the own row, else the
-/// substash's, else the tab's, else the folder's; a character row
-/// covers its items; coverage is a row's existence, never its type.
+/// C70 (a priced tab covers its children; retired, its rule and reason
+/// are this comment): a priced tab covers that tab and its children, as
+/// a policy id does (C37, a tab covers its children). A substash row
+/// overrides its parent's for that substash; an item row overrides both;
+/// a character row covers its items. Coverage is the manual side's
+/// inheritance only and says nothing of eligibility (C74, the shop
+/// render). Tab-scoped intent has one shape for both kinds. This test
+/// holds the walk by specificity (the own row, else the substash's, else
+/// the tab's, else the folder's; a row's existence, never its type) and
+/// a character's row; the chain the walk takes, item then substash then
+/// tab, is the coverage test's below, and an unreadable substash row
+/// that stops the walk before its parent's is C81's test. The shop's
+/// real-scale count in `shop.rs` blocks the items a substash row covers.
 #[test]
 fn c70_the_manual_side_resolves_by_specificity() {
     let report = resolve(&snapshot()).unwrap();
@@ -823,9 +854,13 @@ fn c70_the_manual_side_resolves_by_specificity() {
     );
 }
 
-/// C80 — a substash reads its parent's name and `public`, its own
-/// name beside; a folder child reads itself; a folder's name is never
-/// a price, for the folder or through it.
+/// C80 (the nameable tab; retired, its rule and reason are this
+/// comment): the game side's tab for a nested item is the tab a user can
+/// name and publish. A substash reads its parent's name and `public` and
+/// reports its own name beside them; a folder child reads itself; a
+/// folder's name is never a price, for the folder or through it. A
+/// substash has no settable name or `public` of its own, and a folder is
+/// a grouping, not a tab.
 #[test]
 fn c80_a_substash_reads_its_parent_a_folder_child_itself_and_a_folder_never() {
     let report = resolve(&snapshot()).unwrap();
