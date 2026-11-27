@@ -65,6 +65,19 @@ fn a_league_that_left_the_list_is_not_held() {
         3,
         "the table keeps the retired row"
     );
+    // A failed response is no list: the one before it stands.
+    s.record(
+        &Endpoint::Leagues,
+        &json!({}),
+        503,
+        &leagues(&["Gone"]),
+        70,
+    )
+    .unwrap();
+    assert_eq!(
+        s.league_list().unwrap().map(|l| (l.fetched_at, l.ids)),
+        Some((60, vec!["Standard".into(), "Rehearsal".into()]))
+    );
 }
 
 /// C126: the list is the response recorded last, never the one whose
