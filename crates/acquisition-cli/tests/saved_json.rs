@@ -664,8 +664,10 @@ fn the_printed_run_carries_the_account_and_every_offer_runs_with_two_accounts() 
     let [offer] = conflict["offers"].as_array().unwrap().as_slice() else {
         panic!("{conflict}")
     };
+    // by its words: the id is minted, and PowerShell quotes one it would
+    // read as a number (C156)
     let line = harness::offered_line(offer);
-    assert_eq!(line, format!("acq saved show {id}"));
+    assert_eq!(shell_words(&line), ["acq", "saved", "show", id.as_str()]);
     assert_eq!(run_printed(&base, &line)["revision"], 3);
 }
 
