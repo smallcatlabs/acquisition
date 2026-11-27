@@ -321,13 +321,20 @@ to all three of your questions". Read against each question:
    clause (the two class readers agreed on 129 of 194), and it changes
    the words of rulings in his classes, so each area's shed is a
    commit he can read, reviewed cold.
-3. **Not answered by a yes.** The question asked which of two
-   rulings stands, and the record gave no recommendation. It is put
-   to him again as one choice. The census's own view, offered with
-   it: C170 stands and C101's last clause is cut, because C170 is
-   the later ruling and `AGENTS.md` states it among the hard rules.
-   Whether query words built since were recorded as rulings first was
+3. **C170 stands, and C101's last clause is cut.** A yes did not
+   answer a question that asked which of two rulings stands, so it
+   was put to him again as one choice with the census's view: C170
+   stands, because it is the later ruling and `AGENTS.md` states it
+   among the hard rules. His answer, the same day: "Sorry, I accept
+   your view." A query word is a session's to design, recorded in the
+   commit that builds it, and the sentence "A change to what a user
+   types is recorded as a ruling before the code, under the owner's
+   delegation" leaves C101 when the retiring step amends it. Whether
+   query words built since C170 were recorded as rulings first was
    not checked.
+
+He was told the reading of answer 2 in the same message and did not
+change it.
 
 None of this is acted on by the census. It is what the retiring
 step's brief starts from.
