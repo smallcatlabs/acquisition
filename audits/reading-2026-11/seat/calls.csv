@@ -1,0 +1,45 @@
+n,tool,input
+1,Bash,wc -c AGENTS.md CLAUDE.md ~/.claude/CLAUDE.md decisions/*.md REVIEW-CHECKLIST.md GLOSSARY.md roadmap/README.md HISTORY.md TESTING-NOTES.md README.md CLI-REFERENCE.md MCP-REFERENCE.md RUN-LEDGER.md SEAT-LEDGER.md 2>&1; ls .claude/skills roadmap roadmap/briefs | head -60
+2,Bash,gh issue view 200 2>&1 | head -60
+3,Bash,wc -c AGENTS.md CLAUDE.md decisions/*.md REVIEW-CHECKLIST.md GLOSSARY.md roadmap/README.md HISTORY.md TESTING-NOTES.md README.md CLI-REFERENCE.md MCP-REFERENCE.md RUN-LEDGER.md SEAT-LEDGER.md
+4,Bash,gh issue list --label trigger:step --limit 30
+5,Bash,gh issue view 212
+6,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/decisions/process.md
+7,Bash,gh issue view 212 --comments
+8,Bash,ls; ls crates 2>&1 | head; ls .claude/skills roadmap roadmap/briefs
+9,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/roadmap/README.md
+10,Bash,python3 -I tools/bothy.py pack --path crates/acquisition-store/src/lib.rs
+11,Bash,python3 -I tools/bothy.py pack --path crates/acquisition-store/src/lib.rs | wc -c; python3 -I tools/bothy.py show C193; python3 -I tools/bothy.py list | tail -5
+12,Bash,python3 -I tools/bothy.py list | grep -oE '^C[0-9]+|\bC[0-9]+\b' | sed 's/C//' | sort -n | tail -3; python3 -I tools/bothy.py list | head -8
+13,Bash,"wc -c tools/bothy.py; python3 -I -c ""import ast,sys;print(ast.get_docstring(ast.parse(open('tools/bothy.py').read())))"""
+14,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/tools/bothy.py
+15,Bash,wc -c tools/bothy.py GLOSSARY.md CONTRIBUTING.md roadmap/briefs/TEMPLATE.md roadmap/briefs/REVIEW-PROMPT.md .claude/skills/*/SKILL.md tools/gate.sh tools/docs-check.sh
+16,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/.claude/skills/session-close/SKILL.md
+17,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/.claude/skills/cold-review/SKILL.md
+18,Bash,grep -n '^#' REVIEW-CHECKLIST.md GLOSSARY.md TESTING-NOTES.md
+19,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/GLOSSARY.md
+20,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/REVIEW-CHECKLIST.md
+21,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/REVIEW-CHECKLIST.md
+22,Bash,"git grep -n -i ""is locked\|store is locked\|locked by\|holds the lock\|another daemon"" -- 'crates/*.rs' | grep -v '^\s*//' | head -30"
+23,Bash,"git grep -n -i ""busy\b.*\(try\|again\|wait\)\|still busy\|is busy"" -- 'crates/*/src/*.rs' 'crates/*/src/**/*.rs' | head -20; ls crates/acquisition-cli/tests/goldens crates/acquisition-mcp/tests/goldens 2>&1 | head -40"
+24,Bash,"git grep -l -i ""is busy\|another daemon holds this world\|database is locked"" -- crates/acquisition-cli/tests/goldens crates/acquisition-mcp/tests/goldens CLI-REFERENCE.md MCP-REFERENCE.md README.md; git grep -n ""HELD"" crates/acquisition-store/src/annotations.rs | head -3"
+25,Bash,python3 -I tools/bothy.py list decisions --area frontends
+26,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/crates/acquisition-cli/tests/goldens/price_json/a_busy_intent_file.txt
+27,Bash,"git grep -n ""is busy: another process\|another process held it"" -- crates | grep -v 'goldens/' "
+28,Bash,wc -c audits/whole-review-2026-11/NEXT.md audits/meta-2026-11/README.md roadmap/briefs/4-full-design-prompt.md; ls roadmap/briefs | grep -i 'next-\|a4'; git log --grep='^Step: next-' --format='%h %s' | head
+29,Bash,grep -n -i 'A4\|^#\|decision 1\|owner' audits/whole-review-2026-11/NEXT.md | head -60
+30,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/audits/whole-review-2026-11/NEXT.md
+31,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/audits/whole-review-2026-11/NEXT.md
+32,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/audits/whole-review-2026-11/NEXT.md
+33,Bash,grep -n -i '^#\|A4\|B1\|order\|amend\|next' audits/meta-2026-11/README.md | head -60
+34,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/audits/meta-2026-11/README.md
+35,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/audits/meta-2026-11/README.md
+36,Bash,gh issue list --label trigger:ruling --state open --limit 30
+37,Bash,grep -n -i 'no UI\|no gui\|acq web' README.md | head
+38,Bash,gh issue list --label trigger:ruling --state closed --limit 8
+39,Bash,grep -n -i 'decisions/\|cross-cutting\|18\b\|Decided\|Ruled' tools/docs-check.sh | head -30
+40,Bash,ls crates/acquisition-daemon/src/ratelimit/tests/spec.rs .cargo/mutants.toml .config/nextest.toml crates/acquisition-daemon/src/mockggg.rs crates/acquisition-client/tests/harness/mod.rs roadmap/briefs/BRIEF-REVIEW-PROMPT.md SURFACES.md .githooks 2>&1; grep -c . roadmap/briefs/TEMPLATE.md
+41,Bash,grep -n -E 'STAGES|stages=|for stage|^\s*(build|test|clippy|winclippy|doc|fmt|diff|docs|arch|trade|bothy|features|artifacts|tree)\)' tools/gate.sh | head -20; grep -n -i 'docs)' tools/gate.sh | head
+42,Bash,"grep -n -E '^(ALL|DOCS|FULL)=|^\s*(ALL|DOCS|FULL)=\(' tools/gate.sh; sed -n '/^DOCS=/,/)/p;/^ALL=/,/)/p' tools/gate.sh | head -20"
+43,Bash,grep -n -E 'DOCS=|ALL=|STAGES=' tools/gate.sh
+44,Read,/Users/tom/seat-worlds/reading-2026-11/before/tree/tools/gate.sh

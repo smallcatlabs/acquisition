@@ -296,6 +296,38 @@ first of the corrections in change 5 is thereby made.
 
 Then change 1, put the same way.
 
+## The baseline, taken before any change
+
+Taken on 2026-11-26 at `b2cd41a8`, at the owner's word, so that the
+changes can be read against it. Each number has the command that
+makes it again.
+
+| Number | Before | How it is made again |
+| --- | --- | --- |
+| The sitting at the instructions | per task, in KB, always loaded + required + ambiguity: 22 + 116 + 13, 22 + ~84 + 7, 22 + 63.7 + 2.5, 22 + ~47 + ~4; eleven stops | `seat/README.md`; the run is `audits/governance-2026-11/seat/BRIEF.md`'s with `seat/PROMPT.md` |
+| Serious findings per first build review | 84 in 86 reviews, 0.98 each; 38 of 86 clean; 10 with a P1 | `scripts/guard.py 2026-11-10`, after `scripts/findings/reviews.py` |
+| Reviews per step | mean 1.59; 51 steps took one, 20 two, 14 three, 1 four | the same |
+| What 40 builders read before a first edit | `process.md` 36, the brief 32, the road 29, the area file whole 11, the pack 2; a median of 39.6 KB and 180k tokens of context | `scripts/transcripts/`, `extract.py` then `scope.py`, `analyse.py` and `report.py`; `reports/what-builders-read.md` |
+| The owner's ruling issues | 23 since 2026-11-09: 18 in the first week, 3 in the second, 2 in the third | `gh issue list --label trigger:ruling --state all --limit 100 --json number,title,createdAt` |
+
+What the baseline says that the audit did not.
+
+- **The largest reading cost the sitting met is none of the six
+  changes.** The road's first "Next" item points into two audit pages,
+  58 KB together, and the runner read 47 KB to name the next step,
+  against 20.9 KB on 2026-11-10. C180 says a session takes the first
+  item of "Next" without a planning session.
+- **The owner's queue has already fallen.** Eighteen of his 23 ruling
+  issues came in the week of the governance rebuild. His answer on who
+  owns process saves about one question a week at today's rate.
+- **The sitting's task 1 cannot be compared with the earlier run's.**
+  Issue 200 is closed and the fallback is a larger issue. The
+  after-run uses the same prompt, so it meets the same issue while
+  issue 212 is open.
+- **The guard is coarse.** At 0.98 serious findings per first review
+  over 86 steps, ten or fifteen later builds can show a halving or a
+  doubling and little between.
+
 ## After the skeptic
 
 | The draft said | What it met | Now |
@@ -348,5 +380,9 @@ instructions outside the registry. The harness's guide answered one
 question about rule files and hooks. An Opus skeptic read the draft.
 The reports are saved from the transcripts by
 `audits/meta-2026-11/scripts/save_report.py`, with the scratch
-directory's path shortened. The readers' own scripts stayed in scratch
-and are not in the tree.
+directory's path shortened. The readers' own scripts are under
+`scripts/`, one directory to a reader, with the checkout's path made
+relative: they run from the repository's root and write their working
+files to `/tmp/reading-2026-11/` or beside themselves, where
+`scripts/.gitignore` keeps them out of the tree. They were not run
+again after that edit, but for `findings/reviews.py`.
