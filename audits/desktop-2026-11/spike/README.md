@@ -6,12 +6,15 @@ app, or does it need a native toolkit? It is answered by a throwaway
 window the owner sits at over a copy of his own stash, built, watched
 and changed. This file names the rig and the bar before any judged run.
 The runs, the sitting and the verdict follow it in later commits.
+`rig-2.patch` is the rig as the build's review left it (below, "The
+review's answers"); `rig-1.patch` is the rig that review read.
 
 ## The rig
 
 A package of its own, `spikes/desktop-rig`, in a lane (a `cp -cR` clone
-of the main tree at `9f5594c1`), never committed as code. `rig-1.patch`,
-beside this file, is the lane's whole diff from `9f5594c1`: the package,
+of the main tree at `9f5594c1`), never committed as code. Each
+`rig-<n>.patch` beside this file is the lane's whole diff from
+`9f5594c1`, the newest the rig as it stands: the package,
 and the two lines that add it to the workspace (`Cargo.toml`'s members,
 and `Cargo.lock`'s entry for the package itself, the one change the lock
 takes: no crate is added, and the rig builds `--offline`). It applies to
@@ -19,7 +22,7 @@ its base, from the repository's root:
 
 ```sh
 git worktree add --detach <dir> 9f5594c1
-git -C <dir> apply --check "$PWD/audits/desktop-2026-11/spike/rig-1.patch"   # exit 0
+git -C <dir> apply --check "$PWD/audits/desktop-2026-11/spike/rig-2.patch"   # exit 0
 ```
 
 Applied there, each file it makes is the lane's byte for byte (`cmp`
@@ -41,7 +44,10 @@ What it is, read off the working window:
   bundler, no Node) that draws what the server answers and keeps no
   state the server cannot rebuild from what the page sends: the form's
   text, the league, the view, which places the person opened or closed,
-  the order, and the window of rows wanted.
+  the order, the item opened, and the window of rows wanted. All but the
+  window are written into the page's URL as they change, so a reload
+  asks the same (C16, the page's identity is its URL); the scroll
+  position is not.
 - **Every list is an answer.** The tree's places are the search crate's
   places document (`Places::tabs`, `Places::characters`) for the league,
   asked the query; a place's rows are its own request's answer; the flat
@@ -53,9 +59,13 @@ What it is, read off the working window:
 - **Reads only.** The start script runs the rig over a fresh clone of
   the store copy under the read environment of
   `audits/whole-review-2026-11/INVESTIGATOR.md`; no daemon starts and
-  nothing is sent to GGG. The facts open read-only (`Account::facts_read`)
-  and nothing is written through the store; the file the rig writes is
-  the sitting's log.
+  nothing is sent to GGG. The facts and the intent each open through the
+  store's read-only door (`Account::facts_read`;
+  `Annotations::open_read_only_for`, by the account's uuid, since the
+  verbs' door opens the intent for writing), never made nor migrated
+  (C124, a reading tool opens the store read-only). The file the rig
+  writes is the sitting's log. A session over a fresh clone left each of
+  its 23 files as `shasum -a 256` found them before.
 - **A check of its rows**: `desktop-rig --check <league>`, under the read
   environment, opens every
   place of the league under no query and three, and fails unless the
@@ -80,7 +90,10 @@ It clones `runs/desktop-spike/store-2026-11-24` with `cp -cR` into
 the window as a Chrome app window (no tabs, no address bar) at the C++
 app's size, on a profile of its own under `runs/desktop-spike/profile`
 with Chrome's background networking off. Closing the window stops the
-rig. Every act goes to `runs/desktop-spike/logs/sitting-<time>.jsonl`.
+rig, a second after the window, so the page's last acts land. Every
+act goes to `runs/desktop-spike/logs/sitting-<time>.jsonl` as soon as
+its paint is timed; one the server does not take is kept and sent again,
+and the status bar says how many wait.
 
 ## What the C++ app does, which the rig follows
 
@@ -153,6 +166,9 @@ derives from the C++ tree).
   and its cell. No upload and no copy for Path of Building.
 - **Keys**: Up and Down select the next item and open it; the C++ tree's
   Left and Right are not built.
+- **No Back.** A change replaces the URL rather than adding to the
+  history; the C++ app has no Back, and a design that wants one decides
+  which acts are a new entry.
 - **A head shows its count**, the matches under a query, its items
   otherwise.
 
@@ -178,6 +194,9 @@ Each is the engine's to have, or to rule out, in a design. Each is in
   place's own answer.
 - **Card**: the item's card from the answer to its id with the item
   asked.
+- **Read door**: the intent opened read-only by the account's uuid; the
+  verbs' door has a read-only opener for the facts and none for the
+  intent.
 
 ## How an act is timed
 
@@ -198,7 +217,16 @@ the result it asked for:
 - **The result it asked for**: a keystroke, a sort, a view or a league,
   the list answered for it; an expansion, the tree with the place opened
   or closed; a click, the item's card; a scroll, the rows at the scrolled
-  place. An answer carries its basis, which the act records.
+  place. An answer carries its whole basis (C98's: the store and account,
+  the snapshot, the intent revision, the build and every table's
+  version), which the act records; a scroll drawn from rows already held
+  records the basis those rows were answered at.
+- **One answer painted before the next is asked.** Each kind of answer
+  (the view, the card) has one request in flight, and the next is sent
+  only once the answer before it has been painted, so no answer is
+  replaced in the DOM before its frame: an act logged as answered was
+  drawn. Each act records its send and its paint (`t_send`,
+  `t_paint`).
 - **Overtaken**: an act waiting to be sent when a later act of its kind
   comes (another keystroke, another scroll, another click) is logged as
   overtaken, with no time: what it asked for was never drawn. A scroll
@@ -211,9 +239,9 @@ the result it asked for:
     plus the server's wait for the engine (`queue`), plus the engine's
     time from taking it to the serialized body (`engine`), both read
     from the response's `Server-Timing` header, written after the body
-    was made. The next request leaves once the earlier answer is drawn
-    into the DOM, so `wait` also carries that answer's transport and DOM
-    work, a few milliseconds, counted as the engine's;
+    was made. The next request leaves once the earlier answer is
+    painted, so `wait` also carries that answer's transport and its
+    browser work, a few milliseconds, counted as the engine's;
   - *transport* = from the request's send to its body's last byte, less
     the server's `queue` and `engine`;
   - *browser* = from the input to the request's send, less `wait`,
@@ -228,11 +256,13 @@ the result it asked for:
 ## The bar
 
 The C++ app's own waits are the reference: it shows nothing for 350 ms
-after a change to the form, then refilters, which its own notes measured
-at a median of 422.5 ms at a 100k-item synthetic preset before its sort
-was made faster (`docs/design/m3-sort-profile-result.md`, at
-`acquisition-qt@da7b3cd4`; no figure at 44k items); it fills the item
-panel 100 ms after a selection. It records no figure for opening a tab
+after a change to the form, then refilters and re-sorts. Its own notes
+measured that whole step (`MainWindow::OnItemsRefreshed`: the filter,
+35.2 ms of it, then the sort of every tab's items, 386.8 ms) at a median
+of 422.5 ms at a 100k-item synthetic preset, before its sort was made
+faster (`docs/design/m3-sort-profile-result.md`, "Live full-refilter
+split", at `acquisition-qt@da7b3cd4`; no figure at 44k items). It fills
+the item panel 100 ms after a selection. It records no figure for opening a tab
 or scrolling; its own design notes take the 60 Hz frame, 16.7 ms, as the
 budget for any stall (`docs/design/m1-m2-result.md`).
 
@@ -249,9 +279,12 @@ the rig built `--release`, and passes when it meets every line:
    every one within 200 ms.
 4. **A scroll through the largest list**, *By Item* over Standard,
    43,434 rows: (a) 9 in 10 scrolls drawn at their place within 100 ms
-   and every one within 250 ms; (b) during the steady wheel, at most 1%
-   of frames late, a late frame being longer than one and a half times
-   the display's interval.
+   and every one within 250 ms; (b) during the steady wheel alone, at
+   most 1% of frames late, a late frame being longer than one and a half
+   times the display's interval, which is the median of the frames
+   sampled for a second and a half at rest before the wheel. Headless
+   Chrome paces its frames by its own clock; this line is judged for a
+   real display only at the sitting.
 
 A run whose rows `--check` fails is void. The bar holds when three
 headless runs taken alone on the machine pass every line. A run taken
@@ -273,16 +306,18 @@ the loop, and the verdict says so.
   time, six, then each closed; twice.
 - *clicks*: the query `rarity=unique` typed, then ten items in view
   clicked, 600 ms apart.
-- *scroll*: *By Item*, a wheel of 25 px every 1/60 s for 10 s (1,500 px
-  a second), then ten jumps of the scroll position to fractions of the
-  list (as dragging the thumb), each held until the page is idle.
+- *scroll*: *By Item*, a second and a half at rest, a wheel of 25 px
+  every 1/60 s for 10 s (1,500 px a second), then ten jumps of the
+  scroll position to fractions of the list (as dragging the thumb), each
+  held until the page is idle.
 
 ## What building showed
 
 Exploratory runs while the rig was built, with other sessions' builds
 on the machine (load averages 3 to 12), so none is judged. In every
 one, the browser's share of an answered act was a few milliseconds
-(median 1 to 8 ms; 17 ms for a scroll, its frame), and the transport's
+(median 1 to 8 ms; 17 ms for a scroll while its paint was timed a frame
+late, 3.6 ms since it is timed in its own frame), and the transport's
 about 1 ms; the time was the engine's.
 
 - The first rig answered each place in a window by its own request: a
@@ -305,6 +340,47 @@ about 1 ms; the time was the engine's.
   43,433 rows of an empty query over Standard, 630 ms.
 - A keystroke typed while an answer runs waits for it (`wait`): the
   engine cannot be stopped once it is asked.
+
+## The review's answers
+
+The build's one review, `roadmap/reviews/desktop-spike-98dd155f.md`,
+read `rig-1.patch`. Each finding is answered by one rule in
+`rig-2.patch`, and each was checked on the working window, headless,
+over a fresh clone:
+
+1. *An act logged as answered whose result was never painted* (two
+   clicks at once, the second card replacing the first before its
+   frame). Rule: a channel sends its next request only once the answer
+   before it is painted. Checked: two clicks dispatched together, the
+   second sent 0.2 ms after the first's paint, each answered.
+2. *The intent opened by a writing door.* Rule: both files through the
+   store's read-only door. Checked: a session over a fresh clone, its 23
+   files' hashes the same after as before.
+3. *Acts lost when the window closes before the next flush; a failed
+   write silent.* Rule: each act is sent once its paint is timed; one
+   not taken is kept, sent again and counted in the status bar; the
+   server answers a failed write with its reason; the page's last acts
+   go by beacon as it hides, and the start script waits a second. Checked:
+   ten acts, ten logged before a reload; twelve in the log after it.
+4. *Late frames judged over the wheel, the jumps and the pauses
+   together.* Rule: the display's interval from frames at rest before
+   the wheel, lateness counted over the steady wheel's frames alone.
+5. *The indent refused by the content policy.* Rule: no inline style
+   attribute; the indent is set through the style object, which the
+   policy allows. Checked: heads at 4 and 20 px, a page's items at 36.
+6. *An act's basis cut to its snapshot, and none for a scroll from held
+   rows.* Rule: every answer carries the whole basis and every answered
+   act records it, a scroll from held rows the basis they were answered
+   at. Checked: a held scroll's record carries all fourteen keys.
+7. *The page's state not in its URL.* Rule: what the page asks is written
+   into its URL as it changes and read back at load. Checked: a reload
+   gives the same caption, the same opened card and the same Name. Back
+   is not built (a departure above).
+8. *The C++ figure called a refilter.* The bar now names the measured
+   step and its two parts.
+
+The review was the brief's one (decision 6); this round is not reviewed
+again.
 
 ## The store copy
 

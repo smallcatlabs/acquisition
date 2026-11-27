@@ -1,0 +1,2276 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 0fdd7ebc..c79b392a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -852,6 +852,20 @@ dependencies = [
+  "zeroize",
+ ]
+
++[[package]]
++name = "desktop-rig"
++version = "1.0.0-alpha.1"
++dependencies = [
++ "acquisition-search",
++ "acquisition-store",
++ "acquisition-verbs",
++ "anyhow",
++ "axum",
++ "serde",
++ "serde_json",
++ "tokio",
++]
++
+ [[package]]
+ name = "digest"
+ version = "0.10.7"
+diff --git a/Cargo.toml b/Cargo.toml
+index 6c7e248f..025c9f42 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -11,6 +11,7 @@ members = [
+     "crates/acquisition-verbs",
+     "crates/acquisition-cli",
+     "crates/acquisition-mcp",
++    "spikes/desktop-rig",
+ ]
+
+ [workspace.package]
+diff --git a/spikes/desktop-rig/Cargo.toml b/spikes/desktop-rig/Cargo.toml
+new file mode 100644
+index 00000000..effdd7bf
+--- /dev/null
++++ b/spikes/desktop-rig/Cargo.toml
+@@ -0,0 +1,21 @@
++[package]
++name = "desktop-rig"
++version.workspace = true
++edition.workspace = true
++license.workspace = true
++publish.workspace = true
++
++# The desktop spike's window (`roadmap/briefs/desktop-spike.md`): a
++# throwaway loopback server and one hand-written page, reading a clone of
++# a store copy. Never part of the product; its record is
++# `audits/desktop-2026-11/spike/README.md`.
++
++[dependencies]
++acquisition-search = { path = "../../crates/acquisition-search" }
++acquisition-store = { path = "../../crates/acquisition-store" }
++acquisition-verbs = { path = "../../crates/acquisition-verbs" }
++tokio.workspace = true
++serde.workspace = true
++serde_json.workspace = true
++anyhow.workspace = true
++axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+diff --git a/spikes/desktop-rig/assets/app.css b/spikes/desktop-rig/assets/app.css
+new file mode 100644
+index 00000000..ecf36833
+--- /dev/null
++++ b/spikes/desktop-rig/assets/app.css
+@@ -0,0 +1,64 @@
++:root {
++  --bg: #1e1f22; --pane: #26272b; --line: #3a3b40; --text: #d8d8d8; --dim: #8a8b90;
++  --sel: #2f4f7f; --head: #2b2c31; --bad: #e05050;
++  --normal: #d0d0d0; --magic: #8f8fff; --rare: #ffff77; --unique: #c87a3a; --gem: #1ba29b; --currency: #b9ab88;
++  --row: 22px;
++}
++* { box-sizing: border-box; }
++html, body { margin: 0; height: 100%; }
++body { background: var(--bg); color: var(--text); font: 13px -apple-system, "Segoe UI", system-ui, sans-serif;
++  display: flex; flex-direction: column; overflow: hidden; user-select: none; }
++#top { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 4px 6px 0; }
++.stab { display: inline-block; padding: 4px 12px; border: 1px solid var(--line); border-bottom: none; border-radius: 4px 4px 0 0; background: var(--pane); }
++.league { padding-bottom: 4px; color: var(--dim); }
++select, input, textarea, button { background: #18191b; color: var(--text); border: 1px solid var(--line); border-radius: 3px; font: inherit; }
++input, select { height: 22px; padding: 0 4px; }
++#body { flex: 1; display: grid; grid-template-columns: minmax(150px, 2fr) 5fr 340px; min-height: 0; }
++#form { overflow-y: auto; overflow-x: hidden; padding: 6px; border-right: 1px solid var(--line); }
++#form .row { display: grid; grid-template-columns: 52px 1fr; gap: 4px; margin-bottom: 4px; align-items: center; }
++#form .row input, #form .row select { width: 100%; }
++fieldset { border: 1px solid var(--line); border-radius: 4px; margin: 6px 0; padding: 4px 6px; }
++legend { color: var(--dim); padding: 0 4px; }
++.range { display: grid; grid-template-columns: 1fr 48px 48px; gap: 4px; margin: 3px 0; align-items: center; }
++.range input { width: 100%; }
++.flag { display: block; margin: 2px 0; }
++textarea { width: 100%; resize: vertical; padding: 4px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
++.bad { border-color: var(--bad) !important; color: var(--bad); }
++#queryerror { color: var(--bad); white-space: pre-wrap; font-size: 12px; }
++#center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
++#cols, .r { display: grid; grid-template-columns: minmax(160px, 1fr) 62px 34px 46px 34px 34px 40px 40px 42px 44px 40px; }
++#cols { background: var(--head); border-bottom: 1px solid var(--line); height: var(--row); line-height: var(--row); }
++#cols span { padding: 0 4px; border-right: 1px solid var(--line); cursor: default; overflow: hidden; white-space: nowrap; }
++#cols span.num { text-align: right; }
++#cols span.sorted::after { content: " ▾"; }
++#cols span.sorted.asc::after { content: " ▴"; }
++#list { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; outline: none; contain: strict; }
++#spacer { width: 1px; }
++.r { position: absolute; left: 0; right: 0; height: var(--row); line-height: var(--row); white-space: nowrap; }
++.r span { overflow: hidden; text-overflow: ellipsis; padding: 0 4px; }
++.r span.num { text-align: right; color: #c0c0c0; }
++.r.h { background: #232428; color: #e6e6e6; }
++.r.h .name { font-weight: 600; grid-column: 1 / -1; display: flex; align-items: center; gap: 2px; height: var(--row); }
++.r.h .n { color: var(--dim); font-weight: 400; margin-left: 6px; }
++.r.never .name { color: var(--dim); font-style: italic; }
++.r.sel { background: var(--sel); }
++.r.wait { color: transparent; }
++.tw { flex: none; width: 14px; color: var(--dim); font-weight: 400; }
++.r .base { color: var(--dim); }
++.Normal { color: var(--normal); } .Magic { color: var(--magic); } .Rare { color: var(--rare); } .Unique { color: var(--unique); }
++#viewbar { border-top: 1px solid var(--line); padding: 3px 6px; color: var(--dim); }
++#panel { border-left: 1px solid var(--line); overflow-y: auto; padding: 8px; user-select: text; }
++#cardname { font-size: 15px; font-weight: 600; margin-bottom: 6px; min-height: 20px; }
++#cardtabs { display: flex; gap: 2px; margin-bottom: 6px; }
++#cardtabs button { padding: 2px 10px; }
++#cardtabs button.on { background: var(--sel); }
++#card { background: #0c0c0d; border: 1px solid #4a3a20; text-align: center; padding: 0 0 6px; }
++#card .hdr { padding: 6px; background: #1a140c; border-bottom: 1px solid #4a3a20; }
++#card .hdr div { font-size: 15px; }
++#card .sec { border-top: 1px solid #4a3a20; padding: 4px 8px; margin-top: 4px; }
++#card .sec:first-of-type { border-top: none; }
++#card .prop { color: #7f7f7f; } #card .mod { color: #8888ff; } #card .crafted { color: #b4b4ff; } #card .enchant { color: #b4b4ff; }
++#card .implicit { color: #8888ff; } #card .fractured { color: #a29162; } #card .flag { color: var(--bad); } #card .note { color: #aa9e82; }
++#cardtext { white-space: pre-wrap; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
++#location { margin-top: 8px; color: var(--dim); }
++#status { display: flex; justify-content: space-between; border-top: 1px solid var(--line); padding: 3px 8px; color: var(--dim); font-size: 12px; }
+diff --git a/spikes/desktop-rig/assets/app.js b/spikes/desktop-rig/assets/app.js
+new file mode 100644
+index 00000000..64c3acdb
+--- /dev/null
++++ b/spikes/desktop-rig/assets/app.js
+@@ -0,0 +1,393 @@
++// The desktop spike's window. Presentation only: every row it draws is a
++// row the server answered, at the server's index; it sorts, filters,
++// groups and composes nothing. It times each act from its input to the
++// paint that shows what the act asked for, and splits that time into the
++// browser's, the transport's and the engine's shares, which sum to it.
++"use strict";
++
++const ROW = 22;
++const COLS = [["Name", null], ["Price", "price.amount"], ["Q", "quality"], ["Stack", "stack"],
++  ["Lvl", "level"], ["ilvl", "ilvl"], ["Links", "links"], ["Sock", "sockets"],
++  ["R.Lvl", "reqlevel"], ["Life", "pseudo.total_life"], ["Res", "pseudo.total_ele_res"]];
++
++const $ = (s) => document.querySelector(s);
++const list = $("#list"), spacer = $("#spacer"), form = $("#form");
++const field = (n) => form.elements.namedItem(n);
++
++// What the page asks: the server rebuilds everything from it.
++const S = { league: "", mode: "tab", collapsed: new Set(), open: new Set(),
++  fopen: new Set(), fclosed: new Set(), sort: null, desc: false, queried: false };
++// The last window answered: its basis, its rows by index, the tree's size.
++let held = { basis: null, total: 0, rows: new Map(), key: "" };
++let selected = null;
++const drawn = new Map(); // index -> element
++
++// ---- acts ---------------------------------------------------------------
++let actSeq = 0;
++const log = [];          // finished acts, not yet sent to the server
++window.rigActs = [];     // every finished act, for a headless runner
++function act(kind, detail, tInput) {
++  return { act: ++actSeq, kind, detail, t_input: tInput, t_handled: null };
++}
++function handled(a) { a.t_handled = performance.now(); return a; }
++// An act's record. `t` carries the request's times where it had one.
++function finish(a, outcome, t) {
++  if (a.outcome) return;
++  a.outcome = outcome;
++  const rec = { act: a.act, kind: a.kind, detail: a.detail, outcome, t_input: r3(a.t_input) };
++  if (outcome !== "overtaken") {
++    const total = t.paint - a.t_input;
++    let engine = 0, transport = 0, browser = total, wait = 0;
++    if (t.send != null) {
++      wait = Math.max(0, t.send - a.t_handled);
++      engine = wait + t.queue + t.engine;
++      transport = (t.body - t.send) - t.queue - t.engine;
++      browser = (a.t_handled - a.t_input) + (t.paint - t.body);
++    }
++    Object.assign(rec, { total: r3(total), engine: r3(engine), transport: r3(transport), browser: r3(browser),
++      parts: { input: r3(a.t_handled - a.t_input), wait: r3(wait), queue: r3(t.queue || 0),
++        engine: r3(t.engine || 0), parse: r3((t.parsed || t.body || 0) - (t.body || 0)),
++        dom: r3((t.dom || 0) - (t.parsed || t.dom || 0)), paint: r3(t.paint - (t.dom || t.paint)),
++        server: t.server || null },
++      basis: t.basis || null, rows: t.rows || 0, req: t.req || null,
++      t_send: t.send != null ? r3(t.send) : null, t_paint: r3(t.paint) });
++    $("#last").textContent = `${a.kind} ${total.toFixed(0)} ms — engine ${engine.toFixed(0)} · transport ${transport.toFixed(0)} · browser ${browser.toFixed(0)}`;
++  }
++  log.push(rec); window.rigActs.push(rec);
++  flush();
++}
++const r3 = (x) => Math.round(x * 1000) / 1000;
++// Each act goes to the log as it is recorded, after its paint, so closing
++// the window loses none; one the server does not take is kept, sent again
++// with the next, and the status bar says so.
++let flushing = false;
++async function flush() {
++  if (flushing || !log.length) return;
++  flushing = true;
++  const batch = log.splice(0);
++  try {
++    const res = await fetch("/api/log", { method: "POST", keepalive: true, body: JSON.stringify(batch) });
++    if (!res.ok) throw new Error(await res.text());
++    window.rigLogged = (window.rigLogged || 0) + batch.length;
++  } catch (e) {
++    log.unshift(...batch);
++    $("#activity").textContent = `${log.length} acts not yet logged: ${e.message || e}`;
++  } finally { flushing = false; if (log.length) setTimeout(flush, 200); }
++}
++addEventListener("pagehide", () => { if (log.length) navigator.sendBeacon("/api/log", JSON.stringify(log.splice(0))); });
++// The paint after a change: the next frame's callbacks run, the frame
++// renders, and a task posted from inside the frame runs once its rendering
++// is done. A change made inside a frame callback is in that frame: the
++// task is posted from there (`inFrame`), never a frame later.
++function afterPaint(cb, inFrame) {
++  const post = () => { const ch = new MessageChannel(); ch.port1.onmessage = () => cb(performance.now()); ch.port2.postMessage(0); };
++  if (inFrame) post(); else requestAnimationFrame(post);
++}
++function serverTiming(h) {
++  const o = { queue: 0, engine: 0 };
++  for (const part of (h || "").split(",")) {
++    const m = part.trim().match(/^(\w+);dur=([\d.]+)/);
++    if (m) o[m[1]] = parseFloat(m[2]);
++  }
++  return o;
++}
++
++// One channel per kind of answer: one request in flight, and the next sent
++// only once the answer before it is painted, so no answer is replaced
++// before its frame; acts that come meanwhile wait together, a later act of
++// a kind overtaking an earlier.
++function channel(send) { return { inflight: false, pending: null, send }; }
++function want(ch, a) {
++  if (ch.pending) {
++    for (const x of ch.pending.acts) if (x.kind === a.kind && a.kind !== "expand") finish(x, "overtaken");
++    ch.pending.acts = ch.pending.acts.filter((x) => !x.outcome);
++    ch.pending.acts.push(a);
++  } else ch.pending = { acts: [a] };
++  if (!ch.inflight) go(ch);
++}
++async function go(ch) {
++  const p = ch.pending; ch.pending = null;
++  if (!p) return;
++  ch.inflight = true;
++  try { await ch.send(p.acts); }
++  catch (e) { for (const a of p.acts) finish(a, "failed", { paint: performance.now() }); $("#activity").textContent = String(e); }
++  finally { ch.inflight = false; if (ch.pending) go(ch); }
++}
++window.rigIdle = () => !viewCh.inflight && !viewCh.pending && !itemCh.inflight && !itemCh.pending && !log.length && !flushing;
++const painted = () => new Promise((resolve) => afterPaint(resolve));
++
++async function ask(path, body) {
++  const t = { send: performance.now() };
++  const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
++  t.head = performance.now();
++  const text = await res.text();
++  t.body = performance.now();
++  const data = JSON.parse(text);
++  t.parsed = performance.now();
++  Object.assign(t, serverTiming(res.headers.get("server-timing")));
++  t.server = data.parts || null;
++  t.basis = data.basis || null;
++  return [data, t];
++}
++
++// ---- the view -----------------------------------------------------------
++const viewCh = channel(sendView);
++function windowAround() {
++  const v = Math.ceil(list.clientHeight / ROW) + 1;
++  const first = Math.floor(list.scrollTop / ROW);
++  return { first, v, offset: Math.max(0, first - 10), count: v + 20 };
++}
++function formValue() {
++  const f = { tab: field("tab").value, name: field("name").value, rarity: field("rarity").value,
++    query: field("query").value, min: {}, max: {}, flags: [] };
++  for (const i of form.querySelectorAll("[data-min]")) if (i.value.trim()) f.min[i.dataset.min] = i.value;
++  for (const i of form.querySelectorAll("[data-max]")) if (i.value.trim()) f.max[i.dataset.max] = i.value;
++  for (const c of form.querySelectorAll("input[type=checkbox]")) if (c.checked) f.flags.push(c.value);
++  return f;
++}
++async function sendView(acts) {
++  const w = windowAround();
++  const body = { seq: acts[acts.length - 1].act, league: S.league, mode: S.mode, form: formValue(),
++    collapsed: [...S.collapsed], open: [...S.open], fopen: [...S.fopen], fclosed: [...S.fclosed],
++    sort: S.sort, desc: S.desc, offset: w.offset, count: w.count };
++  const [data, t] = await ask("/api/view", body);
++  t.req = { offset: w.offset, count: w.count };
++  if (data.error) {
++    // a query the search refuses: said where it was typed, the list kept
++    $("#queryerror").textContent = data.error;
++    field("query").classList.add("bad");
++    t.dom = performance.now();
++    const paint = await painted();
++    for (const a of acts) finish(a, "refused", { ...t, paint });
++    return;
++  }
++  $("#queryerror").textContent = ""; field("query").classList.remove("bad");
++  for (const i of form.querySelectorAll("input")) {
++    const k = i.dataset.min ? `min.${i.dataset.min}` : i.dataset.max ? `max.${i.dataset.max}` : null;
++    if (k) i.classList.toggle("bad", !!data.bad[k]);
++  }
++  const queried = data.query != null && S.mode === "tab";
++  if (S.queried && !queried) { S.fopen.clear(); S.fclosed.clear(); }
++  S.queried = queried;
++  held = { basis: data.basis, total: data.total_rows, rows: new Map(data.rows.map((r) => [r.i, r])) };
++  remember();
++  $("#caption").textContent = `Search [${data.caption}]`;
++  spacer.style.height = `${data.total_rows * ROW}px`;
++  draw();
++  t.dom = performance.now();
++  t.rows = data.rows.length;
++  const paint = await painted();
++  for (const a of acts) {
++    // a scroll asked for the rows at its place: answered only if they are
++    // what the viewport shows now
++    if (a.kind === "scroll" && !covered(a.detail.first, a.detail.v)) { finish(a, "overtaken"); continue; }
++    finish(a, "answered", { ...t, paint });
++  }
++}
++function covered(first, v) {
++  const now = windowAround();
++  if (Math.abs(now.first - first) > now.v) return false;
++  for (let i = now.first; i < Math.min(held.total, now.first + now.v); i++) if (!held.rows.has(i)) return false;
++  return true;
++}
++
++// Draw the rows in the viewport from what is held; a row not held yet is
++// a blank slot until its window comes.
++function draw() {
++  const w = windowAround();
++  const lo = Math.max(0, w.first - 2), hi = Math.min(held.total, w.first + w.v + 2);
++  for (const [i, el] of drawn) if (i < lo || i >= hi || el.dataset.key !== key(held.rows.get(i))) { el.remove(); drawn.delete(i); }
++  for (let i = lo; i < hi; i++) {
++    if (drawn.has(i)) { mark(drawn.get(i)); continue; }
++    const r = held.rows.get(i);
++    const el = rowEl(r, i);
++    list.appendChild(el); drawn.set(i, el);
++  }
++}
++const key = (r) => (r ? `${r.k}:${r.id}:${r.open}:${r.n}` : "wait");
++function mark(el) { el.classList.toggle("sel", !!selected && el.dataset.id === selected); }
++function rowEl(r, i) {
++  const el = document.createElement("div");
++  el.style.top = `${i * ROW}px`;
++  el.dataset.i = i; el.dataset.key = key(r);
++  if (!r) { el.className = "r wait"; return el; }
++  el.dataset.id = r.id;
++  // the indent through the style object: the content policy refuses an
++  // inline style attribute
++  if (r.k === "h") {
++    el.className = "r h" + (r.never ? " never" : "");
++    const tw = r.holds ? (r.open ? "▾" : "▸") : "";
++    el.innerHTML = `<span class="name"><span class="tw">${tw}</span>${esc(r.name || r.id)} <span class="n">[${r.n}]</span></span>`;
++  } else {
++    el.className = "r";
++    const name = r.type ? `${esc(r.name)} <span class="base">${esc(r.type)}</span>` : esc(r.name || r.id);
++    el.innerHTML = `<span class="name ${esc(r.rarity || "")}">${name}</span>` +
++      r.v.map((v) => `<span class="num">${v == null ? "" : esc(fmt(v))}</span>`).join("");
++    mark(el);
++  }
++  el.firstChild.style.paddingLeft = `${4 + r.d * 16}px`;
++  return el;
++}
++const fmt = (v) => (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(1)) : typeof v === "object" ? (v.text ?? JSON.stringify(v)) : String(v));
++const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
++
++// ---- inputs -------------------------------------------------------------
++form.addEventListener("input", (e) => {
++  const kind = e.target.matches("input[type=text], input:not([type]), textarea") ? "key" : "form";
++  want(viewCh, handled(act(kind, { field: e.target.name || e.target.dataset.min || e.target.dataset.max || e.target.value, len: (e.target.value || "").length }, e.timeStamp)));
++});
++form.addEventListener("submit", (e) => e.preventDefault());
++$("#mode").addEventListener("change", (e) => {
++  S.mode = e.target.value; list.scrollTop = 0;
++  want(viewCh, handled(act("view", { mode: S.mode }, e.timeStamp)));
++});
++$("#league").addEventListener("change", (e) => {
++  S.league = e.target.value; list.scrollTop = 0;
++  S.open.clear(); S.fopen.clear(); S.fclosed.clear(); S.collapsed.clear();
++  want(viewCh, handled(act("league", { league: S.league }, e.timeStamp)));
++});
++// the column heads: a click orders by the column's value, again reverses
++$("#cols").innerHTML = COLS.map(([n, v], i) => `<span data-c="${i}" class="${i ? "num" : ""}">${n}</span>`).join("");
++$("#cols").addEventListener("click", (e) => {
++  const c = e.target.dataset.c; if (c == null) return;
++  const v = COLS[c][1];
++  if (v === null) { S.sort = null; S.desc = false; }
++  else if (S.sort === v) S.desc = !S.desc;
++  else { S.sort = v; S.desc = true; }
++  for (const s of document.querySelectorAll("#cols span")) { s.classList.toggle("sorted", S.sort === COLS[s.dataset.c][1] && S.sort != null); s.classList.toggle("asc", !S.desc); }
++  want(viewCh, handled(act("sort", { sort: S.sort, desc: S.desc }, e.timeStamp)));
++});
++function toggle(r, e) {
++  const id = r.id;
++  if (r.kind === "folder") S.collapsed.has(id) ? S.collapsed.delete(id) : S.collapsed.add(id);
++  else if (S.queried) {
++    if (r.open) S.fopen.has(id) ? S.fopen.delete(id) : S.fclosed.add(id);
++    else S.fclosed.has(id) ? S.fclosed.delete(id) : S.fopen.add(id);
++  } else S.open.has(id) ? S.open.delete(id) : S.open.add(id);
++  want(viewCh, handled(act("expand", { id, open: !r.open, name: r.name }, e.timeStamp)));
++}
++list.addEventListener("mousedown", (e) => {
++  const el = e.target.closest(".r"); if (!el) return;
++  const r = held.rows.get(+el.dataset.i); if (!r) return;
++  list.focus();
++  if (r.k === "h") { if (r.holds) toggle(r, e); return; }
++  openItem(r, e.timeStamp, "click");
++});
++list.addEventListener("keydown", (e) => {
++  const at = [...held.rows.values()].find((r) => r.id === selected && r.k === "i");
++  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
++    e.preventDefault();
++    const d = e.key === "ArrowDown" ? 1 : -1;
++    let i = at ? at.i + d : windowAround().first;
++    while (held.rows.has(i) && held.rows.get(i).k !== "i") i += d;
++    const r = held.rows.get(i); if (!r) return;
++    if (i * ROW < list.scrollTop) list.scrollTop = i * ROW;
++    if ((i + 1) * ROW > list.scrollTop + list.clientHeight) list.scrollTop = (i + 1) * ROW - list.clientHeight;
++    openItem(r, e.timeStamp, "key-select");
++  }
++});
++// a scroll: once a frame, the rows of the new place drawn from what is
++// held, and a window asked where they are not
++let scrollAct = null;
++list.addEventListener("scroll", (e) => {
++  if (scrollAct) return;
++  scrollAct = act("scroll", null, e.timeStamp);
++  requestAnimationFrame(() => {
++    const a = handled(scrollAct); scrollAct = null;
++    const w = windowAround(); a.detail = { first: w.first, v: w.v, total: held.total };
++    draw();
++    if (covered(w.first, w.v)) {
++      const dom = performance.now();
++      afterPaint((paint) => finish(a, "answered", { paint, dom, rows: 0, basis: held.basis }), true);
++    } else want(viewCh, a);
++  });
++}, { passive: true });
++new ResizeObserver(() => draw()).observe(list);
++
++// ---- the item -----------------------------------------------------------
++const itemCh = channel(sendItem);
++let cardTab = "tip";
++function openItem(r, tInput, kind) {
++  selected = r.id;
++  remember();
++  for (const el of drawn.values()) mark(el);
++  want(itemCh, handled(act(kind === "click" ? "click" : "select", { id: r.id, name: r.name }, tInput)));
++}
++async function sendItem(acts) {
++  const a = acts[acts.length - 1];
++  const [data, t] = await ask("/api/item", { seq: a.act, id: a.detail.id });
++  if (data.error) { $("#activity").textContent = data.error; }
++  else renderCard(data);
++  t.dom = performance.now();
++  const paint = await painted();
++  for (const x of acts) finish(x, x === a ? "answered" : "overtaken", { ...t, paint });
++}
++function renderCard(c) {
++  const name = [c.name, c.typeline].filter(Boolean);
++  $("#cardname").innerHTML = `<span class="${esc(c.rarity || "")}">${name.map(esc).join(" ")}</span>`;
++  const sec = (cls, lines) => (lines.length ? `<div class="sec">${lines.map((l) => `<div class="${cls}">${esc(l)}</div>`).join("")}</div>` : "");
++  const head = `<div class="hdr ${esc(c.rarity || "")}">${name.map((n) => `<div>${esc(n)}</div>`).join("")}</div>`;
++  const props = sec("prop", c.props || []);
++  const req = sec("prop", [c.ilvl, c.requires].filter(Boolean));
++  const groups = (c.groups || []).map((g) => sec(g.source === "explicit" ? "mod" : g.source, g.lines)).join("");
++  const flags = sec("flag", (c.flags || []).filter((f) => ["corrupted", "mirrored", "split", "synthesised"].includes(f)).map((f) => f[0].toUpperCase() + f.slice(1)));
++  const note = sec("note", [c.note, c.descr].filter(Boolean));
++  $("#card").innerHTML = head + props + req + groups + flags + note;
++  const text = [...name, "--------", ...(c.props || []), c.ilvl, c.requires, ...(c.groups || []).flatMap((g) => ["--------", ...g.lines]), c.note].filter(Boolean).join("\n");
++  $("#cardtext").textContent = text;
++  const p = c.place || {};
++  const cell = p.cell ? ` at (${p.cell.x}, ${p.cell.y})` : "";
++  $("#location").textContent = `${p.league || ""} · ${p.parent ? p.parent + " / " : ""}${p.name || ""}${cell}` + (c.price && c.price.effective ? ` · priced` : "");
++  showCardTab();
++}
++function showCardTab() {
++  $("#card").hidden = cardTab !== "tip"; $("#cardtext").hidden = cardTab !== "text";
++  for (const b of document.querySelectorAll("#cardtabs button")) b.classList.toggle("on", b.dataset.t === cardTab);
++}
++$("#cardtabs").addEventListener("click", (e) => { if (e.target.dataset.t) { cardTab = e.target.dataset.t; showCardTab(); } });
++
++// ---- the URL --------------------------------------------------------------
++// The page's identity is its URL (C16): what it asks is written there as it
++// changes, and a reload asks the same. Back is not built: the C++ app has
++// none, and a new search replaces the entry.
++function remember() {
++  const u = new URLSearchParams();
++  u.set("league", S.league); u.set("mode", S.mode);
++  if (S.sort) { u.set("sort", S.sort); if (S.desc) u.set("desc", "1"); }
++  const f = formValue();
++  for (const k of ["tab", "name", "query"]) if (f[k]) u.set(k, f[k]);
++  if (f.rarity && f.rarity !== "any") u.set("rarity", f.rarity);
++  for (const [k, v] of Object.entries(f.min)) u.set(`min.${k}`, v);
++  for (const [k, v] of Object.entries(f.max)) u.set(`max.${k}`, v);
++  for (const x of f.flags) u.append("flag", x);
++  for (const [k, set] of [["collapsed", S.collapsed], ["open", S.open], ["fopen", S.fopen], ["fclosed", S.fclosed]]) for (const id of set) u.append(k, id);
++  if (selected) u.set("item", selected);
++  history.replaceState(null, "", `?${u}`);
++}
++function restore() {
++  const u = new URLSearchParams(location.search);
++  if (u.get("mode")) { S.mode = u.get("mode"); $("#mode").value = S.mode; }
++  S.sort = u.get("sort"); S.desc = u.get("desc") === "1";
++  for (const k of ["tab", "name", "query", "rarity"]) if (u.get(k) != null) field(k).value = u.get(k);
++  for (const i of form.querySelectorAll("[data-min]")) i.value = u.get(`min.${i.dataset.min}`) || "";
++  for (const i of form.querySelectorAll("[data-max]")) i.value = u.get(`max.${i.dataset.max}`) || "";
++  for (const c of form.querySelectorAll("input[type=checkbox]")) c.checked = u.getAll("flag").includes(c.value);
++  for (const [k, set] of [["collapsed", S.collapsed], ["open", S.open], ["fopen", S.fopen], ["fclosed", S.fclosed]]) for (const id of u.getAll(k)) set.add(id);
++  S.queried = u.getAll("fopen").length + u.getAll("fclosed").length > 0;
++  for (const s of document.querySelectorAll("#cols span")) { s.classList.toggle("sorted", S.sort != null && S.sort === COLS[s.dataset.c][1]); s.classList.toggle("asc", !S.desc); }
++  return { league: u.get("league"), item: u.get("item") };
++}
++
++// ---- start --------------------------------------------------------------
++(async () => {
++  const start = act("start", null, performance.now()); handled(start);
++  const [data] = await ask("/api/leagues", {});
++  const leagues = (data.leagues || []).filter((b) => b.bucket === "value");
++  $("#league").innerHTML = leagues.map((b) => `<option value="${esc(b.value)}">${esc(b.value)} (${b.count})</option>`).join("");
++  const was = restore();
++  S.league = leagues.some((b) => b.value === was.league) ? was.league : leagues.length ? leagues[0].value : "Standard";
++  $("#league").value = S.league;
++  $("#activity").textContent = `${data.matched} items in the realm`;
++  want(viewCh, start);
++  if (was.item) { selected = was.item; want(itemCh, handled(act("select", { id: was.item }, performance.now()))); }
++})();
+diff --git a/spikes/desktop-rig/assets/index.html b/spikes/desktop-rig/assets/index.html
+new file mode 100644
+index 00000000..f773e223
+--- /dev/null
++++ b/spikes/desktop-rig/assets/index.html
+@@ -0,0 +1,65 @@
++<!doctype html>
++<html lang="en">
++<head>
++<meta charset="utf-8">
++<title>Acquisition — desktop spike</title>
++<link rel="stylesheet" href="/app.css">
++<script src="/app.js" defer></script>
++</head>
++<body>
++<div id="top">
++  <div id="searchtabs"><span class="stab on" id="caption">Search [0]</span></div>
++  <label class="league">League <select id="league"></select></label>
++</div>
++<div id="body">
++  <form id="form" autocomplete="off" spellcheck="false">
++    <div class="row"><label>Tab</label><input name="tab"></div>
++    <div class="row"><label>Name</label><input name="name"></div>
++    <div class="row"><label>Rarity</label><select name="rarity">
++      <option value="any">&lt;any&gt;</option><option>Normal</option><option>Magic</option>
++      <option>Rare</option><option>Unique</option><option value="nonunique">Any Non-Unique</option>
++    </select></div>
++    <fieldset><legend>Misc</legend>
++      <div class="range"><label>Quality</label><input data-min="quality"><input data-max="quality"></div>
++      <div class="range"><label>Level</label><input data-min="level"><input data-max="level"></div>
++      <div class="range"><label>ilvl</label><input data-min="ilvl"><input data-max="ilvl"></div>
++      <div class="range"><label>Map Tier</label><input data-min="map_tier"><input data-max="map_tier"></div>
++      <div class="range"><label>Stack</label><input data-min="stack"><input data-max="stack"></div>
++    </fieldset>
++    <fieldset><legend>Sockets</legend>
++      <div class="range"><label>Sockets</label><input data-min="sockets"><input data-max="sockets"></div>
++      <div class="range"><label>Links</label><input data-min="links"><input data-max="links"></div>
++    </fieldset>
++    <fieldset><legend>Requirements</legend>
++      <div class="range"><label>R. Level</label><input data-min="reqlevel"><input data-max="reqlevel"></div>
++    </fieldset>
++    <fieldset><legend>Totals</legend>
++      <div class="range"><label>Life</label><input data-min="pseudo.total_life"><input data-max="pseudo.total_life"></div>
++      <div class="range"><label>Ele. Res</label><input data-min="pseudo.total_ele_res"><input data-max="pseudo.total_ele_res"></div>
++    </fieldset>
++    <fieldset><legend>Flags</legend>
++      <label class="flag"><input type="checkbox" value="corrupted"> Corrupted</label>
++      <label class="flag"><input type="checkbox" value="fractured"> Fractured</label>
++      <label class="flag"><input type="checkbox" value="priced"> Priced</label>
++    </fieldset>
++    <fieldset><legend>Query</legend>
++      <textarea name="query" rows="3" placeholder="the search language, e.g. pseudo.total_life&gt;=70 class:rings"></textarea>
++      <div id="queryerror"></div>
++    </fieldset>
++  </form>
++  <div id="center">
++    <div id="cols"></div>
++    <div id="list" tabindex="0"><div id="spacer"></div></div>
++    <div id="viewbar"><label>View: <select id="mode"><option value="tab">By Tab</option><option value="item">By Item</option></select></label></div>
++  </div>
++  <div id="panel">
++    <div id="cardname"></div>
++    <div id="cardtabs"><button data-t="tip" class="on">Tooltip</button><button data-t="text">Text</button><button data-t="hide">Hide</button></div>
++    <div id="card"></div>
++    <div id="cardtext" hidden></div>
++    <div id="location"></div>
++  </div>
++</div>
++<div id="status"><span id="activity">Loading…</span><span id="last"></span></div>
++</body>
++</html>
+diff --git a/spikes/desktop-rig/drive.py b/spikes/desktop-rig/drive.py
+new file mode 100644
+index 00000000..e7ae37fa
+--- /dev/null
++++ b/spikes/desktop-rig/drive.py
+@@ -0,0 +1,343 @@
++"""The desktop spike's headless runs (never part of the product; its record
++is `audits/desktop-2026-11/spike/README.md`).
++
++    python3 -I drive.py <rig URL> <profile dir> <out.jsonl> [scenario,...]
++
++Starts headless Chrome on the profile directory given (never a person's
++own) at the C++ app's window size, 1280 x 720, loads the rig's window, and
++plays each scenario as a person's input through Chrome's debugging protocol
++(`Input.dispatchKeyEvent`, `Input.dispatchMouseEvent`): trusted events,
++which the page times as it times the owner's. The page's own act log
++(`window.rigActs`) is the measurement; the runner adds the frames it saw
++while scrolling (an animation-frame sampler it installs) and appends one
++JSON line per scenario. Standard library alone; every call has a deadline.
++"""
++
++import base64
++import json
++import os
++import shutil
++import socket
++import struct
++import subprocess
++import sys
++import time
++
++CHROME = os.environ.get("ACQ_TEST_BROWSER", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
++ANSWER = 30
++W, H = 1280, 720
++
++
++def deadline_left(deadline, what):
++    left = deadline - time.monotonic()
++    if left <= 0:
++        raise TimeoutError(f"{what}: the deadline passed")
++    return left
++
++
++def http_json(port, path, deadline):
++    s = socket.create_connection(("127.0.0.1", int(port)), timeout=deadline_left(deadline, path))
++    try:
++        s.sendall(f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n".encode())
++        data = b""
++        while True:
++            s.settimeout(deadline_left(deadline, path))
++            chunk = s.recv(65536)
++            if not chunk:
++                break
++            data += chunk
++            head, _, body = data.partition(b"\r\n\r\n")
++            length = [int(l.split(b":")[1]) for l in head.split(b"\r\n") if l.lower().startswith(b"content-length:")]
++            if length and len(body) >= length[0]:
++                break
++        return json.loads(data.partition(b"\r\n\r\n")[2])
++    finally:
++        s.close()
++
++
++class Socket:
++    """One websocket to a debugging target: text frames, masked out."""
++
++    def __init__(self, url):
++        hostport, path = url.split("://", 1)[1].split("/", 1)
++        host, port = hostport.split(":")
++        self.s = socket.create_connection((host, int(port)), timeout=ANSWER)
++        key = base64.b64encode(os.urandom(16)).decode()
++        self.s.sendall(
++            (f"GET /{path} HTTP/1.1\r\nHost: {hostport}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
++             f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n").encode())
++        head = b""
++        while b"\r\n\r\n" not in head:
++            head += self.s.recv(1)
++        if b" 101 " not in head.split(b"\r\n")[0]:
++            raise RuntimeError(head.decode(errors="replace"))
++        self.next = 0
++
++    def _exact(self, n, deadline):
++        out = b""
++        while len(out) < n:
++            self.s.settimeout(deadline_left(deadline, "debugging call"))
++            chunk = self.s.recv(n - len(out))
++            if not chunk:
++                raise RuntimeError("the target closed its socket")
++            out += chunk
++        return out
++
++    def _send(self, obj, deadline):
++        data = json.dumps(obj).encode()
++        mask = os.urandom(4)
++        n = len(data)
++        if n < 126:
++            head = struct.pack("!BB", 0x81, 0x80 | n)
++        elif n < 65536:
++            head = struct.pack("!BBH", 0x81, 0x80 | 126, n)
++        else:
++            head = struct.pack("!BBQ", 0x81, 0x80 | 127, n)
++        self.s.settimeout(deadline_left(deadline, "debugging call"))
++        self.s.sendall(head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
++
++    def _receive(self, deadline):
++        message = b""
++        while True:
++            b0, b1 = self._exact(2, deadline)
++            n = b1 & 0x7F
++            if n == 126:
++                (n,) = struct.unpack("!H", self._exact(2, deadline))
++            elif n == 127:
++                (n,) = struct.unpack("!Q", self._exact(8, deadline))
++            payload = self._exact(n, deadline)
++            if b0 & 0x0F in (0x9, 0xA):
++                continue
++            message += payload
++            if b0 & 0x80:
++                return json.loads(message)
++
++    def call(self, method, **params):
++        deadline = time.monotonic() + ANSWER
++        self.next += 1
++        mine = self.next
++        self._send({"id": mine, "method": method, "params": params}, deadline)
++        while True:
++            reply = self._receive(deadline)
++            if reply.get("id") == mine:
++                if "error" in reply:
++                    raise RuntimeError(reply["error"])
++                return reply.get("result", {})
++
++    def js(self, expression):
++        r = self.call("Runtime.evaluate", expression=expression, returnByValue=True, awaitPromise=True)
++        if "exceptionDetails" in r:
++            raise RuntimeError(r["exceptionDetails"])
++        return r["result"].get("value")
++
++
++# ---- input ------------------------------------------------------------------
++
++def key(ws, ch):
++    """One character typed: a key down carrying its text, then up."""
++    if ch == "\b":
++        args = dict(key="Backspace", code="Backspace", windowsVirtualKeyCode=8)
++        ws.call("Input.dispatchKeyEvent", type="rawKeyDown", **args)
++        ws.call("Input.dispatchKeyEvent", type="keyUp", **args)
++        return
++    ws.call("Input.dispatchKeyEvent", type="keyDown", text=ch, key=ch, unmodifiedText=ch)
++    ws.call("Input.dispatchKeyEvent", type="keyUp", key=ch)
++
++
++def click(ws, x, y):
++    for t in ("mousePressed", "mouseReleased"):
++        ws.call("Input.dispatchMouseEvent", type=t, x=x, y=y, button="left", clickCount=1)
++
++
++def wheel(ws, x, y, dy):
++    ws.call("Input.dispatchMouseEvent", type="mouseWheel", x=x, y=y, deltaX=0, deltaY=dy)
++
++
++def idle(ws, limit=20.0):
++    end = time.monotonic() + limit
++    while time.monotonic() < end:
++        if ws.js("window.rigIdle && window.rigIdle()"):
++            return True
++        time.sleep(0.05)
++    return False
++
++
++def box(ws, selector):
++    return ws.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; e.scrollIntoView({{block: 'nearest'}});"
++                 " const r = e.getBoundingClientRect(); return {x: r.x + r.width / 2, y: r.y + r.height / 2}; })()")
++
++
++def type_into(ws, selector, text, gap):
++    b = box(ws, selector)
++    click(ws, b["x"], b["y"])
++    for ch in text:
++        key(ws, ch)
++        time.sleep(gap)
++    idle(ws)
++    time.sleep(0.5)
++
++
++def clear(ws, selector, gap=0.12):
++    n = ws.js(f"document.querySelector({json.dumps(selector)}).value.length")
++    b = box(ws, selector)
++    click(ws, b["x"], b["y"])
++    ws.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); e.setSelectionRange(e.value.length, e.value.length); }})()")
++    for _ in range(n):
++        key(ws, "\b")
++        time.sleep(gap)
++    idle(ws)
++    time.sleep(0.5)
++
++
++def rows(ws, which):
++    """The centres of the drawn rows in the viewport: `h` heads, `i` items."""
++    return ws.js(
++        "(() => { const l = document.querySelector('#list').getBoundingClientRect(); return [...document.querySelectorAll('#list .r')]"
++        f".filter(e => !e.classList.contains('wait') && e.classList.contains('h') === {json.dumps(which == 'h')})"
++        ".map(e => { const r = e.getBoundingClientRect(); return {x: r.x + 120, y: r.y + r.height / 2, i: +e.dataset.i, id: e.dataset.id}; })"
++        ".filter(p => p.y > l.top + 4 && p.y < l.bottom - 4).sort((a, b) => a.y - b.y); })()")
++
++
++# ---- scenarios -----------------------------------------------------------------
++
++def keystrokes(ws):
++    """Typing into the form at a person's pace, and fast; each word then
++    cleared."""
++    for sel, text, gap in [
++        ("input[name=name]", "tabula", 0.15),
++        ("input[name=name]", "chaos orb", 0.06),
++        ("input[name=tab]", "dump", 0.15),
++        ("textarea[name=query]", "pseudo.total_life>=70", 0.10),
++        ("textarea[name=query]", "rarity=unique ilvl>=80", 0.10),
++    ]:
++        type_into(ws, sel, text, gap)
++        clear(ws, sel)
++
++
++def heads(ws, is_open):
++    """The drawn heads in the viewport that hold places or items, open or
++    closed, by the row the page drew."""
++    return [h for h in rows(ws, "h") if ws.js(
++        f"(() => {{ const e = document.querySelector('#list .r.h[data-i=\"{h['i']}\"] .tw'); return !!e && e.textContent === {json.dumps('\u25be' if is_open else '\u25b8')}; }})()")]
++
++
++def expansions(ws):
++    """Tab heads opened and closed with no query: the first closed heads in
++    view, six, each then closed; twice."""
++    ws.js("document.querySelector('#list').scrollTop = 0")
++    time.sleep(0.5)
++    for _ in range(2):
++        for _ in range(6):
++            closed = heads(ws, False)
++            if not closed:
++                break
++            pick = closed[min(len(closed) - 1, 2)]
++            click(ws, pick["x"], pick["y"])
++            idle(ws)
++            time.sleep(0.6)
++        for _ in range(6):
++            opened = heads(ws, True)
++            if not opened:
++                break
++            click(ws, opened[0]["x"], opened[0]["y"])
++            idle(ws)
++            time.sleep(0.6)
++
++
++def clicks(ws):
++    """Items opened by a click, in the tree under a query and in the flat
++    list."""
++    type_into(ws, "textarea[name=query]", "rarity=unique", 0.0)
++    for _ in range(10):
++        items = rows(ws, "i")
++        if not items:
++            break
++        pick = items[min(len(items) - 1, 3 + _ * 2)]
++        click(ws, pick["x"], pick["y"])
++        idle(ws)
++        time.sleep(0.6)
++    clear(ws, "textarea[name=query]", 0.0)
++
++
++def scroll(ws):
++    """The largest list, the flat list of the league: a steady wheel at
++    1,500 px a second for 10 s, then ten jumps, as dragging the thumb."""
++    ws.js("(() => { const m = document.querySelector('#mode'); m.value = 'item'; m.dispatchEvent(new Event('change')); })()")
++    idle(ws)
++    time.sleep(1)
++    b = box(ws, "#list")
++    # the frames: first a second and a half at rest, whose median interval
++    # is the display's; then the steady wheel alone, its frames counted
++    # apart from the jumps that follow
++    ws.js("window.rigFrames = []; (function f(t) { window.rigFrames.push(t); if (window.rigFrames.length < 20000) requestAnimationFrame(f); })(performance.now())")
++    time.sleep(1.5)
++    rest = ws.js("window.rigFrames.length")
++    end = time.monotonic() + 10
++    while time.monotonic() < end:
++        wheel(ws, b["x"], b["y"], 25)
++        time.sleep(1 / 60)
++    steady = ws.js("window.rigFrames.length")
++    idle(ws)
++    time.sleep(0.5)
++    jumps_from = ws.js("window.rigActs.length")
++    for f in (0.5, 0.1, 0.9, 0.25, 1, 0.75, 0.37, 0.61, 0.83, 0):
++        ws.js(f"(() => {{ const l = document.querySelector('#list'); l.scrollTop = Math.round((l.scrollHeight - l.clientHeight) * {f}); }})()")
++        idle(ws)
++        time.sleep(0.5)
++    frames = ws.js("window.rigFrames")
++    ws.js("window.rigFrames.length = 20000")
++    ws.js("(() => { const m = document.querySelector('#mode'); m.value = 'tab'; m.dispatchEvent(new Event('change')); })()")
++    idle(ws)
++    return {"frames": frames, "rest_frames": rest, "steady_end": steady, "jumps_from": jumps_from}
++
++
++SCENARIOS = {"keystrokes": keystrokes, "expansions": expansions, "clicks": clicks, "scroll": scroll}
++
++
++def main():
++    url, profile, out = sys.argv[1], sys.argv[2], sys.argv[3]
++    wanted = sys.argv[4].split(",") if len(sys.argv) > 4 else list(SCENARIOS)
++    shutil.rmtree(profile, ignore_errors=True)
++    os.makedirs(profile)
++    chrome = subprocess.Popen(
++        [CHROME, "--headless=new", f"--user-data-dir={profile}", "--remote-debugging-port=0",
++         f"--window-size={W},{H}", "--no-first-run", "--no-default-browser-check",
++         "--disable-background-networking", "--disable-component-update", "--disable-sync",
++         "--disable-extensions", "--metrics-recording-only", "about:blank"],
++        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++    try:
++        deadline = time.monotonic() + 2 * ANSWER
++        port_file = os.path.join(profile, "DevToolsActivePort")
++        while not (os.path.exists(port_file) and open(port_file).read().strip()):
++            deadline_left(deadline, "the browser's port file")
++            time.sleep(0.1)
++        port = open(port_file).read().split()[0]
++        page = next(t for t in http_json(port, "/json/list", deadline) if t["type"] == "page")
++        ws = Socket(page["webSocketDebuggerUrl"])
++        ws.call("Page.navigate", url=url)
++        end = time.monotonic() + ANSWER
++        while not ws.js("!!(window.rigActs && window.rigActs.length && window.rigIdle())"):
++            deadline_left(end, "the window's first view")
++            time.sleep(0.1)
++        meta = ws.js("({ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio})")
++        for name in wanted:
++            before = ws.js("window.rigActs.length")
++            started = time.time()
++            extra = SCENARIOS[name](ws) or {}
++            idle(ws)
++            time.sleep(1.2)  # the page's log flush
++            acts = ws.js(f"window.rigActs.slice({before})")
++            with open(out, "a") as sink:
++                sink.write(json.dumps({"scenario": name, "started": started, "meta": meta,
++                                       "acts": acts, **extra}) + "\n")
++            print(name, len(acts), "acts", flush=True)
++    finally:
++        chrome.terminate()
++        try:
++            chrome.wait(10)
++        except subprocess.TimeoutExpired:
++            chrome.kill()
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/spikes/desktop-rig/judge.py b/spikes/desktop-rig/judge.py
+new file mode 100644
+index 00000000..cbfc73c4
+--- /dev/null
++++ b/spikes/desktop-rig/judge.py
+@@ -0,0 +1,103 @@
++"""The desktop spike's bar, applied to a run's or a sitting's log
++(never part of the product; the bar is `audits/desktop-2026-11/spike/README.md`).
++
++    python3 -I judge.py <run.jsonl | acts.jsonl> [--md]
++
++Reads the driver's scenario lines (each carrying its acts and, for the
++scroll, the frames it sampled) or a sitting's log (one act per line), and
++prints, per kind of act, how many were answered, overtaken and refused, the
++totals' median, 90th percentile and worst, the median split, and each line
++of the bar with whether it holds.
++"""
++
++import json
++import sys
++
++
++def pct(xs, p):
++    if not xs:
++        return None
++    xs = sorted(xs)
++    k = min(len(xs) - 1, max(0, round(p / 100 * (len(xs) - 1))))
++    return xs[k]
++
++
++def load(path):
++    acts, frames, jumps = [], [], []
++    for line in open(path):
++        d = json.loads(line)
++        if "scenario" in d:
++            for a in d["acts"]:
++                a["scenario"] = d["scenario"]
++            acts += d["acts"]
++            if d.get("frames"):
++                frames.append(d)
++            if d.get("jumps_from") is not None:
++                jumps.append((d["scenario"], d["jumps_from"]))
++        elif "act" in d:
++            acts.append(d)
++    return acts, frames
++
++
++def judge(acts, frames):
++    out = []
++    kinds = {}
++    for a in acts:
++        kinds.setdefault(a["kind"], []).append(a)
++    out.append("| Act | answered | overtaken | refused | median ms | p90 ms | worst ms | engine | transport | browser |")
++    out.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
++    for kind, xs in sorted(kinds.items()):
++        ans = [a for a in xs if a["outcome"] == "answered"]
++        tot = [a["total"] for a in ans]
++        med = lambda f: pct([a[f] for a in ans], 50)
++        fmt = lambda v: "" if v is None else f"{v:.0f}" if v >= 10 else f"{v:.1f}"
++        out.append(
++            f"| {kind} | {len(ans)} | {sum(a['outcome'] == 'overtaken' for a in xs)} | "
++            f"{sum(a['outcome'] == 'refused' for a in xs)} | {fmt(pct(tot, 50))} | {fmt(pct(tot, 90))} | "
++            f"{fmt(max(tot) if tot else None)} | {fmt(med('engine'))} | {fmt(med('transport'))} | {fmt(med('browser'))} |")
++    bar = []
++
++    def line(name, xs, within, all_within, share=0.9):
++        tot = [a["total"] for a in xs if a["outcome"] == "answered"]
++        if not tot:
++            bar.append(f"- {name}: no act answered — not judged")
++            return
++        ok_share = sum(t <= within for t in tot) / len(tot)
++        ok = ok_share >= share and max(tot) <= all_within
++        bar.append(f"- {name}: {sum(t <= within for t in tot)} of {len(tot)} within {within} ms, worst {max(tot):.0f} ms "
++                   f"(all within {all_within} ms asked) — {'holds' if ok else 'MISSES'}")
++
++    # a burst's last keystroke: the act before a pause of half a second
++    keys = sorted([a for a in acts if a["kind"] == "key"], key=lambda a: a["t_input"])
++    last = [a for i, a in enumerate(keys) if i + 1 == len(keys) or keys[i + 1]["t_input"] - a["t_input"] > 500]
++    line("1a. The last keystroke of a burst to its refiltered list", last, 350, 700)
++    line("1b. Every answered keystroke to its list", keys, 700, 700, share=1.0)
++    line("2. A click to the opened item", [a for a in acts if a["kind"] in ("click", "select")], 100, 200)
++    line("3. A place opened or closed to its rows", [a for a in acts if a["kind"] == "expand"], 100, 200)
++    scrolls = [a for a in acts if a["kind"] == "scroll"]
++    line("4a. A scroll to the rows of its place", scrolls, 100, 250)
++    for run in frames:
++        fs = run["frames"]
++        rest, steady = run.get("rest_frames"), run.get("steady_end")
++        gaps = [b - a for a, b in zip(fs, fs[1:])]
++        if not gaps or not rest or not steady:
++            bar.append("- 4b. Frames while scrolling: no frames at rest and in the steady wheel marked — not judged")
++            continue
++        # the display's interval from the frames at rest; lateness over the
++        # steady wheel's frames alone
++        base = pct(gaps[: rest - 1], 50)
++        wheel = gaps[rest - 1 : steady - 1]
++        late = sum(g > 1.5 * base for g in wheel)
++        ok = late <= 0.01 * len(wheel)
++        bar.append(f"- 4b. Frames during the steady wheel: {late} of {len(wheel)} late (an interval over 1.5 × {base:.1f} ms, "
++                   f"the median at rest; at most 1% asked), longest {max(wheel):.0f} ms — {'holds' if ok else 'MISSES'}")
++    return out + [""] + bar
++
++
++def main():
++    acts, frames = load(sys.argv[1])
++    print("\n".join(judge(acts, frames)))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/spikes/desktop-rig/src/main.rs b/spikes/desktop-rig/src/main.rs
+new file mode 100644
+index 00000000..e22c68cb
+--- /dev/null
++++ b/spikes/desktop-rig/src/main.rs
+@@ -0,0 +1,329 @@
++//! The desktop spike's window (`roadmap/briefs/desktop-spike.md`): a
++//! loopback server over a clone of a store copy and one hand-written page,
++//! laid out like the C++ app, that logs each act of a sitting with its
++//! time split into the engine's, the transport's and the browser's share.
++//! Throwaway: never part of the product. Its record is
++//! `audits/desktop-2026-11/spike/README.md`.
++//!
++//! Every list the page shows is an answer the search gave: the tree's
++//! places are the search crate's places document (`Places::tabs`,
++//! `Places::characters`), a place's items its request's answer, the flat
++//! list one answer over the league, an item's card the answer to its id
++//! with the item asked. What the rig writes in Rust that the engine lacks
++//! is in `rules.rs`, listed for the design.
++//!
++//! Reads only: the account is opened through the verbs' door under the
++//! environment the start script sets, nothing is written but the log, no
++//! daemon is started, and the page loads nothing from off the machine (the
++//! content policy admits this server alone).
++
++mod rules;
++
++use std::io::Write as _;
++use std::net::SocketAddr;
++use std::sync::{Arc, Mutex, PoisonError};
++use std::time::Instant;
++
++use acquisition_search::answer::{Membership, QueryInput, Request, Rows, Scope, Shape, View};
++use acquisition_search::corpus::{Holder, Realm};
++use acquisition_verbs::frontend::{Frontend, Opened};
++use axum::Router;
++use axum::body::Bytes;
++use axum::extract::State;
++use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
++use axum::response::{IntoResponse, Response};
++use axum::routing::{get, post};
++use serde_json::{Value, json};
++
++const INDEX: &str = include_str!("../assets/index.html");
++const SCRIPT: &str = include_str!("../assets/app.js");
++const STYLE: &str = include_str!("../assets/app.css");
++const POLICY: &str = "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
++
++/// The engine: the account opened once, and the search crate's holder of
++/// the corpus, which checks currency before each answer (C98). One act is
++/// answered at a time; the wait for it is the queue the timing reports.
++struct Engine {
++    opened: Opened,
++    holder: Holder,
++    realm: Realm,
++    /// What the tree answered at the held corpus's basis (`rules::Held`).
++    held: Option<rules::Held>,
++    /// Each place's own terms at the held corpus's basis (`rules::Terms`).
++    terms: Option<rules::Terms>,
++}
++
++struct App {
++    engine: Mutex<Engine>,
++    log: Mutex<std::fs::File>,
++    host: String,
++}
++
++fn main() -> anyhow::Result<()> {
++    let mut args = std::env::args().skip(1);
++    let mut account = None;
++    let mut port: u16 = 0;
++    let mut log = None;
++    let mut check = None;
++    while let Some(arg) = args.next() {
++        match arg.as_str() {
++            "--account" => account = args.next(),
++            "--port" => port = args.next().and_then(|p| p.parse().ok()).unwrap_or(0),
++            "--log" => log = args.next(),
++            "--check" => check = args.next(),
++            other => anyhow::bail!("unknown argument {other}"),
++        }
++    }
++    if let Some(league) = check {
++        let frontend = Frontend::human("desktop-rig").map_err(|f| anyhow::anyhow!("{f}"))?;
++        let account = frontend
++            .account(account.as_deref())
++            .map_err(|f| anyhow::anyhow!("{f}"))?;
++        let mut engine = Engine {
++            opened: open_read(&account)?,
++            holder: Holder::new(),
++            realm: Realm::parse("pc").map_err(|e| anyhow::anyhow!("{e}"))?,
++            held: None,
++            terms: None,
++        };
++        return rules::check(&mut engine, &league).map_err(|e| anyhow::anyhow!("{e}"));
++    }
++    let log =
++        log.ok_or_else(|| anyhow::anyhow!("--log <file> names where the sitting's acts go"))?;
++    let frontend = Frontend::human("desktop-rig").map_err(|f| anyhow::anyhow!("{f}"))?;
++    let account = frontend
++        .account(account.as_deref())
++        .map_err(|f| anyhow::anyhow!("{f}"))?;
++    let opened = open_read(&account)?;
++    let realm = Realm::parse("pc").map_err(|e| anyhow::anyhow!("{e}"))?;
++    let engine = Engine {
++        opened,
++        holder: Holder::new(),
++        realm,
++        held: None,
++        terms: None,
++    };
++    let mut file = std::fs::OpenOptions::new()
++        .create(true)
++        .append(true)
++        .open(&log)?;
++    writeln!(
++        file,
++        "{}",
++        json!({"started": acquisition_store::now(), "pid": std::process::id(),
++               "store": std::env::var("ACQ_STORE_DIR").ok(), "account": account.entry.username})
++    )?;
++    let runtime = tokio::runtime::Builder::new_multi_thread()
++        .enable_all()
++        .build()?;
++    runtime.block_on(async move {
++        let listener =
++            tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], port))).await?;
++        let bound = listener.local_addr()?;
++        let app = Arc::new(App {
++            engine: Mutex::new(engine),
++            log: Mutex::new(file),
++            host: bound.to_string(),
++        });
++        // load the corpus before the first act, as a running app would
++        // hold it: the first keystroke is not the corpus's load
++        {
++            let app = Arc::clone(&app);
++            tokio::task::spawn_blocking(move || warm(&app)).await??;
++        }
++        let router = Router::new()
++            .route(
++                "/",
++                get(
++                    |State(app): State<Arc<App>>, headers: HeaderMap| async move {
++                        asset(&app, &headers, INDEX, "text/html; charset=utf-8")
++                    },
++                ),
++            )
++            .route(
++                "/app.js",
++                get(
++                    |State(app): State<Arc<App>>, headers: HeaderMap| async move {
++                        asset(&app, &headers, SCRIPT, "text/javascript; charset=utf-8")
++                    },
++                ),
++            )
++            .route(
++                "/app.css",
++                get(
++                    |State(app): State<Arc<App>>, headers: HeaderMap| async move {
++                        asset(&app, &headers, STYLE, "text/css; charset=utf-8")
++                    },
++                ),
++            )
++            .route("/api/leagues", post(leagues))
++            .route("/api/view", post(view))
++            .route("/api/item", post(item))
++            .route("/api/log", post(log_acts))
++            .with_state(Arc::clone(&app));
++        println!("http://{bound}/");
++        axum::serve(listener, router).await?;
++        anyhow::Ok(())
++    })
++}
++
++/// The corpus and the largest league's places' terms, loaded before the
++/// first act, as a running app holds them: the first keystroke is not
++/// their load.
++fn warm(app: &App) -> anyhow::Result<()> {
++    let mut engine = app.engine.lock().unwrap_or_else(PoisonError::into_inner);
++    let leagues = rules::leagues(&engine).map_err(|e| anyhow::anyhow!("{e}"))?;
++    if let Some(league) = leagues["leagues"][0]["value"].as_str() {
++        rules::warm(&mut engine, league).map_err(|e| anyhow::anyhow!("{e}"))?;
++    }
++    Ok(())
++}
++
++/// The account's facts and its intent, each through the store's read-only
++/// door (never made nor migrated, nothing written): the rig writes nothing
++/// to the store. The verbs' door opens the intent for writing, so the
++/// intent is opened here by the account's uuid, as that door finds it.
++fn open_read(account: &acquisition_verbs::frontend::Account) -> anyhow::Result<Opened> {
++    let uuid = account.entry.uuid.as_deref().ok_or_else(|| {
++        anyhow::anyhow!("the account's entry names no uuid, so it has no intent file")
++    })?;
++    Ok(Opened {
++        account: account.clone(),
++        facts: account.facts_read().map_err(|e| anyhow::anyhow!("{e}"))?,
++        intent: acquisition_store::Annotations::open_read_only_for(&account.frontend.dir(), uuid)
++            .map_err(|e| anyhow::anyhow!("{e}"))?,
++    })
++}
++
++fn asset(app: &App, headers: &HeaderMap, body: &'static str, kind: &'static str) -> Response {
++    if let Err(refused) = guard(app, headers) {
++        return refused;
++    }
++    (
++        [
++            (header::CONTENT_TYPE, kind),
++            (header::CONTENT_SECURITY_POLICY, POLICY),
++            (header::CACHE_CONTROL, "no-store"),
++        ],
++        body,
++    )
++        .into_response()
++}
++
++/// A request whose Host is not this server's is refused: a page of
++/// another origin that rebinds a name to loopback reads nothing.
++fn guard(app: &App, headers: &HeaderMap) -> Result<(), Response> {
++    match headers.get(header::HOST).and_then(|h| h.to_str().ok()) {
++        Some(host) if host == app.host => Ok(()),
++        _ => Err((StatusCode::FORBIDDEN, "not this server's host").into_response()),
++    }
++}
++
++impl Engine {
++    fn request(&self, text: Option<String>, rows: Rows) -> Request {
++        Request {
++            scope: Scope {
++                account: None,
++                realm: Some(self.realm.clone()),
++                membership: Membership::Live,
++            },
++            query: QueryInput {
++                text,
++                tree: None,
++                trade: None,
++            },
++            view: View::from(Shape::Rows(rows)),
++            ..Request::default()
++        }
++    }
++}
++
++/// One act's answer, timed: the wait for the engine, and the engine's
++/// own time to the serialized body, which the `Server-Timing` header
++/// carries because the body cannot carry its own serialization.
++async fn answered(
++    app: Arc<App>,
++    headers: HeaderMap,
++    body: Bytes,
++    work: fn(&mut Engine, Value) -> Result<Value, String>,
++) -> Response {
++    if let Err(refused) = guard(&app, &headers) {
++        return refused;
++    }
++    let arrived = Instant::now();
++    let done = tokio::task::spawn_blocking(move || {
++        let asked: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
++        let mut engine = app.engine.lock().unwrap_or_else(PoisonError::into_inner);
++        let locked = Instant::now();
++        let mut out = match work(&mut engine, asked.clone()) {
++            Ok(v) => v,
++            Err(e) => json!({"error": e}),
++        };
++        out["seq"] = asked["seq"].clone();
++        let text = serde_json::to_string(&out).unwrap_or_default();
++        drop(engine);
++        let finished = Instant::now();
++        (text, locked - arrived, finished - locked)
++    })
++    .await;
++    match done {
++        Ok((text, queue, engine)) => {
++            let timing = format!(
++                "queue;dur={:.3}, engine;dur={:.3}",
++                queue.as_secs_f64() * 1e3,
++                engine.as_secs_f64() * 1e3
++            );
++            let mut response = ([(header::CONTENT_TYPE, "application/json")], text).into_response();
++            if let Ok(v) = HeaderValue::from_str(&timing) {
++                response.headers_mut().insert("server-timing", v);
++            }
++            response
++        }
++        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
++    }
++}
++
++async fn leagues(State(app): State<Arc<App>>, headers: HeaderMap, body: Bytes) -> Response {
++    answered(app, headers, body, |engine, _| rules::leagues(engine)).await
++}
++
++async fn view(State(app): State<Arc<App>>, headers: HeaderMap, body: Bytes) -> Response {
++    answered(app, headers, body, |engine, asked| {
++        let asked: rules::Asked = serde_json::from_value(asked).map_err(|e| e.to_string())?;
++        rules::view(engine, &asked)
++    })
++    .await
++}
++
++async fn item(State(app): State<Arc<App>>, headers: HeaderMap, body: Bytes) -> Response {
++    answered(app, headers, body, |engine, asked| {
++        let id = asked["id"].as_str().unwrap_or("").to_string();
++        rules::card(engine, &id)
++    })
++    .await
++}
++
++/// The page's acts, appended to the sitting's log as they come.
++async fn log_acts(State(app): State<Arc<App>>, headers: HeaderMap, body: Bytes) -> Response {
++    if let Err(refused) = guard(&app, &headers) {
++        return refused;
++    }
++    let acts: Vec<Value> = match serde_json::from_slice(&body) {
++        Ok(acts) => acts,
++        Err(e) => return (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
++    };
++    let mut file = app.log.lock().unwrap_or_else(PoisonError::into_inner);
++    let written = acts
++        .iter()
++        .try_for_each(|act| writeln!(file, "{act}"))
++        .and_then(|()| file.flush());
++    if let Err(e) = written {
++        eprintln!("the sitting's log was not written: {e}");
++        return (
++            StatusCode::INTERNAL_SERVER_ERROR,
++            format!("the log was not written: {e}"),
++        )
++            .into_response();
++    }
++    StatusCode::NO_CONTENT.into_response()
++}
+diff --git a/spikes/desktop-rig/src/rules.rs b/spikes/desktop-rig/src/rules.rs
+new file mode 100644
+index 00000000..e13c16c3
+--- /dev/null
++++ b/spikes/desktop-rig/src/rules.rs
+@@ -0,0 +1,830 @@
++//! What the window asks of the engine, and the rules the rig had to write
++//! in Rust because the engine has none for them. Each such rule is marked
++//! **Rule** below; the record lists them for the design.
++//!
++//! - **Rule (fold):** the C++ app's form fields become one query in the
++//!   search's language. The engine folds `acq web`'s own form, not this one.
++//! - **Rule (open):** which places of the tree stand open — folders open
++//!   unless collapsed; tabs closed, but under a query the tabs with a match
++//!   open; the person's opens kept apart for with and without a query (the
++//!   C++ app's behaviour, claim B4 of the record). The places document says
++//!   what each place holds and matches; it has no rule for what is open.
++//! - **Rule (flatten):** the open tree as one list of rows, heads and items
++//!   in order, and a window of it by row number. The places document is a
++//!   tree; a scrolled list needs rows by index.
++//! - **Rule (card):** an item's card is the answer to its id with the item
++//!   asked, drawn from the shown item's own rows.
++
++use std::collections::{HashMap, HashSet};
++use std::time::Instant;
++
++use acquisition_search::answer::{Counts, Request, RowField, Rows, Shape, View};
++use acquisition_search::places::{Asking, Filter, Kind, Place, Places, Reading};
++use serde::Deserialize;
++use serde_json::{Value, json};
++
++use crate::Engine;
++
++/// The values each item row carries, by the search's own texts: the
++/// columns of the tree after the name.
++pub const VALUES: [&str; 10] = [
++    "price.amount",
++    "quality",
++    "stack",
++    "level",
++    "ilvl",
++    "links",
++    "sockets",
++    "reqlevel",
++    "pseudo.total_life",
++    "pseudo.total_ele_res",
++];
++
++/// The leagues of the realm with their items, by the answer's count of
++/// `league`: each bucket's term is the league's term as the search writes it.
++pub fn leagues(engine: &Engine) -> Result<Value, String> {
++    let mut request = engine.request(None, Rows::default());
++    request.view = View::from(Shape::Counts(Counts {
++        keys: vec!["league".to_string()],
++        sum: None,
++        limit: Some(100),
++    }));
++    let corpus = engine
++        .holder
++        .corpus(&request, &engine.opened.facts, &engine.opened.intent)
++        .map_err(|e| e.to_string())?;
++    let answer = acquisition_search::answer(&corpus, &request).map_err(|e| e.to_string())?;
++    let view = serde_json::to_value(&answer.view).map_err(|e| e.to_string())?;
++    let buckets = view["counts"]["tables"][0]["buckets"].clone();
++    Ok(json!({"leagues": buckets, "matched": answer.total.matched}))
++}
++
++/// What the page asks for a view: the form, the league, the mode, what
++/// the person opened and closed, the order, and a window of rows.
++#[derive(Debug, Default, Deserialize)]
++#[serde(default)]
++pub struct Asked {
++    pub league: String,
++    /// `tab` or `item`.
++    pub mode: String,
++    pub form: Form,
++    /// Folders the person collapsed.
++    pub collapsed: Vec<String>,
++    /// Places the person opened with no query.
++    pub open: Vec<String>,
++    /// Under a query: places the person opened, and closed.
++    pub fopen: Vec<String>,
++    pub fclosed: Vec<String>,
++    pub sort: Option<String>,
++    pub desc: bool,
++    pub offset: usize,
++    pub count: usize,
++}
++
++/// The form as the page sends it, every field its text.
++#[derive(Debug, Default, Deserialize)]
++#[serde(default)]
++pub struct Form {
++    pub tab: String,
++    pub name: String,
++    pub rarity: String,
++    pub query: String,
++    pub min: std::collections::BTreeMap<String, String>,
++    pub max: std::collections::BTreeMap<String, String>,
++    pub flags: Vec<String>,
++}
++
++/// The fields a range may name, each the search's field.
++const RANGES: [&str; 10] = [
++    "quality",
++    "level",
++    "ilvl",
++    "reqlevel",
++    "links",
++    "sockets",
++    "map_tier",
++    "pseudo.total_life",
++    "pseudo.total_ele_res",
++    "stack",
++];
++
++/// **Rule (fold).** The form as one query, and the fields that do not
++/// filter because their text is no number (the C++ app draws them red).
++pub fn fold(form: &Form) -> (Option<String>, serde_json::Map<String, Value>) {
++    let mut terms = Vec::new();
++    let mut bad = serde_json::Map::new();
++    let quoted = |s: &str| format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""));
++    let tab = form.tab.trim();
++    if !tab.is_empty() {
++        terms.push(format!("(tab:{0} or character:{0})", quoted(tab)));
++    }
++    let name = form.name.trim();
++    if !name.is_empty() {
++        terms.push(format!("(name:{0} or typeline:{0})", quoted(name)));
++    }
++    match form.rarity.as_str() {
++        "" | "any" => {}
++        "nonunique" => terms.push("-rarity:\"unique\"".to_string()),
++        r => terms.push(format!("rarity:{}", quoted(r))),
++    }
++    for (bound, op, side) in [(&form.min, ">=", "min"), (&form.max, "<=", "max")] {
++        for (field, text) in bound {
++            let text = text.trim();
++            if text.is_empty() || !RANGES.contains(&field.as_str()) {
++                continue;
++            }
++            match number(text) {
++                Some(n) => terms.push(format!("{field}{op}{n}")),
++                None => {
++                    bad.insert(
++                        format!("{side}.{field}"),
++                        json!("a single number: 5, -3, 2.5 or 2,5"),
++                    );
++                }
++            }
++        }
++    }
++    for flag in &form.flags {
++        match flag.as_str() {
++            "corrupted" => terms.push("is:corrupted".to_string()),
++            "priced" => terms.push("has:priced".to_string()),
++            "fractured" => terms.push("is:fractured".to_string()),
++            _ => {}
++        }
++    }
++    let query = form.query.trim();
++    if !query.is_empty() {
++        terms.push(format!("({query})"));
++    }
++    ((!terms.is_empty()).then(|| terms.join(" ")), bad)
++}
++
++/// A number as the C++ app's form reads one: a point or a comma as the
++/// decimal separator; a comma before exactly three digits is refused.
++fn number(text: &str) -> Option<String> {
++    if let Some((a, b)) = text.split_once(',') {
++        if b.len() == 3 && b.chars().all(|c| c.is_ascii_digit()) && !a.is_empty() {
++            return None;
++        }
++    }
++    let n: f64 = text.replace(',', ".").parse().ok()?;
++    n.is_finite().then(|| {
++        if n.fract() == 0.0 {
++            format!("{}", n as i64)
++        } else {
++            format!("{n}")
++        }
++    })
++}
++
++/// The rows view every place's request and the flat list take.
++fn rows_view(asked: &Asked) -> Rows {
++    Rows {
++        sort: asked.sort.clone(),
++        desc: asked.desc,
++        values: VALUES.iter().map(|v| v.to_string()).collect(),
++        ..Rows::default()
++    }
++}
++
++/// One stretch of the flattened tree.
++enum Seg<'a> {
++    Head {
++        place: &'a Place,
++        depth: usize,
++        open: bool,
++        count: usize,
++    },
++    /// A place's own items.
++    Items {
++        id: &'a str,
++        request: &'a Request,
++        depth: usize,
++        count: usize,
++    },
++}
++
++impl Seg<'_> {
++    fn rows(&self) -> usize {
++        match self {
++            Seg::Head { .. } => 1,
++            Seg::Items { count, .. } => *count,
++        }
++    }
++}
++
++/// **Rule (hold).** What the tree answered at one basis for one league,
++/// query and order: the two places documents, and each place's rows once
++/// a window has asked for them. Reused only while the held corpus's basis
++/// is the one it was answered at, which the holder checks before every
++/// act (C98); an expansion or a scroll then asks the engine nothing new.
++pub struct Held {
++    basis: acquisition_search::corpus::Basis,
++    key: (String, Option<String>, Option<String>, bool),
++    tabs: Places,
++    characters: Places,
++    rows: HashMap<String, Vec<Value>>,
++}
++
++struct Opens<'a> {
++    queried: bool,
++    collapsed: HashSet<&'a str>,
++    open: HashSet<&'a str>,
++    fopen: HashSet<&'a str>,
++    fclosed: HashSet<&'a str>,
++}
++
++impl Opens<'_> {
++    /// **Rule (open).**
++    fn is_open(&self, place: &Place) -> bool {
++        let id = place.id();
++        match place.place {
++            Kind::Folder => !self.collapsed.contains(id),
++            _ if self.queried => {
++                (place.matched.unwrap_or(0) > 0 && !self.fclosed.contains(id))
++                    || self.fopen.contains(id)
++            }
++            _ => self.open.contains(id),
++        }
++    }
++}
++
++/// **Rule (flatten).** The places, each listed one a head, an open one
++/// followed by the places it holds and then its own items.
++fn flatten<'a>(places: &'a [Place], depth: usize, opens: &Opens, out: &mut Vec<Seg<'a>>) {
++    for place in places {
++        if !place.is_listed() {
++            continue;
++        }
++        // what the head counts: under a query its matches; else its items,
++        // a folder's the places it holds
++        let count = if opens.queried {
++            place.matched.unwrap_or(0)
++        } else if place.place == Kind::Folder {
++            place.holds.map_or(0, |h| h.places)
++        } else {
++            usize::try_from(place.item_count()).unwrap_or(0)
++        };
++        let open = opens.is_open(place);
++        out.push(Seg::Head {
++            place,
++            depth,
++            open,
++            count,
++        });
++        if !open {
++            continue;
++        }
++        flatten(&place.places, depth + 1, opens, out);
++        // the items in the place itself: under a query a tab with pages
++        // says its own apart
++        let own = if place.place == Kind::Folder {
++            0
++        } else if opens.queried {
++            if place.places.is_empty() {
++                place.matched.unwrap_or(0)
++            } else {
++                place.own.unwrap_or(0)
++            }
++        } else {
++            usize::try_from(place.item_count()).unwrap_or(0)
++        };
++        if let Some(request) = place.request.as_ref().filter(|_| own > 0) {
++            out.push(Seg::Items {
++                id: place.id(),
++                request,
++                depth: depth + 1,
++                count: own,
++            });
++        }
++    }
++}
++
++fn ms(since: Instant) -> f64 {
++    since.elapsed().as_secs_f64() * 1e3
++}
++
++/// The view: the tree or the flat list, its rows counted, and the window
++/// asked of them.
++pub fn view(engine: &mut Engine, asked: &Asked) -> Result<Value, String> {
++    let mut parts = serde_json::Map::new();
++    let (text, bad) = fold(&asked.form);
++    let view = rows_view(asked);
++    let started = Instant::now();
++    let base = engine.request(text.clone(), view.clone());
++    let corpus = engine
++        .holder
++        .corpus(&base, &engine.opened.facts, &engine.opened.intent)
++        .map_err(|e| e.to_string())?;
++    parts.insert("corpus".into(), json!(ms(started)));
++    let mut out = if asked.mode == "item" {
++        flat(engine, &corpus, asked, text, view, &mut parts)?
++    } else {
++        tree(engine, &corpus, asked, text, view, &mut parts)?
++    };
++    out["bad"] = Value::Object(bad);
++    out["basis"] = json!(corpus.basis);
++    out["parts"] = Value::Object(parts);
++    Ok(out)
++}
++
++/// An item row as the page draws it, without its index.
++fn item_row(row: &acquisition_search::answer::Row) -> Value {
++    json!({
++        "k": "i", "id": row.id,
++        "name": row.name.clone().or_else(|| row.typeline.clone()),
++        "type": row.name.as_ref().and(row.typeline.clone()),
++        "rarity": row.rarity,
++        "v": row.values.iter().map(|v| v.value.clone().unwrap_or(Value::Null)).collect::<Vec<_>>(),
++    })
++}
++
++/// The flat list: one head, then the window of the query's matches over
++/// the league, one answer, its total the list's length.
++fn flat(
++    engine: &Engine,
++    corpus: &acquisition_search::Corpus,
++    asked: &Asked,
++    text: Option<String>,
++    view: Rows,
++    parts: &mut serde_json::Map<String, Value>,
++) -> Result<Value, String> {
++    let started = Instant::now();
++    // the league's term as the answer's count of `league` writes it
++    let league = format!("league=\"{}\"", asked.league.replace('"', "\\\""));
++    let both = match &text {
++        Some(t) => format!("{league} ({t})"),
++        None => league,
++    };
++    let first = asked.offset.saturating_sub(1);
++    let mut request = engine.request(Some(both), view.clone());
++    request.basis = Some(corpus.basis.clone());
++    if let Shape::Rows(r) = &mut request.view.shape {
++        r.after = Some(first);
++        r.limit = Some(asked.count.max(1));
++    }
++    let answer = acquisition_search::answer(corpus, &request).map_err(|e| e.to_string())?;
++    parts.insert("answer".into(), json!(ms(started)));
++    let matched = answer.total.matched;
++    let mut rows = Vec::new();
++    if asked.offset == 0 {
++        rows.push(
++            json!({"k": "h", "i": 0, "d": 0, "id": "", "name": "All Items", "kind": "all",
++                         "n": matched, "open": true, "holds": false, "never": false}),
++        );
++    }
++    for (k, row) in answer.rows.iter().enumerate() {
++        let mut r = item_row(row);
++        r["i"] = json!(first + 1 + k);
++        r["d"] = json!(1);
++        rows.push(r);
++    }
++    Ok(
++        json!({"query": answer.query.text, "caption": matched, "total_rows": matched + 1,
++              "offset": asked.offset, "rows": rows}),
++    )
++}
++
++/// The tree: the league's places, held at the basis (Rule (hold)),
++/// flattened by what is open, and the window's rows, each place's rows
++/// answered once by its own request.
++fn tree(
++    engine: &mut Engine,
++    corpus: &acquisition_search::Corpus,
++    asked: &Asked,
++    text: Option<String>,
++    view: Rows,
++    parts: &mut serde_json::Map<String, Value>,
++) -> Result<Value, String> {
++    let key = (
++        asked.league.clone(),
++        text.clone(),
++        asked.sort.clone(),
++        asked.desc,
++    );
++    let fresh = !matches!(&engine.held, Some(h) if h.basis == corpus.basis && h.key == key);
++    if fresh {
++        let now = acquisition_store::now();
++        let reading = Reading {
++            store: &engine.opened.facts,
++            intent: &engine.opened.intent,
++            holder: &engine.holder,
++        };
++        let asking = Asking {
++            filter: Filter::default(),
++            query: text.clone(),
++            view: view.clone(),
++        };
++        let started = Instant::now();
++        let tabs =
++            Places::tabs(reading, "pc", &asked.league, &asking, now).map_err(|e| e.to_string())?;
++        parts.insert("tabs".into(), json!(ms(started)));
++        let started = Instant::now();
++        let characters = Places::characters(reading, "pc", &asked.league, &asking, now)
++            .map_err(|e| e.to_string())?;
++        parts.insert("characters".into(), json!(ms(started)));
++        engine.held = Some(Held {
++            basis: corpus.basis.clone(),
++            key,
++            tabs,
++            characters,
++            rows: HashMap::new(),
++        });
++    }
++    parts.insert("held".into(), json!(!fresh));
++    let Engine {
++        opened,
++        holder,
++        held,
++        terms: engine_terms,
++        ..
++    } = engine;
++    let Some(Held {
++        tabs,
++        characters,
++        rows: answered,
++        ..
++    }) = held.as_mut()
++    else {
++        return Err("nothing held".to_string());
++    };
++    let queried = text.is_some();
++    let opens = Opens {
++        queried,
++        collapsed: asked.collapsed.iter().map(String::as_str).collect(),
++        open: asked.open.iter().map(String::as_str).collect(),
++        fopen: asked.fopen.iter().map(String::as_str).collect(),
++        fclosed: asked.fclosed.iter().map(String::as_str).collect(),
++    };
++    let started = Instant::now();
++    let mut segs = Vec::new();
++    flatten(&tabs.places, 0, &opens, &mut segs);
++    flatten(&characters.places, 0, &opens, &mut segs);
++    parts.insert("flatten".into(), json!(ms(started)));
++    let caption = match (&tabs.query, &characters.query) {
++        (Some(a), Some(b)) => a.matched + b.matched,
++        _ => {
++            let sum = |p: &Places| -> usize {
++                p.every()
++                    .iter()
++                    .filter(|p| p.place != Kind::Folder)
++                    .map(|p| usize::try_from(p.item_count()).unwrap_or(0))
++                    .sum()
++            };
++            sum(tabs) + sum(characters)
++        }
++    };
++    let total_rows: usize = segs.iter().map(Seg::rows).sum();
++    let started = Instant::now();
++    let (from, to) = (
++        asked.offset.min(total_rows),
++        (asked.offset + asked.count).min(total_rows),
++    );
++    // **Rule (batch).** The places in the window not answered yet, answered
++    // as one request: each place's own terms (its request in the places
++    // document asked with no query) joined by `or`, before the query, one
++    // evaluation over the corpus, the rows then parted by the place each
++    // lies in. The query's terms come first in a place's own request, so
++    // answering places one by one evaluated the whole query once a place.
++    let mut wanted: Vec<(&str, &Request, usize)> = Vec::new();
++    {
++        let mut at = 0;
++        for seg in &segs {
++            let n = seg.rows();
++            if at.max(from) < (at + n).min(to)
++                && let Seg::Items {
++                    id, request, count, ..
++                } = seg
++                && !answered.contains_key(*id)
++            {
++                wanted.push((id, request, *count));
++            }
++            at += n;
++            if at >= to {
++                break;
++            }
++        }
++    }
++    let mut answers = 0;
++    if !wanted.is_empty() {
++        answers += 1;
++        let started = Instant::now();
++        let terms = plain_terms(
++            engine_terms,
++            reading_of(opened, holder),
++            corpus,
++            &asked.league,
++        )?;
++        parts.insert("terms".into(), json!(ms(started)));
++        let mut request = wanted[0].1.clone();
++        let places = wanted
++            .iter()
++            .map(|(id, _, _)| {
++                terms
++                    .get(*id)
++                    .map(|t| format!("({t})"))
++                    .ok_or(format!("no terms held for {id}"))
++            })
++            .collect::<Result<Vec<_>, _>>()?
++            .join(" or ");
++        request.query.text = Some(match &text {
++            Some(q) => format!("({places}) ({q})"),
++            None => places,
++        });
++        request.basis = Some(corpus.basis.clone());
++        if let Shape::Rows(r) = &mut request.view.shape {
++            r.limit = Some(wanted.iter().map(|w| w.2).sum::<usize>().max(1));
++        }
++        let answer = acquisition_search::answer(corpus, &request).map_err(|e| e.to_string())?;
++        let mut parted: HashMap<&str, Vec<Value>> =
++            wanted.iter().map(|(id, _, _)| (*id, Vec::new())).collect();
++        for row in &answer.rows {
++            if let Some(rows) = parted.get_mut(row.place.id.as_str()) {
++                rows.push(item_row(row));
++            }
++        }
++        for (id, rows) in parted {
++            answered.insert(id.to_string(), rows);
++        }
++    }
++    let mut rows = Vec::new();
++    let mut at = 0;
++    for seg in &segs {
++        let n = seg.rows();
++        let (a, b) = (at.max(from), (at + n).min(to));
++        if a < b {
++            match seg {
++                Seg::Head {
++                    place,
++                    depth,
++                    open,
++                    count,
++                } => rows.push(json!({
++                    "k": "h", "i": at, "d": depth, "id": place.id(), "name": place.name(),
++                    "kind": place.place, "n": count, "open": open,
++                    "holds": !place.places.is_empty() || place.request.is_some(),
++                    "never": place.never_fetched(),
++                })),
++                Seg::Items { id, depth, .. } => {
++                    let own = &answered[*id];
++                    for k in (a - at)..(b - at) {
++                        let mut r = own.get(k).cloned().unwrap_or(Value::Null);
++                        if r.is_null() {
++                            continue;
++                        }
++                        r["i"] = json!(at + k);
++                        r["d"] = json!(depth);
++                        rows.push(r);
++                    }
++                }
++            }
++        }
++        at += n;
++        if at >= to {
++            break;
++        }
++    }
++    parts.insert("window".into(), json!(ms(started)));
++    parts.insert("answers".into(), json!(answers));
++    let canonical = tabs.query.as_ref().map(|q| q.text.clone());
++    Ok(
++        json!({"query": canonical, "caption": caption, "total_rows": total_rows,
++              "offset": from, "rows": rows}),
++    )
++}
++
++/// **Rule (card).** The item as the answer to its id gives it, with the
++/// item asked: its header, its properties, its level, what it requires,
++/// its lines by their array, and where it lies.
++pub fn card(engine: &Engine, id: &str) -> Result<Value, String> {
++    let started = Instant::now();
++    let mut request = engine.request(
++        Some(format!("id:\"{}\"", id.replace('"', ""))),
++        Rows {
++            limit: Some(1),
++            fields: vec![RowField::Item],
++            ..Rows::default()
++        },
++    );
++    request.view.routes = false;
++    let corpus = engine
++        .holder
++        .corpus(&request, &engine.opened.facts, &engine.opened.intent)
++        .map_err(|e| e.to_string())?;
++    let answer = acquisition_search::answer(&corpus, &request).map_err(|e| e.to_string())?;
++    let answered = ms(started);
++    let row = answer
++        .rows
++        .into_iter()
++        .find(|r| r.id == id)
++        .ok_or_else(|| format!("no item {id} in the corpus"))?;
++    let shown = row.shown.ok_or("the answer carried no item")?;
++    let item = &shown.item;
++    let mut groups: Vec<(String, Vec<String>)> = Vec::new();
++    for line in &shown.lines {
++        let source = line.line.source.clone();
++        match groups.last_mut() {
++            Some((s, lines)) if *s == source => lines.push(line.line.text.clone()),
++            _ => groups.push((source, vec![line.line.text.clone()])),
++        }
++    }
++    let place = &row.place;
++    Ok(json!({
++        "id": row.id,
++        "name": item.name, "typeline": item.typeline, "rarity": item.rarity, "frame": item.frame,
++        "props": item.properties.iter().map(|p| p.text.clone()).collect::<Vec<_>>(),
++        "ilvl": item.item_level, "requires": item.requires,
++        "groups": groups.iter().map(|(s, l)| json!({"source": s, "lines": l})).collect::<Vec<_>>(),
++        "flags": item.flags, "note": item.note, "descr": item.descr,
++        "price": shown.price,
++        "place": {"league": place.league, "kind": place.kind, "name": place.name,
++                   "parent": place.parent.as_ref().and_then(|p| p.name.clone()),
++                   "cell": place.cell, "container": place.container},
++        "basis": corpus.basis,
++        "parts": {"answer": answered},
++    }))
++}
++
++/// The rig's own check, `--check <league>`: with every place open, under
++/// no query and under three, the rows the window draws are as many as the
++/// rows it counts, each at its index (no slot left waiting); and the flat
++/// list's rows are the answer's. Prints one line per case.
++pub fn check(engine: &mut Engine, league: &str) -> Result<(), String> {
++    for (query, sort) in [
++        ("", None),
++        ("rarity=unique", None),
++        ("pseudo.total_life>=70", Some("ilvl")),
++        ("(name:\"tabula\" or typeline:\"tabula\")", None),
++    ] {
++        let mut asked = Asked {
++            league: league.to_string(),
++            mode: "tab".to_string(),
++            form: Form {
++                query: query.to_string(),
++                ..Form::default()
++            },
++            sort: sort.map(str::to_string),
++            desc: true,
++            count: usize::MAX / 4,
++            ..Asked::default()
++        };
++        // first ask: the places; then every place open
++        let first = view(engine, &asked)?;
++        let held = engine.held.as_ref().ok_or("nothing held")?;
++        let ids: Vec<String> = held
++            .tabs
++            .every()
++            .iter()
++            .chain(held.characters.every().iter())
++            .map(|p| p.id().to_string())
++            .collect();
++        asked.open = ids.clone();
++        asked.fopen = ids;
++        let started = Instant::now();
++        let all = view(engine, &asked)?;
++        let rows = all["rows"].as_array().ok_or("no rows")?;
++        let total = all["total_rows"].as_u64().unwrap_or(0) as usize;
++        let at_index = rows
++            .iter()
++            .enumerate()
++            .all(|(k, r)| r["i"].as_u64() == Some(k as u64));
++        let items = rows.iter().filter(|r| r["k"] == "i").count();
++        println!(
++            "tab  {query:?}: caption {} · {} rows counted, {} drawn, {} items, each at its index: {} ({} ms, {} answers)",
++            first["caption"],
++            total,
++            rows.len(),
++            items,
++            at_index,
++            ms(started).round(),
++            all["parts"]["answers"]
++        );
++        if rows.len() != total || !at_index {
++            return Err(format!("{query:?}: rows drawn are not the rows counted"));
++        }
++        // the rows parted from one request are each place's own answer, in
++        // its order: compared for every place holding items
++        let held = engine.held.as_ref().ok_or("nothing held")?;
++        let corpus = engine
++            .holder
++            .corpus(
++                &engine.request(None, Rows::default()),
++                &engine.opened.facts,
++                &engine.opened.intent,
++            )
++            .map_err(|e| e.to_string())?;
++        let mut compared = 0;
++        for place in held
++            .tabs
++            .every()
++            .iter()
++            .chain(held.characters.every().iter())
++        {
++            let (Some(request), Some(parted)) = (place.request.as_ref(), held.rows.get(place.id()))
++            else {
++                continue;
++            };
++            if compared >= 200 {
++                break;
++            }
++            let mut request = request.clone();
++            if let Shape::Rows(r) = &mut request.view.shape {
++                r.limit = Some(100_000);
++            }
++            let alone = acquisition_search::answer(&corpus, &request).map_err(|e| e.to_string())?;
++            let ids: Vec<&str> = alone
++                .rows
++                .iter()
++                .filter(|r| r.place.id == place.id())
++                .map(|r| r.id.as_str())
++                .collect();
++            let held_ids: Vec<&str> = parted.iter().filter_map(|r| r["id"].as_str()).collect();
++            if ids != held_ids {
++                return Err(format!(
++                    "{query:?}: {}'s rows differ from its own answer",
++                    place.id()
++                ));
++            }
++            compared += 1;
++        }
++        println!("     {compared} places' rows are their own answers, in order");
++        asked.mode = "item".to_string();
++        asked.count = 300;
++        asked.offset = 0;
++        let flat = view(engine, &asked)?;
++        println!(
++            "item {query:?}: {} rows counted, {} drawn in the first window",
++            flat["total_rows"],
++            flat["rows"].as_array().map_or(0, Vec::len)
++        );
++    }
++    Ok(())
++}
++
++fn reading_of<'a>(
++    opened: &'a acquisition_verbs::frontend::Opened,
++    holder: &'a acquisition_search::corpus::Holder,
++) -> Reading<'a> {
++    Reading {
++        store: &opened.facts,
++        intent: &opened.intent,
++        holder,
++    }
++}
++
++/// Each place's own terms, by id: its request's text in the league's
++/// places documents asked with no query, held at the basis (Rule (hold)).
++pub struct Terms {
++    basis: acquisition_search::corpus::Basis,
++    league: String,
++    texts: HashMap<String, String>,
++}
++
++/// The default league's terms, read before the first act.
++pub fn warm(engine: &mut Engine, league: &str) -> Result<(), String> {
++    let corpus = engine
++        .holder
++        .corpus(
++            &engine.request(None, Rows::default()),
++            &engine.opened.facts,
++            &engine.opened.intent,
++        )
++        .map_err(|e| e.to_string())?;
++    let Engine {
++        opened,
++        holder,
++        terms,
++        ..
++    } = engine;
++    plain_terms(terms, reading_of(opened, holder), &corpus, league).map(|_| ())
++}
++
++fn plain_terms<'a>(
++    held: &'a mut Option<Terms>,
++    reading: Reading,
++    corpus: &acquisition_search::Corpus,
++    league: &str,
++) -> Result<&'a HashMap<String, String>, String> {
++    if !matches!(held, Some(t) if t.basis == corpus.basis && t.league == league) {
++        let now = acquisition_store::now();
++        let asking = Asking::default();
++        let tabs = Places::tabs(reading, "pc", league, &asking, now).map_err(|e| e.to_string())?;
++        let characters =
++            Places::characters(reading, "pc", league, &asking, now).map_err(|e| e.to_string())?;
++        let texts = tabs
++            .every()
++            .iter()
++            .chain(characters.every().iter())
++            .filter_map(|p| {
++                let text = p.request.as_ref()?.query.text.clone()?;
++                Some((p.id().to_string(), text))
++            })
++            .collect();
++        *held = Some(Terms {
++            basis: corpus.basis.clone(),
++            league: league.to_string(),
++            texts,
++        });
++    }
++    Ok(&held.as_ref().ok_or("no terms")?.texts)
++}
+diff --git a/spikes/desktop-rig/start.sh b/spikes/desktop-rig/start.sh
+new file mode 100755
+index 00000000..b617dbce
+--- /dev/null
++++ b/spikes/desktop-rig/start.sh
+@@ -0,0 +1,37 @@
++#!/bin/zsh
++# The desktop spike's window (audits/desktop-2026-11/spike/README.md).
++# From the repository's root:  runs/desktop-spike/start.sh
++#
++# Each start reads a fresh clone (cp -cR) of the store copy beside this
++# script, never the copy itself and never your own store; starts the rig
++# under the read environment (no daemon, nothing sent to GGG); and opens it
++# as a Chrome app window on a profile of its own here, its background
++# networking off. Close the window to stop. Every act is logged to
++# runs/desktop-spike/logs/sitting-<time>.jsonl.
++set -eu
++here=${0:A:h}
++stamp=$(date +%Y%m%d-%H%M%S)
++work=$here/sittings/$stamp
++mkdir -p $work $here/logs
++cp -cR $here/store-2026-11-24 $work/store
++log=$here/logs/sitting-$stamp.jsonl
++env -u ACQ_PROVIDER -u ACQ_GGG ACQ_NO_SPAWN=1 ACQ_NO_KEYRING=1 \
++  ACQ_STORE_DIR=$work/store ACQ_LOG_DIR=$work/logs \
++  $here/rig/desktop-rig --account 'GERWARIC#7694' --log $log >$work/url 2>$work/rig.err &
++rig=$!
++trap 'kill $rig 2>/dev/null || true' EXIT INT TERM
++print "Loading your items…"
++until [[ -s $work/url ]]; do
++  kill -0 $rig 2>/dev/null || { cat $work/rig.err; exit 1; }
++  sleep 0.2
++done
++url=$(head -1 $work/url)
++print "The window: $url"
++print "Its acts are logged to ${log#$PWD/}"
++chrome=${ACQ_TEST_BROWSER:-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
++"$chrome" --user-data-dir=$here/profile --app=$url --window-size=1280,760 \
++  --no-first-run --no-default-browser-check --disable-background-networking \
++  --disable-component-update --disable-sync --disable-extensions \
++  ${=RIG_BROWSER_ARGS:-} >/dev/null 2>&1
++# the page's last acts reach the log as the window closes
++sleep 1
