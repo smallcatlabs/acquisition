@@ -749,6 +749,43 @@ fn a_named_map_tab_covers_its_substashes_the_cycle_after_its_first_fetch() {
         "{:?}",
         p.actions
     );
+    // A unique tab is a map tab's kind: its pages wait for its first
+    // fetch, and an empty page is skipped with its reason.
+    let mut s3 = store();
+    list(
+        &mut s3,
+        json!([{ "id": "u1", "name": "Uniques", "type": "UniqueStash", "index": 0 }]),
+        1000,
+    );
+    let uniques = ids_policy_value(&["u1"], 3600);
+    let first = plan(&s3, &uniques, 1100);
+    assert!(
+        matches!(first.actions.as_slice(), [RefreshAction::FetchTab { id, .. }] if id == "u1"),
+        "{:?}",
+        first.actions
+    );
+    fetch(
+        &mut s3,
+        json!({ "id": "u1", "name": "Uniques", "type": "UniqueStash", "items": [], "children": [
+                { "id": "b1", "name": "Belts", "type": "UniqueStash", "parent": "u1",
+                  "metadata": { "items": 2 } },
+                { "id": "b0", "name": "Rings", "type": "UniqueStash", "parent": "u1",
+                  "metadata": { "items": 0 } } ] }),
+        1100,
+    );
+    let next = plan(&s3, &uniques, 1200);
+    assert!(
+        matches!(next.actions.as_slice(), [RefreshAction::FetchSubstash { parent, id, .. }] if parent == "u1" && id == "b1"),
+        "{:?}",
+        next.actions
+    );
+    assert!(
+        next.skipped_tabs
+            .iter()
+            .any(|t| t.id == "b0" && t.reason == SkipReason::EmptyStub),
+        "{:?}",
+        next.skipped_tabs
+    );
 }
 
 /// C37 — a folder's children are covered at once, since the listing carries them.
