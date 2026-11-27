@@ -363,7 +363,8 @@ fn mock_tab(
     MOCK_TABS.iter().find(|t| t.0 == id)
 }
 
-/// C123 (the mock's real-shaped items): the fixture, compiled in. An
+/// C123 (the mock's real-shaped items): the fixture, compiled into
+/// `acqd`, never a path read at run time. An
 /// object from a location key to the whole item array GGG would send
 /// there: a tab id (`dump`), or `{character}-equipment` and
 /// `{character}-inv`. Its bodies are the owner's own items as his store

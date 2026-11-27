@@ -1834,6 +1834,13 @@ submit under it; name the frontend instead"
 /// carry the bearer to any host and install that host's policy on the
 /// route. The daemon's own submissions call `submit` directly and never
 /// pass this door; `submit` still judges an `apply`'s tuples.
+///
+/// Before an id exists the door refuses an unknown kind, the daemon's own
+/// `probe`, a mock-only kind in real mode, a path param missing where
+/// required, too long, or not one segment as any server reads it
+/// ([`admit_segments`]), a `sleep` beyond its bound ([`check_sleep`], the
+/// row's check), and params over theirs ([`admit_params_size`] and
+/// [`admit_submitter`], in `submit_and_mark`, before the insert).
 pub(super) fn admit_client(kind: &str, params: &Value, real: bool) -> Result<(), Refusal> {
     let refused = |message: String| Refusal::new(ErrorKind::Refused, message);
     let Some(row) = KINDS.iter().find(|row| row.kind == kind) else {
