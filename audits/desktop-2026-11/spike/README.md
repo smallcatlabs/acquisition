@@ -458,6 +458,58 @@ keystroke of `pseudo.total_life>=70` spent 129 ms counting and 26 ms on
 the window's rows, where rig-2 spent 214 to 245 ms on the two documents
 and 52 to 54 on the window.
 
+### rig-3: two lines miss by one act each
+
+`desktop-rig --check Standard` held before the runs, with the rig built
+from `rig-3.patch` installed. Load average 1.8 to 3.4, no build or gate
+running before or after any run.
+
+| Run | key | engine · transport · browser | click | expand | scroll |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 120 | 117 · 1.2 · 2.5 | 38 | 34 | 3.2 |
+| 2 | 116 | 114 · 1.3 · 2.5 | 42 | 33 | 2.9 |
+| 3 | 128 | 125 · 1.2 · 2.4 | 45 | 34 | 3.4 |
+
+| Line | Run 1 | Run 2 | Run 3 |
+| --- | --- | --- | --- |
+| 1a. last keystroke of a burst: 9 in 10 within 350 ms, all within 700 | 11 of 12, worst 421 | 11 of 12, worst 408 | **10 of 12, worst 424: misses** |
+| 1b. every answered keystroke within 700 ms | 43 of 43, worst 421 | 43 of 43, worst 408 | 44 of 44, worst 519 |
+| 2. click: 9 in 10 within 100 ms, all within 200 | 9 of 10, worst 112 | 9 of 10, worst 109 | 9 of 10, worst 109 |
+| 3. expansion: 9 in 10 within 100 ms, all within 200 | 20 of 20, worst 68 | 20 of 20, worst 57 | 20 of 20, worst 57 |
+| 4a. scroll: 9 in 10 within 100 ms, all within 250 | 204 of 207, worst 102 | 195 of 209, worst 116 | 202 of 209, worst 114 |
+| 4b. late frames in the steady wheel, at most 1% | 4 of 598 | **7 of 594: misses** | 3 of 599 |
+
+The keystroke's median halved from rig-2's. The bar still does not hold.
+**From the split:**
+
+- *Line 1a.* In every run the last keystroke of `rarity=unique ilvl>=80`
+  took 407 to 421 ms: 179 to 191 ms waiting for the answer to the
+  keystroke before it, then 194 to 199 ms counting (one counts
+  evaluation of the query, and the rows of the tabs of pages that hold a
+  match), 17 ms for the window's rows, 10 ms for the currency check.
+  Run 3's second miss, the Backspace that empties Name, took 424 ms:
+  393 ms waiting for the answer to the keystroke before it (the one-letter
+  `c`, every item holding a c), 14 ms its own. The browser's share in
+  each is about 2 ms, the transport's about 1 ms. What remains is the
+  engine's: a query evaluated over the whole corpus on each answer, and
+  an answer that cannot be stopped once asked, so a keystroke waits for
+  the one before it.
+- *Line 4b.* Each late frame in every run is one frame of 33 ms (one
+  dropped at headless Chrome's 60 Hz) and falls within 40 ms of a scroll
+  window's answer being drawn: 32 windows were asked in each wheel, and
+  3 to 7 of their frames came late. The frames are not acts, so the
+  split does not apportion them; the rows' DOM work in those frames took
+  0.2 to 0.4 ms, so the time is in the frame's style, layout and paint,
+  or in headless Chrome's own pacing. As the bar says, this line is
+  judged on a real display at the sitting.
+
+What the rig could still try, neither tried: a window of several
+viewports, so a wheel asks fewer windows (line 4b); and holding a
+keystroke a few tens of milliseconds before asking, so a fast typist's
+keystrokes wait less behind an answer they overtake (line 1a), at the
+cost of that delay on every keystroke. The engine's own limits stand
+under either.
+
 ## The store copy
 
 `shasum -a 256` of each file under `runs/desktop-spike/store-2026-11-24`
