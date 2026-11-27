@@ -22,10 +22,10 @@ better Acquisition that is agent-friendly and agent-forward.
   1, at his word): a builder reads its brief and the rulings its files
   cite, until that audit's sitting is run again (its `seat/`, also
   #220's re-measure).
-- **The registry's retirement** (`audits/retire-2026-11/README.md`,
-  four batches): the daemon's and search and trade's are closed
-  (`Step: process-340`, `process-343`); pricing, plans and store, then
-  frontends and network follow, each its own brief.
+- **The registry's retirement** (`audits/retire-2026-11/README.md`):
+  its three batches are closed (`Step: process-340`, `process-343`,
+  `process-345`). Left of the census: the shedding pass, and C27
+  (its Windows half) and C121 (#339), which the batches left.
 - **The #293 removals**: the five ranked cuts of
   `audits/assessment-6-5/README.md` are closed
   (`git log --grep='^Step: cut-293'`). #293 stays open.
