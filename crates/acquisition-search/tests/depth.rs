@@ -140,9 +140,9 @@ fn c109_a_tree_nested_past_the_limit_is_refused_as_the_text_is() {
     }
 }
 
-/// A line's own group and a sum are terms, never levels: the commonest
-/// term, a template compared, costs nothing, so the limit is the count of
-/// what was typed around it.
+/// A line's own group, a link group's and a sum are terms, never levels:
+/// the commonest term, a template compared, costs nothing, so the limit is
+/// the count of what was typed around it.
 #[test]
 fn c109_a_line_or_a_sum_is_a_term_and_never_a_level() {
     let store = worked();
@@ -150,6 +150,7 @@ fn c109_a_line_or_a_sum_is_a_term_and_never_a_level() {
     for leaf in [
         "\"# to maximum Life\">=90",
         "line(\"# to maximum Life\" arg1>=90 source=explicit)",
+        "linked(red>=3 green>=1)",
         "sum(\"# to maximum Life\")>=90",
         "pseudo.total_res>=60",
     ] {
