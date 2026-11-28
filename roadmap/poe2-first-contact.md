@@ -35,12 +35,16 @@ it anywhere else is a stop too.
 
 ## 2. The build the contacts run from
 
-1. `git fetch`, then rebase `prep/poe2-stash` onto `origin/main`.
-2. `tools/gate.sh` on the rebased tree, exit 0.
-3. The skill's "Before", on this branch: a clean tree, `cargo build
-   --workspace`, `tools/sign-acqd.sh`, `./target/debug/acq version`.
-   The contacts run from this build, never from `main`'s, which still
-   refuses `--realm poe2` on `acq stashes` and `acq stash`.
+1. The skill's "Before", steps 1 and 2: the environment unset, and
+   `acq daemon stop` until it says the daemon is not running. Nothing
+   builds or gates under a live daemon.
+2. `git fetch`, then rebase `prep/poe2-stash` onto `origin/main`.
+3. `tools/gate.sh` on the rebased tree, exit 0.
+4. The skill's "Before", steps 3 and 4, on this branch: a clean tree,
+   `cargo build --workspace`, `tools/sign-acqd.sh`, `./target/debug/acq
+   version`, and `runs/` against the ledger. The contacts run from
+   this build, never from `main`'s, which still refuses `--realm poe2`
+   on `acq stashes` and `acq stash`.
 
 ## 3. The first contacts
 
@@ -57,19 +61,33 @@ daemon is not running), the listing first:
 | 2 | `stash/poe2` | `ACQ_TRIPWIRE=1 ACQ_MAX_SENDS=3 acq stash <id> --realm poe2 --league <L>` | the same |
 | 3 | `stash/poe2`, a substash | `ACQ_TRIPWIRE=1 ACQ_MAX_SENDS=3 acq stash <id> --sub <sub> --realm poe2 --league <L>` | the same |
 
-Contact 2 takes an ordinary tab's id from contact 1's listing. Contact
-3 runs only if the listing holds a map or unique tab: its `<sub>` is
-one of that tab's children in the listing. Without one, the substash
-shape stays unobserved: write that in the row and in the claims. A
-substash's id comes only from a listing or a tab GGG answered, so
-nothing sends that shape until a PoE2 map or unique tab exists.
+Contact 2's tab is a map or unique tab (`MapStash` or `UniqueStash`)
+from contact 1's listing where the listing holds one, else an
+ordinary tab. A substash's id is not in the listing: a map or unique
+tab's substashes come as the `children` of that tab's own answer,
+which the store files as tabs under it. So contact 3 runs only when
+contact 2 fetched such a tab and its answer listed children. Its
+`<sub>` is one of them, read after contact 2 with `acq tabs --realm
+poe2 --league <L> --expand`, which lists a tab's substashes after it.
+Otherwise contact 3 does not run, and the substash shape stays
+unobserved: write that in the row and in the claims.
 
 ## 4. After each contact, the journal
 
 `acq daemon status` prints its path. Read it before anything else:
 
-- The probe line: 0 hits on its policy, or stop and find what else
-  uses the account (the skill).
+- The probe line's hits on its policy. GGG keeps the counters, not
+  the daemon: a fresh daemon's HEAD reports hits an earlier one spent
+  (N37 for an `Account` rule; N6, one policy name shares its counters
+  across routes). Contacts 2 and 3 share `stash/poe2`, and contact 1's
+  listing shares its policy too if the names say so, so a later
+  contact's HEAD counts the day's own earlier GETs while they are
+  inside that policy's windows. Either wait out the longest window the
+  earlier contact's headers reported, plus 60 s, before the next
+  contact, after which the probe must report 0 hits; or reconcile, and
+  the hits must equal the day's own GETs on that policy still inside
+  each window, read from the earlier contacts' journals. A hit neither
+  accounts for is the skill's stop: find what else uses the account.
 - The policy's name and windows. PoE2's character routes carry pc's
   windows under a `-poe2` suffix (N41). Write down what the stash
   routes carry, whatever it is.
@@ -81,10 +99,14 @@ retry, never a reset-and-retry:
 - **403**: possibly a Cloudflare block (invariant 3; N1 to N4, N28).
   The tripwire halts. Wait 360 s, read the response headers in the
   journal, write the row, and stop for the day.
-- **404**: the shape is not served for `poe2`, whatever the page
-  says, and the request counts toward the invalid-request budget
-  (N27). Stop and write the row. The branch is not merged. It waits
-  for a page that matches the wire.
+- **404**: record the status, the URL as sent and the body, as
+  observed. It counts toward the invalid-request budget (N27). Stop
+  and write the row, with no retry. Its cause stays open: a resource
+  that is gone (a tab removed between the listing and the fetch, a
+  league the realm does not hold) and a shape GGG does not serve for
+  `poe2` both answer 404, and the row names the cause only when
+  evidence tells them apart. The branch is not merged while it is
+  open.
 - **400**: refused as invalid. It counts toward GGG's invalid-request
   budget (N27; N60 is a 400 on a shape answered 200 elsewhere). Stop,
   write the row and read the body before anything else is sent.
@@ -123,15 +145,17 @@ One row per contact in `RUN-LEDGER.md`, in its columns:
 
 ## 7. The merge
 
-Only after the contacts it ran have passed, the claims are written and
-the rows are committed:
+Only after the contacts it ran have passed:
 
-1. Merge `prep/poe2-stash` into `main`, a fast-forward from the
+1. The rows and the claims committed on the branch.
+2. `tools/gate.sh` on that tree, the one holding the committed rows
+   and claims, exit 0, before it is pushed or merged.
+3. Merge `prep/poe2-stash` into `main`, a fast-forward from the
    rebased branch, and push.
-2. On `main` after it: `tools/gate.sh` exits 0; `acq stashes --help`
-   offers `poe2`; the README's "Known gaps" no longer says GGG offers
-   no PoE2 stash tabs; a `poe2` policy entry naming `tabs` is
-   accepted by `acq policy set`.
-3. If contact 3 did not run, a substash under `poe2` is still
+4. On `main` after it: CI's two gates pass at the merged tip; `acq
+   stashes --help` offers `poe2`; the README's "Known gaps" no longer
+   says GGG offers no PoE2 stash tabs; a `poe2` policy entry naming
+   `tabs` is accepted by `acq policy set`.
+5. If contact 3 did not run, a substash under `poe2` is still
    unobserved. File it as an issue labelled `trigger:live`, so the
    first PoE2 map or unique tab gets its own contact.

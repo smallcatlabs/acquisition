@@ -9,13 +9,13 @@
 //!
 //! Which realms each endpoint family accepts is declared here, once, and
 //! read by the daemon (URL rendering and admission), the mock (path
-//! classification), and the planner (a policy naming tabs under `poe2` is
-//! a parse error). Documented 2026-09-02: characters take `xbox|sony|poe2`;
-//! stashes and account leagues take `xbox|sony` and are titled "PoE1
-//! only". When GGG extends PoE2 to the other families, the change is one
-//! arm in [`Family::accepts`] plus a first-contact sample under
-//! the live-run skill's standing rule — an unobserved URL shape is never
-//! sent.
+//! classification), and the planner (a policy naming a facet under a
+//! realm its family does not take is a parse error). Documented
+//! 2026-09-02: characters take `xbox|sony|poe2`; stashes and account
+//! leagues take `xbox|sony` and are titled "PoE1 only". When GGG extends
+//! PoE2 to the other families, the change is one arm in
+//! [`Family::accepts`] plus a first-contact sample under the live-run
+//! skill's standing rule — an unobserved URL shape is never sent.
 //!
 //! Rulings: `decisions/store.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!

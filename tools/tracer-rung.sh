@@ -262,7 +262,9 @@ if [ "$MODE" = mock ]; then
     save_status login
     stop_daemon
     LOGIN_LIFETIME=1
-    # stashes are PoE1 only: a poe2 entry covers characters alone
+    # a poe2 rehearsal covers characters alone: the mock lists no poe2 tab
+    # (it answers a poe2 stash listing empty, no PoE2 stash body observed),
+    # so a tabs facet there would rehearse nothing but that empty listing
     facets='{"tabs": "all", "characters": "all"}'
     if [ "$REALM" = poe2 ]; then facets='{"characters": "all"}'; fi
     POLICY=$(jq -nc --arg r "$REALM" --arg l "$LEAGUE" --argjson f "$facets" \
