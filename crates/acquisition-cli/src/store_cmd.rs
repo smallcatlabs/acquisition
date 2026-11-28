@@ -202,34 +202,6 @@ pub(crate) fn tabs_head(
     )
 }
 
-/// `tabs`' facts line: the league's tabs, how many were fetched
-/// and their extremes, and when its stash listing was seen, in the words
-/// the other facts lines print ([`crate::price_cmd::fetched_words`]).
-pub(crate) fn tabs_facts_line(counts: &acquisition_search::tabs::TabCounts, now: i64) -> String {
-    let places = counts.tabs - counts.folders;
-    let listing = match counts.span.list_seen {
-        Some(at) => format!(
-            "stash listing {}",
-            counts
-                .span
-                .list_seen_age
-                .clone()
-                .unwrap_or_else(|| ago(now, Some(at)))
-        ),
-        None => "stash never listed".to_string(),
-    };
-    // an empty league says when its listing was seen, or that it never
-    // was
-    if counts.tabs == 0 {
-        return format!("facts: no tabs; {listing}\n");
-    }
-    format!(
-        "facts: {}, {}; {listing}\n",
-        acquisition_search::words::plural(places, "tab", "tabs"),
-        crate::price_cmd::fetched_words(counts.fetched, &counts.span, now)
-    )
-}
-
 /// The command that lists one league's characters, as `account`, in the
 /// quoting every printed command takes (C156).
 fn characters_line(account: &str, realm: Realm, league: &str) -> String {
@@ -252,16 +224,6 @@ pub(crate) fn clip(s: &str, max: usize) -> String {
         let mut out: String = s.chars().take(max - 1).collect();
         out.push('…');
         out
-    }
-}
-
-/// The items column: `-` when never fetched (nothing is known), the live
-/// count otherwise — a fetched-empty body reads `0`, never the same as
-/// unfetched (C53).
-pub(crate) fn items_cell(fetched_at: Option<i64>, item_count: i64) -> String {
-    match fetched_at {
-        None => "-".into(),
-        Some(_) => item_count.to_string(),
     }
 }
 
@@ -301,7 +263,7 @@ fn render_tabs_table(tabs: &[acquisition_store::TabRow], now: i64) -> String {
             "{:<name_w$} {:<type_w$} {:>6}  {:<12} {:<12} {}\n",
             name,
             t.r#type,
-            items_cell(t.fetched_at, t.item_count),
+            acquisition_search::words::facts::items_cell(t.fetched_at, t.item_count),
             ago(now, t.fetched_at),
             t.parent.as_deref().unwrap_or(""),
             t.id,
@@ -355,7 +317,10 @@ pub fn tabs(
     let listed = held.answer;
     if listed.counts.tabs == 0 {
         println!("{}", no_tabs_text(realm, league, &store, &username));
-        print!("{}", tabs_facts_line(&listed.counts, now));
+        print!(
+            "{}",
+            acquisition_search::words::facts::tabs_facts_line(&listed.counts, now)
+        );
         print!("{leagues}");
         return Ok(());
     }
@@ -365,7 +330,10 @@ pub fn tabs(
         "{}",
         tabs_head(&listed.counts, realm, league, Some(&characters))
     );
-    print!("{}", tabs_facts_line(&listed.counts, now));
+    print!(
+        "{}",
+        acquisition_search::words::facts::tabs_facts_line(&listed.counts, now)
+    );
     print!("{leagues}");
     // a selection is the answer under the league's counts: its rows,
     // whole or the ten, and the command that lists the rest (else a
@@ -612,24 +580,6 @@ fn no_characters(
     ))
 }
 
-/// `store characters`' footer: the counts, in words (C146), the
-/// characters page's counts line too.
-pub(crate) fn characters_counts_line(
-    counts: &acquisition_search::places::CharacterCounts,
-) -> String {
-    let mut summary = format!("{} fetched", counts.fetched);
-    if counts.empty_bodies > 0 {
-        summary.push_str(&format!(" ({} with empty bodies)", counts.empty_bodies));
-    }
-    if counts.never_fetched > 0 {
-        summary.push_str(&format!(", {} never fetched", counts.never_fetched));
-    }
-    format!(
-        "{} characters: {summary}; {} items\n",
-        counts.characters, counts.items
-    )
-}
-
 /// `store characters`' text, a function of its document (C53, C149): the
 /// rows listed, the footer's counts read from the document, and where
 /// some are left out the command that lists every one, carrying the
@@ -666,13 +616,15 @@ pub(crate) fn characters_text(
             c.realm,
             c.league.as_deref().unwrap_or("-"),
             c.level.map(|l| l.to_string()).unwrap_or_default(),
-            items_cell(c.fetched_at, c.item_count),
+            acquisition_search::words::facts::items_cell(c.fetched_at, c.item_count),
             ago(now, c.fetched_at),
             ago(now, c.listed_at),
             c.id,
         ));
     }
-    out.push_str(&characters_counts_line(&listed.counts));
+    out.push_str(&acquisition_search::words::facts::characters_counts_line(
+        &listed.counts,
+    ));
     if listed.left_out > 0 {
         let mut every = format!(
             "acq store characters {}",
@@ -797,7 +749,7 @@ const NEXT_FETCH: &str = "acq refresh --characters <ids>";
 /// `store status`'s facts line: every realm and league's
 /// locations, how many were fetched and their extremes, and when the
 /// oldest of the location lists was seen, in the words the other facts
-/// lines print ([`crate::price_cmd::fetched_words`]) and a search's scope
+/// lines print ([`acquisition_search::words::facts::fetched_words`]) and a search's scope
 /// line says the lists in.
 fn status_facts_line(facts: &acquisition_store::coverage::Coverage) -> String {
     let places = facts.fetched + facts.never_fetched;
@@ -813,7 +765,11 @@ fn status_facts_line(facts: &acquisition_store::coverage::Coverage) -> String {
     format!(
         "facts: {}, {}; {lists}\n",
         acquisition_search::words::plural(places, "location", "locations"),
-        crate::price_cmd::fetched_words(facts.fetched, &facts.span, acquisition_store::now())
+        acquisition_search::words::facts::fetched_words(
+            facts.fetched,
+            &facts.span,
+            acquisition_store::now()
+        )
     )
 }
 
@@ -1326,10 +1282,7 @@ mod tests {
     }
 
     #[test]
-    fn the_items_cell_tells_unfetched_from_empty() {
-        assert_eq!(items_cell(None, 0), "-");
-        assert_eq!(items_cell(Some(1), 0), "0");
-        assert_eq!(items_cell(Some(1), 7), "7");
+    fn a_label_is_clipped_with_a_marker() {
         assert_eq!(clip("abcdef", 4), "abc…");
         assert_eq!(clip("abc", 4), "abc");
     }

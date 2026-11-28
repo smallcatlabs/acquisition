@@ -6,6 +6,8 @@
 //! in Rust). A fragment names no frontend's flag or printed command
 //! (C143): a door assembles its own ways on around them.
 
+pub mod facts;
+
 use acquisition_store::age::ago;
 
 use crate::Priced;

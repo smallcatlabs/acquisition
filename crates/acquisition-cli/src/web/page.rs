@@ -3928,7 +3928,7 @@ fn ticked_in(view: &PlacesPage, place: &Place) -> usize {
 fn counts_line(view: &PlacesPage) -> String {
     match &view.places.counts {
         Counted::Tabs(counts) => {
-            let facts = crate::store_cmd::tabs_facts_line(counts, view.now);
+            let facts = acquisition_search::words::facts::tabs_facts_line(counts, view.now);
             if counts.tabs == 0 {
                 return facts.trim_end().to_string();
             }
@@ -3938,9 +3938,11 @@ fn counts_line(view: &PlacesPage) -> String {
                 facts.trim_end()
             )
         }
-        Counted::Characters(counts) => crate::store_cmd::characters_counts_line(counts)
-            .trim_end()
-            .to_string(),
+        Counted::Characters(counts) => {
+            acquisition_search::words::facts::characters_counts_line(counts)
+                .trim_end()
+                .to_string()
+        }
     }
 }
 
@@ -4056,10 +4058,10 @@ fn place_rows(
         {
             (Some(_), Some(matched)) if place.places.is_empty() => format!(
                 "{matched} of {}",
-                crate::store_cmd::items_cell(fetched_at, count)
+                acquisition_search::words::facts::items_cell(fetched_at, count)
             ),
             (Some(_), Some(matched)) => format!("{matched} matching"),
-            _ => crate::store_cmd::items_cell(fetched_at, count),
+            _ => acquisition_search::words::facts::items_cell(fetched_at, count),
         };
         let cells = match &place.row {
             // a folder holds tabs and no items, and is never fetched: no
