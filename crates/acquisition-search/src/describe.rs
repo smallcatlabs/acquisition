@@ -1155,3 +1155,42 @@ fn sliced_next(matched: &[Matched]) -> String {
         false => "Each entry a pattern matched is whole here; nothing named is the index, every entry by its name and one line.".to_string(),
     }
 }
+
+/// `--describe` as text, a function of the document it is given (C53):
+/// an entry prints what the document holds of it — in the index one
+/// line, its values and examples empty — and the index's trade line and
+/// its last line, how to go on, print from the document's `trade_rows`
+/// and `next`.
+/// `--describe`'s values as one list, read as `--count`'s are: commas
+/// part the names, and an item that starts with `~` and has more is a
+/// pattern taking the rest of its value whole, so a pattern's own commas
+/// reach the search crate; each `--describe` adds a list of its own.
+pub fn describe_list(values: &[String]) -> Vec<String> {
+    let mut names = Vec::new();
+    for value in values {
+        let mut rest = value.as_str();
+        loop {
+            if rest.len() > 1 && rest.starts_with('~') {
+                names.push(rest.to_string());
+                break;
+            }
+            match rest.split_once(',') {
+                Some((name, after)) => {
+                    names.push(name.to_string());
+                    rest = after;
+                }
+                None => {
+                    names.push(rest.to_string());
+                    break;
+                }
+            }
+        }
+    }
+    names
+}
+
+/// Whether a list asks for the totals table by its block's name: its head
+/// stands alone where no computed value's head names it.
+pub fn asks_totals(names: &[String]) -> bool {
+    names.iter().any(|n| n.eq_ignore_ascii_case("totals"))
+}

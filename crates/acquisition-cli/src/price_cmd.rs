@@ -342,7 +342,7 @@ pub(crate) fn fetched_words(
     let said = |age: &Option<String>, at: Option<i64>| age.clone().unwrap_or_else(|| ago(now, at));
     format!(
         "{fetched} fetched ({})",
-        crate::search_cmd::span_words(
+        acquisition_search::words::span_words(
             span,
             said(&span.oldest_fetch_age, span.oldest_fetch),
             said(&span.newest_fetch_age, span.newest_fetch),

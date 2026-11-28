@@ -5,8 +5,8 @@
 //! renders the row as it stands — so the page states nothing the terminal
 //! does not. The answer and item pages render their documents themselves:
 //! each fact in the words the CLI's text says it in, made once in
-//! `search_cmd.rs`, the layout the page's, and every way on the page's own
-//! ([`answer`]), so they print no command line. An item is one card
+//! `acquisition_search::words`, the layout the page's, and every way on
+//! the page's own ([`answer`]), so they print no command line. An item is one card
 //! ([`card`]) on both: a row that carries the item on the answer page,
 //! `show`'s document on the item page. The search pages stand the answer
 //! or the refusal under the page's editors ([`editor`]): the search form,
@@ -40,7 +40,7 @@ use acquisition_verbs::saved::{ReadRow, SavedSearches};
 use super::fill::Fill;
 use super::form::{Fate, Filter, Form, LIMITS};
 use super::from::{FROM, FromPage};
-use crate::search_cmd::{self, ItemParts, RowPiece};
+use acquisition_search::words::{self, ItemParts, RowPiece};
 use serde_json::Value;
 
 use acquisition_search::words::plural;
@@ -1868,10 +1868,10 @@ fn fact_row(label: &str, cell: &str) -> String {
 /// what a zero answer
 /// offers, why items are undecided, the terms, the counts left without a
 /// route, the basis — then the query box and the save form. The words of
-/// each fact are the text's, made once in `search_cmd.rs`; every request
-/// the document carries is a way on through `spell`, a link where a page
-/// takes it and its words where none does, and no command line is
-/// printed. Opened from a saved search, it says so above the answer and
+/// each fact are the text's, made once in `acquisition_search::words`;
+/// every request the document carries is a way on through `spell`, a
+/// link where a page takes it and its words where none does, and no
+/// command line is printed. Opened from a saved search, it says so above the answer and
 /// carries the search through its query box and its continuation. Rows
 /// that carry the item are cards ([`card`]), each followed by what the
 /// row shows of the query; rows that do not are the table
@@ -1984,7 +1984,7 @@ pub(crate) fn answer(
             // rows or rows left out; then the way on, and on a
             // continuation's page the way back to the first rows
             if rows.fields.contains(&RowField::Item) && (rows.left_out > 0 || !a.rows.is_empty()) {
-                let mut line = esc(&search_cmd::rows_shown_words(a, rows));
+                let mut line = esc(&words::rows_shown_words(a, rows));
                 if let Some(way) = order_way(rows, Presented::Cards).filter(|_| !a.rows.is_empty())
                 {
                     line.push_str(&format!(" · {}", esc(&way)));
@@ -2025,7 +2025,7 @@ pub(crate) fn answer(
             if let Some(sum) = &counts.sum {
                 out.push_str(&format!(
                     "<p class=\"sum\">Sum {}</p>\n",
-                    esc(&search_cmd::sum_of_text(sum))
+                    esc(&words::sum_of_text(sum))
                 ));
             }
             for (t, table) in counts.tables.iter().enumerate() {
@@ -2040,14 +2040,14 @@ pub(crate) fn answer(
     }
     out.push_str(&reasons(a));
     out.push_str(&terms(a, now, spell));
-    let unrouted = search_cmd::counted(a).unrouted();
+    let unrouted = words::counted(a).unrouted();
     if unrouted > 0 {
         out.push_str(&format!(
             "<p class=\"unrouted\">{}</p>\n",
-            esc(&search_cmd::unrouted_words(unrouted))
+            esc(&words::unrouted_words(unrouted))
         ));
     }
-    out.push_str(&basis_foot(&search_cmd::basis_text(&a.basis)));
+    out.push_str(&basis_foot(&words::basis_text(&a.basis)));
     out.push_str(&save_forms(a, source, opened, links, boxed, saving_from));
     out
 }
@@ -2100,8 +2100,8 @@ fn basis_foot(words: &str) -> String {
 fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLinks>) -> String {
     let mut out = format!(
         "<section class=\"trade\">\n<p>{}</p>\n<p>{}</p>\n",
-        esc(&search_cmd::fidelity_words(trade)),
-        esc(&format!("Over {}", search_cmd::TRADE_OVER))
+        esc(&words::fidelity_words(trade)),
+        esc(&format!("Over {}", words::TRADE_OVER))
     );
     // the link drawn: the league select's first, whole, where there is
     // one, else the answer's own
@@ -2110,7 +2110,7 @@ fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLin
         Link::Url { url, .. } => url.clone(),
         Link::None { .. } => String::new(),
     };
-    for (word, said) in search_cmd::link_words(drawn) {
+    for (word, said) in words::link_words(drawn) {
         let said = match (&trade.link, site) {
             // the link in its own league: a select beside it of the
             // leagues the form names, each option's value its link,
@@ -2146,7 +2146,7 @@ fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLin
             esc(&format!("{}{}", word[..1].to_uppercase(), &word[1..]))
         ));
     }
-    let listed = search_cmd::clauses_listed(trade);
+    let listed = words::clauses_listed(trade);
     if listed.iter().any(|(_, clauses)| !clauses.is_empty()) {
         out.push_str(
             "<table class=\"clauses\">\n<tr><th>Status</th><th>Clause</th><th>Says</th></tr>\n",
@@ -2164,14 +2164,14 @@ fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLin
                     };
                     format!(
                         " · {}",
-                        search_cmd::stake_words(&of("adds", &o.adds), &of("drops", &o.drops))
+                        words::stake_words(&of("adds", &o.adds), &of("drops", &o.drops))
                     )
                 });
                 out.push_str(&format!(
                     "<tr><td>{}</td><td>{}</td><td>{}{stake}</td></tr>\n",
                     esc(word),
                     esc(&c.at),
-                    esc(search_cmd::clause_note(c))
+                    esc(words::clause_note(c))
                 ));
             }
         }
@@ -2186,20 +2186,17 @@ fn trade_section(trade: &TradeOut, at: &str, spell: Spell, site: Option<&SiteLin
 /// way, and what a route said when it was printed.
 fn opening(a: &Answer, now: i64, spell: Spell) -> String {
     let mut out = String::from("<table class=\"opening\">\n");
-    out.push_str(&fact_row(
-        "Query",
-        &esc(search_cmd::query_words(&a.query.text)),
-    ));
+    out.push_str(&fact_row("Query", &esc(words::query_words(&a.query.text))));
     if let Some(aside) = &a.set_aside {
         out.push_str(&fact_row(
             "Set aside",
-            &esc(&search_cmd::aside_words(&aside.text, "")),
+            &esc(&words::aside_words(&aside.text, "")),
         ));
     }
     let mut scope = format!(
         "{}<br>{}",
-        esc(&search_cmd::scope_words(&a.scope)),
-        esc(&search_cmd::never_fetched_words(&a.scope, now))
+        esc(&words::scope_words(&a.scope)),
+        esc(&words::never_fetched_words(&a.scope, now))
     );
     // the list that exists: the tabs page of a league the query names, or
     // of the one holding the most never fetched, the others counted
@@ -2225,15 +2222,15 @@ fn opening(a: &Answer, now: i64, spell: Spell) -> String {
         if pointer.other_leagues > 0 {
             scope.push_str(&format!(
                 " · {}",
-                esc(&search_cmd::other_leagues_words(pointer.other_leagues))
+                esc(&words::other_leagues_words(pointer.other_leagues))
             ));
         }
     }
-    if let Some(words) = search_cmd::realm_not_held_words(&a.scope) {
+    if let Some(words) = words::realm_not_held_words(&a.scope) {
         scope.push_str(&format!("<br>{}", esc(&words)));
     }
     out.push_str(&fact_row("Scope", &scope));
-    let mut total = esc(&search_cmd::total_words(a, now));
+    let mut total = esc(&words::total_words(a, now));
     if a.total.undecided.count > 0 {
         total.push_str(&format!(
             " · {}",
@@ -2241,18 +2238,18 @@ fn opening(a: &Answer, now: i64, spell: Spell) -> String {
                 spell,
                 "/total/undecided",
                 &a.total.undecided,
-                &search_cmd::undecided_words(a.total.undecided.count)
+                &words::undecided_words(a.total.undecided.count)
             )
         ));
     }
-    if let Some(words) = search_cmd::never_fetched_sentence(a.scope.coverage.never_fetched) {
+    if let Some(words) = words::never_fetched_sentence(a.scope.coverage.never_fetched) {
         total.push_str(&format!("<br>{}", esc(&words)));
     }
     for words in a.scope.releases_words(now) {
         total.push_str(&format!("<br>{}", esc(&words)));
     }
     out.push_str(&fact_row("Total", &total));
-    if let Some(words) = search_cmd::before_words(a) {
+    if let Some(words) = words::before_words(a) {
         out.push_str(&fact_row("Then", &esc(&words)));
     }
     out.push_str("</table>\n");
@@ -2317,17 +2314,17 @@ pub(crate) struct RowsLinks {
 /// words, what it leaves out a link to the item whole.
 fn row_lines(a: &Answer, row: &acquisition_search::answer::Row) -> Vec<String> {
     let whole = |words: String| format!("<a href=\"item/{}\">{}</a>", enc(&row.id), esc(&words));
-    let (shows, more) = search_cmd::row_shows(a, row);
+    let (shows, more) = words::row_shows(a, row);
     shows
         .into_iter()
         .map(|piece| match piece {
             RowPiece::Seen(s) => esc(&s),
-            RowPiece::MoreSorted(n) => whole(search_cmd::more_sorted_words(n)),
-            RowPiece::MoreOfValue(n, key) => whole(search_cmd::more_of_value_words(n, &key)),
+            RowPiece::MoreSorted(n) => whole(words::more_sorted_words(n)),
+            RowPiece::MoreOfValue(n, key) => whole(words::more_of_value_words(n, &key)),
         })
         .chain(
             more.iter()
-                .map(|(n, path)| whole(search_cmd::more_of_term_words(*n, path))),
+                .map(|(n, path)| whole(words::more_of_term_words(*n, path))),
         )
         .collect()
 }
@@ -2371,8 +2368,8 @@ fn cards(a: &Answer, view: ViewLinks, placed: Placed, now: i64) -> String {
 /// source word, a group per run of one source, each line with its kind —
 /// the flags, the sockets, the price, and the place with its age and
 /// where the item left. Every fact in the words the CLI's text says it
-/// in, made once in `search_cmd.rs`; the layout and the labels are the
-/// page's. The answer page renders a card per row, the item page one.
+/// in, made once in `acquisition_search::words`; the layout and the
+/// labels are the page's. The answer page renders a card per row, the item page one.
 /// With `view` (the answer page's), each number that a value
 /// reads is that value's [`ViewLink`]: a line whole by its `value`, a
 /// displayed row's piece by the number field it shows; one the view holds
@@ -2401,7 +2398,7 @@ pub(crate) fn card(
         None => html,
     };
     let it = parts.item;
-    let name = search_cmd::title(it.name.as_deref(), it.typeline.as_deref());
+    let name = words::title(it.name.as_deref(), it.typeline.as_deref());
     let mut out = String::from("<div class=\"card\">\n");
     if let Some(url) = icon {
         out.push_str(&format!(
@@ -2412,7 +2409,7 @@ pub(crate) fn card(
     }
     out.push_str(&item_badges(parts));
     let rarity = esc(&it.rarity.as_deref().unwrap_or("").to_lowercase());
-    let title = esc(&search_cmd::shown_title(it));
+    let title = esc(&words::shown_title(it));
     out.push_str(&if link {
         format!(
             "<p><a class=\"name rarity-{rarity}\" href=\"item/{}\">{title}</a></p>\n",
@@ -2463,16 +2460,16 @@ pub(crate) fn card(
         out.push_str(&format!(
             "<p class=\"mod\">{} <span class=\"mod-kind\">{}</span></p>\n",
             linked(text.join("<br>"), l.value.as_deref()),
-            esc(&search_cmd::line_kind_words(l))
+            esc(&words::line_kind_words(l))
         ));
     }
     if group.is_some() {
         out.push_str("</div>\n");
     }
-    if let Some(flags) = search_cmd::flags_words(it) {
+    if let Some(flags) = words::flags_words(it) {
         out.push_str(&format!("<p class=\"flags\">is {}</p>\n", esc(&flags)));
     }
-    if let Some(sockets) = search_cmd::sockets_words(it) {
+    if let Some(sockets) = words::sockets_words(it) {
         out.push_str(&format!(
             "<p class=\"sockets\">sockets {}</p>\n",
             esc(&sockets)
@@ -2480,13 +2477,13 @@ pub(crate) fn card(
     }
     out.push_str(&format!(
         "<p class=\"price\">price {}</p>\n",
-        esc(&search_cmd::price_words(&it.facts.id, parts.price))
+        esc(&words::price_words(&it.facts.id, parts.price))
     ));
     // the place, a link to its page with it open where a page lists it, its
     // words otherwise; the link lands at this item's row (`at`, one
     // load's), so a long tab is not searched again for it, and a removed
     // item, which the place's live rows lack, at the place's head
-    let words = esc(&search_cmd::shown_place_words(place, now));
+    let words = esc(&words::shown_place_words(place, now));
     let mut placed = match placed {
         Some(href) => {
             let landing = match it.facts.removed_at {
@@ -2503,7 +2500,7 @@ pub(crate) fn card(
     if let Some(removed_at) = it.facts.removed_at {
         placed.push_str(&format!(
             "<br>removed {}",
-            esc(&search_cmd::shown_removed_words(now, removed_at))
+            esc(&words::shown_removed_words(now, removed_at))
         ));
     }
     out.push_str(&format!("<p class=\"place\">{placed}</p>\n"));
@@ -2715,7 +2712,7 @@ fn rows_table(
     let matched = a.total.matched;
     // the order, said once for every row: a sort named is said here, as
     // each row of the cards says it sorts by it
-    let order = match (search_cmd::order_words(rows), rows.sort.as_deref()) {
+    let order = match (words::order_words(rows), rows.sort.as_deref()) {
         (Some(words), _) => format!(", {words}"),
         (None, Some(sort)) => format!(
             ", by {sort}, {} first, as asked",
@@ -2723,7 +2720,7 @@ fn rows_table(
         ),
         (None, None) => String::new(),
     };
-    let values = search_cmd::values_left_out_words(rows)
+    let values = words::values_left_out_words(rows)
         .map(|words| format!("; {words}"))
         .unwrap_or_default();
     let way = order_way(rows, Presented::Table)
@@ -2830,7 +2827,7 @@ fn item_heads(rows: &RowsOut, view: ViewLinks) -> String {
 }
 
 /// A window's rows, each a line of the table at its index in the order,
-/// made from the row's one line ([`search_cmd::Line`]), the CLI's row's
+/// made from the row's one line ([`words::Line`]), the CLI's row's
 /// too: the name in its rarity's colour, a link to the item, its rarity
 /// in words after it as the CLI's head joins it; its base; its price in
 /// the card's words, so one that is open or absent says so; its location
@@ -2845,7 +2842,7 @@ pub(crate) fn window_rows(a: &Answer, now: i64) -> String {
     };
     let mut out = String::new();
     for (n, row) in a.rows.iter().enumerate() {
-        let search_cmd::Line {
+        let words::Line {
             name,
             rarity,
             // `show`'s, on the item's card
@@ -2856,7 +2853,7 @@ pub(crate) fn window_rows(a: &Answer, now: i64) -> String {
             removed,
             fetched,
             values,
-        } = search_cmd::Line::of(row, now);
+        } = words::Line::of(row, now);
         let item = match &rarity {
             Some(word) => format!("{name} · {word}"),
             None => name,
@@ -2893,21 +2890,18 @@ pub(crate) fn window_rows(a: &Answer, now: i64) -> String {
 fn count_table(table: &Table, t: usize, all_realms: bool, spell: Spell) -> String {
     let mut out = format!(
         "<p class=\"count-head\">{}</p>\n<table class=\"counted\">\n<tr><th>Items</th><th>{}</th></tr>\n",
-        esc(&format!(
-            "Count {}",
-            search_cmd::table_head_words(table, "")
-        )),
+        esc(&format!("Count {}", words::table_head_words(table, ""))),
         esc(&table.key)
     );
     for (b, bucket) in table.buckets.iter().enumerate() {
         let at = format!("/view/counts/tables/{t}/buckets/{b}");
-        let mut cell = esc(&search_cmd::label_text(&bucket.label, all_realms));
+        let mut cell = esc(&words::label_text(&bucket.label, all_realms));
         if let Some(sum) = &bucket.sum {
-            cell.push_str(&esc(&format!(" · {}", search_cmd::sum_words(sum))));
+            cell.push_str(&esc(&format!(" · {}", words::sum_words(sum))));
         }
         for words in [
-            search_cmd::slots_words(bucket),
-            search_cmd::tally_words(&bucket.tally),
+            words::slots_words(bucket),
+            words::tally_words(&bucket.tally),
         ]
         .into_iter()
         .flatten()
@@ -2930,14 +2924,14 @@ fn count_table(table: &Table, t: usize, all_realms: bool, spell: Spell) -> Strin
                         .enumerate()
                         .map(|(k, kind)| (format!("{at}/flags/{k}"), kind)),
                 )
-                .map(|(at, kind)| count_at(spell, &at, &kind.count, &search_cmd::kind_words(kind)))
+                .map(|(at, kind)| count_at(spell, &at, &kind.count, &words::kind_words(kind)))
                 .collect();
             cell.push_str(&format!("<br>{}", kinds.join(" · ")));
             for kind in bucket.sources.iter().chain(&bucket.flags) {
                 if let Some(needs) = &kind.needs {
                     cell.push_str(&format!(
                         "<br>{}",
-                        esc(&search_cmd::needs_words(&kind.kind, needs))
+                        esc(&words::needs_words(&kind.kind, needs))
                     ));
                 }
             }
@@ -2951,7 +2945,7 @@ fn count_table(table: &Table, t: usize, all_realms: bool, spell: Spell) -> Strin
         ));
     }
     out.push_str("</table>\n");
-    if let Some(words) = search_cmd::unmatched_words(&table.unmatched_leagues) {
+    if let Some(words) = words::unmatched_words(&table.unmatched_leagues) {
         out.push_str(&format!("<p>{}</p>\n", esc(&words)));
     }
     out
@@ -2965,30 +2959,30 @@ fn cross_table(cross: &CrossOut, all_realms: bool, spell: Spell) -> String {
     if let Some(sum) = &cross.sum {
         out.push_str(&format!(
             "<p class=\"sum\">Sum {}</p>\n",
-            esc(&search_cmd::sum_of_text(sum))
+            esc(&words::sum_of_text(sum))
         ));
     }
     out.push_str(&format!(
         "<p class=\"count-head\">{}</p>\n<table class=\"counted\">\n<tr><th>Items</th><th>{}</th></tr>\n",
-        esc(&format!("Cross {}", search_cmd::cross_head_words(cross, ""))),
+        esc(&format!("Cross {}", words::cross_head_words(cross, ""))),
         esc(&cross.keys.join(" × "))
     ));
     for (c, cell) in cross.cells.iter().enumerate() {
         let of: Vec<String> = cell
             .of
             .iter()
-            .map(|l| search_cmd::label_text(l, all_realms))
+            .map(|l| words::label_text(l, all_realms))
             .collect();
         let mut words = esc(&of.join(" × "));
         if let Some(sum) = &cell.sum {
-            words.push_str(&esc(&format!(" · {}", search_cmd::sum_words(sum))));
+            words.push_str(&esc(&format!(" · {}", words::sum_words(sum))));
         }
         for label in &cell.of {
             if let Some(needs) = &label.needs {
                 words.push_str(&format!(
                     "<br>{}",
-                    esc(&search_cmd::needs_words(
-                        &search_cmd::label_text(label, all_realms),
+                    esc(&words::needs_words(
+                        &words::label_text(label, all_realms),
                         needs
                     ))
                 ));
@@ -3016,21 +3010,21 @@ fn cross_table(cross: &CrossOut, all_realms: bool, spell: Spell) -> String {
                     spell,
                     &at("none"),
                     &margin.none,
-                    &search_cmd::none_words(margin.none.count)
+                    &words::none_words(margin.none.count)
                 ),
                 count_at(
                     spell,
                     &at("undecided"),
                     &margin.undecided,
-                    &search_cmd::undecided_words(margin.undecided.count)
+                    &words::undecided_words(margin.undecided.count)
                 )
             ));
         }
     }
-    if let Some(tally) = search_cmd::cross_tally_words(&cross.tally) {
+    if let Some(tally) = words::cross_tally_words(&cross.tally) {
         out.push_str(&format!("<p>{}</p>\n", esc(&tally)));
     }
-    if let Some(words) = search_cmd::unmatched_words(&cross.unmatched_leagues) {
+    if let Some(words) = words::unmatched_words(&cross.unmatched_leagues) {
         out.push_str(&format!("<p>{}</p>\n", esc(&words)));
     }
     out
@@ -3042,11 +3036,11 @@ fn cross_table(cross: &CrossOut, all_realms: bool, spell: Spell) -> String {
 fn explained(explain: &ExplainOut, spell: Spell) -> String {
     let mut out = format!(
         "<p class=\"count-head\">{}</p>\n<table class=\"explained\">\n",
-        esc(&format!("Explain {}", search_cmd::explain_words(explain)))
+        esc(&format!("Explain {}", words::explain_words(explain)))
     );
     out.push_str(&fact_row(
         "As given",
-        &esc(&search_cmd::forced_words(
+        &esc(&words::forced_words(
             explain.given.matched,
             explain.given.undecided,
         )),
@@ -3068,7 +3062,7 @@ fn explained(explain: &ExplainOut, spell: Spell) -> String {
                     spell,
                     &format!("/view/explain/{key}/undecided"),
                     &forced.undecided,
-                    &search_cmd::undecided_words(forced.undecided.count)
+                    &words::undecided_words(forced.undecided.count)
                 )
             ));
         }
@@ -3091,21 +3085,21 @@ fn zero_block(zero: &Zero, spell: Spell) -> String {
                 spell,
                 "/zero/undecided",
                 &zero.undecided,
-                &search_cmd::undecided_words(zero.undecided.count)
+                &words::undecided_words(zero.undecided.count)
             )
         ));
     }
     for nothing in &zero.resolved_to_nothing {
         out.push_str(&format!(
             "<p>{}</p>\n",
-            esc(&search_cmd::nothing_words(zero, nothing))
+            esc(&words::nothing_words(zero, nothing))
         ));
         if !nothing.suggestions.is_empty() {
             out.push_str("<ul>\n");
             for s in &nothing.suggestions {
                 out.push_str(&format!(
                     "<li>{}</li>\n",
-                    esc(&search_cmd::suggestion_words(s, " "))
+                    esc(&words::suggestion_words(s, " "))
                 ));
             }
             out.push_str("</ul>\n");
@@ -3115,7 +3109,7 @@ fn zero_block(zero: &Zero, spell: Spell) -> String {
     if !offers.explain.is_empty() {
         out.push_str(&format!(
             "<p>{}</p>\n<ul class=\"offers\">\n",
-            esc(&format!("Offers: {}", search_cmd::EXPLAIN_OFFERS))
+            esc(&format!("Offers: {}", words::EXPLAIN_OFFERS))
         ));
         for (i, offer) in offers.explain.iter().enumerate() {
             out.push_str(&format!(
@@ -3131,7 +3125,7 @@ fn zero_block(zero: &Zero, spell: Spell) -> String {
         if offers.explain_left_out > 0 {
             out.push_str(&format!(
                 "<li>{}</li>\n",
-                esc(&search_cmd::more_parts_words(offers.explain_left_out))
+                esc(&words::more_parts_words(offers.explain_left_out))
             ));
         }
         out.push_str("</ul>\n");
@@ -3143,7 +3137,7 @@ fn zero_block(zero: &Zero, spell: Spell) -> String {
                 spell,
                 "/zero/offers/context",
                 &offer.request,
-                search_cmd::CONTEXT_OFFER
+                words::CONTEXT_OFFER
             )
         ));
     }
@@ -3165,15 +3159,15 @@ fn reasons(a: &Answer) -> String {
             "<tr><td>{}</td><td><a href=\"item/{}\">{}</a></td><td>{}</td></tr>\n",
             esc(&reason.reason.unread),
             enc(&reason.example.id),
-            esc(search_cmd::example_name(&reason.example)),
-            esc(&search_cmd::reason_words(&reason.reason))
+            esc(words::example_name(&reason.example)),
+            esc(&words::reason_words(&reason.reason))
         ));
     }
     out.push_str("</table>\n");
     if a.total.reasons_left_out > 0 {
         out.push_str(&format!(
             "<p>{}</p>\n",
-            esc(&search_cmd::reasons_left_out_words(
+            esc(&words::reasons_left_out_words(
                 a.total.reasons_left_out,
                 "above"
             ))
@@ -3193,7 +3187,7 @@ fn terms(a: &Answer, now: i64, spell: Spell) -> String {
     }
     let mut out = format!(
         "<p class=\"terms-head\">{}</p>\n<table class=\"terms\">\n<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>\n",
-        esc(&format!("Terms: {}", search_cmd::terms_words(&a.scope)))
+        esc(&format!("Terms: {}", words::terms_words(&a.scope)))
     );
     for (i, term) in a.terms.iter().enumerate() {
         let at = |what: &str| format!("/terms/{i}/{what}");
@@ -3204,12 +3198,9 @@ fn terms(a: &Answer, now: i64, spell: Spell) -> String {
             )
         };
         let together = match &term.together {
-            Some(t) if t.count.count > 0 || t.count.route.is_some() => count_at(
-                spell,
-                &at("together"),
-                &t.count,
-                &search_cmd::together_words(t),
-            ),
+            Some(t) if t.count.count > 0 || t.count.route.is_some() => {
+                count_at(spell, &at("together"), &t.count, &words::together_words(t))
+            }
             _ => String::new(),
         };
         out.push_str(&format!(
@@ -3225,9 +3216,9 @@ fn terms(a: &Answer, now: i64, spell: Spell) -> String {
             let mut values: Vec<String> = resolved
                 .values
                 .iter()
-                .map(|v| esc(&search_cmd::carried_words(v)))
+                .map(|v| esc(&words::carried_words(v)))
                 .collect();
-            let more = search_cmd::more_words(resolved.more);
+            let more = words::more_words(resolved.more);
             match &resolved.rest {
                 Some(rest) => {
                     values.push(searched(spell, &at("resolved/rest"), &rest.request, &more))
@@ -3253,11 +3244,11 @@ fn terms(a: &Answer, now: i64, spell: Spell) -> String {
                         "find it under membership all"
                     )
                 ),
-                None => format!(" {}", esc(search_cmd::REMOVED_HELD_NONE)),
+                None => format!(" {}", esc(words::REMOVED_HELD_NONE)),
             };
             out.push_str(&format!(
                 "<tr class=\"removed\"><td></td><td colspan=\"6\">{}{then}</td></tr>\n",
-                esc(&search_cmd::removed_words(removed, now))
+                esc(&words::removed_words(removed, now))
             ));
         }
     }
@@ -3272,8 +3263,8 @@ fn terms(a: &Answer, now: i64, spell: Spell) -> String {
 /// it left open, the stack, the note, what is unread — then the lines
 /// with their template, slots, rows and limits, the item against a query
 /// where one was asked, and the basis, each fact in the text's words,
-/// made once in `search_cmd.rs`. The price says why there is none, with
-/// no command and no link.
+/// made once in `acquisition_search::words`. The price says why there is
+/// none, with no command and no link.
 pub(crate) fn item(shown: &Shown, placed: Option<&str>) -> String {
     let it = &shown.item;
     let now = acquisition_store::now();
@@ -3288,13 +3279,10 @@ pub(crate) fn item(shown: &Shown, placed: Option<&str>) -> String {
     );
     out.push_str("<table class=\"shown\">\n");
     out.push_str(&fact_row("Id", &esc(&it.facts.id)));
-    out.push_str(&fact_row(
-        "Class",
-        &esc(&search_cmd::class_words(&shown.class)),
-    ));
-    let mut category = esc(&search_cmd::category_words(&shown.category));
+    out.push_str(&fact_row("Class", &esc(&words::class_words(&shown.class))));
+    let mut category = esc(&words::category_words(&shown.category));
     for open in &shown.category.open {
-        category.push_str(&format!("<br>{}", esc(&search_cmd::open_words(open))));
+        category.push_str(&format!("<br>{}", esc(&words::open_words(open))));
     }
     out.push_str(&fact_row("Category", &category));
     if let Some(stack) = it.stack {
@@ -3304,7 +3292,7 @@ pub(crate) fn item(shown: &Shown, placed: Option<&str>) -> String {
         out.push_str(&fact_row("Note", &esc(note)));
     }
     let unread = match it.unread.is_empty() {
-        true => esc(search_cmd::UNREAD_NOTHING),
+        true => esc(words::UNREAD_NOTHING),
         false => it
             .unread
             .iter()
@@ -3322,18 +3310,16 @@ pub(crate) fn item(shown: &Shown, placed: Option<&str>) -> String {
         // several and a limit a line of the template's cell beside its
         // own slots, so no gap of the text's is lost to HTML's spaces
         for l in &shown.lines {
-            let mut template = vec![esc(&search_cmd::line_template_quoted(l))];
-            let mut slots = vec![esc(&search_cmd::line_slots_words(l).unwrap_or_default())];
+            let mut template = vec![esc(&words::line_template_quoted(l))];
+            let mut slots = vec![esc(&words::line_slots_words(l).unwrap_or_default())];
             for row in &l.line.rows {
-                template.push(esc(&search_cmd::line_row_quoted(row)));
-                slots.push(esc(
-                    &search_cmd::line_row_slots_words(row).unwrap_or_default()
-                ));
+                template.push(esc(&words::line_row_quoted(row)));
+                slots.push(esc(&words::line_row_slots_words(row).unwrap_or_default()));
             }
             template.extend(l.limit.map(esc));
             out.push_str(&format!(
                 "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-                esc(&search_cmd::line_kind_words(l)),
+                esc(&words::line_kind_words(l)),
                 esc(&l.line.text.replace('\n', " / ")),
                 template.join("<br>"),
                 slots.join("<br>")
@@ -3346,19 +3332,19 @@ pub(crate) fn item(shown: &Shown, placed: Option<&str>) -> String {
             "<p class=\"against\">{}</p>\n<table class=\"against\">\n<tr><th>Path</th><th>Node</th><th>Outcome</th></tr>\n",
             esc(&format!(
                 "Against {}: {}",
-                search_cmd::query_words(&against.query.text),
-                search_cmd::outcome_words(against.outcome)
+                words::query_words(&against.query.text),
+                words::outcome_words(against.outcome)
             ))
         ));
         for node in &against.nodes {
-            let mut outcome = esc(&search_cmd::outcome_words(node.outcome));
+            let mut outcome = esc(&words::outcome_words(node.outcome));
             if !node.shows.is_empty() {
-                outcome.push_str(&format!("<br>{}", esc(&search_cmd::node_shows_words(node))));
+                outcome.push_str(&format!("<br>{}", esc(&words::node_shows_words(node))));
             }
             if node.left_out > 0 {
                 outcome.push_str(&format!(
                     "<br>{}",
-                    esc(&search_cmd::node_left_out_words(node.left_out))
+                    esc(&words::node_left_out_words(node.left_out))
                 ));
             }
             out.push_str(&format!(
@@ -3369,7 +3355,7 @@ pub(crate) fn item(shown: &Shown, placed: Option<&str>) -> String {
         }
         out.push_str("</table>\n");
     }
-    out.push_str(&basis_foot(&search_cmd::basis_text(&shown.basis)));
+    out.push_str(&basis_foot(&words::basis_text(&shown.basis)));
     out
 }
 
@@ -5315,7 +5301,7 @@ const NAMES_BOX: &str = "Names: an entry, a block, ~ and a pattern, or all";
 
 /// `describe`'s document as a page (`4-full-1-form-index.md`, Decision 3):
 /// the search crate's words, under the heads of the one table both
-/// renderers read ([`search_cmd::BLOCKS`]), the document destructured
+/// renderers read ([`words::BLOCKS`]), the document destructured
 /// whole, so a field the search crate adds does not compile until it is
 /// rendered here. An entry shows its name, its kind, what it is, its values
 /// and its examples, which are text; each entry's name, each category's id
@@ -5331,7 +5317,7 @@ pub(crate) fn describe(
     link: &dyn Fn(Option<&str>) -> String,
     from: Option<&FromPage>,
 ) -> String {
-    use search_cmd::{BLOCKS, Block, Part};
+    use words::{BLOCKS, Block, Part};
     let acquisition_search::Describe {
         patterns,
         fields,
@@ -5360,7 +5346,7 @@ pub(crate) fn describe(
     for m in patterns {
         out.push_str(&format!(
             "<p class=\"pattern\">{}</p>\n",
-            esc(&search_cmd::pattern_said(m))
+            esc(&words::pattern_said(m))
         ));
     }
     if let Some(next) = next {
@@ -5486,7 +5472,7 @@ pub(crate) fn describe(
                 };
                 out.push_str(&format!(
                     "<section class=\"block\">\n{}",
-                    head(block.name, block.head, Some(&search_cmd::trade_said(trade)))
+                    head(block.name, block.head, Some(&words::trade_said(trade)))
                 ));
                 out.push_str(
                     "<table class=\"entries\">\n<tr><th>Key</th><th>What it says</th></tr>\n",

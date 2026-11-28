@@ -399,7 +399,7 @@ impl Folded {
         let named = self
             .trade
             .as_deref()
-            .and_then(crate::search_cmd::trade_realm);
+            .and_then(acquisition_search::answer::trade_realm);
         if let Some(realm) = &self.realm
             && named.is_none()
         {

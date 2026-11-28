@@ -4220,3 +4220,18 @@ fn crt_escaped(text: &str, wrapped: bool) -> String {
     out.push_str(&"\\".repeat(if wrapped { slashes * 2 } else { slashes }));
     out
 }
+
+/// The realm a site search names, as the request reads it: a URL's,
+/// and none for a bare id, the query JSON, or an input that does not read
+/// (the request refuses that in its own words). The terminal's `--realm`
+/// beside one and the page's carried realm are read against it.
+pub fn trade_realm(trade: &str) -> Option<String> {
+    crate::answer::QueryInput {
+        trade: Some(serde_json::Value::String(trade.to_string())),
+        ..Default::default()
+    }
+    .read(None)
+    .ok()
+    .and_then(|read| read.realm)
+    .map(|realm| realm.as_str().to_string())
+}

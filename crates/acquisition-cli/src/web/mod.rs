@@ -161,7 +161,7 @@
 //!   the index, entries and blocks by name, `all`, a pattern; its JSON is
 //!   the document. A name the search crate refuses is the page's refusal in
 //!   its words. The blocks' heads and their order are the CLI's one table
-//!   (`search_cmd::BLOCKS`), which the terminal's text reads too. It is a
+//!   (`words::BLOCKS`), which the terminal's text reads too. It is a
 //!   step: its every link — an entry, a block, the index — and its names
 //!   box, the one GET form, hand on the `from` it was given, which each of
 //!   its pages draws as its way back. It is a way a page takes: the query
@@ -1169,7 +1169,7 @@ impl Web {
         let mut fields = Vec::new();
         // a URL's realm is the search's: the page carries none beside it
         if let Some(realm) = &request.scope.realm
-            && (asked.0 == "text" || crate::search_cmd::trade_realm(&asked.1).is_none())
+            && (asked.0 == "text" || acquisition_search::answer::trade_realm(&asked.1).is_none())
         {
             fields.push(("realm", realm.as_str().to_string()));
         }
@@ -1629,7 +1629,7 @@ fn as_asked(mut request: Request) -> Request {
     if let Some(Value::String(word)) = &request.query.trade {
         if let Ok(object @ Value::Object(_)) = serde_json::from_str::<Value>(word) {
             request.query.trade = Some(object);
-        } else if let Some(url) = crate::search_cmd::trade_realm(word)
+        } else if let Some(url) = acquisition_search::answer::trade_realm(word)
             && request.scope.realm.as_ref().map(|r| r.as_str()) == Some(url.as_str())
         {
             request.scope.realm = None;
@@ -1818,7 +1818,7 @@ async fn search(
                     let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
                     read = Some(Source::folded(&folded));
                     if let (Some(trade), Some(realm)) = (&folded.trade, &folded.realm)
-                        && let Some(url) = crate::search_cmd::trade_realm(trade)
+                        && let Some(url) = acquisition_search::answer::trade_realm(trade)
                         && Realm::parse(realm).is_none_or(|r| r.as_str() != url)
                     {
                         carried = Some((realm.clone(), url));
@@ -2886,7 +2886,7 @@ fn names_sent(fields: Fields) -> Vec<String> {
         .map(|(_, value)| value)
         .filter(|value| !value.is_empty())
         .collect();
-    crate::search_cmd::describe_list(&sent)
+    acquisition_search::describe::describe_list(&sent)
 }
 
 /// The language's index on a page (`4-full-1-form-index.md`): `names`,
@@ -2925,7 +2925,7 @@ async fn describe(
     let body = page::describe(
         &described,
         names.is_empty(),
-        crate::search_cmd::asks_totals(&names),
+        acquisition_search::describe::asks_totals(&names),
         &link,
         here.onward(),
     );
