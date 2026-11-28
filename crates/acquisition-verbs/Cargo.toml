@@ -31,6 +31,6 @@ getrandom = { version = "0.4", features = ["std", "sys_rng"] }
 [dev-dependencies]
 # The policy test plants a newer build's value under the store's door,
 # as the planner's own test does.
-rusqlite = "0.41"
+rusqlite = "0.43"
 # a test's own folder, removed on drop: never a name built from the pid
 tempfile.workspace = true
