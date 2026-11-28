@@ -10,10 +10,10 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
-- **The series approved on 2026-11-27.** Left, in order: a backup
-  verb (#329, #330), which waits on #351, then `NEXT.md`'s B3.
-  Closed: `Step: next-a4-readme`, `Step: poe2-prep` and
-  `Step: desktop-spike`, the throwaway window he sat at.
+- **The series approved on 2026-11-27.** Left: a backup verb (#329,
+  #330), which waits on #351. Closed: `Step: next-a4-readme`,
+  `Step: poe2-prep`, `Step: desktop-spike` (the throwaway window he
+  sat at) and `Step: next-b3`.
 - **The programme after the whole-project review**
   (`audits/whole-review-2026-11/NEXT.md`, run as
   `audits/meta-2026-11/README.md` amends it; its closes are
@@ -45,8 +45,7 @@ when its step closes or the owner strikes it.
 
 1. The programme's later steps, each a row of `NEXT.md`'s table:
    A4's 33 drafted issues, filed at his word; B2, B4 and B5, whose
-   waits are met (B3 is in the series above); B1 waits on his ruling
-   and B6 on his decision. Where they stand against the items below is the
+   waits are met; B1 waits on his ruling and B6 on his decision. Where they stand against the items below is the
    owner's (its decision 1).
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
