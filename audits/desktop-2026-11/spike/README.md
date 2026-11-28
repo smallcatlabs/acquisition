@@ -4,14 +4,56 @@ The record of `roadmap/briefs/desktop-spike.md` at `9f5594c1`. One
 question: does a window over the engine the tool has feel like the C++
 app, or does it need a native toolkit? It is answered by a throwaway
 window the owner sits at over a copy of his own stash, built, watched
-and changed. This file names the rig and the bar before any judged run.
-The runs, the sitting and the verdict follow it in later commits.
+and changed. The verdict leads; then the rig, the bar it was judged by
+(named before any judged run), the judged runs, the owner's sitting,
+what a design needs and what the spike did not show.
 `rig-1.patch` is the rig the build's review read, `rig-2.patch` the rig
 as its answers left it (below, "The review's answers"), and
 `rig-3.patch` the rig after the first judged runs' miss (below, "rig-3"),
 and `rig-4.patch` the rig as the owner starts it: rig-3 with the window
 opening on Standard and `start.sh --url`, the judged runs' code
 otherwise unchanged (below, "rig-4").
+
+## Verdict
+
+**A window over this engine feels like the C++ app.** It does not need a
+native toolkit for what the spike asked of it: the owner sat at it over
+his own stash and the browser was never what he waited on.
+
+The owner, 2026-11-27, verbatim, after the sitting:
+
+> The desktop prototype was shockingly good. it's lacking features and
+> polish and the UI elements don't all behavior correctly, but this is a
+> fantastic start. Excellent work. I feel like we have line of sight to
+> feature parity and beyond with the c++ app.
+
+Which elements misbehaved: not named.
+
+What says so in the log (`sitting/sitting-20261127-180932.jsonl`, his
+two minutes and 18 seconds, below "The sitting"): every line of the bar
+his acts can judge holds, the browser's share of an act was at most 31
+ms and its median at most about one display frame (19 ms for a click),
+and the rest was the engine's. In the headless runs the browser's
+median share was 2.4 to 11 ms for every kind of act. Where the
+headless bar missed (one keystroke in one of three runs, one frame past
+1% in another), the split puts the keystroke in the engine and could not
+apportion the frames.
+
+What would change it:
+- **Windows.** Nothing ran there: no Edge or WebView2, no Windows
+  store, no Windows display. It is the first thing the spike did not
+  show.
+- **Typing a query at speed.** His four keystrokes went into range
+  fields; typing the search's language fast is where the headless runs
+  missed, on the engine's side (a keystroke waits for the answer to the
+  one before it, which cannot be stopped). A sitting that types queries
+  could show that wait, under any toolkit.
+- **The frames on a real display.** His log carries no frame sampler,
+  so line 4b is not decided (below). A dropped frame while scrolling that
+  a person can see, and that a native list would not drop, would argue
+  for a native toolkit; nothing here shows one.
+- **The elements he says misbehave**, not named: one that is the page's
+  is presentation, one that is the browser's would weigh the other way.
 
 ## The rig
 
@@ -541,11 +583,145 @@ rig-3's. Checked headless: `start.sh --url` printed the address, the
 page opened on Standard with the three leagues listed, and an interrupt
 stopped the script and the rig.
 
+## The sitting
+
+The owner at the window on his own Mac, 2026-11-27, started by
+`runs/desktop-spike/start.sh` (rig-4, Chrome as an app window on its own
+profile) over a fresh clone of the copy. His whole log is
+`sitting/sitting-20261127-180932.jsonl`, copied from
+`runs/desktop-spike/logs/` verbatim: its first line the rig's start,
+then 619 acts over 2 minutes 18 seconds. Another log in that folder,
+the launching session's own check of the window, is not his and is
+left out.
+
+`judge.py` over his log, the answered acts' times (ms) and the medians of
+their shares:
+
+| Act | answered | overtaken | median | p90 | worst | engine · transport · browser |
+| --- | --- | --- | --- | --- | --- | --- |
+| scroll | 546 | 24 | 1.7 | 18 | 68 | 0 · 0 · 1.7 |
+| click | 19 | 0 | 56 | 57 | 126 | 34 · 2.2 · 19 |
+| expand | 16 | 0 | 50 | 73 | 78 | 29 · 2.1 · 18 |
+| key | 4 | 0 | 80 | 84 | 84 | 78 · 1.7 · 1.6 |
+| form (rarity, corrupted) | 6 | 0 | 99 | 127 | 133 | 95 · 1.8 · 2.2 |
+| league | 3 | 0 | 89 | 184 | 184 | 82 · 2.1 · 2.2 |
+
+The bar, line by line, on his acts:
+
+- **1a, 1b. Keystrokes**: all four answered, within 75 to 84 ms; the
+  three that end a burst within 350 ms. What they carry: a range field
+  (Quality twice and its clearing, Sockets) refilters the tree in under
+  a tenth of a second on his machine, the engine's share 72 to 80 ms (the
+  count 31 to 43 ms, the window's rows about 16). What they cannot carry:
+  a query typed in the search's language, a name typed at speed, a
+  keystroke overtaking another (none of his did). Line 1a otherwise rests
+  on the headless runs, where it holds in two of three and misses by one
+  keystroke in the third.
+- **2. Clicks**: 18 of 19 within 100 ms, worst 126 (all within 200):
+  holds. The slow one spent 107 ms in the engine answering the item's id.
+- **3. Expansions**: 16 of 16 within 100 ms, worst 78: holds.
+- **4a. Scrolls**: 546 of 546 answered within 100 ms, worst 68 (the 60
+  that asked a window took 17 to 68 ms); 24 overtaken by the next: holds.
+- **4b. Late frames**: not decided. His display ran at 60 Hz (the
+  median gap between scroll paints is 16.7 ms). The window logs acts, not
+  frames, and a sitting runs no frame sampler: of 521 gaps between
+  consecutive scroll paints under 100 ms, 61 are longer than 25 ms,
+  almost all whole frames (33, 50, 66 ms), and a wheel sends no scroll
+  between its notches, so these gaps cannot be told from dropped frames.
+  They bound the late frames from above and do not count them. His words
+  name no stutter.
+
+On a real display the browser's share of a click or an expansion is
+about one frame (median 19 and 18 ms): the input event's time stamp is
+the system's, and the page's handler runs about 15 ms after it (`input`),
+as Chrome hands a mouse event to the page with the frame. A keystroke's
+handler ran 0.2 ms after its event. Under a native toolkit a click is
+also seen at a frame; the spike does not show how much of that frame a
+native list would save.
+
+## What a design needs
+
+What the engine lacked or was slow at, each measured by the split:
+
+- **A place's items without a scan.** Every answer evaluates its query
+  over the whole corpus, about 12 ms at 44,090 items even for one tab's
+  `id:`; a place's own request puts the query's terms before the place's,
+  so answering places one by one costs the whole query each time.
+- **A count by location.** The `tab` count files a substash's items under
+  its tab, and a `character` bucket names its character but carries no id;
+  the rig counted the pages of a tab from rows and the characters by name.
+- **A places document that does not re-read the store on each query.**
+  Asked a query, `Places::tabs` reads the tab listing again (60 ms) and
+  each places document evaluates the query again (twice a keystroke).
+- **An answer that can be stopped, or a newer one preferred.** A
+  keystroke typed while an answer runs waits for it: 179 to 393 ms of the
+  missed keystrokes' time.
+- **Rows cheaper than 14 µs each.** One answer of all 43,433 matches of an
+  empty query took 630 ms to build its rows.
+- **A currency check cheaper than 10 ms**, taken on every act.
+- **A read-only door for the intent** in the verbs; the facts have one.
+
+Each rule the rig wrote in Rust (`src/rules.rs` in `rig-4.patch`, listed
+above under "The rules the rig wrote in Rust"): **fold** (the C++ form's
+fields as one query), **open** (which places stand open, claim 8),
+**flatten** (the open tree as rows by index, and a window of it),
+**hold** (the places documents, the counts and each place's rows at the
+basis), **count** (each place's matches from one counts answer),
+**batch** (a window's places as one request, their own terms before the
+query), **card** (the item's card from its id's answer), and the **read
+door** (the intent opened read-only by the account's uuid).
+
+## What the spike did not show
+
+- **Windows**: no run there, no Windows browser or webview, no Windows
+  display or input, no Windows path for the store or the start script.
+- Linux, and any packaged app: the window was a Chrome app window on the
+  owner's Mac, not a webview a frontend ships.
+- Frames on a real display, counted (line 4b above).
+- The search's language typed at speed by a person, and keystrokes that
+  overtake one another at a sitting.
+- Which UI elements misbehave, and why: not named.
+- A refresh or a price landing while the window is open: the spike had no
+  live feed and wrote nothing.
+- The C++ app's whole form (its Type, offense, defense and mod rows), its
+  search tabs, its buyout controls and its check boxes.
+- A store larger than 44,090 items.
+- A second toolkit: no native list was built to compare against.
+
 ## The store copy
 
 `shasum -a 256` of each file under `runs/desktop-spike/store-2026-11-24`
 before the first run (the copy is never opened; every process reads a
 clone):
+
+```
+ee43ab6b28e5ad997562dc457df69fb11004dd9fb2fd6df70b00f856b41a4a32  ./ggg/2f9076e7-7d68-4756-8b0f-aac4d910ac65.annotations.db
+fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb  ./ggg/2f9076e7-7d68-4756-8b0f-aac4d910ac65.annotations.db-shm
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./ggg/2f9076e7-7d68-4756-8b0f-aac4d910ac65.annotations.db-wal
+07ac91c6322ac048f97578a8e9f270fe062c8e75c72887ef12110a27a60e7d9b  ./ggg/895be20e-0b9a-46c3-8b46-bd71cb289407.annotations.db
+fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb  ./ggg/895be20e-0b9a-46c3-8b46-bd71cb289407.annotations.db-shm
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./ggg/895be20e-0b9a-46c3-8b46-bd71cb289407.annotations.db-wal
+e0b48396139104cf54f32fe7bdc244a4bf01dd240da483e0b1e575d67f44786d  ./ggg/GERWARIC_7694.db
+fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb  ./ggg/GERWARIC_7694.db-shm
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./ggg/GERWARIC_7694.db-wal
+4f38bac655f5176c1f025a0a9e1b2dc95eb3a3bf233dc1956659d1363d849953  ./ggg/_exiled_6914.db
+fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb  ./ggg/_exiled_6914.db-shm
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./ggg/_exiled_6914.db-wal
+e1521b3961fc15b2c0fb7dc4e180d3ed90b7aee5f282b21bff5efb069312147e  ./ggg/_vagabond_6960.db
+fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb  ./ggg/_vagabond_6960.db-shm
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./ggg/_vagabond_6960.db-wal
+be11c8de74664ac74a0442e954c85e8224c0b4936be4aa9a400769c3a1ad05e5  ./ggg/accounts.json
+9dcb1d511ae25ae1f24c8140f5e7c942c7c0869aac9bcac362d4235ae1996349  ./ggg/cac319d8-e65f-4afa-92be-1de85d620033.annotations.db
+fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb  ./ggg/cac319d8-e65f-4afa-92be-1de85d620033.annotations.db-shm
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./ggg/cac319d8-e65f-4afa-92be-1de85d620033.annotations.db-wal
+aa9412eab21b48759927b3079e9a274a806ca34a86e8da80dec8dc066ac4870b  ./ggg/daemon.db
+fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb  ./ggg/daemon.db-shm
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./ggg/daemon.db-wal
+9d594bc15911b84433f1c675ff03a57a2ac3758975dbe2bc977a4b22e4b2465d  ./ggg/user.db
+```
+
+After the last run, the owner's sitting, the same 23 files, each the
+same:
 
 ```
 ee43ab6b28e5ad997562dc457df69fb11004dd9fb2fd6df70b00f856b41a4a32  ./ggg/2f9076e7-7d68-4756-8b0f-aac4d910ac65.annotations.db
