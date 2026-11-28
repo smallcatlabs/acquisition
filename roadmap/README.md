@@ -10,10 +10,11 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
-- **The series approved on 2026-11-27.** Left: a backup verb (#329,
-  #330), which waits on #351. Closed: `Step: next-a4-readme`,
-  `Step: poe2-prep`, `Step: desktop-spike` (the throwaway window he
-  sat at) and `Step: next-b3`.
+- **The series approved on 2026-11-27** is closed:
+  `Step: next-a4-readme`, `Step: poe2-prep`, `Step: desktop-spike`
+  (the throwaway window he sat at), `Step: next-b3` and
+  `Step: store-backup`. The desktop GUI is a frontend of its own
+  (C202); its order of work is #354.
 - **The programme after the whole-project review**
   (`audits/whole-review-2026-11/NEXT.md`, run as
   `audits/meta-2026-11/README.md` amends it; its closes are
@@ -82,8 +83,8 @@ label: `gh issue list --label trigger:step`.
 His queue is the open issues labelled `trigger:ruling`:
 `gh issue list --label trigger:ruling`. What only he can do:
 
-- The desktop GUI's design (`briefs/desktop-design.md`): three
-  rulings, put singly.
+- The desktop GUI's order of work (#354, the last ruling of
+  `briefs/desktop-design.md`).
 - The decisions `NEXT.md` lists as his ("What is the owner's"), four
   of them put in plain words in `audits/meta-2026-11/README.md`.
 - The league run under the rails, at his word: count the undecided
