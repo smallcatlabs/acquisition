@@ -41,13 +41,14 @@ use acquisition_store::{AnnotationRow, Annotations, Provenance, Store, check_val
 use anyhow::Result;
 
 use crate::run::Ctx;
-use crate::store_cmd::{ago, clip, realm_prefix};
+use crate::store_cmd::{clip, realm_prefix};
 use crate::terminal::Terminal;
+use acquisition_store::age::ago;
 use acquisition_verbs::Held;
 use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::{Surface as _, Way};
 
-use crate::terminal::plural;
+use acquisition_search::words::plural;
 
 /// The selected account's facts file, opened beside its intent (C121,
 /// C12), and the account's name.

@@ -32,9 +32,10 @@ use acquisition_protocol::realm::Realm;
 use anyhow::{Context, Result};
 
 use crate::run::Ctx;
-use crate::store_cmd::{ago, clip, realm_prefix};
+use crate::store_cmd::{clip, realm_prefix};
+use acquisition_store::age::ago;
 
-use crate::terminal::plural;
+use acquisition_search::words::plural;
 
 /// Groups of this many items or fewer are listed one per line; larger
 /// groups are counted (C53; `--expand` lists every one): the store's one

@@ -71,9 +71,9 @@ use anyhow::{Context as _, Result};
 use serde::Serialize;
 
 use crate::run::Ctx;
-use crate::store_cmd::ago;
+use acquisition_store::age::ago;
 
-use crate::terminal::plural;
+use acquisition_search::words::plural;
 
 /// What `acq search` was typed with.
 #[derive(clap::Args)]

@@ -43,7 +43,7 @@ use super::from::{FROM, FromPage};
 use crate::search_cmd::{self, ItemParts, RowPiece};
 use serde_json::Value;
 
-use crate::terminal::plural;
+use acquisition_search::words::plural;
 
 /// The one template every page fills.
 const TEMPLATE: &str = include_str!("assets/page.html");
@@ -2880,7 +2880,7 @@ pub(crate) fn window_rows(a: &Answer, now: i64) -> String {
             esc(price.as_deref().unwrap_or("")),
             esc(&place),
             // an age's words where there is no time to age
-            esc(&fetched.unwrap_or_else(|| crate::store_cmd::ago(now, None))),
+            esc(&fetched.unwrap_or_else(|| acquisition_store::age::ago(now, None))),
         ));
     }
     out
@@ -4089,12 +4089,12 @@ fn place_rows(
             Row::Tab(tab) => [
                 esc(&tab.r#type),
                 esc(&items(tab.fetched_at, tab.item_count)),
-                esc(&crate::store_cmd::ago(view.now, tab.fetched_at)),
+                esc(&acquisition_store::age::ago(view.now, tab.fetched_at)),
             ],
             Row::Character(c) => [
                 c.level.map(|l| l.to_string()).unwrap_or_default(),
                 esc(&items(c.fetched_at, c.item_count)),
-                esc(&crate::store_cmd::ago(view.now, c.fetched_at)),
+                esc(&acquisition_store::age::ago(view.now, c.fetched_at)),
             ],
         };
         rows.push_str(&format!(

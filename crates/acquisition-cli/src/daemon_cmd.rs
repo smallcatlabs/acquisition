@@ -7,8 +7,6 @@ use acquisition_client::client::Client;
 use acquisition_protocol::protocol::{Request, Response};
 use acquisition_verbs::DaemonReport;
 
-use crate::store_cmd;
-
 /// What a human does about a daemon this client will not use: a
 /// mismatch of contract, artifact or provider is replaced by a job
 /// command; a daemon on another world (C83) is never replaced — stop it,
@@ -50,7 +48,7 @@ pub(crate) fn daemon_text(report: &DaemonReport) -> String {
                     "daemon is not running; on disk: {} waiting, {} recorded running, written {}",
                     p.waiting,
                     p.recorded_running,
-                    store_cmd::ago(acquisition_store::now(), p.written_at),
+                    acquisition_store::age::ago(acquisition_store::now(), p.written_at),
                 ),
             }
             if let Some(log) = log {

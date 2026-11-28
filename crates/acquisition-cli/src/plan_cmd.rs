@@ -83,7 +83,7 @@ use serde_json::Value;
 use crate::run::Ctx;
 use crate::store_cmd;
 
-use crate::terminal::plural;
+use acquisition_search::words::plural;
 
 /// The channel every intent write from this binary is stamped with (C65).
 pub(crate) const WRITTEN_VIA: &str = "cli";
@@ -140,7 +140,7 @@ pub fn policy_show(cx: &Ctx, expand: bool, json: bool) -> Result<()> {
             println!(
                 "revision {}, updated {}",
                 shown.row.revision,
-                store_cmd::ago(acquisition_store::now(), Some(shown.row.updated_at))
+                acquisition_store::age::ago(acquisition_store::now(), Some(shown.row.updated_at))
             );
         }
     }
@@ -265,7 +265,7 @@ fn league_note_lines(notes: &[LeagueNote], now: i64) -> String {
                 "note: {}{} is not among the leagues fetched {} (`acq leagues`)\n",
                 store_cmd::realm_prefix(note.realm),
                 note.league,
-                store_cmd::ago(now, Some(at))
+                acquisition_store::age::ago(now, Some(at))
             ));
         }
     }
@@ -1786,7 +1786,7 @@ fn render_decision_quote(quote: &Quote, now: i64) -> String {
         .unwrap_or(0);
     let mut out = format!(
         "quote ({}):\n",
-        store_cmd::ago(now, Some(quote.observed_at))
+        acquisition_store::age::ago(now, Some(quote.observed_at))
     );
     for (scope, label) in quote.scopes.iter().zip(labels) {
         let eta = match scope.eta_seconds {
@@ -1814,7 +1814,7 @@ fn render_decision_quote(quote: &Quote, now: i64) -> String {
 fn render_quote(quote: &Quote, now: i64, expand: bool) -> String {
     let mut out = format!(
         "quote (the running daemon's estimate, observed {}):\n",
-        store_cmd::ago(now, Some(quote.observed_at))
+        acquisition_store::age::ago(now, Some(quote.observed_at))
     );
     if let Some(cause) = &quote.halted {
         // Report the cause only: a tripwire halt has a 360 s post-violation

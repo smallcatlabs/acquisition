@@ -16,12 +16,6 @@ use crate::cli::Cli;
 use crate::daemon_cmd::mismatch_remedy;
 use crate::{plan_cmd, saved_cmd, search_cmd};
 
-/// `n` and its noun, `one` for exactly one and `many` otherwise: the
-/// count words every text of this crate prints, from one copy.
-pub(crate) fn plural(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
-}
-
 /// The failure was already printed in the command's own output format (a
 /// failed job's `--json` outcome); main only sets the exit code.
 #[derive(Debug)]

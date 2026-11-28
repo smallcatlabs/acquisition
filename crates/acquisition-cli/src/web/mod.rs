@@ -506,7 +506,7 @@ use acquisition_verbs::saved::{self, SavedRow};
 use crate::saved_cmd::trade_word;
 use acquisition_verbs::{Account, Apply, Fault, Frontend, Jobs};
 
-use crate::terminal::plural;
+use acquisition_search::words::plural;
 use anyhow::Result;
 use axum::Router;
 use axum::extract::{Form, Path, Query, State};

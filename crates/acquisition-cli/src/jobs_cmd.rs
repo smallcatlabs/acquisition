@@ -18,8 +18,8 @@ use acquisition_verbs::{
 use anyhow::{Result, bail};
 
 use crate::run::{Ctx, attach};
-use crate::store_cmd;
-use crate::terminal::{AlreadyReported, Terminal, plural};
+use crate::terminal::{AlreadyReported, Terminal};
+use acquisition_search::words::plural;
 
 /// The persisted queue as text (C45): what `jobs` says with no daemon —
 /// the same table as the live list,
@@ -45,7 +45,7 @@ pub(crate) fn persisted_queue_text(persisted: Option<&PersistedJobs>) -> Result<
                  then acts on them\n{}{}",
                 p.waiting,
                 p.recorded_running,
-                store_cmd::ago(acquisition_store::now(), p.written_at),
+                acquisition_store::age::ago(acquisition_store::now(), p.written_at),
                 rows_text(&jobs),
                 summary_text(&p.counts(), Counted::Ledger)
             );
@@ -72,7 +72,7 @@ pub(crate) fn print_persisted_job(id: u64, job: &Job, json: bool) -> Result<()> 
     };
     println!(
         "daemon is not running; job {id} as the ledger on disk records it, written {}",
-        store_cmd::ago(acquisition_store::now(), Some(persisted.updated_at)),
+        acquisition_store::age::ago(acquisition_store::now(), Some(persisted.updated_at)),
     );
     let job = job_info(persisted)?;
     print_table(std::slice::from_ref(&job));

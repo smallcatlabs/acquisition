@@ -5,6 +5,7 @@ use crate::printed::Printed as _;
 
 use acquisition_protocol::realm::Realm;
 use acquisition_store::Store;
+use acquisition_store::age::ago;
 use acquisition_verbs::AccountRow;
 use acquisition_verbs::events::LocationChanges;
 use anyhow::Result;
@@ -134,13 +135,6 @@ pub fn accounts(cx: &Ctx, expand: bool, json: bool) -> Result<()> {
     Ok(())
 }
 
-/// An epoch's age at `now` in the one vocabulary (C53), `never` for
-/// none: the store's reading, which the JSON's words beside an epoch
-/// share.
-pub(crate) fn ago(now: i64, t: Option<i64>) -> String {
-    acquisition_store::age::ago(now, t)
-}
-
 /// `xbox/` before a league in a message; nothing for pc, as on the wire.
 pub(crate) fn realm_prefix(realm: Realm) -> String {
     match realm.segment() {
@@ -231,13 +225,9 @@ pub(crate) fn tabs_facts_line(counts: &acquisition_search::tabs::TabCounts, now:
     }
     format!(
         "facts: {}, {}; {listing}\n",
-        plural_of(places, "tab", "tabs"),
+        acquisition_search::words::plural(places, "tab", "tabs"),
         crate::price_cmd::fetched_words(counts.fetched, &counts.span, now)
     )
-}
-
-fn plural_of(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
 }
 
 /// The command that lists one league's characters, as `account`, in the
@@ -822,7 +812,7 @@ fn status_facts_line(facts: &acquisition_store::coverage::Coverage) -> String {
     }
     format!(
         "facts: {}, {}; {lists}\n",
-        plural_of(places, "location", "locations"),
+        acquisition_search::words::plural(places, "location", "locations"),
         crate::price_cmd::fetched_words(facts.fetched, &facts.span, acquisition_store::now())
     )
 }
@@ -872,7 +862,7 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
     // C146: the rows shown of the whole on record, and where they are
     // part of it the command that lists them all, carrying the account
     // read (C156: a printed command runs as printed)
-    let bodies = |n: usize| crate::terminal::plural(n, "refused body", "refused bodies");
+    let bodies = |n: usize| acquisition_search::words::plural(n, "refused body", "refused bodies");
     let counted = if listed.returned < listed.total {
         format!(
             "{} shown of {} on record; `acq store refused {} --limit {}` lists them all",

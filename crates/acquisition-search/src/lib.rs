@@ -377,6 +377,7 @@ pub mod totals;
 pub mod trade;
 pub mod tree;
 mod values;
+pub mod words;
 
 pub use answer::{Answer, Request, answer, indices};
 pub use bind::{NOT_BUILT, NotBuilt, Query, bind, not_built, parse_query};

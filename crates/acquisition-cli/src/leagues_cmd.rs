@@ -12,7 +12,7 @@ use acquisition_verbs::{LeagueListShown, LeaguesHeld};
 use anyhow::Result;
 
 use crate::run::Ctx;
-use crate::terminal::plural;
+use acquisition_search::words::plural;
 
 /// The rest a bounded list left out, and the flag that lists them.
 fn more(left_out: usize) -> String {
