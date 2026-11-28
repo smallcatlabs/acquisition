@@ -372,7 +372,7 @@ fn an_account_named_user_or_daemon_leaves_the_world_file_what_it_is_in_either_or
 /// the deletion that frees it, leaving the file byte for byte (no path
 /// is prescribed as a destination).
 #[test]
-fn a_world_file_holding_an_earlier_builds_account_facts_is_refused_naming_its_deletion() {
+fn a_world_file_holding_an_earlier_builds_account_facts_is_refused_naming_the_move() {
     use crate::annotations::AnnotationError;
     use crate::index::HoldsAccountFacts;
     use crate::jobs::{JobDb, Persisted};
@@ -402,10 +402,10 @@ fn a_world_file_holding_an_earlier_builds_account_facts_is_refused_naming_its_de
         for fact in [
             &found.file.display().to_string(),
             &format!("an account named {account}"),
-            "refetchable",
             "no Acquisition process running",
-            "-wal and -shm",
-            "the next refresh restores the account",
+            "move it and its -wal and -shm files aside",
+            "the next refresh fetches what the account holds now",
+            "but not the history the file held",
         ] {
             assert!(words.contains(fact), "{fact}: {words}");
         }

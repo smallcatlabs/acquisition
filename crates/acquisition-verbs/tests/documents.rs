@@ -5141,7 +5141,7 @@ fn legacy_user_facts(dir: &std::path::Path) {
 /// and the deletion that frees it, for every saved-search verb; nothing
 /// is written to the file.
 #[test]
-fn c167_a_user_file_holding_account_facts_is_refused_naming_its_deletion() {
+fn c167_a_user_file_holding_account_facts_is_refused_naming_the_move() {
     let s = scratch();
     legacy_user_facts(&s.mock);
     let file = s.mock.join("user.db");
@@ -5174,7 +5174,7 @@ fn c167_a_user_file_holding_account_facts_is_refused_naming_its_deletion() {
         assert_eq!(doc["file"], file.display().to_string(), "{doc}");
         let words = doc["error"].as_str().unwrap();
         assert!(
-            words.contains(&file.display().to_string()) && words.contains("delete it"),
+            words.contains(&file.display().to_string()) && words.contains("move it"),
             "{words}"
         );
         assert!(doc.get("offers").is_none(), "{doc}");

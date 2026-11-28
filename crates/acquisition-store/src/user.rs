@@ -92,7 +92,7 @@ impl User {
     /// or stamped: the file is the world's.
     ///
     /// A `user.db` that holds an account's facts, from a build before the
-    /// account path's escape, is refused with the deletion that frees it
+    /// account path's escape, is refused with the move that frees it
     /// ([`AnnotationError::HoldsAccountFacts`]), read before anything is
     /// written.
     pub fn open_for(dir: &Path) -> Result<User, AnnotationError> {

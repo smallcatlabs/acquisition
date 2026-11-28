@@ -300,7 +300,7 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
 
     // a `user.db` holding the facts of an account named `user`, at the
     // literal path a build before the account path's escape kept them,
-    // refused naming the deletion
+    // refused naming the move, what a refresh fetches and what it does not
     std::fs::remove_file(mock.join("user.db")).unwrap();
     for left in ["user.db-wal", "user.db-shm"] {
         assert!(!mock.join(left).exists(), "{left}");
@@ -320,8 +320,9 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
         &["saved"],
         &[
             "holds the facts of an account named user",
-            "delete it and its -wal and -shm files",
-            "the next refresh restores the account",
+            "move it and its -wal and -shm files aside",
+            "the next refresh fetches what the account holds now",
+            "but not the history the file held",
         ],
     );
     assert_eq!(out.status.code(), Some(1));

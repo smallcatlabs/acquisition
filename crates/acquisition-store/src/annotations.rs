@@ -1,5 +1,6 @@
-//! Intent (annotations): the only irreplaceable local state (C35). Facts
-//! are refetchable at the cost of requests; intent has no server to
+//! Intent (annotations): irreplaceable local state (C35). What an account
+//! holds now is refetchable at the cost of requests, and the history the
+//! facts hold is kept beside the intent (C201); intent has no server to
 //! refetch from, so it lives in its own per-account file — named by the
 //! account **uuid** (stable across renames), never the username — and is
 //! written only through this API, with integer-revision compare-and-swap
@@ -587,7 +588,7 @@ pub enum AnnotationError {
     Unreadable(UnreadableRow),
     /// The user file's opener met an account's facts at `user.db`, kept
     /// there by a build before the account path's escape: refused with
-    /// the deletion that frees it, nothing written (C167).
+    /// the move that frees it, nothing written (C167).
     HoldsAccountFacts(crate::index::HoldsAccountFacts),
     Db(rusqlite::Error),
     Io(std::io::Error),

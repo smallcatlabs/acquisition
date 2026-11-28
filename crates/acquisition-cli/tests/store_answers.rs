@@ -665,7 +665,7 @@ fn move_aside(path: &Path, aside: &Path) {
 /// holds no manifest.
 #[test]
 fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
-    use harness::seeded::{ALICE, Seeded};
+    use harness::seeded::{ALICE, BOB, Seeded};
     let scratch = harness::scratch("backup-text");
     let base = scratch.0.clone();
     let mock = Seeded::owner().write(&base, harness::now());
@@ -725,6 +725,31 @@ fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
         ],
         &["holds no manifest", "interrupted", "removed and made again"],
     );
+    // a facts file a development build wrote, below the released format:
+    // no backup is made of it, and the refusal says what a move costs
+    let bobs = account_path(&mock, BOB);
+    rusqlite::Connection::open(&bobs)
+        .unwrap()
+        .pragma_update(None, "user_version", 7)
+        .unwrap();
+    let below = base.join("below");
+    t.run(
+        &[
+            "--account",
+            BOB,
+            "store",
+            "backup",
+            &below.display().to_string(),
+        ],
+        &[
+            "a development build wrote it",
+            "move it and its -wal and -shm files aside",
+            "the next refresh fetches what the account holds now",
+            "but not the history the file held",
+            "a backup of the account, restored",
+        ],
+    );
+    assert!(!below.exists(), "a failed backup left its directory");
     golden(file!(), "backup_and_restore", &t);
     // the restore line runs as printed: the facts now stand, the rest too
     let ran = harness::offline_printed(&base, &restore_line)

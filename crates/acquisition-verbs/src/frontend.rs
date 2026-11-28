@@ -205,7 +205,7 @@ impl Frontend {
     /// `not_logged_in` naming it, as a store read answers (C121). A
     /// `user.db` holding an account's facts from a build before the
     /// account path's escape is the refusal `user_file_holds_account`,
-    /// its field the file, its words the deletion that frees it.
+    /// its field the file, its words the move that frees it.
     pub fn user(&self) -> anyhow::Result<User> {
         let dir = self.dir();
         if !dir.is_dir() {

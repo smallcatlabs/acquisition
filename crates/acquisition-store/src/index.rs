@@ -7,7 +7,8 @@
 //!
 //! C50 (the stable account key): `accounts.json` maps username,
 //! discriminator and provider to the uuid; fact files are named by
-//! username (refetchable, [`account_path`]), annotation files by uuid
+//! username ([`account_path`]; what an account holds now is refetchable,
+//! the history they hold is not, C201), annotation files by uuid
 //! (`annotations_path`, `annotations.rs`).
 
 use std::path::{Path, PathBuf};
@@ -175,9 +176,9 @@ const RESERVED_STEMS: [&str; 2] = ["user", "daemon"];
 
 /// A world file (`user.db`, `daemon.db`) that holds an account's facts: a
 /// build before [`account_path`]'s escape kept an account named `user`
-/// or `daemon` there. Nothing is moved; facts are refetchable (C35), so
-/// the opener refuses in one sentence naming the deletion that frees the
-/// file. The case is a mock world's: a real username carries its
+/// or `daemon` there. Nothing is moved: the opener refuses in one
+/// sentence naming the move that frees the file, what the next refresh
+/// fetches and the history it does not (C201). The case is a mock world's: a real username carries its
 /// discriminator, so a real account's file is never a world file's.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HoldsAccountFacts {
@@ -214,9 +215,10 @@ impl std::fmt::Display for HoldsAccountFacts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} holds the facts of an account named {} from an earlier build; facts are \
-             refetchable, so with no Acquisition process running, delete it and its -wal and \
-             -shm files, and the next refresh restores the account",
+            "{} holds the facts of an account named {} from an earlier build: with no \
+             Acquisition process running, move it and its -wal and -shm files aside, and the \
+             next refresh fetches what the account holds now, but not the history the file held \
+             (when each item was first seen, its events and the items since removed)",
             self.file.display(),
             self.account
         )
@@ -307,8 +309,8 @@ impl Index {
     /// If the uuid is already listed under a different username, the
     /// account was renamed — the entry follows the new name (a mapping
     /// update; the uuid-named annotation file is untouched, the old
-    /// username-named fact file is orphaned and refetchable). C144: `hold`
-    /// is every name a keyring entry for the account may now be under —
+    /// username-named fact file is orphaned, with the history it holds,
+    /// C201). C144: `hold` is every name a keyring entry for the account may now be under —
     /// the name just saved and the old names not yet cleared — added to
     /// the entry in this same write, so no stop between two writes leaves
     /// a name the index does not reach.

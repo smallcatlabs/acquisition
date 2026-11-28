@@ -169,8 +169,9 @@ Error: this saved search names no realm, and the facts of the 2 accounts known h
 
 $ acq saved
 # holds "holds the facts of an account named user"
-# holds "delete it and its -wal and -shm files"
-# holds "the next refresh restores the account"
+# holds "move it and its -wal and -shm files aside"
+# holds "the next refresh fetches what the account holds now"
+# holds "but not the history the file held"
 --- stderr
-Error: <scratch>/mock/user.db holds the facts of an account named user from an earlier build; facts are refetchable, so with no Acquisition process running, delete it and its -wal and -shm files, and the next refresh restores the account
+Error: <scratch>/mock/user.db holds the facts of an account named user from an earlier build: with no Acquisition process running, move it and its -wal and -shm files aside, and the next refresh fetches what the account holds now, but not the history the file held (when each item was first seen, its events and the items since removed)
 --- exit 1

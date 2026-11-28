@@ -22,7 +22,10 @@
 //! refetching.
 //!
 //! Facts are one of four layers (C34); `annotations` is the intent layer,
-//! the only irreplaceable local state (C35).
+//! irreplaceable local state (C35). What an account holds now is fetched
+//! again by a refresh; the history the facts hold (when each item was
+//! first seen, its events, the items since removed) is not, so it is kept
+//! state too (C201), and a backup holds it with the intent (`backup.rs`).
 //!
 //! # As built
 //!
@@ -92,8 +95,8 @@
 //! (`written_via`, `actor`; C65) and the write door is typed: a kind
 //! declares its version and strict parse through `IntentValue`, and a
 //! value that fails the version gate, the parse or the exact round-trip
-//! never lands (C66). The only irreplaceable local state; the store
-//! crate's production code is held to no-panic by a clippy ratchet
+//! never lands (C66). Irreplaceable local state (C35), backed up with the
+//! facts' history (C201); the store crate's production code is held to no-panic by a clippy ratchet
 //! (`unwrap_used`/`expect_used` denied).
 //! `Store::refresh_snapshot` (`snapshot.rs`) is the planner's read, taken
 //! in one read transaction and bound to the account uuid the facts file
@@ -256,14 +259,17 @@ const FACT_SCHEMA_VERSION: i64 = 9;
 
 /// The oldest fact file this build opens: the released format,
 /// v1.0.0-alpha.1's. An older file was written by a development build and
-/// is refused, never migrated (C124); facts are refetchable (C35).
+/// is refused, never migrated (C124); what the account holds now is
+/// fetched again, and the history the file held is not (C201).
 const FACT_SCHEMA_FLOOR: i64 = 8;
 
 /// The remedy for a fact file below `FACT_SCHEMA_FLOOR`, one for both
 /// doors, so the read-only door and the writing door say the same.
-pub const FACTS_BELOW_FLOOR_REMEDY: &str = "a development build wrote it, and facts are \
-     refetchable: with no Acquisition process running, delete it and its -wal and -shm files, \
-     and the next refresh fetches the account again";
+pub const FACTS_BELOW_FLOOR_REMEDY: &str = "a development build wrote it: with no Acquisition \
+     process running, move it and its -wal and -shm files aside, and the next refresh fetches \
+     what the account holds now, but not the history the file held (when each item was first \
+     seen, its events and the items since removed), which a backup of the account, restored, \
+     puts back as it stood when the backup was made";
 
 /// The live items by where they sit (facts v9): every read of the live
 /// names `removed_at IS NULL`, and a store's removed items grow with its
@@ -277,9 +283,8 @@ const LIVE_INDEX: &str = "CREATE INDEX IF NOT EXISTS items_live
 CREATE INDEX IF NOT EXISTS items_live_at
     ON items (location_kind, location_id, realm, id) WHERE removed_at IS NULL;";
 
-/// A facts file written by a newer build than this one. Facts are
-/// refetchable, but guessing at an unknown schema is how a file gets
-/// silently misread — refuse instead.
+/// A facts file written by a newer build than this one. Guessing at an
+/// unknown schema is how a file gets silently misread — refuse instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SchemaTooNew {
     pub found: i64,
@@ -301,7 +306,7 @@ impl std::error::Error for SchemaTooNew {}
 /// A facts file older than the released format (below
 /// `FACT_SCHEMA_FLOOR`), or one stamped 0 that holds tables: refused
 /// as found, never migrated. It names the file, since its remedy is to
-/// delete it, by either door.
+/// move it aside, by either door.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SchemaTooOld {
     pub found: i64,
