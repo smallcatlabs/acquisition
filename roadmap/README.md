@@ -94,6 +94,8 @@ His queue is the open issues labelled `trigger:ruling`:
 - Whether to tell the RePoE fork that its 3.30 export joins no trade
   id for a string with markup (#281): a post on another project's
   tracker.
+- After about 2026-12-18, his read of whether the plain question
+  (C203) and one review of a brief (C176) work as standing rules.
 - After 2026-11-30, re-measure what the governance rebuild changed
   (#220); its four gate questions are built (C196 to C199).
 
