@@ -30,6 +30,7 @@ Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the ruling
 What someone would propose and the project declines, each until the trigger it names or for good; the backlog is the repository's GitHub issues.
 
 - A standalone queue TUI (`dash` as its own binary): not until a queue-monitoring slice opens.
+- New work on `acq web`'s pages (their look, their goldens held another way, a live feed for them): not until the desktop window (C202) does what the pages do and the owner rules whether the pages stay; he expects to retire them then, so work on them is likely spent on what is deleted. A fault in what a page does today is still fixed.
 - A web listener beyond loopback (a phone on the LAN): not until a design of its own rules its security story.
 - Item counts beside `acq web`'s league select: not until one document carries the league list and the counts on one basis.
 - The plan text's stale fold printed as a range when its ends are equal (`3 stale (13h–13h)`): not until a golden, a transcript or a seat captures one.

@@ -14,7 +14,7 @@ better Acquisition that is agent-friendly and agent-forward.
   `Step: next-a4-readme`, `Step: poe2-prep`, `Step: desktop-spike`
   (the throwaway window he sat at), `Step: next-b3` and
   `Step: store-backup`. The desktop GUI is a frontend of its own
-  (C202); its order of work is #354.
+  (C202), its order of work ruled (`briefs/desktop-design.md`, §4).
 - **The programme after the whole-project review**
   (`audits/whole-review-2026-11/NEXT.md`, run as
   `audits/meta-2026-11/README.md` amends it; its closes are
@@ -29,14 +29,10 @@ better Acquisition that is agent-friendly and agent-forward.
   code does not bear out), C121 (#339) and C27's Windows half.
 - **The #293 removals**: the five ranked cuts are closed
   (`Step: cut-293`); #293 stays open.
-- **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
-  milestone "4-full, the GUI"): steps 1 to 6 and the search form's
-  nine are closed (step 6's parts and the form's:
-  `git log --grep='^Step: 4-full-1'`), its page seat is sat, and the
-  fix round after the owner's sitting at the pages is closed
-  (`Step: 4-full-1-sitting-round`). What is left of it is issues: the
-  look (#285, with #317's column head), the fixed columns' sort values
-  (#327), #323, #324, #325, #326, #182's rest and #194's rest.
+- **`acq web`** (4-full part 1, `git log --grep='^Step: 4-full-1'`)
+  stands as built. New work on its pages is parked (the frontends'
+  "Not doing"): #285, #317, #327, #323 to #326, #182's and #194's
+  rest, `NEXT.md`'s B4 and 4-full's parts 2 and 3.
 
 ## Next
 
@@ -45,12 +41,13 @@ names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
 1. The programme's later steps, each a row of `NEXT.md`'s table:
-   A4's 33 drafted issues, filed at his word; B2, B4 and B5, whose
-   waits are met; B1 waits on his ruling and B6 on his decision. Where they stand against the items below is the
-   owner's (its decision 1).
-2. 4-full parts 2 and 3, each its own design session
-   (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
-   then the resident and morning 2.
+   A4's 33 drafted issues, filed at his word; B2, B5's account half
+   and B6 (owed since C201), whose waits are met; B1 waits on his
+   ruling. Where they stand against the items below is the owner's
+   (its decision 1).
+2. The desktop GUI (C202), in the order of `briefs/desktop-design.md`
+   §4: first the search's answers shaped for a tree, a design
+   session; then the read-only window.
 3. The rest of the test-shape group's t6 (#142): its world is built
    (`Step: next-a1`); the seeds not yet read from it and the door's
    corpus remain. t7 (#143) only if t6 shows the shape pays.
@@ -83,8 +80,6 @@ label: `gh issue list --label trigger:step`.
 His queue is the open issues labelled `trigger:ruling`:
 `gh issue list --label trigger:ruling`. What only he can do:
 
-- The desktop GUI's order of work (#354, the last ruling of
-  `briefs/desktop-design.md`).
 - The decisions `NEXT.md` lists as his ("What is the owner's"), four
   of them put in plain words in `audits/meta-2026-11/README.md`.
 - The league run under the rails, at his word: count the undecided

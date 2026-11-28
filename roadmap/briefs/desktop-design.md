@@ -3,9 +3,11 @@
 A Fable design, 2026-11-27, written after the owner sat at the
 prototype (`audits/desktop-2026-11/spike/README.md`, the spike's
 record, and `roadmap/briefs/desktop-spike.md`). Nothing here is built
-or ruled. The first section is for the owner; the rest is for the
-session that writes the build briefs after his word. The prototype
-is throwaway and stays out of the product; what it proved is kept.
+when this is written. The first section is for the owner; the rest
+is for the session that writes the build briefs. The prototype is
+throwaway and stays out of the product; what it proved is kept. His
+three rulings, each put to him singly, are recorded where they fall
+(#352, #353, #354; C202).
 
 ## To the owner, in plain words
 
@@ -32,15 +34,17 @@ line and the agent's door), and adding features one at a time.
 **Three things are yours to rule, in this order.** Each comes to you
 as one question when you are ready for it; this is the map.
 
-1. *What it is.* A fourth frontend beside the command line, the
-   agent's door and `acq web`: its own program, the prototype's
-   shape. `acq web` stays as it is.
-2. *What the window is.* A browser's app window first, as the
-   prototype was; a packaged app with its own icon later, as a
-   wrapper around the same program.
-3. *The order.* The search's six limits first, then a read-only
-   window to parity with the C++ app's browsing, then refreshing
-   from the window, then pricing, then the shop.
+1. *What it is.* Ruled: a fourth frontend beside the command line,
+   the agent's door and `acq web`, its own program in the
+   prototype's shape ("Yes, its own program").
+2. *What the window is.* Ruled: a browser's app window first, as the
+   prototype was ("Browser window first"); a packaged app with its
+   own icon later, as a wrapper around the same program.
+3. *The order.* Ruled 2026-11-27, after he asked which piece helps
+   the other more: the search's answers shaped for a tree first,
+   then a read-only window with the C++ app's browsing, then the
+   speedups a sitting shows are needed, then refreshing from the
+   window, pricing and the shop. Work on `acq web`'s pages is parked.
 
 ## 1. What the spike showed, and did not
 
@@ -93,8 +97,8 @@ kept. What changes is one mechanism, not a property: a new search
 replaces the page's contents in place instead of loading a page.
 
 **What it does not share with `acq web`.** Markup, routes and
-goldens. It shares the documents and the words, which is why B3
-(the shared words out of the CLI's binary) comes before it.
+goldens. It shares the documents and the words, which
+`Step: next-b3` moved out of the CLI's binary for it.
 
 ## 3. What the window is
 
@@ -110,31 +114,37 @@ measurement on each platform's engine.
 
 ## 4. The road to parity
 
-**First, the engine.** The six limits the spike found, each a step
-in the search or the store, each paying on every surface:
+The owner's ruling (#354). The spike found six limits in the search
+and wrote eight rules of its own; they are three kinds of work, and
+the order follows which helps which.
 
-1. A place's items without a scan of the corpus.
-2. Counts by location in one answer.
-3. A places document that does not re-read the tab listing on each
-   query.
-4. An answer that can be abandoned when a newer one is asked.
-5. Row building, about 14 µs a row today.
-6. The currency check, 10 ms on every act.
+**First, answers shaped for a tree.** Every place's count under a
+query, and a window of rows across many places, each in one answer;
+a place's items without a scan of the corpus. The rig's count, batch
+and most of its hold rule exist only because the search answers one
+place at a time. Built first, they are never written into the
+window, they halve a keystroke, and the command line and the agent's
+door gain the same answers. The rig's rules and its check (the rows
+drawn are the rows counted, every place's count the places
+document's) are their specification. The window would give this
+work nothing the prototype has not. A design session first.
 
-And the eight rules the rig wrote in its own Rust (the record, "The
-rules the rig wrote in Rust"): each becomes the engine's, shared and
-tested once, or is ruled out. The form's fold is the one with a
-choice in it: `acq web` folds a form shaped like the trade site's,
-and the desktop's is shaped like the C++ app's. One vocabulary of
-fields with two layouts is the position; a second fold is a second
-semantics.
+**Then the read-only window, with the rules that are its own**:
+which places stand open, the tree as one scrolled list, the form
+folded to a query, the item's card, the intent opened read-only.
+Its form is its own; no vocabulary is shared with `acq web`'s.
 
-**Then, in order, each its own design where one is named:**
+**Then speed, by evidence**: an answer that can be abandoned, row
+building (about 14 µs a row), the currency check (10 ms an act), a
+places document that re-reads the tab listing. A sitting says which
+a person can feel.
+
+**Then, each its own design after the slice before is sat at:**
 
 | Slice | What a C++ user gets | Needs |
 | --- | --- | --- |
-| A. The read-only window | The whole search form, search tabs, every column, sort, keys, item art, the tooltip as the game draws it | The engine steps; a Windows sitting; item art under C140 |
-| B. Refresh from the window | "Update" with progress, and a list that changes under you | A design: the live feed that 4-full's parts 2 and 3 were to give `acq web` is designed once, here |
+| A. The read-only window | The whole search form, search tabs, every column, sort, keys, item art, the tooltip as the game draws it | The tree-shaped answers; a Windows sitting; item art under C140 |
+| B. Refresh from the window | "Update" with progress, and a list that changes under you | A design: the live feed, designed once, here |
 | C. Pricing | Buyouts set from the item panel | The write door (C168), designed for the panel |
 | D. The shop | The forum pages | `shop render` as it is (C120: a person pastes) |
 
@@ -155,23 +165,25 @@ show. `acq web`'s 795 KB of markup goldens is the cost this avoids.
 - Do not design slices B to D now. Each waits for the slice before
   it to be sat at.
 - Do not retire `acq web`: not until the desktop window does what
-  its pages do, and then at the owner's word.
+  its pages do (saved searches, a trade URL run, tick, plan and
+  apply), and then at the owner's word. He expects to ("once the
+  window is done we may fully deprecate 'acq web'"), so new work on
+  its pages is parked (the frontends' "Not doing").
 - Do not add a framework, Node or a bundler: the rig's one
   hand-written page was enough at this size (the frontends'
   "Not doing" line stands).
 
-## 6. Drafts for the owner
+## 6. What his rulings made, and what is still a draft
 
-Each a registry line to be written in his words once he rules.
-
-- C191 gains its second half: the desktop GUI is a fourth frontend,
-  its own crate and binary, a Rust program holding the corpus and one
-  page that draws it.
-- C1's edges gain the frontend's row.
-- C16 says which of its sentences bind the desktop page as they
-  bind `acq web`'s, and that in-place replacement is a mechanism.
-- The road: 4-full's parts 2 and 3 are designed for the desktop
-  window, not for `acq web`.
+- Written: C202 (`decisions/frontends.md`), the desktop GUI as a
+  fourth frontend of its own, shown first in a browser's app window.
+  C191 and C16 stand as written beside it.
+- Written: the frontends' "Not doing" line that parks new work on
+  `acq web`'s pages, and the road's item for the desktop GUI.
+- Still a draft, for the step that makes the crate: C1's edges gain
+  the frontend's row; and a sentence, in C202 or C16, that in-place
+  replacement is a mechanism and which of C16's page sentences bind
+  the desktop page.
 
 ## 7. Not checked
 
