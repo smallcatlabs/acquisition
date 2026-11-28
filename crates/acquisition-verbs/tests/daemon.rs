@@ -1642,15 +1642,18 @@ mod kept {
         assert_eq!(left.file, Held::Intent);
         assert_eq!(
             left.move_aside,
-            sqlite_files(&intent).map(|p| p.display().to_string())
+            acquisition_store::backup::standing(&intent)
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
         );
         assert_eq!(std::fs::read(&intent).unwrap(), standing_before);
     }
 
     /// A lacking file beside a `-wal` or `-shm` left by the file moved aside
     /// stands: a copy written there would take that log at its next open. So
-    /// it is named as standing, with all three files to move, and nothing is
-    /// written; the same for each of the three files.
+    /// it is named as standing, with the log that stands to move aside, and
+    /// nothing is written; the same for each of the three files.
     #[test]
     fn a_lacking_file_beside_its_own_log_stands_and_nothing_is_written() {
         let (s, alice) = seeded_world(seeded::Seeded::owner());
@@ -1667,12 +1670,18 @@ mod kept {
             restored.standing.iter().map(|l| l.file).collect::<Vec<_>>(),
             [Held::Facts, Held::Intent, Held::Saved]
         );
-        for (left, file) in restored.standing.iter().zip(kept_files(&s.mock)) {
+        for (n, (left, file)) in restored
+            .standing
+            .iter()
+            .zip(kept_files(&s.mock))
+            .enumerate()
+        {
+            // the log that stands, named to be moved; the lacking file not
             assert_eq!(
                 left.move_aside,
-                sqlite_files(&file).map(|p| p.display().to_string())
+                [sqlite_files(&file)[1 + n % 2].display().to_string()],
+                "{left:?}"
             );
-            assert_eq!(left.standing.len(), 1, "{left:?}");
             assert!(!file.exists(), "{} was written", file.display());
         }
     }
@@ -1737,6 +1746,58 @@ mod kept {
         assert_eq!(
             kept::restore(&alice, &dir, KEPT_AT).unwrap().restored.len(),
             1
+        );
+    }
+
+    /// C146, C151 — a row the verbs cannot read is in the backup, so it is
+    /// in the manifest's count, said apart from the readable ones, and never
+    /// read as absence: a price, the policy and a saved search whose stored
+    /// values no longer parse are counted, the policy is still there, and a
+    /// restore's check, reading the same counts, passes.
+    #[test]
+    fn a_row_the_verbs_cannot_read_is_counted_apart_never_as_absence() {
+        let (s, alice) = seeded_world(seeded::Seeded::owner());
+        let [_, intent, user] = kept_files(&s.mock);
+        let spoil = |file: &Path, sql: &str| {
+            let changed = rusqlite::Connection::open(file)
+                .unwrap()
+                .execute(sql, [])
+                .unwrap();
+            assert!(changed > 0, "{sql}");
+        };
+        spoil(
+            &intent,
+            "UPDATE annotations SET value = '{' WHERE rowid = \
+             (SELECT rowid FROM annotations WHERE kind = 'buyout' AND deleted_at IS NULL LIMIT 1)",
+        );
+        spoil(
+            &intent,
+            "UPDATE annotations SET value = '{' WHERE kind = 'sync-policy'",
+        );
+        spoil(
+            &user,
+            "UPDATE annotations SET value = '{' WHERE scope = 'search'",
+        );
+        let dir = s.mock.parent().unwrap().join("backup");
+        let m = kept::backup(&alice, &dir, KEPT_AT).unwrap().manifest;
+        let i = m.intent.as_ref().unwrap();
+        assert_eq!(
+            (i.prices, i.policy, i.rows, i.unreadable),
+            (3, true, 4, 2),
+            "{i:?}"
+        );
+        let saved = m.saved.as_ref().unwrap();
+        assert_eq!(
+            (saved.saved_searches, saved.unreadable),
+            (1, 1),
+            "{saved:?}"
+        );
+        remove_with_logs(&intent);
+        remove_with_logs(&user);
+        let restored = kept::restore(&alice, &dir, KEPT_AT).unwrap();
+        assert_eq!(
+            restored.restored.iter().map(|p| p.file).collect::<Vec<_>>(),
+            [Held::Intent, Held::Saved]
         );
     }
 }

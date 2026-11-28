@@ -665,23 +665,24 @@ fn move_aside(path: &Path, aside: &Path) {
 /// holds no manifest.
 #[test]
 fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
-    use harness::seeded::{ALICE, BOB, Seeded};
+    use harness::seeded::{ALICE, ALICE_UUID, BOB, Seeded};
     let scratch = harness::scratch("backup-text");
     let base = scratch.0.clone();
     let mock = Seeded::owner().write(&base, harness::now());
-    let dir = base.join("backup");
-    let dir_word = dir.display().to_string();
-    let mut t = harness::Transcript::offline(&base);
+    // the directories named relative to the world, where each command
+    // runs, so the restore line a text prints reads the same in every shell
+    let dir_word = "backup";
+    let mut t = harness::Transcript::offline(&base).run_in_base();
     let out = t.run(
-        &["--account", ALICE, "store", "backup", &dir_word],
+        &["--account", ALICE, "store", "backup", dir_word],
         &[
-            "backed up Alice#1234 to ",
+            "backed up Alice#1234 to backup: ",
             "its facts (",
             "item events",
             "and its sync policy",
             "the world's saved searches (1)",
             "a backup holds no login and no job queue",
-            "it puts back what a store lacks: acq store restore",
+            "it puts back what a store lacks: acq store restore --account 'Alice#1234' backup",
         ],
     );
     let text = String::from_utf8_lossy(&out.stdout).into_owned();
@@ -691,7 +692,7 @@ fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
         .expect("the restore command")
         .to_string();
     t.run(
-        &["--account", ALICE, "store", "backup", &dir_word],
+        &["--account", ALICE, "store", "backup", dir_word],
         &["backup exists", "name one that does not exist"],
     );
     let aside = base.join("aside");
@@ -703,27 +704,34 @@ fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
     )
     .unwrap();
     t.run(
-        &["--account", ALICE, "store", "restore", &dir_word],
+        &["--account", ALICE, "store", "restore", dir_word],
         &[
             "put back 1 of 3 files from the backup of Alice#1234",
             "its facts (",
             "left standing 2",
-            "move each aside with its -wal and -shm",
+            "move each aside, its -wal and -shm with it where they stand",
             "its intent:",
             "user.db-wal",
         ],
     );
-    let interrupted = base.join("interrupted");
-    std::fs::create_dir(&interrupted).unwrap();
+    std::fs::create_dir(base.join("interrupted")).unwrap();
     t.run(
-        &[
-            "--account",
-            ALICE,
-            "store",
-            "restore",
-            &interrupted.display().to_string(),
-        ],
+        &["--account", ALICE, "store", "restore", "interrupted"],
         &["holds no manifest", "interrupted", "removed and made again"],
+    );
+    // a price whose stored value no longer parses is in the backup, so it
+    // is counted, and said apart
+    rusqlite::Connection::open(acquisition_store::annotations_path(&mock, ALICE_UUID))
+        .unwrap()
+        .execute(
+            "UPDATE annotations SET value = '{' WHERE rowid = (SELECT rowid FROM annotations \
+             WHERE kind = 'buyout' AND deleted_at IS NULL LIMIT 1)",
+            [],
+        )
+        .unwrap();
+    t.run(
+        &["--account", ALICE, "store", "backup", "spoiled"],
+        &["3 prices and its sync policy, 4 rows in all, 1 of them unreadable by this build"],
     );
     // a facts file a development build wrote, below the released format:
     // no backup is made of it, and the refusal says what a move costs
@@ -732,27 +740,40 @@ fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
         .unwrap()
         .pragma_update(None, "user_version", 7)
         .unwrap();
-    let below = base.join("below");
     t.run(
-        &[
-            "--account",
-            BOB,
-            "store",
-            "backup",
-            &below.display().to_string(),
-        ],
+        &["--account", BOB, "store", "backup", "below"],
         &[
             "a development build wrote it",
             "move it and its -wal and -shm files aside",
             "the next refresh fetches what the account holds now",
             "but not the history the file held",
             "a backup of the account, restored",
+            "acq store restore --account 'Bob#9' <backup>",
         ],
     );
-    assert!(!below.exists(), "a failed backup left its directory");
+    assert!(
+        !base.join("below").exists(),
+        "a failed backup left its directory"
+    );
+    // the same way on in the JSON, as the person's act it is
+    let refused = harness::offline_command(
+        &base,
+        &["--json", "--account", BOB, "store", "backup", "below"],
+    )
+    .current_dir(&base)
+    .output()
+    .expect("acq");
+    assert_eq!(refused.status.code(), Some(1), "{refused:?}");
+    let doc = sole_json(&refused);
+    assert_eq!(
+        doc["next"],
+        json!("acq store restore --account 'Bob#9' <backup>"),
+        "{doc}"
+    );
     golden(file!(), "backup_and_restore", &t);
     // the restore line runs as printed: the facts now stand, the rest too
     let ran = harness::offline_printed(&base, &restore_line)
+        .current_dir(&base)
         .output()
         .expect("the printed restore");
     assert!(ran.status.success(), "{restore_line}: {ran:?}");
@@ -762,22 +783,98 @@ fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
     );
 }
 
+/// What a store's three files hold, as documents, read through their
+/// read-only doors from wherever they stand (a store, or a backup's
+/// directory): every item the facts hold, live and removed, with when it
+/// was first and last seen, where, when it left and its body; every event,
+/// with no limit and no window; every intent row and every saved search,
+/// the unreadable named among them.
+fn held_documents(facts: &Path, intent: &Path, user_dir: &Path) -> Value {
+    use acquisition_store::corpus::{Membership, RealmScope};
+    let store = Store::open_read_only(facts).unwrap();
+    let items = store
+        .read_corpus_of(RealmScope::All, Membership::All, |_, items| {
+            Ok(items
+                .map(|i| {
+                    let i = i.unwrap();
+                    json!([
+                        i.id,
+                        i.realm,
+                        i.location_kind,
+                        i.location_id,
+                        i.first_seen,
+                        i.last_seen,
+                        i.removed_at,
+                        i.body
+                    ])
+                })
+                .collect::<Vec<_>>())
+        })
+        .unwrap();
+    let events = serde_json::to_value(store.events_since(i64::MIN, usize::MAX).unwrap()).unwrap();
+    let intent = serde_json::to_value(
+        acquisition_store::Annotations::open_read_only_at(intent)
+            .unwrap()
+            .list(None, None)
+            .unwrap(),
+    )
+    .unwrap();
+    let saved = serde_json::to_value(
+        acquisition_store::User::open_read_only_for(user_dir)
+            .unwrap()
+            .list(None, None)
+            .unwrap()
+            .list,
+    )
+    .unwrap();
+    json!({ "items": items, "events": events, "intent": intent, "saved": saved })
+}
+
+/// The open apply job's id, and how many of its children are done and how
+/// many still wait, from the daemon's list of every job.
+fn apply_in_flight(base: &Path) -> Option<(u64, usize, usize)> {
+    let out = harness::acq(base, &["--json", "jobs", "--all"]);
+    assert!(out.status.success(), "{out:?}");
+    let rows = sole_json(&out)["rows"].as_array().unwrap().clone();
+    let apply = rows
+        .iter()
+        .filter(|r| r["kind"] == "apply" && r["state"] == "running")
+        .filter_map(|r| r["id"].as_u64())
+        .max()?;
+    let of = |state: &str| {
+        rows.iter()
+            .filter(|r| r["parent"].as_u64() == Some(apply) && r["state"] == state)
+            .count()
+    };
+    Some((apply, of("done"), of("waiting")))
+}
+
 /// C201, C193 — a store whose files are all gone, in a mock world with its
-/// daemon: a backup taken while the daemon ingests; a restore under the
-/// live daemon refused, nothing written; then the person's sequence: log
-/// in, stop the daemon, a restore that names the facts file the login made
-/// as standing, that file moved aside, and the restore again, which puts
-/// it back; the store then reads whole, holding what the manifest counts.
+/// daemon. A backup is taken while a refresh ingests: the refresh's apply
+/// is running with children landed and children waiting when the backup
+/// starts, and still running when it ends (the mock's stash policy, 15
+/// fetches in 10 s, holds the third refresh's later fetches). A restore
+/// under the live daemon is refused, nothing written. Then the person's
+/// sequence: log in, stop the daemon, a restore that puts back the intent
+/// and the saved searches and names the facts file the login made as
+/// standing, that file moved aside, and the restore again, which puts it
+/// back. The restored store's documents are then the backup's own, read
+/// from its files: every item with its first-seen time, the removed items,
+/// every event, the intent and the saved searches.
 #[test]
 fn a_store_whose_files_are_gone_is_logged_into_and_restored() {
     let scratch = harness::scratch("backup-mock");
     let base = scratch.0.clone();
     let daemon = harness::login(&base, "alice");
     let mock = base.join("store").join("mock");
-    // the listing, then the tabs; a third fetch ingests while the backup
-    // runs
-    for _ in 0..2 {
-        let fetched = harness::acq(&base, &["refresh", "--all"]);
+    // the listing, then the tabs (learning the substashes); the third, deep
+    // refresh fetches more than the stash policy's window admits at once
+    for deep in [false, true] {
+        let args: &[&str] = match deep {
+            false => &["refresh", "--all"],
+            true => &["refresh", "--all", "--deep"],
+        };
+        let fetched = harness::acq(&base, args);
         assert!(fetched.status.success(), "{fetched:?}");
     }
     let saved = harness::acq(
@@ -785,17 +882,38 @@ fn a_store_whose_files_are_gone_is_logged_into_and_restored() {
         &["saved", "set", "--name", "uniques", "rarity=unique"],
     );
     assert!(saved.status.success(), "{saved:?}");
-    let mut ingesting = harness::command(&base, &["refresh", "--all"])
+    let mut ingesting = harness::command(&base, &["refresh", "--all", "--deep"])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
         .expect("a refresh");
+    let started = std::time::Instant::now();
+    let (apply, before) = loop {
+        if let Some((apply, done, waiting)) = apply_in_flight(&base)
+            && done > 0
+            && waiting > 0
+        {
+            break (apply, done);
+        }
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(30),
+            "the third refresh never had children landed and children waiting"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
     let dir = base.join("backup");
     let made = harness::acq(
         &base,
         &["--json", "store", "backup", &dir.display().to_string()],
     );
     assert!(made.status.success(), "{made:?}");
+    let (still, after, waiting) =
+        apply_in_flight(&base).expect("the refresh still running after the backup");
+    assert_eq!(still, apply);
+    assert!(
+        waiting > 0 && after >= before,
+        "{before} done before, {after} after, {waiting} waiting"
+    );
     assert!(ingesting.wait().expect("the refresh").success());
     let manifest = sole_json(&made)["manifest"].clone();
     assert!(
@@ -827,9 +945,10 @@ fn a_store_whose_files_are_gone_is_logged_into_and_restored() {
     let uuid = manifest["account"]["uuid"].as_str().unwrap().to_string();
     let name = manifest["account"]["name"].as_str().unwrap().to_string();
     let facts = account_path(&mock, &name);
+    let intent = acquisition_store::annotations_path(&mock, &uuid);
     for file in [
         facts.clone(),
-        acquisition_store::annotations_path(&mock, &uuid),
+        intent.clone(),
         acquisition_store::user_path(&mock),
     ] {
         move_aside(&file, &gone);
@@ -843,53 +962,85 @@ fn a_store_whose_files_are_gone_is_logged_into_and_restored() {
     let first = restore(&base);
     assert!(first.status.success(), "{first:?}");
     let first = sole_json(&first);
+    assert_eq!(
+        first["restored"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p["file"].clone())
+            .collect::<Vec<_>>(),
+        [json!("intent"), json!("saved")],
+        "{first}"
+    );
     let standing = first["standing"].as_array().unwrap();
     assert_eq!(standing.len(), 1, "{first}");
     assert_eq!(standing[0]["file"], "facts", "{first}");
     assert_eq!(
         standing[0]["move_aside"],
-        json!(acquisition_store::backup::sqlite_files(&facts).map(|p| p.display().to_string())),
+        json!(
+            acquisition_store::backup::standing(&facts)
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+        ),
         "{first}"
     );
     move_aside(&facts, &base.join("login"));
     let second = restore(&base);
     assert!(second.status.success(), "{second:?}");
     let second = sole_json(&second);
-    // the facts put back; the intent and the saved searches, put back by
-    // the first, stand
     assert_eq!(
         second["restored"],
         json!([{ "file": "facts", "path": facts.display().to_string() }]),
         "{second}"
     );
-    assert_eq!(
-        second["standing"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|s| s["file"].clone())
-            .collect::<Vec<_>>(),
-        [json!("intent"), json!("saved")],
-        "{second}"
-    );
 
-    // whole: the restored store reads, holding what the manifest counts
-    let status = harness::acq(&base, &["--json", "store", "status"]);
-    assert!(status.status.success(), "{status:?}");
-    let status = sole_json(&status);
-    assert_eq!(
-        (
-            &status["items"],
-            &status["items_removed"],
-            &status["events"]
-        ),
-        (
-            &manifest["facts"]["items"],
-            &manifest["facts"]["removed_items"],
-            &manifest["facts"]["events"]
-        ),
-        "{status}"
+    // whole: the restored store's documents are the backup's own
+    let restored = held_documents(&facts, &intent, &mock);
+    let kept = held_documents(
+        &dir.join(manifest["facts"]["file"].as_str().unwrap()),
+        &dir.join(manifest["intent"]["file"].as_str().unwrap()),
+        &dir,
     );
-    let stopped = harness::acq(&base, &["daemon", "stop"]);
-    assert!(stopped.status.success(), "{stopped:?}");
+    assert!(
+        !restored["events"].as_array().unwrap().is_empty(),
+        "{restored}"
+    );
+    assert_eq!(restored, kept);
+}
+
+/// C156 — the restore command a backup prints runs as printed for every
+/// directory the verb took, one whose name opens with a hyphen among them:
+/// the options before `--` and the directory after it, as the terminal
+/// reprints any command whose word opens so.
+#[test]
+fn a_backup_into_a_directory_opening_with_a_hyphen_prints_a_restore_that_runs() {
+    use harness::seeded::{ALICE, Seeded};
+    let scratch = harness::scratch("backup-hyphen");
+    let base = scratch.0.clone();
+    Seeded::owner().write(&base, harness::now());
+    let made = harness::offline_command(
+        &base,
+        &["--account", ALICE, "store", "backup", "--", "-backup"],
+    )
+    .current_dir(&base)
+    .output()
+    .expect("acq");
+    assert!(made.status.success(), "{made:?}");
+    assert!(base.join("-backup").join("manifest.json").exists());
+    let text = String::from_utf8_lossy(&made.stdout).into_owned();
+    let line = text
+        .lines()
+        .find_map(|l| l.strip_prefix("it puts back what a store lacks: "))
+        .expect("the restore command")
+        .to_string();
+    let ran = harness::offline_printed(&base, &line)
+        .current_dir(&base)
+        .output()
+        .expect("the printed restore");
+    assert!(ran.status.success(), "{line}: {ran:?}");
+    assert!(
+        String::from_utf8_lossy(&ran.stdout).starts_with("put back none of 3 files"),
+        "{line}: {ran:?}"
+    );
 }

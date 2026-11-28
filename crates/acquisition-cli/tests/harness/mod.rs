@@ -487,6 +487,9 @@ pub struct Transcript {
     /// Values a command drew that the test learns after it ran, each
     /// written as its placeholder ([`Transcript::placeholder`]).
     placeholders: Vec<(String, String)>,
+    /// The directory every command runs in ([`Transcript::run_in_base`]),
+    /// or the test's own.
+    cwd: Option<PathBuf>,
 }
 
 impl Transcript {
@@ -500,7 +503,17 @@ impl Transcript {
             knobs: Vec::new(),
             fetched_live: false,
             placeholders: Vec::new(),
+            cwd: None,
         }
+    }
+
+    /// Every command runs in the base directory, so a path the test names
+    /// relative to it is printed back relative, and a command the text
+    /// prints with it reads the same on every platform: an absolute
+    /// scratch path is one PowerShell's quoting takes and `sh`'s does not.
+    pub fn run_in_base(mut self) -> Transcript {
+        self.cwd = Some(self.base.clone());
+        self
     }
 
     /// The world was fetched by the mock daemon in real time, so which of
@@ -565,6 +578,9 @@ impl Transcript {
                 Some(value) => cmd.env(key, value),
                 None => cmd.env_remove(key),
             };
+        }
+        if let Some(dir) = &self.cwd {
+            cmd.current_dir(dir);
         }
         let out = match stdin {
             None => cmd.output().expect("spawning acq"),

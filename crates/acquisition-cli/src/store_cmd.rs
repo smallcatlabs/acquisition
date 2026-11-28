@@ -1138,25 +1138,39 @@ fn held_words(manifest: &acquisition_verbs::backup::Manifest, held: Held) -> Str
         },
         Held::Intent => match &manifest.intent {
             Some(i) => format!(
-                "its intent ({}{}, {} in all)",
+                "its intent ({}{}, {} in all{})",
                 plural(i.prices, "price", "prices"),
                 if i.policy {
                     " and its sync policy"
                 } else {
                     ", no sync policy"
                 },
-                plural(i.rows, "row", "rows")
+                plural(i.rows, "row", "rows"),
+                unreadable_words(i.unreadable)
             ),
             None => "its intent".to_string(),
         },
         Held::Saved => match &manifest.saved {
-            Some(s) => format!("the world's saved searches ({})", s.saved_searches),
+            Some(s) => format!(
+                "the world's saved searches ({}{})",
+                s.saved_searches,
+                unreadable_words(s.unreadable)
+            ),
             None => "the world's saved searches".to_string(),
         },
     }
 }
 
 use acquisition_verbs::backup::Held;
+
+/// What a count holds that this build cannot read, said apart (C146,
+/// C151): nothing where none is.
+fn unreadable_words(n: usize) -> String {
+    match n {
+        0 => String::new(),
+        n => format!(", {n} of them unreadable by this build"),
+    }
+}
 
 /// The three files, in the manifest's order, with whether the backup
 /// holds each.
@@ -1178,16 +1192,18 @@ fn listed(words: &[String]) -> String {
 }
 
 /// The command that puts the backup at `dir` back, as `account`, quoted
-/// for the declared shell (C156).
+/// for the declared shell (C156), in the shape the terminal reprints any
+/// command in (`terminal::parsed_line`): the options first, then `--`
+/// before a directory whose name opens with a hyphen, so it runs as
+/// printed for every directory the verb took.
 fn restore_line(dir: &str, account: &str) -> String {
-    crate::terminal::printed_line(
-        &[
-            ["acq", "store", "restore"].map(String::from).to_vec(),
-            vec![dir.to_string()],
-            crate::terminal::option_words("--account", account),
-        ]
-        .concat(),
-    )
+    let mut words = ["acq", "store", "restore"].map(String::from).to_vec();
+    words.extend(crate::terminal::option_words("--account", account));
+    if dir.starts_with('-') {
+        words.push("--".to_string());
+    }
+    words.push(dir.to_string());
+    crate::terminal::printed_line(&words)
 }
 
 /// `store backup`'s text, a function of its document (C53): what was
@@ -1260,7 +1276,7 @@ fn restored_text(r: &acquisition_verbs::backup::Restored) -> String {
     }
     out.push_str(&format!(
         "left standing {}, the store's own: with no Acquisition process running, move each \
-         aside with its -wal and -shm, then run it again: {}\n",
+         aside, its -wal and -shm with it where they stand, then run it again: {}\n",
         r.standing.len(),
         restore_line(&r.dir, &m.account.name)
     ));

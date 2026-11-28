@@ -253,6 +253,37 @@ pub(crate) fn error_report(e: &anyhow::Error) -> serde_json::Value {
     acquisition_verbs::refusal::document(e, &Terminal::this_command())
 }
 
+/// Where the refusal is a facts file below the released format, whose
+/// shared words say a backup of the account, restored, puts its history
+/// back (C143: they name no frontend's verb): this terminal's spelling of
+/// that restore, as `account` where the command named one, its directory
+/// a place the reader fills (`<backup>`). An offer carries only a request
+/// sent back as it stands, so this way on is the adapter's line after the
+/// shared words, and `next` in the JSON, a person's act. None for any
+/// other refusal.
+pub(crate) fn restore_next(e: &anyhow::Error, account: Option<&str>) -> Option<String> {
+    fn below_floor(e: &anyhow::Error) -> bool {
+        e.chain().any(|link| {
+            link.is::<acquisition_store::SchemaTooOld>()
+                || link
+                    .downcast_ref::<acquisition_store::SchemaNotCurrent>()
+                    .is_some_and(|n| n.remedy == acquisition_store::FACTS_BELOW_FLOOR_REMEDY)
+                || match link.downcast_ref::<Fault>() {
+                    Some(Fault::Unopened(inner)) => below_floor(inner),
+                    _ => false,
+                }
+        })
+    }
+    if !below_floor(e) {
+        return None;
+    }
+    let mut words = ["acq", "store", "restore"].map(String::from).to_vec();
+    if let Some(account) = account {
+        words.extend(option_words("--account", account));
+    }
+    Some(format!("{} <backup>", printed_line(&words)))
+}
+
 /// This terminal's side of the one refusal shape: its words
 /// ([`failure_words`]), and an offer as the line a shell runs — a
 /// search's as the request `acq search --request` reads, as a search's

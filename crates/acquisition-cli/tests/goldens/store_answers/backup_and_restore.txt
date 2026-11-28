@@ -1,52 +1,62 @@
 # golden store_answers/backup_and_restore: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
-$ acq --account 'Alice#1234' store backup <scratch>/backup
-# holds "backed up Alice#1234 to "
+$ acq --account 'Alice#1234' store backup backup
+# holds "backed up Alice#1234 to backup: "
 # holds "its facts ("
 # holds "item events"
 # holds "and its sync policy"
 # holds "the world's saved searches (1)"
 # holds "a backup holds no login and no job queue"
-# holds "it puts back what a store lacks: acq store restore"
+# holds "it puts back what a store lacks: acq store restore --account 'Alice#1234' backup"
 --- stdout
-backed up Alice#1234 to <scratch>/backup: its facts (13 items on record, 1 since removed, 15 item events), its intent (3 prices and its sync policy, 4 rows in all) and the world's saved searches (1)
+backed up Alice#1234 to backup: its facts (13 items on record, 1 since removed, 15 item events), its intent (3 prices and its sync policy, 4 rows in all) and the world's saved searches (1)
 a backup holds no login and no job queue
-it puts back what a store lacks: acq store restore <scratch>/backup --account 'Alice#1234'
+it puts back what a store lacks: acq store restore --account 'Alice#1234' backup
 
-$ acq --account 'Alice#1234' store backup <scratch>/backup
+$ acq --account 'Alice#1234' store backup backup
 # holds "backup exists"
 # holds "name one that does not exist"
 --- stderr
-Error: <scratch>/backup exists: a backup makes its own directory and writes into no other, so name one that does not exist
+Error: backup exists: a backup makes its own directory and writes into no other, so name one that does not exist
 --- exit 1
 
-$ acq --account 'Alice#1234' store restore <scratch>/backup
+$ acq --account 'Alice#1234' store restore backup
 # holds "put back 1 of 3 files from the backup of Alice#1234"
 # holds "its facts ("
 # holds "left standing 2"
-# holds "move each aside with its -wal and -shm"
+# holds "move each aside, its -wal and -shm with it where they stand"
 # holds "its intent:"
 # holds "user.db-wal"
 --- stdout
 put back 1 of 3 files from the backup of Alice#1234 made <age> ago: its facts (13 items on record, 1 since removed, 15 item events)
-left standing 2, the store's own: with no Acquisition process running, move each aside with its -wal and -shm, then run it again: acq store restore <scratch>/backup --account 'Alice#1234'
+left standing 2, the store's own: with no Acquisition process running, move each aside, its -wal and -shm with it where they stand, then run it again: acq store restore --account 'Alice#1234' backup
   its intent: <scratch>/mock/u-alice.annotations.db, <scratch>/mock/u-alice.annotations.db-wal, <scratch>/mock/u-alice.annotations.db-shm
-  the world's saved searches: <scratch>/mock/user.db, <scratch>/mock/user.db-wal, <scratch>/mock/user.db-shm
+  the world's saved searches: <scratch>/mock/user.db-wal
 
-$ acq --account 'Alice#1234' store restore <scratch>/interrupted
+$ acq --account 'Alice#1234' store restore interrupted
 # holds "holds no manifest"
 # holds "interrupted"
 # holds "removed and made again"
 --- stderr
-Error: <scratch>/interrupted holds no manifest, so it is no backup: a backup interrupted before its end, which is to be removed and made again, or a directory a backup never made
+Error: interrupted holds no manifest, so it is no backup: a backup interrupted before its end, which is to be removed and made again, or a directory a backup never made
 --- exit 1
 
-$ acq --account 'Bob#9' store backup <scratch>/below
+$ acq --account 'Alice#1234' store backup spoiled
+# holds "3 prices and its sync policy, 4 rows in all, 1 of them unreadable by this build"
+--- stdout
+backed up Alice#1234 to spoiled: its facts (13 items on record, 1 since removed, 15 item events) and its intent (3 prices and its sync policy, 4 rows in all, 1 of them unreadable by this build)
+the store held none of the world's saved searches, so the backup holds none
+a backup holds no login and no job queue
+it puts back what a store lacks: acq store restore --account 'Alice#1234' spoiled
+
+$ acq --account 'Bob#9' store backup below
 # holds "a development build wrote it"
 # holds "move it and its -wal and -shm files aside"
 # holds "the next refresh fetches what the account holds now"
 # holds "but not the history the file held"
 # holds "a backup of the account, restored"
+# holds "acq store restore --account 'Bob#9' <backup>"
 --- stderr
 Error: <scratch>/mock/Bob_9.db was not opened: the facts file is at schema version 7, older than this build's version 9: a development build wrote it: with no Acquisition process running, move it and its -wal and -shm files aside, and the next refresh fetches what the account holds now, but not the history the file held (when each item was first seen, its events and the items since removed), which a backup of the account, restored, puts back as it stood when the backup was made
+    a backup of the account, restored: acq store restore --account 'Bob#9' <backup>
 --- exit 1

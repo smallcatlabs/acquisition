@@ -24,8 +24,8 @@
 //!   opens through its read-only door, passes `quick_check`, holds what
 //!   the manifest counts, and, for the facts, records no other account. A
 //!   file that stands is no failure: the answer names it beside each one
-//!   put back, with the three files a person moves aside before it can be
-//!   restored. A store file stands when it or its `-wal` or `-shm` does:
+//!   put back, with what a person moves aside before it can be restored:
+//!   the file, and its `-wal` and `-shm` where they stand. A store file stands when it or its `-wal` or `-shm` does:
 //!   a copy written beside another file's log would take that log's
 //!   frames at its next open. Run again, a restore puts back what is still
 //!   lacking. It writes no index entry: a store whose files are all gone
@@ -50,7 +50,7 @@
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use acquisition_store::backup::{sqlite_files, standing};
+use acquisition_store::backup::standing;
 use acquisition_store::world::{Lock, World};
 use acquisition_store::{
     Annotations, BUYOUT_KIND, SAVED_SEARCH_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND,
@@ -120,7 +120,9 @@ pub struct FactsHeld {
 
 /// The intent file a backup holds: its name in the directory, the prices,
 /// whether a sync policy is among them, and every live row, those two
-/// kinds among them.
+/// kinds among them. A row this build cannot read is in the file, so it
+/// is in each count (C146, a count says what it counts) and counted again
+/// apart, under `unreadable` (C151): never read as absence.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IntentHeld {
@@ -128,15 +130,20 @@ pub struct IntentHeld {
     pub prices: usize,
     pub policy: bool,
     pub rows: usize,
+    /// The live rows among `rows` this build cannot read.
+    pub unreadable: usize,
 }
 
 /// The user file a backup holds: its name in the directory and the saved
-/// searches in it.
+/// searches in it, a search this build cannot read among them and counted
+/// again apart (C146, C151).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SavedHeld {
     pub file: String,
     pub saved_searches: usize,
+    /// The saved searches among `saved_searches` this build cannot read.
+    pub unreadable: usize,
 }
 
 /// A backup made: where, and its manifest whole.
@@ -166,15 +173,14 @@ pub struct PutBack {
 }
 
 /// A file a restore left alone because the store holds it: which, where,
-/// and every file standing there, to be moved aside together before it
-/// can be restored.
+/// and what stands there, to be moved aside together before it can be
+/// restored.
 #[derive(Clone, Debug, Serialize)]
 pub struct Standing {
     pub file: Held,
     pub path: String,
-    /// What stands now: the file, its `-wal`, its `-shm`, those present.
-    pub standing: Vec<String>,
-    /// The three files a person moves aside: the file, `-wal` and `-shm`.
+    /// What stands now, each to be moved aside: of the file, its `-wal`
+    /// and its `-shm`, those present.
     pub move_aside: Vec<String>,
 }
 
@@ -234,24 +240,40 @@ fn facts_held(path: &Path) -> anyhow::Result<FactsHeld> {
     })
 }
 
-/// What an intent file holds, read through `a`.
+/// What an intent file holds, read through `a`: every live row, the
+/// readable and the unreadable alike, each by its address.
 fn intent_held(a: &Annotations, path: &Path) -> anyhow::Result<IntentHeld> {
-    let rows = a.list(None, None)?.rows;
+    let list = a.list(None, None)?;
+    let addresses: Vec<(&str, &str, &str)> = list
+        .rows
+        .iter()
+        .map(|r| (r.scope.as_str(), r.key.as_str(), r.kind.as_str()))
+        .chain(
+            list.unreadable
+                .iter()
+                .map(|r| (r.scope.as_str(), r.key.as_str(), r.kind.as_str())),
+        )
+        .collect();
     Ok(IntentHeld {
         file: file_name(path),
-        prices: rows.iter().filter(|r| r.kind == BUYOUT_KIND).count(),
-        policy: rows.iter().any(|r| {
-            r.scope == SYNC_POLICY_SCOPE && r.key == SYNC_POLICY_KEY && r.kind == SYNC_POLICY_KIND
-        }),
-        rows: rows.len(),
+        prices: addresses
+            .iter()
+            .filter(|(_, _, kind)| *kind == BUYOUT_KIND)
+            .count(),
+        policy: addresses.contains(&(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)),
+        rows: addresses.len(),
+        unreadable: list.unreadable.len(),
     })
 }
 
-/// What a user file holds, read through `u`.
+/// What a user file holds, read through `u`: every saved search, the
+/// readable and the unreadable alike.
 fn saved_held(u: &User, path: &Path) -> anyhow::Result<SavedHeld> {
+    let list = u.list(Some(SAVED_SEARCH_SCOPE), None)?.list;
     Ok(SavedHeld {
         file: file_name(path),
-        saved_searches: u.list(Some(SAVED_SEARCH_SCOPE), None)?.list.rows.len(),
+        saved_searches: list.rows.len() + list.unreadable.len(),
+        unreadable: list.unreadable.len(),
     })
 }
 
@@ -514,11 +536,7 @@ pub fn restore(account: &Account, dir: &Path, now: i64) -> anyhow::Result<Restor
         let stands = |found: Vec<PathBuf>| Standing {
             file: *held,
             path: dest.display().to_string(),
-            standing: found.iter().map(|p| p.display().to_string()).collect(),
-            move_aside: sqlite_files(dest)
-                .iter()
-                .map(|p| p.display().to_string())
-                .collect(),
+            move_aside: found.iter().map(|p| p.display().to_string()).collect(),
         };
         let found = standing(dest);
         if !found.is_empty() {
