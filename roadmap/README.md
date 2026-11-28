@@ -10,12 +10,10 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
-- **The series approved on 2026-11-27.** In a second lane, a
-  throwaway desktop window the owner sits at
-  (`briefs/desktop-spike.md`), then the desktop GUI's design brief
-  for him to rule. In the main tree, in order: a backup verb (#329,
-  #330), then `NEXT.md`'s B3. Closed: `Step: next-a4-readme`,
-  `Step: poe2-prep`.
+- **The series approved on 2026-11-27.** Left, in order: a backup
+  verb (#329, #330), which waits on #351, then `NEXT.md`'s B3.
+  Closed: `Step: next-a4-readme`, `Step: poe2-prep` and
+  `Step: desktop-spike`, the throwaway window he sat at.
 - **The programme after the whole-project review**
   (`audits/whole-review-2026-11/NEXT.md`, run as
   `audits/meta-2026-11/README.md` amends it; its closes are
@@ -85,6 +83,8 @@ label: `gh issue list --label trigger:step`.
 His queue is the open issues labelled `trigger:ruling`:
 `gh issue list --label trigger:ruling`. What only he can do:
 
+- The desktop GUI's design (`briefs/desktop-design.md`): three
+  rulings, put singly.
 - The decisions `NEXT.md` lists as his ("What is the owner's"), four
   of them put in plain words in `audits/meta-2026-11/README.md`.
 - The league run under the rails, at his word: count the undecided
