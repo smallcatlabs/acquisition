@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 use crate::harness;
 
-use harness::{offline_acq as acq, shell_words, sole_json};
+use harness::{golden, offline_acq as acq, shell_words, sole_json};
 
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-answers";
@@ -644,4 +644,227 @@ fn every_read_leaf_answers_over_the_seeded_world_with_no_daemon() {
         }
     }
     assert!(harness::no_daemon_appeared(&base));
+}
+
+/// The file at `path` with its `-wal` and `-shm`, each moved into `aside`.
+fn move_aside(path: &Path, aside: &Path) {
+    std::fs::create_dir_all(aside).unwrap();
+    for file in acquisition_store::backup::sqlite_files(path) {
+        if file.exists() {
+            std::fs::rename(&file, aside.join(file.file_name().unwrap())).unwrap();
+        }
+    }
+}
+
+/// C201 — the backup and restore texts, read from their documents (C53):
+/// a backup says what it kept, counted, what no backup holds and the
+/// command that puts it back, which runs as printed; a restore says what
+/// it put back, counted, and each file left standing with the three files
+/// to move aside; a lacking file beside its own `-wal` stands; and the two
+/// refusals a person meets in words, a directory that exists and one that
+/// holds no manifest.
+#[test]
+fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
+    use harness::seeded::{ALICE, Seeded};
+    let scratch = harness::scratch("backup-text");
+    let base = scratch.0.clone();
+    let mock = Seeded::owner().write(&base, harness::now());
+    let dir = base.join("backup");
+    let dir_word = dir.display().to_string();
+    let mut t = harness::Transcript::offline(&base);
+    let out = t.run(
+        &["--account", ALICE, "store", "backup", &dir_word],
+        &[
+            "backed up Alice#1234 to ",
+            "its facts (",
+            "item events",
+            "and its sync policy",
+            "the world's saved searches (1)",
+            "a backup holds no login and no job queue",
+            "it puts back what a store lacks: acq store restore",
+        ],
+    );
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    let restore_line = text
+        .lines()
+        .find_map(|l| l.strip_prefix("it puts back what a store lacks: "))
+        .expect("the restore command")
+        .to_string();
+    t.run(
+        &["--account", ALICE, "store", "backup", &dir_word],
+        &["backup exists", "name one that does not exist"],
+    );
+    let aside = base.join("aside");
+    move_aside(&account_path(&mock, ALICE), &aside);
+    move_aside(&acquisition_store::user_path(&mock), &aside);
+    std::fs::write(
+        acquisition_store::backup::sqlite_files(&acquisition_store::user_path(&mock))[1].clone(),
+        b"",
+    )
+    .unwrap();
+    t.run(
+        &["--account", ALICE, "store", "restore", &dir_word],
+        &[
+            "put back 1 of 3 files from the backup of Alice#1234",
+            "its facts (",
+            "left standing 2",
+            "move each aside with its -wal and -shm",
+            "its intent:",
+            "user.db-wal",
+        ],
+    );
+    let interrupted = base.join("interrupted");
+    std::fs::create_dir(&interrupted).unwrap();
+    t.run(
+        &[
+            "--account",
+            ALICE,
+            "store",
+            "restore",
+            &interrupted.display().to_string(),
+        ],
+        &["holds no manifest", "interrupted", "removed and made again"],
+    );
+    golden(file!(), "backup_and_restore", &t);
+    // the restore line runs as printed: the facts now stand, the rest too
+    let ran = harness::offline_printed(&base, &restore_line)
+        .output()
+        .expect("the printed restore");
+    assert!(ran.status.success(), "{restore_line}: {ran:?}");
+    assert!(
+        String::from_utf8_lossy(&ran.stdout).starts_with("put back none of 3 files"),
+        "{ran:?}"
+    );
+}
+
+/// C201, C193 — a store whose files are all gone, in a mock world with its
+/// daemon: a backup taken while the daemon ingests; a restore under the
+/// live daemon refused, nothing written; then the person's sequence: log
+/// in, stop the daemon, a restore that names the facts file the login made
+/// as standing, that file moved aside, and the restore again, which puts
+/// it back; the store then reads whole, holding what the manifest counts.
+#[test]
+fn a_store_whose_files_are_gone_is_logged_into_and_restored() {
+    let scratch = harness::scratch("backup-mock");
+    let base = scratch.0.clone();
+    let daemon = harness::login(&base, "alice");
+    let mock = base.join("store").join("mock");
+    // the listing, then the tabs; a third fetch ingests while the backup
+    // runs
+    for _ in 0..2 {
+        let fetched = harness::acq(&base, &["refresh", "--all"]);
+        assert!(fetched.status.success(), "{fetched:?}");
+    }
+    let saved = harness::acq(
+        &base,
+        &["saved", "set", "--name", "uniques", "rarity=unique"],
+    );
+    assert!(saved.status.success(), "{saved:?}");
+    let mut ingesting = harness::command(&base, &["refresh", "--all"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("a refresh");
+    let dir = base.join("backup");
+    let made = harness::acq(
+        &base,
+        &["--json", "store", "backup", &dir.display().to_string()],
+    );
+    assert!(made.status.success(), "{made:?}");
+    assert!(ingesting.wait().expect("the refresh").success());
+    let manifest = sole_json(&made)["manifest"].clone();
+    assert!(
+        manifest["facts"]["items"].as_i64().unwrap() > 0,
+        "{manifest}"
+    );
+    assert!(manifest["saved"].is_object(), "{manifest}");
+
+    let restore = |base: &Path| {
+        harness::acq(
+            base,
+            &["--json", "store", "restore", &dir.display().to_string()],
+        )
+    };
+    let refused = restore(&base);
+    assert_eq!(refused.status.code(), Some(1), "{refused:?}");
+    let doc = sole_json(&refused);
+    assert_eq!(doc["kind"], "refused", "{doc}");
+    assert!(
+        doc["error"].as_str().unwrap().contains("stop the daemon"),
+        "{doc}"
+    );
+
+    // the whole store gone: the three files and their logs
+    let stopped = harness::acq(&base, &["daemon", "stop"]);
+    assert!(stopped.status.success(), "{stopped:?}");
+    drop(daemon);
+    let gone = base.join("gone");
+    let uuid = manifest["account"]["uuid"].as_str().unwrap().to_string();
+    let name = manifest["account"]["name"].as_str().unwrap().to_string();
+    let facts = account_path(&mock, &name);
+    for file in [
+        facts.clone(),
+        acquisition_store::annotations_path(&mock, &uuid),
+        acquisition_store::user_path(&mock),
+    ] {
+        move_aside(&file, &gone);
+    }
+    // log in, stop the daemon: the login made the facts file
+    let daemon = harness::login(&base, "alice");
+    let stopped = harness::acq(&base, &["daemon", "stop"]);
+    assert!(stopped.status.success(), "{stopped:?}");
+    drop(daemon);
+    assert!(facts.exists(), "the login made the facts file");
+    let first = restore(&base);
+    assert!(first.status.success(), "{first:?}");
+    let first = sole_json(&first);
+    let standing = first["standing"].as_array().unwrap();
+    assert_eq!(standing.len(), 1, "{first}");
+    assert_eq!(standing[0]["file"], "facts", "{first}");
+    assert_eq!(
+        standing[0]["move_aside"],
+        json!(acquisition_store::backup::sqlite_files(&facts).map(|p| p.display().to_string())),
+        "{first}"
+    );
+    move_aside(&facts, &base.join("login"));
+    let second = restore(&base);
+    assert!(second.status.success(), "{second:?}");
+    let second = sole_json(&second);
+    // the facts put back; the intent and the saved searches, put back by
+    // the first, stand
+    assert_eq!(
+        second["restored"],
+        json!([{ "file": "facts", "path": facts.display().to_string() }]),
+        "{second}"
+    );
+    assert_eq!(
+        second["standing"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["file"].clone())
+            .collect::<Vec<_>>(),
+        [json!("intent"), json!("saved")],
+        "{second}"
+    );
+
+    // whole: the restored store reads, holding what the manifest counts
+    let status = harness::acq(&base, &["--json", "store", "status"]);
+    assert!(status.status.success(), "{status:?}");
+    let status = sole_json(&status);
+    assert_eq!(
+        (
+            &status["items"],
+            &status["items_removed"],
+            &status["events"]
+        ),
+        (
+            &manifest["facts"]["items"],
+            &manifest["facts"]["removed_items"],
+            &manifest["facts"]["events"]
+        ),
+        "{status}"
+    );
+    let stopped = harness::acq(&base, &["daemon", "stop"]);
+    assert!(stopped.status.success(), "{stopped:?}");
 }

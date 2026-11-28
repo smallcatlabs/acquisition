@@ -273,6 +273,8 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             } => store_cmd::events(cx, hours, limit, expand, summary, cli.json),
             StoreCmd::Refused { id, limit } => store_cmd::refused(cx, id, limit, cli.json),
             StoreCmd::Rebuild => store_cmd::rebuild(cx, cli.json),
+            StoreCmd::Backup { dir } => store_cmd::backup(cx, &dir, cli.json),
+            StoreCmd::Restore { dir } => store_cmd::restore(cx, &dir, cli.json),
         },
         Cmd::Stashes { league, realm } => {
             let (mut client, account) = connect_as(cx, "stashes").await?;

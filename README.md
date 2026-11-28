@@ -209,6 +209,7 @@ acq show <id> [--body]   # one item as the search derives it; the stored body on
 acq web [--no-browser]   # the search as a page shaped like the trade site's, or a trade site search's URL run as --trade runs it, each answer under the form filled with what was asked, to edit and run again; its results as a table, cards with item art on asking, and the number a form would match beside its button as it changes; the world's saved searches, saved from any answer, opened, renamed and cleared; the stash tabs and characters as pages, each a place opening its items, to list, tick, plan and apply; and the language's index, linked from the query box, each entry and block a page of its own; loopback only, until Ctrl-C; with no account yet and none named, the page says how to log in
 acq store status | events [--hours N] | refused [id]   # path and counts; ingest events; malformed bodies
 acq store rebuild   # re-extract derived columns from each item's own JSON
+acq store backup <dir> | restore <dir>   # the facts with their history, the prices, the policy and the saved searches, kept in a directory; put back where the store lacks them, no daemon running
 
 acq daemon status | stop | reset-tripwire   # inspect; stop (a login not in the keyring goes too); reset rails
 acq version [--json]   # build identity and sibling acqd

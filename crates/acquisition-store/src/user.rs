@@ -192,6 +192,11 @@ impl User {
         self.0.export(dest)
     }
 
+    /// [`Annotations::quick_check`]: `None` where the file passes.
+    pub fn quick_check(&self) -> Result<Option<String>, AnnotationError> {
+        self.0.quick_check()
+    }
+
     /// The annotation handle underneath, for this crate's own tests.
     #[cfg(test)]
     pub(crate) fn inner(&self) -> &Annotations {

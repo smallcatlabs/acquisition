@@ -49,6 +49,7 @@
 // structured fault, never a panic.
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod backup;
 pub mod characters;
 pub mod daemon;
 pub mod diagnose;

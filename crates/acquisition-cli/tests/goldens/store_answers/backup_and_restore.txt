@@ -1,0 +1,42 @@
+# golden store_answers/backup_and_restore: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq --account 'Alice#1234' store backup <scratch>/backup
+# holds "backed up Alice#1234 to "
+# holds "its facts ("
+# holds "item events"
+# holds "and its sync policy"
+# holds "the world's saved searches (1)"
+# holds "a backup holds no login and no job queue"
+# holds "it puts back what a store lacks: acq store restore"
+--- stdout
+backed up Alice#1234 to <scratch>/backup: its facts (13 items on record, 1 since removed, 15 item events), its intent (3 prices and its sync policy, 4 rows in all) and the world's saved searches (1)
+a backup holds no login and no job queue
+it puts back what a store lacks: acq store restore <scratch>/backup --account 'Alice#1234'
+
+$ acq --account 'Alice#1234' store backup <scratch>/backup
+# holds "backup exists"
+# holds "name one that does not exist"
+--- stderr
+Error: <scratch>/backup exists: a backup makes its own directory and writes into no other, so name one that does not exist
+--- exit 1
+
+$ acq --account 'Alice#1234' store restore <scratch>/backup
+# holds "put back 1 of 3 files from the backup of Alice#1234"
+# holds "its facts ("
+# holds "left standing 2"
+# holds "move each aside with its -wal and -shm"
+# holds "its intent:"
+# holds "user.db-wal"
+--- stdout
+put back 1 of 3 files from the backup of Alice#1234 made <age> ago: its facts (13 items on record, 1 since removed, 15 item events)
+left standing 2, the store's own: with no Acquisition process running, move each aside with its -wal and -shm, then run it again: acq store restore <scratch>/backup --account 'Alice#1234'
+  its intent: <scratch>/mock/u-alice.annotations.db, <scratch>/mock/u-alice.annotations.db-wal, <scratch>/mock/u-alice.annotations.db-shm
+  the world's saved searches: <scratch>/mock/user.db, <scratch>/mock/user.db-wal, <scratch>/mock/user.db-shm
+
+$ acq --account 'Alice#1234' store restore <scratch>/interrupted
+# holds "holds no manifest"
+# holds "interrupted"
+# holds "removed and made again"
+--- stderr
+Error: <scratch>/interrupted holds no manifest, so it is no backup: a backup interrupted before its end, which is to be removed and made again, or a directory a backup never made
+--- exit 1

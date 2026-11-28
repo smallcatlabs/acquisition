@@ -1364,104 +1364,20 @@ impl Annotations {
     }
 
     /// Store-managed backup (C35): a consistent snapshot of this file at
-    /// `dest`, via SQLite's `VACUUM INTO`, published atomically. `VACUUM
-    /// INTO` writes `dest` directly and never fsyncs it, so an interrupted
-    /// export would leave a partial file that both looks like a backup and
-    /// blocks every retry. The copy is therefore written to a partial
-    /// named for this invocation (`<dest>.partial-<pid>-<nanos>`, so two
-    /// exporters never share or remove each other's), checked with
-    /// `quick_check`, fsynced, then published by `hard_link` — which the
-    /// kernel refuses if `dest` appeared meanwhile, so two exports to one
-    /// destination end with one backup and one `AlreadyExists`, never a
-    /// replaced backup. Only on a filesystem without hard links does a
-    /// `rename` stand in, and that fallback is the one place a
-    /// simultaneous export could still replace another's. On unix the
-    /// publish ends with the directory synced (the crate's one `sync_dir`),
-    /// so the link is durable as the file is; Windows cannot
-    /// sync a directory and the publish stands unsynced there. Fails if `dest`
-    /// already exists, before anything is written; the partial is removed
-    /// either way.
+    /// `dest`, written where nothing stands, through the store's one
+    /// checked copy (`backup::copy_checked`: `VACUUM INTO` a
+    /// partial, `quick_check`, fsync, published by `hard_link`). Fails if
+    /// `dest`, or a `-wal` or `-shm` beside it, already exists, before
+    /// anything is written.
     pub fn export(&self, dest: &Path) -> Result<(), AnnotationError> {
-        if let Some(dir) = dest.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        let exists = || {
-            std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                format!(
-                    "{} exists; a backup never overwrites another backup",
-                    dest.display()
-                ),
-            )
-        };
-        if dest.exists() {
-            return Err(exists().into());
-        }
-        // The partial's name is unique per process and per export within
-        // it: the clock alone is not — two threads exporting within one
-        // tick (microseconds on macOS) shared a name, one VACUUM failed
-        // on the other's file and its cleanup removed that file before
-        // it was published, so both were refused (the C35 race test,
-        // one run in twelve).
-        static EXPORTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let mut partial = dest.as_os_str().to_owned();
-        partial.push(format!(
-            ".partial-{}-{}-{}",
-            std::process::id(),
-            EXPORTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0)
-        ));
-        let partial = PathBuf::from(partial);
-        let published = self.export_to(&partial).and_then(|()| {
-            match std::fs::hard_link(&partial, dest) {
-                Ok(()) => Ok(()),
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Err(exists()),
-                // No hard links here (FAT and the like): a rename is the
-                // best available, guarded by a last look.
-                Err(e)
-                    if matches!(
-                        e.kind(),
-                        std::io::ErrorKind::Unsupported | std::io::ErrorKind::PermissionDenied
-                    ) =>
-                {
-                    if dest.exists() {
-                        Err(exists())
-                    } else {
-                        std::fs::rename(&partial, dest)
-                    }
-                }
-                Err(e) => Err(e),
-            }
-            .and_then(|()| crate::sync_dir(dest.parent()))
-            .map_err(AnnotationError::Io)
-        });
-        let _ = std::fs::remove_file(&partial);
-        published
+        crate::backup::copy_checked(&self.conn, dest).map_err(AnnotationError::Io)
     }
 
-    /// The copy itself: vacuumed into `partial`, integrity-checked through
-    /// a fresh connection, and fsynced.
-    fn export_to(&self, partial: &Path) -> Result<(), AnnotationError> {
-        self.conn
-            .execute("VACUUM INTO ?1", [partial.to_string_lossy()])?;
-        let verdict: String =
-            Connection::open(partial)?.query_row("PRAGMA quick_check", [], |r| r.get(0))?;
-        if verdict != "ok" {
-            return Err(std::io::Error::other(format!(
-                "backup {} failed its integrity check: {verdict}",
-                partial.display()
-            ))
-            .into());
-        }
-        // Opened for writing: Windows refuses to flush a read-only handle.
-        std::fs::OpenOptions::new()
-            .write(true)
-            .open(partial)?
-            .sync_all()?;
-        Ok(())
+    /// `PRAGMA quick_check` on this file: `None` where it passes, what it
+    /// found otherwise. A backup's file is checked before a restore
+    /// writes anything.
+    pub fn quick_check(&self) -> Result<Option<String>, AnnotationError> {
+        Ok(crate::backup::quick_check(&self.conn)?)
     }
 }
 

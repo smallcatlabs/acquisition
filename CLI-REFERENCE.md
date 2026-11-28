@@ -258,6 +258,8 @@ Commands:
   events      Item events (added/moved/changed/removed) from recent ingests, the newest ten (--limit more or fewer): by default one line per location with counts (text) or the event list (--json); --expand alone picks the event list and --summary the locations in both modes, ten locations, --summary --expand every one. `--json` counts what it lists: the events `returned` and whether the limit was reached; the summary the events, the locations and each kind
   refused     Bodies the store refused as malformed, kept verbatim as evidence: the list (newest first), or one body in full by its row id. `--json` lists them under `rows`, beside `returned` and `limit`
   rebuild     Re-extract derived columns from each item's own JSON
+  backup      Back the account up into a directory this makes: its facts with their history, its intent and the world's saved searches
+  restore     Put back from a backup each file the store lacks, naming each that stands
   help        Print this message or the help of the given subcommand(s)
 
 Options:
@@ -329,6 +331,44 @@ Usage: acq store rebuild [OPTIONS]
 
 Options:
   -h, --help               Print help
+```
+
+## `acq store backup`
+
+```text
+Back the account up into a directory this makes: its facts with their history, its intent and the world's saved searches.
+
+The backup is made with or without a daemon: its facts whole, with their history (when each item was first seen, its events, the items since removed), which no refresh fetches again; its intent (prices and the sync policy); and the world's saved searches. Each is a checked copy of its file, and a manifest counting what each holds is written last: a directory with no manifest is no backup. A directory that exists is refused. A backup holds no login and no job queue. `--json` is the document: `dir`, `made_at_age` and the `manifest` whole, a file the store held none of `null` in it.
+
+Usage: acq store backup [OPTIONS] <DIR>
+
+Arguments:
+  <DIR>
+          The directory to make; it must not exist
+
+Options:
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## `acq store restore`
+
+```text
+Put back from a backup each file the store lacks, naming each that stands.
+
+Everything is checked before anything is written: the manifest, that the backup is this account's, and each file, sound and holding what the manifest counts. A file the store holds stands, and is named, never overwritten: it stands while it or its `-wal` or `-shm` does, and is moved aside, all three, before it can be restored; run again, a restore puts back what is still lacking. Refused while a daemon runs on the store (`acq daemon stop` first). A store whose files are all gone: log in (`acq auth`), `acq daemon stop`, move aside the facts file the login made with its `-wal` and `-shm` (the answer names them), then restore. `--json` is the document: `restored`, `standing` with what to move aside, `absent` (what the backup holds none of) and the `manifest`.
+
+Usage: acq store restore [OPTIONS] <DIR>
+
+Arguments:
+  <DIR>
+          The backup's directory, as `store backup` made it
+
+Options:
+
+  -h, --help
+          Print help (see a summary with '-h')
 ```
 
 ## `acq stashes`

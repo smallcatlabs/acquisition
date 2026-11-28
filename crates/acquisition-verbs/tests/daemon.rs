@@ -18,6 +18,11 @@
 #[path = "../../acquisition-client/tests/harness/mod.rs"]
 mod harness;
 
+/// The seeded world (C122, the process tests share one harness), for the
+/// backup tests' worlds.
+#[path = "../../acquisition-client/tests/harness/seeded.rs"]
+mod seeded;
+
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -1391,6 +1396,347 @@ async fn c152_a_journal_an_earlier_daemon_logged_is_redacted_by_this_shells_knob
             !printed.contains(&spelling),
             "the diagnosis prints {spelling}, the directory this shell's ACQ_JOURNAL named \
              for an earlier daemon: {document:#}"
+        );
+    }
+}
+
+// ---- backup and restore (C201, C35, C193) ------------------------------------
+
+/// Backup and restore over the seeded world, with no daemon: the layer's
+/// documents read whole, and the world lock a daemon's start takes held
+/// against a restore. Each test writes its own world under a scratch root
+/// at a fixed clock, and builds its frontend by hand: no environment read.
+mod kept {
+    use std::path::{Path, PathBuf};
+
+    use acquisition_store::backup::sqlite_files;
+    use acquisition_store::corpus::{Membership, RealmScope};
+    use acquisition_store::{Annotations, Store, account_path};
+    use acquisition_verbs::backup::{self as kept, Held};
+    use acquisition_verbs::{Account, Door, Frontend};
+    use serde_json::{Value, json};
+
+    use super::seeded;
+
+    /// A scratch world's mock provider directory, `<root>/mock`; the root
+    /// goes when the test ends.
+    struct Scratch {
+        mock: PathBuf,
+        _root: tempfile::TempDir,
+    }
+
+    fn scratch() -> Scratch {
+        let root = tempfile::tempdir().unwrap();
+        let mock = root.path().join("mock");
+        std::fs::create_dir_all(&mock).unwrap();
+        Scratch { mock, _root: root }
+    }
+
+    /// A frontend over the world `dir` is the mock directory of, by hand.
+    fn frontend(dir: &Path) -> Frontend {
+        Frontend {
+            via: "test",
+            door: Door::Agent,
+            provider: "mock",
+            root: dir.parent().unwrap().to_path_buf(),
+            journal: acquisition_verbs::frontend::JournalKnob::Default,
+        }
+    }
+
+    /// The fixed clock every backup test writes and reads at.
+    const KEPT_AT: i64 = 1_800_000_000;
+
+    /// The seeded world written under a scratch root, and Alice's account
+    /// over it.
+    fn seeded_world(table: seeded::Seeded) -> (Scratch, Account) {
+        let s = scratch();
+        let root = s.mock.parent().unwrap().to_path_buf();
+        table.write(&root, KEPT_AT);
+        let account = frontend(&s.mock).account(Some(seeded::ALICE)).unwrap();
+        (s, account)
+    }
+
+    /// What the three files hold, as documents: every intent row, every saved
+    /// search, every item the facts hold (live and removed, with when each was
+    /// first seen and when it left) and every event, with no limit and no
+    /// window. `null` for a file that is not there.
+    fn held_now(mock: &Path) -> Value {
+        let facts = account_path(mock, seeded::ALICE);
+        let items = facts.exists().then(|| {
+            Store::open_read_only(&facts)
+                .unwrap()
+                .read_corpus_of(RealmScope::All, Membership::All, |_, items| {
+                    Ok(items
+                        .map(|i| {
+                            let i = i.unwrap();
+                            json!([
+                                i.id,
+                                i.realm,
+                                i.location_id,
+                                i.first_seen,
+                                i.last_seen,
+                                i.removed_at,
+                                i.body
+                            ])
+                        })
+                        .collect::<Vec<_>>())
+                })
+                .unwrap()
+        });
+        let events = facts.exists().then(|| {
+            serde_json::to_value(
+                Store::open_read_only(&facts)
+                    .unwrap()
+                    .events_since(i64::MIN, usize::MAX)
+                    .unwrap(),
+            )
+            .unwrap()
+        });
+        let intent = acquisition_store::annotations_path(mock, seeded::ALICE_UUID);
+        let intent = intent.exists().then(|| {
+            serde_json::to_value(
+                Annotations::open_read_only_for(mock, seeded::ALICE_UUID)
+                    .unwrap()
+                    .list(None, None)
+                    .unwrap(),
+            )
+            .unwrap()
+        });
+        let saved = acquisition_store::user_path(mock).exists().then(|| {
+            serde_json::to_value(
+                acquisition_store::User::open_read_only_for(mock)
+                    .unwrap()
+                    .list(None, None)
+                    .unwrap()
+                    .list,
+            )
+            .unwrap()
+        });
+        json!({ "items": items, "events": events, "intent": intent, "saved": saved })
+    }
+
+    /// The file at `path` with its `-wal` and `-shm`, removed.
+    fn remove_with_logs(path: &Path) {
+        for file in sqlite_files(path) {
+            let _ = std::fs::remove_file(file);
+        }
+    }
+
+    /// The three files a backup holds, in the store `mock`.
+    fn kept_files(mock: &Path) -> [PathBuf; 3] {
+        [
+            account_path(mock, seeded::ALICE),
+            acquisition_store::annotations_path(mock, seeded::ALICE_UUID),
+            acquisition_store::user_path(mock),
+        ]
+    }
+
+    /// C201 — the store-backup rehearsal: a seeded world backed up, its three
+    /// files removed with their logs, then restored, holds what it held, as
+    /// documents: the prices and the policy, the saved searches, every item
+    /// with its first-seen time and the items since removed, and every event.
+    #[test]
+    fn c201_a_backup_puts_back_the_facts_history_with_the_intent() {
+        let (s, alice) = seeded_world(seeded::Seeded::owner());
+        let before = held_now(&s.mock);
+        assert!(
+            before["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|i| !i[5].is_null()),
+            "the seeded world holds a removed item: {before}"
+        );
+        assert!(!before["events"].as_array().unwrap().is_empty(), "{before}");
+        let dir = s.mock.parent().unwrap().join("backup");
+        let made = kept::backup(&alice, &dir, KEPT_AT).unwrap();
+        let m = &made.manifest;
+        assert_eq!(m.format, kept::FORMAT);
+        assert_eq!(
+            (m.account.name.as_str(), m.account.uuid.as_str(), m.made_at),
+            (seeded::ALICE, seeded::ALICE_UUID, KEPT_AT)
+        );
+        let facts = m.facts.as_ref().unwrap();
+        let items = before["items"].as_array().unwrap();
+        let removed = items.iter().filter(|i| !i[5].is_null()).count() as i64;
+        assert_eq!(
+            (facts.items, facts.removed_items, facts.events),
+            (
+                items.len() as i64 - removed,
+                removed,
+                before["events"].as_array().unwrap().len() as i64
+            )
+        );
+        let intent = m.intent.as_ref().unwrap();
+        assert!(intent.policy && intent.prices > 0, "{intent:?}");
+        assert_eq!(m.saved.as_ref().unwrap().saved_searches, 1);
+        let on_disk: kept::Manifest =
+            serde_json::from_str(&std::fs::read_to_string(dir.join(kept::MANIFEST)).unwrap())
+                .unwrap();
+        assert_eq!(on_disk, made.manifest);
+
+        for file in kept_files(&s.mock) {
+            remove_with_logs(&file);
+        }
+        assert_eq!(
+            held_now(&s.mock),
+            json!({ "items": null, "events": null, "intent": null, "saved": null })
+        );
+        let restored = kept::restore(&alice, &dir, KEPT_AT + 60).unwrap();
+        assert_eq!(
+            restored.restored.iter().map(|p| p.file).collect::<Vec<_>>(),
+            [Held::Facts, Held::Intent, Held::Saved]
+        );
+        assert!(restored.standing.is_empty() && restored.absent.is_empty());
+        assert_eq!(restored.made_at_age, "60s ago");
+        assert_eq!(held_now(&s.mock), before);
+    }
+
+    /// A world with no intent and no saved search: the manifest says the store
+    /// had neither, and a restore makes neither file.
+    #[test]
+    fn a_file_the_store_lacks_is_none_in_the_backup_and_none_is_made() {
+        let (s, alice) = seeded_world(seeded::Seeded::owner().without_intent().without_saved());
+        let [facts, intent, user] = kept_files(&s.mock);
+        assert!(!intent.exists() && !user.exists());
+        let dir = s.mock.parent().unwrap().join("backup");
+        let made = kept::backup(&alice, &dir, KEPT_AT).unwrap();
+        assert!(made.manifest.facts.is_some());
+        assert_eq!(
+            (&made.manifest.intent, &made.manifest.saved),
+            (&None, &None)
+        );
+        let manifest: Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join(kept::MANIFEST)).unwrap())
+                .unwrap();
+        assert_eq!(
+            (&manifest["intent"], &manifest["saved"]),
+            (&Value::Null, &Value::Null)
+        );
+        remove_with_logs(&facts);
+        let restored = kept::restore(&alice, &dir, KEPT_AT).unwrap();
+        assert_eq!(restored.restored.len(), 1);
+        assert_eq!(restored.absent, [Held::Intent, Held::Saved]);
+        assert!(facts.exists() && !intent.exists() && !user.exists());
+    }
+
+    /// One file standing and two lacking: the two are put back, the one is
+    /// named with the three files to move aside, and it is left as it was.
+    #[test]
+    fn a_mixed_restore_puts_back_what_lacks_and_names_what_stands() {
+        let (s, alice) = seeded_world(seeded::Seeded::owner());
+        let dir = s.mock.parent().unwrap().join("backup");
+        kept::backup(&alice, &dir, KEPT_AT).unwrap();
+        let [facts, intent, user] = kept_files(&s.mock);
+        remove_with_logs(&facts);
+        remove_with_logs(&user);
+        let standing_before = std::fs::read(&intent).unwrap();
+        let restored = kept::restore(&alice, &dir, KEPT_AT).unwrap();
+        assert_eq!(
+            restored.restored.iter().map(|p| p.file).collect::<Vec<_>>(),
+            [Held::Facts, Held::Saved]
+        );
+        let [left] = restored.standing.as_slice() else {
+            panic!("one file stands: {:?}", restored.standing)
+        };
+        assert_eq!(left.file, Held::Intent);
+        assert_eq!(
+            left.move_aside,
+            sqlite_files(&intent).map(|p| p.display().to_string())
+        );
+        assert_eq!(std::fs::read(&intent).unwrap(), standing_before);
+    }
+
+    /// A lacking file beside a `-wal` or `-shm` left by the file moved aside
+    /// stands: a copy written there would take that log at its next open. So
+    /// it is named as standing, with all three files to move, and nothing is
+    /// written; the same for each of the three files.
+    #[test]
+    fn a_lacking_file_beside_its_own_log_stands_and_nothing_is_written() {
+        let (s, alice) = seeded_world(seeded::Seeded::owner());
+        let dir = s.mock.parent().unwrap().join("backup");
+        kept::backup(&alice, &dir, KEPT_AT).unwrap();
+        for (n, file) in kept_files(&s.mock).iter().enumerate() {
+            remove_with_logs(file);
+            let log = &sqlite_files(file)[1 + n % 2];
+            std::fs::write(log, b"").unwrap();
+        }
+        let restored = kept::restore(&alice, &dir, KEPT_AT).unwrap();
+        assert!(restored.restored.is_empty(), "{:?}", restored.restored);
+        assert_eq!(
+            restored.standing.iter().map(|l| l.file).collect::<Vec<_>>(),
+            [Held::Facts, Held::Intent, Held::Saved]
+        );
+        for (left, file) in restored.standing.iter().zip(kept_files(&s.mock)) {
+            assert_eq!(
+                left.move_aside,
+                sqlite_files(&file).map(|p| p.display().to_string())
+            );
+            assert_eq!(left.standing.len(), 1, "{left:?}");
+            assert!(!file.exists(), "{} was written", file.display());
+        }
+    }
+
+    /// Each refusal, with what it says and nothing written: a backup into a
+    /// directory that exists, a restore from one with no manifest, and a
+    /// restore of another account's backup.
+    #[test]
+    fn a_backup_refuses_a_directory_that_exists_and_a_restore_one_that_is_no_backup() {
+        let (s, alice) = seeded_world(seeded::Seeded::owner());
+        let root = s.mock.parent().unwrap().to_path_buf();
+        let kind = |e: &anyhow::Error| {
+            e.downcast_ref::<acquisition_verbs::refusal::Pointed>()
+                .unwrap()
+                .kind
+        };
+
+        let there = root.join("there");
+        std::fs::create_dir(&there).unwrap();
+        let e = kept::backup(&alice, &there, KEPT_AT).unwrap_err();
+        assert_eq!(kind(&e), "backup_exists");
+        assert!(
+            e.to_string().contains("name one that does not exist"),
+            "{e}"
+        );
+        assert_eq!(std::fs::read_dir(&there).unwrap().count(), 0);
+
+        let interrupted = root.join("interrupted");
+        kept::backup(&alice, &interrupted, KEPT_AT).unwrap();
+        std::fs::remove_file(interrupted.join(kept::MANIFEST)).unwrap();
+        let [facts, ..] = kept_files(&s.mock);
+        remove_with_logs(&facts);
+        let e = kept::restore(&alice, &interrupted, KEPT_AT).unwrap_err();
+        assert_eq!(kind(&e), "not_a_backup");
+        assert!(e.to_string().contains("interrupted"), "{e}");
+        assert!(!facts.exists());
+
+        let bob = frontend(&s.mock).account(Some(seeded::BOB)).unwrap();
+        let bobs = root.join("bobs");
+        kept::backup(&bob, &bobs, KEPT_AT).unwrap();
+        let e = kept::restore(&alice, &bobs, KEPT_AT).unwrap_err();
+        assert_eq!(kind(&e), "backup_of_another_account");
+        assert!(e.to_string().contains(seeded::BOB), "{e}");
+        assert!(!facts.exists());
+    }
+
+    /// C193 — a restore holds the world lock a daemon's start takes, so it
+    /// refuses while one is held, and writes nothing.
+    #[test]
+    fn c193_a_restore_under_a_held_world_lock_refuses_and_writes_nothing() {
+        let (s, alice) = seeded_world(seeded::Seeded::owner());
+        let dir = s.mock.parent().unwrap().join("backup");
+        kept::backup(&alice, &dir, KEPT_AT).unwrap();
+        let [facts, ..] = kept_files(&s.mock);
+        remove_with_logs(&facts);
+        let world = acquisition_store::world::World::observe_at(s.mock.parent().unwrap()).unwrap();
+        let held = acquisition_store::world::Lock::acquire(&world.lock_path()).unwrap();
+        let e = kept::restore(&alice, &dir, KEPT_AT).unwrap_err();
+        assert!(e.to_string().contains("stop the daemon"), "{e}");
+        assert!(!facts.exists());
+        drop(held);
+        assert_eq!(
+            kept::restore(&alice, &dir, KEPT_AT).unwrap().restored.len(),
+            1
         );
     }
 }

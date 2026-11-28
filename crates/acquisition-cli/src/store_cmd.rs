@@ -1095,6 +1095,186 @@ fn leagues_text_at(payload: &Value, now: i64) -> String {
     out
 }
 
+// ---- backup and restore -------------------------------------------------------
+
+/// `store backup`: the account backed up into `dir` (C201, C35), the
+/// document under `--json`, its words otherwise.
+pub fn backup(cx: &Ctx, dir: &std::path::Path, json: bool) -> Result<()> {
+    let account = cx.account()?;
+    let made = acquisition_verbs::backup::backup(&account, dir, acquisition_store::now())?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&made)?);
+    } else {
+        print!("{}", backup_text(&made));
+    }
+    Ok(())
+}
+
+/// `store restore`: what the backup at `dir` put back and what it left
+/// standing, the document under `--json`, its words otherwise.
+pub fn restore(cx: &Ctx, dir: &std::path::Path, json: bool) -> Result<()> {
+    let account = cx.account()?;
+    let restored = acquisition_verbs::backup::restore(&account, dir, acquisition_store::now())?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&restored)?);
+    } else {
+        print!("{}", restored_text(&restored));
+    }
+    Ok(())
+}
+
+/// One file of a backup in words, with what it holds, counted (C146).
+fn held_words(manifest: &acquisition_verbs::backup::Manifest, held: Held) -> String {
+    use acquisition_search::words::plural;
+    match held {
+        Held::Facts => match &manifest.facts {
+            Some(f) => format!(
+                "its facts ({} on record, {} since removed, {})",
+                plural(f.items as usize, "item", "items"),
+                f.removed_items,
+                plural(f.events as usize, "item event", "item events")
+            ),
+            None => "its facts".to_string(),
+        },
+        Held::Intent => match &manifest.intent {
+            Some(i) => format!(
+                "its intent ({}{}, {} in all)",
+                plural(i.prices, "price", "prices"),
+                if i.policy {
+                    " and its sync policy"
+                } else {
+                    ", no sync policy"
+                },
+                plural(i.rows, "row", "rows")
+            ),
+            None => "its intent".to_string(),
+        },
+        Held::Saved => match &manifest.saved {
+            Some(s) => format!("the world's saved searches ({})", s.saved_searches),
+            None => "the world's saved searches".to_string(),
+        },
+    }
+}
+
+use acquisition_verbs::backup::Held;
+
+/// The three files, in the manifest's order, with whether the backup
+/// holds each.
+fn held_in(manifest: &acquisition_verbs::backup::Manifest) -> [(Held, bool); 3] {
+    [
+        (Held::Facts, manifest.facts.is_some()),
+        (Held::Intent, manifest.intent.is_some()),
+        (Held::Saved, manifest.saved.is_some()),
+    ]
+}
+
+/// Words joined as a sentence lists them: `a`, `a and b`, `a, b and c`.
+fn listed(words: &[String]) -> String {
+    match words {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    }
+}
+
+/// The command that puts the backup at `dir` back, as `account`, quoted
+/// for the declared shell (C156).
+fn restore_line(dir: &str, account: &str) -> String {
+    crate::terminal::printed_line(
+        &[
+            ["acq", "store", "restore"].map(String::from).to_vec(),
+            vec![dir.to_string()],
+            crate::terminal::option_words("--account", account),
+        ]
+        .concat(),
+    )
+}
+
+/// `store backup`'s text, a function of its document (C53): what was
+/// kept, counted, what the store held none of, what no backup holds, and
+/// the command that puts it back.
+fn backup_text(made: &acquisition_verbs::backup::BackupMade) -> String {
+    let m = &made.manifest;
+    let kept: Vec<String> = held_in(m)
+        .into_iter()
+        .filter(|(_, held)| *held)
+        .map(|(file, _)| held_words(m, file))
+        .collect();
+    let none: Vec<String> = held_in(m)
+        .into_iter()
+        .filter(|(_, held)| !*held)
+        .map(|(file, _)| held_words(m, file))
+        .collect();
+    let mut out = match kept.is_empty() {
+        true => format!(
+            "backed up {} to {}: the store held none of its files, so the backup holds only its manifest\n",
+            m.account.name, made.dir
+        ),
+        false => format!(
+            "backed up {} to {}: {}\n",
+            m.account.name,
+            made.dir,
+            listed(&kept)
+        ),
+    };
+    if !kept.is_empty() && !none.is_empty() {
+        out.push_str(&format!(
+            "the store held none of {}, so the backup holds none\n",
+            listed(&none)
+        ));
+    }
+    out.push_str("a backup holds no login and no job queue\n");
+    out.push_str(&format!(
+        "it puts back what a store lacks: {}\n",
+        restore_line(&made.dir, &m.account.name)
+    ));
+    out
+}
+
+/// `store restore`'s text, a function of its document (C53): what was
+/// put back, counted, then each file left standing with the three files
+/// to move aside and the command to run again.
+fn restored_text(r: &acquisition_verbs::backup::Restored) -> String {
+    let m = &r.manifest;
+    let held = held_in(m).iter().filter(|(_, held)| *held).count();
+    let put: Vec<String> = r.restored.iter().map(|p| held_words(m, p.file)).collect();
+    let mut out = match put.is_empty() {
+        true => format!(
+            "put back none of {} from the backup of {} made {}\n",
+            acquisition_search::words::plural(held, "file", "files"),
+            m.account.name,
+            r.made_at_age
+        ),
+        false => format!(
+            "put back {} of {} from the backup of {} made {}: {}\n",
+            put.len(),
+            acquisition_search::words::plural(held, "file", "files"),
+            m.account.name,
+            r.made_at_age,
+            listed(&put)
+        ),
+    };
+    if r.standing.is_empty() {
+        out.push_str("nothing is left to restore\n");
+        return out;
+    }
+    out.push_str(&format!(
+        "left standing {}, the store's own: with no Acquisition process running, move each \
+         aside with its -wal and -shm, then run it again: {}\n",
+        r.standing.len(),
+        restore_line(&r.dir, &m.account.name)
+    ));
+    for left in &r.standing {
+        let what = match left.file {
+            Held::Facts => "its facts",
+            Held::Intent => "its intent",
+            Held::Saved => "the world's saved searches",
+        };
+        out.push_str(&format!("  {what}: {}\n", left.move_aside.join(", ")));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

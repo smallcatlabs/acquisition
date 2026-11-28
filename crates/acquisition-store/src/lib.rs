@@ -1124,6 +1124,7 @@ pub fn is_folder_type(tab_type: &str) -> bool {
 
 pub mod age;
 pub mod annotations;
+pub mod backup;
 pub mod bound;
 pub mod corpus;
 pub mod coverage;
@@ -1437,6 +1438,37 @@ impl Store {
 
     pub fn open_memory() -> Result<Store> {
         Self::init(Connection::open_in_memory()?, PathBuf::from(":memory:"))
+    }
+
+    /// The facts' backup (C201, the history in an account's facts is state
+    /// the tool keeps): a consistent snapshot of this file at `dest`,
+    /// written where nothing stands, through the store's one checked copy
+    /// (`backup::copy_checked`), as the intent files' export is. A
+    /// read-only handle takes it: `VACUUM INTO` reads, and the daemon may
+    /// be writing meanwhile. Fails if `dest`, or a `-wal` or `-shm` beside
+    /// it, already exists, before anything is written.
+    pub fn export(&self, dest: &Path) -> Result<()> {
+        Ok(backup::copy_checked(&self.conn, dest)?)
+    }
+
+    /// `PRAGMA quick_check` on this file: `None` where it passes, what it
+    /// found otherwise. A backup's facts file is checked before a restore
+    /// writes anything.
+    pub fn quick_check(&self) -> Result<Option<String>> {
+        Ok(backup::quick_check(&self.conn)?)
+    }
+
+    /// The uuids of the accounts whose profile this file records, in
+    /// order: a restore holds a backup's facts file to the account it is
+    /// restored for.
+    pub fn account_uuids(&self) -> Result<Vec<String>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT uuid FROM account ORDER BY uuid")?;
+        let uuids = stmt
+            .query_map([], |r| r.get(0))?
+            .collect::<rusqlite::Result<Vec<String>>>()?;
+        Ok(uuids)
     }
 
     /// The open on a connection whose busy policy the caller has set:
