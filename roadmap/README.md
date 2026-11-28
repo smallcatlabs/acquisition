@@ -13,9 +13,9 @@ better Acquisition that is agent-friendly and agent-forward.
 - **The series approved on 2026-11-27.** In a second lane, a
   throwaway desktop window the owner sits at
   (`briefs/desktop-spike.md`), then the desktop GUI's design brief
-  for him to rule. In the main tree, in order: PoE2 prepared on a
-  branch (`briefs/poe2-prep.md`), a backup verb (#329, #330), then
-  `NEXT.md`'s B3. Closed: `Step: next-a4-readme`.
+  for him to rule. In the main tree, in order: a backup verb (#329,
+  #330), then `NEXT.md`'s B3. Closed: `Step: next-a4-readme`,
+  `Step: poe2-prep`.
 - **The programme after the whole-project review**
   (`audits/whole-review-2026-11/NEXT.md`, run as
   `audits/meta-2026-11/README.md` amends it; its closes are
@@ -71,9 +71,10 @@ when its step closes or the owner strikes it.
    verb (#43) waits on. #281, the export's lost trade-id joins, waits
    on the next pin, and #318 (the forms table's missed plurals) is
    regenerated with it.
-6. PoE2 (milestone "PoE2 launch"): the route flip and the
-   first-contact checklist prepared unmerged; a first contact only if
-   GGG ships the stash endpoint.
+6. PoE2 (milestone "PoE2 launch"): the stash route waits on
+   `origin/prep/poe2-stash` with its first-contact checklist. The
+   contacts and the merge are the owner's, if GGG documents the
+   endpoints.
 
 Issues labelled `trigger:step` are taken by the next step in their
 area, and an issue the owner names is its own step whatever its
