@@ -152,42 +152,19 @@ pub(crate) fn set_words(set: &Set) -> Vec<String> {
             true => format!(" {text}"),
             false => text.clone(),
         }),
-        Some(SavedQuery::Trade(trade)) => words.extend(option_words("--trade", &trade_word(trade))),
+        Some(SavedQuery::Trade(trade)) => {
+            words.extend(option_words("--trade", &saved::trade_word(trade)))
+        }
         None => {}
     }
     words
-}
-
-/// A site search as one word: its URL or id, or its query JSON as text.
-pub(crate) fn trade_word(trade: &serde_json::Value) -> String {
-    match trade {
-        serde_json::Value::String(word) => word.clone(),
-        other => other.to_string(),
-    }
 }
 
 /// What a row asks, in a line's words: its text as this build reads it,
 /// and, for a site search, that it is one and how faithful the text is;
 /// or why this build cannot read it (C194, the text derived at the read).
 fn query_words(row: &saved::ReadRow) -> String {
-    query_said(&serde_json::to_value(row).unwrap_or_default())
-}
-
-/// [`query_words`] of a row as its JSON holds it: the one maker of a
-/// row's query in words, the terminal's and the saved pages'.
-pub(crate) fn query_said(row: &serde_json::Value) -> String {
-    let word = |key: &str| row.get(key).and_then(serde_json::Value::as_str);
-    match (word("text"), row.pointer("/query/trade")) {
-        (Some(text), None) => text.to_string(),
-        (Some(text), Some(_)) => format!(
-            "{text}  (from a site search: {})",
-            word("fidelity").unwrap_or_default()
-        ),
-        (None, _) => format!(
-            "this build cannot read its query: {}",
-            word("fault").unwrap_or_default()
-        ),
-    }
+    saved::query_said(&serde_json::to_value(row).unwrap_or_default())
 }
 
 // ---- text, a function of the JSON --------------------------------------------
@@ -270,7 +247,8 @@ fn show_text(row: &SavedRow, account: Option<&str>) -> String {
             scope = scope_words(row),
             text = query_words(row),
             site = match &row.query {
-                SavedQuery::Trade(trade) => format!("  site search: {}\n", trade_word(trade)),
+                SavedQuery::Trade(trade) =>
+                    format!("  site search: {}\n", saved::trade_word(trade)),
                 SavedQuery::Text(_) => String::new(),
             },
             revision = row.revision,

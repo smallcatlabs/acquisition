@@ -62,6 +62,7 @@ pub mod refresh;
 pub mod refusal;
 pub mod refused;
 pub mod saved;
+pub mod words;
 
 pub use characters::Characters;
 pub use daemon::{DaemonReport, PersistedSummary};

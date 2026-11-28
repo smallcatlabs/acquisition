@@ -8,6 +8,7 @@ use acquisition_store::Store;
 use acquisition_store::age::ago;
 use acquisition_verbs::AccountRow;
 use acquisition_verbs::events::LocationChanges;
+use acquisition_verbs::words::{realm_prefix, tabs_head};
 use anyhow::Result;
 use serde_json::{Value, json};
 
@@ -135,14 +136,6 @@ pub fn accounts(cx: &Ctx, expand: bool, json: bool) -> Result<()> {
     Ok(())
 }
 
-/// `xbox/` before a league in a message; nothing for pc, as on the wire.
-pub(crate) fn realm_prefix(realm: Realm) -> String {
-    match realm.segment() {
-        Some(seg) => format!("{seg}/"),
-        None => String::new(),
-    }
-}
-
 /// A league with no tab known, and what lists its tabs: what `tabs` says
 /// and the web UI's tabs page with it.
 /// No tabs on record for a league, and the two jobs that would list
@@ -165,40 +158,6 @@ pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store, account: &
         store.path().display(),
         job(&["acq", "stashes"]),
         job(&["acq", "refresh", "--all"])
-    )
-}
-
-/// `tabs`' first line: the league's counts, the answer first (C53). Its
-/// items are the tabs' alone and it says so, with `characters` the
-/// command that counts the rest where the surface prints one: a league's
-/// count elsewhere holds its characters' items too (C146, a count says
-/// what it counts).
-pub(crate) fn tabs_head(
-    counts: &acquisition_search::tabs::TabCounts,
-    realm: Realm,
-    league: &str,
-    characters: Option<&str>,
-) -> String {
-    let mut parts = vec![format!("{} fetched", counts.fetched)];
-    if counts.never_fetched > 0 {
-        parts.push(format!("{} never fetched", counts.never_fetched));
-    }
-    if counts.folders > 0 {
-        parts.push(format!(
-            "{} folder{} (never fetched)",
-            counts.folders,
-            if counts.folders == 1 { "" } else { "s" }
-        ));
-    }
-    format!(
-        "{} tabs in {}{league}: {}; {} items in tabs (characters apart{})",
-        counts.tabs,
-        realm_prefix(realm),
-        parts.join(", "),
-        counts.items,
-        characters
-            .map(|line| format!(": `{line}`"))
-            .unwrap_or_default()
     )
 }
 

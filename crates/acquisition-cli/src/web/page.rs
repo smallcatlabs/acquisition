@@ -413,7 +413,7 @@ fn saved_cells(row: &Value, open: Option<&str>) -> String {
             said(&row["scope"]["realm"]),
             said(&row["scope"]["membership"])
         )),
-        esc(&crate::saved_cmd::query_said(row)),
+        esc(&acquisition_verbs::saved::query_said(row)),
         esc(&format!(
             "{} via {}{actor}",
             said(&row["updated_at_age"]),
@@ -3934,7 +3934,7 @@ fn counts_line(view: &PlacesPage) -> String {
             }
             format!(
                 "{}; {}",
-                crate::store_cmd::tabs_head(counts, view.realm, view.league, None),
+                acquisition_verbs::words::tabs_head(counts, view.realm, view.league, None),
                 facts.trim_end()
             )
         }

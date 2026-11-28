@@ -32,8 +32,9 @@ use acquisition_protocol::realm::Realm;
 use anyhow::{Context, Result};
 
 use crate::run::Ctx;
-use crate::store_cmd::{clip, realm_prefix};
+use crate::store_cmd::clip;
 use acquisition_store::age::ago;
+use acquisition_verbs::words::realm_prefix;
 
 use acquisition_search::words::plural;
 

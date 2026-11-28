@@ -327,3 +327,22 @@ impl From<PutPolicyError> for Fault {
         Fault::Policy(e)
     }
 }
+
+/// The CLI's `failure_words` with a layer fault in `words`: a surface
+/// that spells some faults' remedies otherwise (the web's pages).
+pub fn failure_words_by(e: &anyhow::Error, words: impl Fn(&Fault) -> String) -> String {
+    let mut parts = Vec::new();
+    for link in e.chain() {
+        if let Some(fault) = link.downcast_ref::<Fault>() {
+            parts.push(words(fault));
+            return parts.join(": ");
+        }
+        // a daemon's refusal no verb wrapped (a login, the dashboard)
+        if let Some(refused) = link.downcast_ref::<DaemonError>() {
+            parts.push(words(&Fault::Daemon(refused.clone())));
+            return parts.join(": ");
+        }
+        parts.push(link.to_string());
+    }
+    format!("{e:#}")
+}

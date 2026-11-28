@@ -8,7 +8,6 @@
 
 use crate::printed::Printed as _;
 
-use acquisition_client::client::DaemonError;
 use acquisition_verbs::Fault;
 use serde_json::json;
 
@@ -157,26 +156,7 @@ fn account_way(kind: &str) -> &'static str {
 /// The failure's words: its chain as anyhow prints it, a layer fault in
 /// the CLI's words where the chain holds one.
 pub(crate) fn failure_words(e: &anyhow::Error) -> String {
-    failure_words_by(e, fault_words)
-}
-
-/// [`failure_words`] with a layer fault in `words`: a surface of this
-/// crate that spells some faults' remedies otherwise (the web's pages).
-pub(crate) fn failure_words_by(e: &anyhow::Error, words: impl Fn(&Fault) -> String) -> String {
-    let mut parts = Vec::new();
-    for link in e.chain() {
-        if let Some(fault) = link.downcast_ref::<Fault>() {
-            parts.push(words(fault));
-            return parts.join(": ");
-        }
-        // a daemon's refusal no verb wrapped (a login, the dashboard)
-        if let Some(refused) = link.downcast_ref::<DaemonError>() {
-            parts.push(words(&Fault::Daemon(refused.clone())));
-            return parts.join(": ");
-        }
-        parts.push(link.to_string());
-    }
-    format!("{e:#}")
+    acquisition_verbs::fault::failure_words_by(e, fault_words)
 }
 
 /// Under a text refusal whose JSON offers accounts — an account to pick

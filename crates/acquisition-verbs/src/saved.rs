@@ -1208,3 +1208,28 @@ fn refused(message: String) -> anyhow::Error {
     }
     .into()
 }
+
+/// A site search as one word: its URL or id, or its query JSON as text.
+pub fn trade_word(trade: &serde_json::Value) -> String {
+    match trade {
+        serde_json::Value::String(word) => word.clone(),
+        other => other.to_string(),
+    }
+}
+
+/// The CLI's `query_words` of a row as its JSON holds it: the one maker
+/// of a row's query in words, the terminal's and the saved pages'.
+pub fn query_said(row: &serde_json::Value) -> String {
+    let word = |key: &str| row.get(key).and_then(serde_json::Value::as_str);
+    match (word("text"), row.pointer("/query/trade")) {
+        (Some(text), None) => text.to_string(),
+        (Some(text), Some(_)) => format!(
+            "{text}  (from a site search: {})",
+            word("fidelity").unwrap_or_default()
+        ),
+        (None, _) => format!(
+            "this build cannot read its query: {}",
+            word("fault").unwrap_or_default()
+        ),
+    }
+}

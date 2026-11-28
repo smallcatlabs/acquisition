@@ -81,7 +81,6 @@ use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
 use crate::run::Ctx;
-use crate::store_cmd;
 
 use acquisition_search::words::plural;
 
@@ -250,7 +249,13 @@ fn league_note_lines(notes: &[LeagueNote], now: i64) -> String {
     let unread: Vec<String> = notes
         .iter()
         .filter(|n| n.list_fetched_at.is_none())
-        .map(|n| format!("{}{}", store_cmd::realm_prefix(n.realm), n.league))
+        .map(|n| {
+            format!(
+                "{}{}",
+                acquisition_verbs::words::realm_prefix(n.realm),
+                n.league
+            )
+        })
         .collect();
     if !unread.is_empty() {
         out.push_str(&format!(
@@ -263,7 +268,7 @@ fn league_note_lines(notes: &[LeagueNote], now: i64) -> String {
         if let Some(at) = note.list_fetched_at {
             out.push_str(&format!(
                 "note: {}{} is not among the leagues fetched {} (`acq leagues`)\n",
-                store_cmd::realm_prefix(note.realm),
+                acquisition_verbs::words::realm_prefix(note.realm),
                 note.league,
                 acquisition_store::age::ago(now, Some(at))
             ));
@@ -287,7 +292,7 @@ fn plan_note_lines(plan: &RefreshPlan, notes: &PlanNotes, now: i64) -> String {
             .unwrap_or_default();
         out.push_str(&format!(
             "characters: none in {}{} (the realm's character listing{listed})\n",
-            store_cmd::realm_prefix(plan.realm),
+            acquisition_verbs::words::realm_prefix(plan.realm),
             plan.league
         ));
     }
@@ -779,7 +784,7 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
         // measures from it
         let mut out = format!(
             "refresh {}{} on {} as {} — {}\n",
-            store_cmd::realm_prefix(plan.realm),
+            acquisition_verbs::words::realm_prefix(plan.realm),
             plan.league,
             plan.provider,
             account,
@@ -791,7 +796,7 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
     }
     let mut out = format!(
         "refresh plan: {}{} on {} as {} — {}\n",
-        store_cmd::realm_prefix(plan.realm),
+        acquisition_verbs::words::realm_prefix(plan.realm),
         plan.league,
         plan.provider,
         account,
@@ -1071,7 +1076,7 @@ fn nothing_to_do(plan: &RefreshPlan, now: i64) -> String {
     // the league the claim is about, as every line about its work names it
     let head = format!(
         "nothing to do in {}{}",
-        store_cmd::realm_prefix(plan.realm),
+        acquisition_verbs::words::realm_prefix(plan.realm),
         plan.league
     );
     let fresh_tabs = plan

@@ -503,7 +503,7 @@ use acquisition_store::SavedQuery;
 use acquisition_verbs::refusal::{Pointed, Way};
 use acquisition_verbs::saved::{self, SavedRow};
 
-use crate::saved_cmd::trade_word;
+use acquisition_verbs::saved::trade_word;
 use acquisition_verbs::{Account, Apply, Fault, Frontend, Jobs};
 
 use acquisition_search::words::plural;
@@ -1454,7 +1454,7 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
     /// does not cover among ten or fewer): the cause alone, its ways on the
     /// links beside it.
     fn words(&self, e: &anyhow::Error) -> String {
-        crate::terminal::failure_words_by(e, |fault| match fault {
+        acquisition_verbs::fault::failure_words_by(e, |fault| match fault {
             Fault::Replan { .. } => fault.to_string(),
             Fault::NotCovered { covered, .. }
                 if (1..=acquisition_store::bound::LISTED).contains(&covered.len()) =>
