@@ -1800,4 +1800,28 @@ mod kept {
             [Held::Intent, Held::Saved]
         );
     }
+
+    /// A format-1 manifest as this build writes it, committed: what a
+    /// backup made by this build holds, read by every later build. A
+    /// change to the manifest that such a backup cannot survive fails here,
+    /// and is a new format whose reader still reads format 1.
+    #[test]
+    fn a_format_1_manifest_this_build_wrote_still_reads() {
+        let text = include_str!("fixtures/backup/manifest-format-1.json");
+        let m: kept::Manifest = serde_json::from_str(text).unwrap();
+        assert_eq!(m.format, 1);
+        assert_eq!(
+            kept::FORMAT,
+            1,
+            "a new format still reads format 1: say how, then pin it here"
+        );
+        assert_eq!(
+            (
+                m.facts.unwrap().events,
+                m.intent.unwrap().rows,
+                m.saved.unwrap().saved_searches
+            ),
+            (15, 4, 1)
+        );
+    }
 }

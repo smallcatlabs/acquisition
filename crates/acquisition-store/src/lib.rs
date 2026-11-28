@@ -260,16 +260,16 @@ const FACT_SCHEMA_VERSION: i64 = 9;
 /// The oldest fact file this build opens: the released format,
 /// v1.0.0-alpha.1's. An older file was written by a development build and
 /// is refused, never migrated (C124); what the account holds now is
-/// fetched again, and the history the file held is not (C201).
+/// fetched again, and the history the file held is not, so the file moved
+/// aside is kept as its only copy (C201).
 const FACT_SCHEMA_FLOOR: i64 = 8;
 
 /// The remedy for a fact file below `FACT_SCHEMA_FLOOR`, one for both
 /// doors, so the read-only door and the writing door say the same.
 pub const FACTS_BELOW_FLOOR_REMEDY: &str = "a development build wrote it: with no Acquisition \
-     process running, move it and its -wal and -shm files aside, and the next refresh fetches \
-     what the account holds now, but not the history the file held (when each item was first \
-     seen, its events and the items since removed), which a backup of the account, restored, \
-     puts back as it stood when the backup was made";
+     process running, move it and its -wal and -shm files aside, and keep them: the next refresh \
+     fetches what the account holds now, but not the history the file held (when each item was \
+     first seen, its events and the items since removed), and the moved file is its only copy";
 
 /// The live items by where they sit (facts v9): every read of the live
 /// names `removed_at IS NULL`, and a store's removed items grow with its

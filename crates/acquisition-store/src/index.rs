@@ -178,7 +178,8 @@ const RESERVED_STEMS: [&str; 2] = ["user", "daemon"];
 /// build before [`account_path`]'s escape kept an account named `user`
 /// or `daemon` there. Nothing is moved: the opener refuses in one
 /// sentence naming the move that frees the file, what the next refresh
-/// fetches and the history it does not (C201). The case is a mock world's: a real username carries its
+/// fetches and the history it does not, which the moved file is the only
+/// copy of (C201). The case is a mock world's: a real username carries its
 /// discriminator, so a real account's file is never a world file's.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HoldsAccountFacts {
@@ -216,9 +217,10 @@ impl std::fmt::Display for HoldsAccountFacts {
         write!(
             f,
             "{} holds the facts of an account named {} from an earlier build: with no \
-             Acquisition process running, move it and its -wal and -shm files aside, and the \
-             next refresh fetches what the account holds now, but not the history the file held \
-             (when each item was first seen, its events and the items since removed)",
+             Acquisition process running, move it and its -wal and -shm files aside, and keep \
+             them: the next refresh fetches what the account holds now, but not the history the \
+             file held (when each item was first seen, its events and the items since removed), \
+             and the moved file is its only copy",
             self.file.display(),
             self.account
         )

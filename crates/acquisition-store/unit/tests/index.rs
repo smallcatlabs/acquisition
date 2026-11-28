@@ -406,6 +406,7 @@ fn a_world_file_holding_an_earlier_builds_account_facts_is_refused_naming_the_mo
             "move it and its -wal and -shm files aside",
             "the next refresh fetches what the account holds now",
             "but not the history the file held",
+            "the moved file is its only copy",
         ] {
             assert!(words.contains(fact), "{fact}: {words}");
         }

@@ -734,7 +734,8 @@ fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
         &["3 prices and its sync policy, 4 rows in all, 1 of them unreadable by this build"],
     );
     // a facts file a development build wrote, below the released format:
-    // no backup is made of it, and the refusal says what a move costs
+    // no backup is made of it, and the refusal says what a move costs and
+    // that the moved file is the history's only copy
     let bobs = account_path(&mock, BOB);
     rusqlite::Connection::open(&bobs)
         .unwrap()
@@ -747,28 +748,12 @@ fn backup_and_restore_say_what_they_kept_put_back_and_left_standing() {
             "move it and its -wal and -shm files aside",
             "the next refresh fetches what the account holds now",
             "but not the history the file held",
-            "a backup of the account, restored",
-            "acq store restore --account 'Bob#9' <backup>",
+            "the moved file is its only copy",
         ],
     );
     assert!(
         !base.join("below").exists(),
         "a failed backup left its directory"
-    );
-    // the same way on in the JSON, as the person's act it is
-    let refused = harness::offline_command(
-        &base,
-        &["--json", "--account", BOB, "store", "backup", "below"],
-    )
-    .current_dir(&base)
-    .output()
-    .expect("acq");
-    assert_eq!(refused.status.code(), Some(1), "{refused:?}");
-    let doc = sole_json(&refused);
-    assert_eq!(
-        doc["next"],
-        json!("acq store restore --account 'Bob#9' <backup>"),
-        "{doc}"
     );
     golden(file!(), "backup_and_restore", &t);
     // the restore line runs as printed: the facts now stand, the rest too

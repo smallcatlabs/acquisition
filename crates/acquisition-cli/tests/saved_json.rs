@@ -323,6 +323,7 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
             "move it and its -wal and -shm files aside",
             "the next refresh fetches what the account holds now",
             "but not the history the file held",
+            "the moved file is its only copy",
         ],
     );
     assert_eq!(out.status.code(), Some(1));

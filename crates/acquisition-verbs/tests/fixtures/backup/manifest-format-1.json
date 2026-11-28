@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "account": {
+    "name": "Alice#1234",
+    "uuid": "u-alice"
+  },
+  "made_at": 1800000000,
+  "build": {
+    "version": "1.0.0-alpha.1",
+    "contract": "6fb59a8241f4"
+  },
+  "facts": {
+    "file": "Alice_1234.db",
+    "items": 13,
+    "removed_items": 1,
+    "events": 15
+  },
+  "intent": {
+    "file": "u-alice.annotations.db",
+    "prices": 3,
+    "policy": true,
+    "rows": 4,
+    "unreadable": 0
+  },
+  "saved": {
+    "file": "user.db",
+    "saved_searches": 1,
+    "unreadable": 0
+  }
+}

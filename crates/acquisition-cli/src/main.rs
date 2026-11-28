@@ -38,7 +38,7 @@ use crate::cli::Cli;
 use crate::run::run;
 use crate::terminal::{
     AlreadyReported, Terminal, error_report, failure_words, pasted_shell_hint, ready_accounts,
-    ready_ways, refuse_usage, restore_next,
+    ready_ways, refuse_usage,
 };
 
 /// Remember that this command started the daemon it talks to (C3).
@@ -84,23 +84,14 @@ fn noting_the_spawn(e: anyhow::Error) -> anyhow::Error {
 async fn main() {
     let cli = Cli::try_parse().unwrap_or_else(|e| refuse_usage(e));
     let json = cli.json;
-    let account = cli.account.clone();
     if let Err(e) = run(cli).await.map_err(noting_the_spawn) {
         if e.downcast_ref::<AlreadyReported>().is_none() {
-            let restore = restore_next(&e, account.as_deref());
             if json {
-                let mut report = error_report(&e);
-                if let Some(line) = restore {
-                    report["next"] = serde_json::json!(line);
-                }
-                println!("{report}");
+                println!("{}", error_report(&e));
             } else {
                 eprintln!("Error: {}", failure_words(&e));
                 eprint!("{}", ready_accounts(&e, &Terminal::this_command()));
                 eprint!("{}", ready_ways(&e, &Terminal::this_command()));
-                if let Some(line) = restore {
-                    eprintln!("    a backup of the account, restored: {line}");
-                }
             }
         }
         if !json && let Some(hint) = pasted_shell_hint() {

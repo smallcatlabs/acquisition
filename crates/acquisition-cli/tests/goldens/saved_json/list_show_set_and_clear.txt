@@ -172,6 +172,7 @@ $ acq saved
 # holds "move it and its -wal and -shm files aside"
 # holds "the next refresh fetches what the account holds now"
 # holds "but not the history the file held"
+# holds "the moved file is its only copy"
 --- stderr
-Error: <scratch>/mock/user.db holds the facts of an account named user from an earlier build: with no Acquisition process running, move it and its -wal and -shm files aside, and the next refresh fetches what the account holds now, but not the history the file held (when each item was first seen, its events and the items since removed)
+Error: <scratch>/mock/user.db holds the facts of an account named user from an earlier build: with no Acquisition process running, move it and its -wal and -shm files aside, and keep them: the next refresh fetches what the account holds now, but not the history the file held (when each item was first seen, its events and the items since removed), and the moved file is its only copy
 --- exit 1
